@@ -3,6 +3,9 @@ using Hermes.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http.Json;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -11,6 +14,7 @@ namespace Hermes.Api.Tests;
 
 public sealed class FleetFixture : IAsyncLifetime
 {
+    public const string Password = "Test-only-long-passphrase-42";
     private PostgreSqlContainer? container;
     private string adminConnection = "";
     private readonly string suffix = Guid.NewGuid().ToString("N");
@@ -47,31 +51,51 @@ public sealed class FleetFixture : IAsyncLifetime
             """);
         await using (var db = CreateContext(MigrationConnection, new TenantContext()))
             await db.Database.MigrateAsync();
-        foreach (var tenantId in new[] { DevelopmentSeed.DunaId, DevelopmentSeed.PannonId })
+        foreach (var tenantId in new[] { TestFleetData.DunaId, TestFleetData.PannonId })
         {
             var context = new TenantContext();
             context.Set(tenantId, FleetRole.Owner);
             await using var db = CreateContext(MigrationConnection, context);
-            await DevelopmentSeed.ApplyAsync(db, context);
+            await TestFleetData.ApplyAsync(db, context);
         }
         Factory = CreateFactory();
+        await using var userScope = Factory.Services.CreateAsyncScope();
+        var users = userScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        foreach (var name in new[] { "anna", "bela" })
+        {
+            var result = await users.CreateAsync(new ApplicationUser { Id = $"test:{name}", UserName = $"{name}@example.test", Email = $"{name}@example.test", DisplayName = name == "anna" ? "Kovács Anna" : "Nagy Béla" }, Password);
+            if (!result.Succeeded) throw new InvalidOperationException("Could not create the test identity.");
+        }
     }
 
-    public WebApplicationFactory<Program> CreateFactory(string environment = "Development", bool developmentAuthentication = true)
+    public WebApplicationFactory<Program> CreateFactory(string environment = "Development")
         => new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment(environment)
             .UseSetting("ConnectionStrings:Database", ApplicationConnection)
-            .UseSetting("Authentication:EnableDevelopmentAuthentication", developmentAuthentication.ToString())
-            .UseSetting("Authentication:Authority", "https://identity.example.invalid")
-            .UseSetting("Authentication:Audience", "hermes"));
+            .UseSetting("Security:AccountPermitLimit", "500"));
 
-    public HttpClient Client(string? user = "anna", Guid? tenantId = null)
+    public async Task<HttpClient> ClientAsync(string? user = "anna", Guid? tenantId = null)
     {
-        var client = Factory.CreateClient();
-        if (user is not null) client.DefaultRequestHeaders.Add("X-Development-User", user);
+        var client = Factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
+        if (user is not null)
+        {
+            await RefreshCsrfAsync(client);
+            var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email = $"{user}@example.test", password = Password });
+            login.EnsureSuccessStatusCode();
+            await RefreshCsrfAsync(client);
+        }
         if (tenantId is not null) client.DefaultRequestHeaders.Add("X-Tenant-Id", tenantId.ToString());
         return client;
     }
+
+    public static async Task RefreshCsrfAsync(HttpClient client)
+    {
+        var csrf = await client.GetFromJsonAsync<CsrfResponse>("/api/v1/auth/csrf");
+        client.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
+        client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", csrf!.RequestToken);
+    }
+
+    private sealed record CsrfResponse(string RequestToken);
 
     public static HermesDbContext CreateContext(string connection, TenantContext context)
         => new(new DbContextOptionsBuilder<HermesDbContext>().UseNpgsql(connection).Options, context);

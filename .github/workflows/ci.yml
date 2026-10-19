@@ -39,11 +39,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 22
       - run: cp .env.example .env
       - run: docker compose up --build -d --wait --wait-timeout 180
       - run: |
           curl --fail --retry 20 --retry-all-errors --retry-delay 2 http://localhost:8080/health/ready
-          curl --fail -H 'X-Development-User: anna' http://localhost:8080/api/v1/tenants
+      - run: node scripts/smoke-auth.mjs
       - if: always()
         run: docker compose logs --no-color
       - if: always()

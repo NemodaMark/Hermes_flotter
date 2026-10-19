@@ -160,15 +160,6 @@ nav {
   color: #b6c2ca;
   margin: 0 12px;
 }
-.environment-badge {
-  border: 1px solid #ead7af;
-  background: #fff9eb;
-  color: #80531b;
-  border-radius: 4px;
-  font-size: 11px;
-  padding: 4px 9px;
-  white-space: nowrap;
-}
 .page-content {
   padding: 43px 42px;
   max-width: 1560px;
@@ -375,23 +366,6 @@ tbody tr:hover {
   padding: 14px 24px;
   font-size: 11px;
   color: var(--muted);
-}
-.development-session {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 22px;
-}
-.development-session select {
-  background: transparent;
-  border: 1px solid #d7dfe4;
-  border-radius: 3px;
-  padding: 6px;
-  font-size: 11px;
-  max-width: 100%;
 }
 .empty-state {
   padding: 63px 24px;
@@ -601,10 +575,6 @@ dialog input {
     font-size: 11px;
     gap: 6px;
   }
-  .environment-badge {
-    font-size: 9px;
-    padding: 4px 6px;
-  }
   .breadcrumb-separator {
     margin-inline: 5px;
   }
@@ -669,11 +639,6 @@ dialog input {
   .table-footer {
     padding-inline: 16px;
     font-size: 10px;
-  }
-  .development-session {
-    align-items: flex-end;
-    flex-direction: column;
-    gap: 7px;
   }
   dl > div {
     grid-template-columns: 1fr;

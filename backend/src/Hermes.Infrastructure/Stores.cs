@@ -6,6 +6,17 @@ namespace Hermes.Infrastructure;
 
 public sealed class TenantDirectory(HermesDbContext db) : ITenantDirectory
 {
+    public async Task<TenantSummary> CreateForUserAsync(string subject, CreateTenantRequest request, CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var tenant = new Tenant { Id = Guid.CreateVersion7(), Name = request.Name.Trim() };
+        db.Tenants.Add(tenant);
+        db.Memberships.Add(new TenantMembership { TenantId = tenant.Id, UserSubject = subject, Role = FleetRole.Owner });
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new TenantSummary(tenant.Id, tenant.Name, FleetRole.Owner.ToString());
+    }
+
     public async Task<IReadOnlyList<TenantSummary>> ListForUserAsync(string subject, CancellationToken cancellationToken)
         => await (from membership in db.Memberships.AsNoTracking()
                   join tenant in db.Tenants.AsNoTracking() on membership.TenantId equals tenant.Id

@@ -1,9 +1,10 @@
 using Hermes.Domain;
+using Hermes.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace Hermes.Infrastructure;
+namespace Hermes.Api.Tests;
 
-public static class DevelopmentSeed
+public static class TestFleetData
 {
     public static readonly Guid DunaId = Guid.Parse("10000000-0000-4000-8000-000000000001");
     public static readonly Guid PannonId = Guid.Parse("10000000-0000-4000-8000-000000000002");
@@ -16,9 +17,9 @@ public static class DevelopmentSeed
                 new Tenant { Id = DunaId, Name = "Duna Logisztika" },
                 new Tenant { Id = PannonId, Name = "Pannon Szerviz" });
             db.Memberships.AddRange(
-                new TenantMembership { TenantId = DunaId, UserSubject = "development:anna", Role = FleetRole.Owner },
-                new TenantMembership { TenantId = PannonId, UserSubject = "development:anna", Role = FleetRole.FleetManager },
-                new TenantMembership { TenantId = DunaId, UserSubject = "development:bela", Role = FleetRole.Viewer });
+                new TenantMembership { TenantId = DunaId, UserSubject = "test:anna", Role = FleetRole.Owner },
+                new TenantMembership { TenantId = PannonId, UserSubject = "test:anna", Role = FleetRole.FleetManager },
+                new TenantMembership { TenantId = DunaId, UserSubject = "test:bela", Role = FleetRole.Viewer });
             await db.SaveChangesAsync(cancellationToken);
         }
 

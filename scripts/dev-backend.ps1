@@ -1,11 +1,9 @@
 param(
     [switch]$Migrate,
-    [switch]$Seed,
     [int]$DatabasePort = 0
 )
 
 $ErrorActionPreference = 'Stop'
-if ($Seed -and -not $Migrate) { throw 'A -Seed kapcsolóhoz -Migrate is szükséges.' }
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $envPath = Join-Path $projectRoot '.env'
 if (-not (Test-Path -LiteralPath $envPath)) { throw 'Először másold a .env.example fájlt .env néven a projekt gyökerébe.' }
@@ -47,7 +45,7 @@ if ($Migrate) { $env:ConnectionStrings__Migrations = Get-ConnectionString 'herme
 Push-Location (Join-Path $projectRoot 'backend\src\Hermes.Api')
 try {
     $arguments = @('run', '--no-launch-profile')
-    if ($Migrate) { $arguments += @('--', '--migrate'); if ($Seed) { $arguments += '--seed' } }
+    if ($Migrate) { $arguments += @('--', '--migrate') }
     & $dotnetPath @arguments
     if ($LASTEXITCODE -ne 0) { throw 'A backend parancs hibával fejeződött be.' }
 } finally { Pop-Location }

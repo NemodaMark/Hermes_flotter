@@ -1,11 +1,13 @@
 using Hermes.Application;
 using Hermes.Domain;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hermes.Infrastructure;
 
 public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, ITenantContext tenantContext)
-    : DbContext(options)
+    : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<TenantMembership> Memberships => Set<TenantMembership>();
@@ -14,6 +16,20 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.ToTable("identity_users");
+            entity.Property(x => x.DisplayName).HasMaxLength(120);
+            entity.HasIndex(x => x.NormalizedEmail).HasDatabaseName("EmailIndex").IsUnique();
+        });
+        modelBuilder.Entity<IdentityRole>().ToTable("identity_roles");
+        modelBuilder.Entity<IdentityUserClaim<string>>().ToTable("identity_user_claims");
+        modelBuilder.Entity<IdentityUserLogin<string>>().ToTable("identity_user_logins");
+        modelBuilder.Entity<IdentityUserToken<string>>().ToTable("identity_user_tokens");
+        modelBuilder.Entity<IdentityUserRole<string>>().ToTable("identity_user_roles");
+        modelBuilder.Entity<IdentityRoleClaim<string>>().ToTable("identity_role_claims");
+
         modelBuilder.Entity<Tenant>(entity =>
         {
             entity.ToTable("tenants");

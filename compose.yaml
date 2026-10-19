@@ -22,7 +22,7 @@ services:
 
   migrate:
     build: ./backend
-    command: ["--migrate", "--seed"]
+    command: ["--migrate"]
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Migrations: "Host=db;Database=hermes;Username=hermes_migrator;Password=${POSTGRES_MIGRATOR_PASSWORD}"
@@ -37,6 +37,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__Database: "Host=db;Database=hermes;Username=hermes_app;Password=${POSTGRES_APP_PASSWORD}"
+      DataProtection__KeyPath: /app/keys
+    volumes:
+      - data-protection-keys:/app/keys
     ports:
       - "127.0.0.1:${API_PORT:-5080}:8080"
     depends_on:
@@ -44,10 +47,7 @@ services:
         condition: service_completed_successfully
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        VITE_ENABLE_DEVELOPMENT_AUTH: "true"
+    build: ./frontend
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
     depends_on:
@@ -56,3 +56,4 @@ services:
 
 volumes:
   postgres-data:
+  data-protection-keys:

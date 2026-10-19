@@ -2,14 +2,15 @@ using Hermes.Api;
 using Hermes.Application;
 using Hermes.Domain;
 using Hermes.Infrastructure;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 var migrationMode = args.Contains("--migrate", StringComparer.Ordinal);
-var seedMode = args.Contains("--seed", StringComparer.Ordinal);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
@@ -28,23 +29,52 @@ builder.Services.AddScoped<IVehicleStore, VehicleStore>();
 
 if (!migrationMode)
 {
-    var developmentAuthentication = builder.Configuration.GetValue<bool>("Authentication:EnableDevelopmentAuthentication");
-    if (developmentAuthentication && !builder.Environment.IsDevelopment())
-        throw new InvalidOperationException("Development authentication is only permitted in Development.");
-
-    if (developmentAuthentication)
-        builder.Services.AddAuthentication(DevelopmentAuthenticationHandler.SchemeName)
-            .AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(DevelopmentAuthenticationHandler.SchemeName, _ => { });
-    else
-        builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+    builder.Services.AddIdentityCore<ApplicationUser>(options =>
+    {
+        options.ClaimsIdentity.UserIdClaimType = "sub";
+        options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 12;
+        options.Password.RequireDigit = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireLowercase = false;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    }).AddEntityFrameworkStores<HermesDbContext>().AddSignInManager();
+    builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
+    builder.Services.ConfigureApplicationCookie(options =>
+    {
+        options.Cookie.Name = "Hermes.Session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+        options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
+        options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
+    });
+    var dataProtection = builder.Services.AddDataProtection().SetApplicationName("Hermes");
+    if (builder.Configuration["DataProtection:KeyPath"] is { Length: > 0 } keyPath)
+        dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyPath));
+    builder.Services.AddAntiforgery(options =>
+    {
+        options.HeaderName = "X-CSRF-TOKEN";
+        options.Cookie.Name = "Hermes.Antiforgery";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+    });
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = 429;
+        options.AddPolicy("accounts", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "local", _ => new FixedWindowRateLimiterOptions
         {
-            options.Authority = builder.Configuration["Authentication:Authority"];
-            options.Audience = builder.Configuration["Authentication:Audience"];
-            options.MapInboundClaims = false;
-            options.RequireHttpsMetadata = true;
-            if (string.IsNullOrWhiteSpace(options.Authority) || string.IsNullOrWhiteSpace(options.Audience))
-                throw new InvalidOperationException("Configure a trusted HTTPS JWT Authority and Audience.");
-        });
+            PermitLimit = builder.Configuration.GetValue("Security:AccountPermitLimit", 30),
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+    });
     builder.Services.AddAuthorization();
 }
 
@@ -52,20 +82,8 @@ var app = builder.Build();
 
 if (migrationMode)
 {
-    if (seedMode && !app.Environment.IsDevelopment())
-        throw new InvalidOperationException("Demo seeding is only permitted in Development.");
-
     await using (var scope = app.Services.CreateAsyncScope())
         await scope.ServiceProvider.GetRequiredService<HermesDbContext>().Database.MigrateAsync();
-
-    if (seedMode)
-        foreach (var tenantId in new[] { DevelopmentSeed.DunaId, DevelopmentSeed.PannonId })
-        {
-            await using var scope = app.Services.CreateAsyncScope();
-            var tenantContext = scope.ServiceProvider.GetRequiredService<TenantContext>();
-            tenantContext.Set(tenantId, FleetRole.Owner);
-            await DevelopmentSeed.ApplyAsync(scope.ServiceProvider.GetRequiredService<HermesDbContext>(), tenantContext);
-        }
     return;
 }
 
@@ -75,6 +93,9 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
+app.UseRateLimiter();
+app.UseMiddleware<CsrfProtectionMiddleware>();
+app.MapAccountEndpoints();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 app.MapGet("/health/ready", async (HermesDbContext db, CancellationToken cancellationToken) =>
@@ -94,6 +115,15 @@ api.MapGet("/tenants", async (HttpContext context, ITenantDirectory directory, C
 {
     var subject = context.User.FindFirst("sub")?.Value;
     return subject is null ? Results.Unauthorized() : Results.Ok(await directory.ListForUserAsync(subject, cancellationToken));
+});
+api.MapPost("/tenants", async (CreateTenantRequest request, HttpContext context, UserManager<ApplicationUser> users, ITenantDirectory directory, CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 160)
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Adj meg egy legfeljebb 160 karakteres cégnevet."] });
+    var user = await users.GetUserAsync(context.User);
+    if (user is null) return Results.Unauthorized();
+    var tenant = await directory.CreateForUserAsync(user.Id, request, cancellationToken);
+    return Results.Created("/api/v1/tenants", tenant);
 });
 
 var vehicles = api.MapGroup("/vehicles").WithMetadata(new TenantRequired());

@@ -9,6 +9,7 @@ public interface ITenantContext
 }
 
 public sealed record TenantSummary(Guid Id, string Name, string Role);
+public sealed record CreateTenantRequest(string Name);
 public sealed record VehicleSummary(Guid Id, string Registration, string Make, string Model, string Status);
 public sealed record CreateVehicleRequest(string Registration, string Make, string Model);
 
@@ -16,6 +17,7 @@ public interface ITenantDirectory
 {
     Task<IReadOnlyList<TenantSummary>> ListForUserAsync(string subject, CancellationToken cancellationToken);
     Task<TenantMembership?> FindMembershipAsync(string subject, Guid tenantId, CancellationToken cancellationToken);
+    Task<TenantSummary> CreateForUserAsync(string subject, CreateTenantRequest request, CancellationToken cancellationToken);
 }
 
 public interface IVehicleStore

@@ -9,14 +9,17 @@ import {
   ChevronDown,
   CircleHelp,
   LoaderCircle,
+  LogOut,
   Plus,
   RefreshCw,
   Search,
   X,
 } from 'lucide-react'
-import { api, ApiError, developmentAuthenticationEnabled, vehicleKey } from './api'
-import type { NewVehicle, Tenant, Vehicle } from './api'
+import { api, ApiError, resetCsrfToken, vehicleKey } from './api'
+import type { NewVehicle, Session, Tenant, Vehicle } from './api'
+import { AuthScreen, CompanyDialog, CompanyForm } from './AccountForms'
 import './App.css'
+import './accounts.css'
 
 const roles: Record<string, string> = {
   Owner: 'Cégtulajdonos',
@@ -155,25 +158,36 @@ function FleetTable({ vehicles }: { vehicles: Vehicle[] }) {
   )
 }
 
-export default function App() {
+function FleetWorkspace({
+  user,
+  onLogout,
+  loggingOut,
+  logoutError,
+}: {
+  user: Session
+  onLogout: () => void
+  loggingOut: boolean
+  logoutError: string | null
+}) {
   const queryClient = useQueryClient()
-  const [user, setUser] = useState('anna')
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [view, setView] = useState<'fleet' | 'organization'>('fleet')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [formOpen, setFormOpen] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [companyOpen, setCompanyOpen] = useState(false)
+  const [companyError, setCompanyError] = useState<string | null>(null)
   const tenants = useQuery({
-    queryKey: ['tenants', user],
-    queryFn: ({ signal }) => api.tenants(user, signal),
+    queryKey: ['tenants', user.id],
+    queryFn: ({ signal }) => api.tenants(signal),
     retry: false,
   })
   const tenant: Tenant | undefined =
     tenants.data?.find((item) => item.id === tenantId) ?? tenants.data?.[0]
   const vehicles = useQuery({
-    queryKey: vehicleKey(user, tenant?.id),
-    queryFn: ({ signal }) => api.vehicles(user, tenant!.id, signal),
+    queryKey: vehicleKey(user.id, tenant?.id),
+    queryFn: ({ signal }) => api.vehicles(tenant!.id, signal),
     enabled: !!tenant,
     retry: false,
   })
@@ -185,18 +199,28 @@ export default function App() {
   })
   const create = useMutation({
     mutationFn: ({
-      user: actor,
       tenantId: company,
       input,
     }: {
       user: string
       tenantId: string
       input: NewVehicle
-    }) => api.createVehicle(actor, company, input),
+    }) => api.createVehicle(company, input),
     onSuccess: async (_, variables) => {
       await queryClient.invalidateQueries({
         queryKey: vehicleKey(variables.user, variables.tenantId),
       })
+    },
+  })
+  const createCompany = useMutation({
+    mutationFn: (name: string) => api.createTenant(name),
+    onSuccess: async (company) => {
+      queryClient.setQueryData<Tenant[]>(['tenants', user.id], (previous) =>
+        [...(previous ?? []), company].sort((a, b) => a.name.localeCompare(b.name, 'hu')),
+      )
+      changeTenant(company.id)
+      setCompanyOpen(false)
+      await queryClient.invalidateQueries({ queryKey: ['tenants', user.id] })
     },
   })
   const allVehicles = vehicles.data ?? []
@@ -216,19 +240,19 @@ export default function App() {
     setFormOpen(false)
     setFormError(null)
   }
-  function changeUser(value: string) {
-    void queryClient.cancelQueries()
-    queryClient.clear()
-    setUser(value)
-    setTenantId(null)
-    setFormOpen(false)
-    setFormError(null)
+  async function saveCompany(name: string) {
+    setCompanyError(null)
+    try {
+      await createCompany.mutateAsync(name)
+    } catch (error) {
+      setCompanyError(error instanceof Error ? error.message : 'A cég nem hozható létre.')
+    }
   }
   async function saveVehicle(input: NewVehicle) {
     if (!tenant) return
     setFormError(null)
     try {
-      await create.mutateAsync({ user, tenantId: tenant.id, input })
+      await create.mutateAsync({ user: user.id, tenantId: tenant.id, input })
       setFormOpen(false)
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'A mentés nem sikerült.')
@@ -251,7 +275,9 @@ export default function App() {
             <select
               id="company"
               value={tenant?.id ?? ''}
-              disabled={!tenants.data?.length || create.isPending}
+              disabled={
+                !tenants.data?.length || create.isPending || createCompany.isPending || loggingOut
+              }
               onChange={(event) => changeTenant(event.target.value)}
             >
               {!tenant && <option value="">Cég kiválasztása</option>}
@@ -263,6 +289,19 @@ export default function App() {
             </select>
             <ChevronDown size={14} />
           </div>
+          {tenant && (
+            <button
+              className="new-company-button"
+              onClick={() => {
+                setCompanyError(null)
+                setCompanyOpen(true)
+              }}
+              disabled={create.isPending || loggingOut}
+            >
+              <Plus size={14} />
+              Új cég
+            </button>
+          )}
         </div>
         <nav aria-label="Fő navigáció">
           <button
@@ -294,13 +333,16 @@ export default function App() {
                 : 'Nincs kapcsolat'}
           </span>
           <div className="profile">
-            <span className="avatar">{user === 'anna' ? 'KA' : 'NB'}</span>
+            <span className="avatar">
+              {user.displayName
+                .split(/\s+/)
+                .map((part) => part[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase()}
+            </span>
             <span>
-              {developmentAuthenticationEnabled
-                ? user === 'anna'
-                  ? 'Kovács Anna'
-                  : 'Nagy Béla'
-                : 'Munkamenet'}
+              {user.displayName}
               <small>{tenant ? roles[tenant.role] : 'Nincs kiválasztott cég'}</small>
             </span>
           </div>
@@ -312,19 +354,33 @@ export default function App() {
             Munkaterület <span className="breadcrumb-separator">/</span>{' '}
             {view === 'fleet' ? 'Járművek' : 'Cégadatok'}
           </span>
-          {developmentAuthenticationEnabled && (
-            <span className="environment-badge">Fejlesztői környezet</span>
-          )}
+          <button
+            className="logout-button"
+            onClick={onLogout}
+            disabled={loggingOut || create.isPending || createCompany.isPending}
+          >
+            <LogOut size={16} />
+            {loggingOut ? 'Kilépés…' : 'Kijelentkezés'}
+          </button>
         </header>
         <div className="page-content">
+          {logoutError && (
+            <p className="notice error" role="alert">
+              {logoutError}
+            </p>
+          )}
           <div className="page-heading">
             <div>
               <p className="eyebrow">{tenant?.name ?? 'HERMES'}</p>
-              <h1>{view === 'fleet' ? 'Járműállomány' : 'Cégadatok'}</h1>
+              <h1>
+                {!tenant ? 'Saját munkaterület' : view === 'fleet' ? 'Járműállomány' : 'Cégadatok'}
+              </h1>
               <p className="page-description">
-                {view === 'fleet'
-                  ? 'A kiválasztott cég járművei, egy helyen.'
-                  : 'Az aktuális munkaterület és hozzáférésed.'}
+                {!tenant
+                  ? 'Hozd létre a cégedet a flottakezelés megkezdéséhez.'
+                  : view === 'fleet'
+                    ? 'A kiválasztott cég járművei, egy helyen.'
+                    : 'Az aktuális munkaterület és hozzáférésed.'}
               </p>
             </div>
             {view === 'fleet' && canCreate && (
@@ -357,11 +413,16 @@ export default function App() {
               <p>Munkaterületek betöltése…</p>
             </div>
           ) : !tenant ? (
-            <div className="empty-state">
+            <section className="onboarding-panel" aria-labelledby="onboarding-title">
               <Building2 size={30} />
-              <h2>Még nincs céges hozzáférésed</h2>
-              <p>A munkaterület használatához cégtagság szükséges.</p>
-            </div>
+              <h2 id="onboarding-title">Hozd létre az első cégedet</h2>
+              <p>Adj nevet a céges munkaterületnek, és elkezdheted felvenni a járműveket.</p>
+              <CompanyForm
+                onSave={(name) => void saveCompany(name)}
+                pending={createCompany.isPending}
+                error={companyError}
+              />
+            </section>
           ) : view === 'organization' ? (
             <section className="organization-panel" aria-label="Munkaterület adatai">
               <dl>
@@ -453,22 +514,16 @@ export default function App() {
               </div>
             </section>
           )}
-          {developmentAuthenticationEnabled && (
-            <div className="development-session">
-              <label htmlFor="development-user">Fejlesztői munkamenet</label>
-              <select
-                id="development-user"
-                value={user}
-                disabled={create.isPending}
-                onChange={(event) => changeUser(event.target.value)}
-              >
-                <option value="anna">Kovács Anna · kezelő</option>
-                <option value="bela">Nagy Béla · megtekintő</option>
-              </select>
-            </div>
-          )}
         </div>
       </main>
+      {companyOpen && (
+        <CompanyDialog
+          onClose={() => setCompanyOpen(false)}
+          onSave={(name) => void saveCompany(name)}
+          pending={createCompany.isPending}
+          error={companyError}
+        />
+      )}
       {formOpen && (
         <VehicleForm
           onClose={() => setFormOpen(false)}
@@ -478,5 +533,97 @@ export default function App() {
         />
       )}
     </div>
+  )
+}
+
+export default function App() {
+  const queryClient = useQueryClient()
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState<string | null>(null)
+  const session = useQuery({
+    queryKey: ['session'],
+    queryFn: ({ signal }) => api.session(signal),
+    retry: false,
+    staleTime: 0,
+    refetchInterval: 60_000,
+  })
+
+  useEffect(() => {
+    if (session.data === null) {
+      resetCsrfToken()
+      void queryClient.cancelQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+    }
+  }, [queryClient, session.data])
+
+  useEffect(
+    () =>
+      queryClient.getQueryCache().subscribe((event) => {
+        if (
+          event.type === 'updated' &&
+          event.query.queryKey[0] !== 'session' &&
+          event.query.state.error instanceof ApiError &&
+          event.query.state.error.status === 401
+        ) {
+          resetCsrfToken()
+          void queryClient.cancelQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+          queryClient.setQueryData(['session'], null)
+          queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+        }
+      }),
+    [queryClient],
+  )
+
+  async function changeSession(user: Session | null) {
+    resetCsrfToken()
+    await queryClient.cancelQueries()
+    queryClient.setQueryData(['session'], user)
+    queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+    setLogoutError(null)
+  }
+  async function logout() {
+    setLoggingOut(true)
+    setLogoutError(null)
+    try {
+      await api.logout()
+      await changeSession(null)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) await changeSession(null)
+      else setLogoutError(error instanceof Error ? error.message : 'A kijelentkezés nem sikerült.')
+    } finally {
+      setLoggingOut(false)
+    }
+  }
+  if (session.isPending)
+    return (
+      <main className="account-page">
+        <div className="empty-state">
+          <LoaderCircle className="spinning" size={28} />
+          <p>Munkamenet ellenőrzése…</p>
+        </div>
+      </main>
+    )
+  if (session.isError)
+    return (
+      <main className="account-page">
+        <section className="account-panel">
+          <h1>A szerver nem érhető el</h1>
+          <p className="account-description">{session.error.message}</p>
+          <button className="primary-button" onClick={() => void session.refetch()}>
+            Újrapróbálom
+          </button>
+        </section>
+      </main>
+    )
+  return session.data ? (
+    <FleetWorkspace
+      key={session.data.id}
+      user={session.data}
+      onLogout={() => void logout()}
+      loggingOut={loggingOut}
+      logoutError={logoutError}
+    />
+  ) : (
+    <AuthScreen onAuthenticated={changeSession} />
   )
 }

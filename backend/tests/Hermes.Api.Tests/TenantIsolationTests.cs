@@ -14,37 +14,37 @@ public sealed class TenantIsolationTests(FleetFixture fixture) : IClassFixture<F
     [Fact]
     public async Task Anonymous_requests_are_unauthorized()
     {
-        using var client = fixture.Client(null);
+        using var client = await fixture.ClientAsync(null);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/tenants")).StatusCode);
     }
 
     [Fact]
     public async Task Tenant_header_cannot_grant_membership()
     {
-        using var client = fixture.Client("bela", DevelopmentSeed.PannonId);
+        using var client = await fixture.ClientAsync("bela", TestFleetData.PannonId);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/v1/vehicles")).StatusCode);
     }
 
     [Fact]
     public async Task Missing_tenant_is_rejected()
     {
-        using var client = fixture.Client();
+        using var client = await fixture.ClientAsync();
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/v1/vehicles")).StatusCode);
     }
 
     [Fact]
     public async Task Users_only_see_their_own_memberships()
     {
-        using var client = fixture.Client("bela");
+        using var client = await fixture.ClientAsync("bela");
         var memberships = await client.GetFromJsonAsync<TenantSummary[]>("/api/v1/tenants");
-        Assert.Equal(DevelopmentSeed.DunaId, Assert.Single(memberships!).Id);
+        Assert.Equal(TestFleetData.DunaId, Assert.Single(memberships!).Id);
     }
 
     [Fact]
     public async Task Switching_tenants_does_not_reuse_the_previous_tenant_filter()
     {
-        using var duna = fixture.Client("anna", DevelopmentSeed.DunaId);
-        using var pannon = fixture.Client("anna", DevelopmentSeed.PannonId);
+        using var duna = await fixture.ClientAsync("anna", TestFleetData.DunaId);
+        using var pannon = await fixture.ClientAsync("anna", TestFleetData.PannonId);
         var first = await duna.GetFromJsonAsync<VehicleSummary[]>("/api/v1/vehicles");
         var second = await pannon.GetFromJsonAsync<VehicleSummary[]>("/api/v1/vehicles");
         Assert.Contains(first!, vehicle => vehicle.Registration == "HER-204");
@@ -56,8 +56,8 @@ public sealed class TenantIsolationTests(FleetFixture fixture) : IClassFixture<F
     [Fact]
     public async Task Vehicle_ids_cannot_be_used_to_read_another_companys_vehicle()
     {
-        using var duna = fixture.Client("anna", DevelopmentSeed.DunaId);
-        using var pannon = fixture.Client("anna", DevelopmentSeed.PannonId);
+        using var duna = await fixture.ClientAsync("anna", TestFleetData.DunaId);
+        using var pannon = await fixture.ClientAsync("anna", TestFleetData.PannonId);
         var list = await duna.GetFromJsonAsync<VehicleSummary[]>("/api/v1/vehicles");
         var vehicle = list!.First();
         Assert.Equal(HttpStatusCode.OK, (await duna.GetAsync($"/api/v1/vehicles/{vehicle.Id}")).StatusCode);
@@ -67,7 +67,7 @@ public sealed class TenantIsolationTests(FleetFixture fixture) : IClassFixture<F
     [Fact]
     public async Task Viewer_cannot_create_a_vehicle()
     {
-        using var client = fixture.Client("bela", DevelopmentSeed.DunaId);
+        using var client = await fixture.ClientAsync("bela", TestFleetData.DunaId);
         var response = await client.PostAsJsonAsync("/api/v1/vehicles", new CreateVehicleRequest("READ-001", "Ford", "Focus"));
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -75,8 +75,8 @@ public sealed class TenantIsolationTests(FleetFixture fixture) : IClassFixture<F
     [Fact]
     public async Task Registrations_are_unique_within_each_tenant()
     {
-        using var duna = fixture.Client("anna", DevelopmentSeed.DunaId);
-        using var pannon = fixture.Client("anna", DevelopmentSeed.PannonId);
+        using var duna = await fixture.ClientAsync("anna", TestFleetData.DunaId);
+        using var pannon = await fixture.ClientAsync("anna", TestFleetData.PannonId);
         var request = new CreateVehicleRequest("test-123", "Ford", "Focus");
         Assert.Equal(HttpStatusCode.Created, (await duna.PostAsJsonAsync("/api/v1/vehicles", request)).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await duna.PostAsJsonAsync("/api/v1/vehicles", request)).StatusCode);
@@ -86,7 +86,7 @@ public sealed class TenantIsolationTests(FleetFixture fixture) : IClassFixture<F
     [Fact]
     public async Task Empty_vehicle_fields_are_rejected()
     {
-        using var client = fixture.Client("anna", DevelopmentSeed.DunaId);
+        using var client = await fixture.ClientAsync("anna", TestFleetData.DunaId);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/vehicles", new CreateVehicleRequest(" ", "Ford", "Focus"))).StatusCode);
     }
 
@@ -101,19 +101,19 @@ public sealed class TenantIsolationTests(FleetFixture fixture) : IClassFixture<F
         await using var transaction = await connection.BeginTransactionAsync();
         await using (var scope = new NpgsqlCommand("SELECT set_config('app.tenant_id', @tenant, true)", connection, transaction))
         {
-            scope.Parameters.AddWithValue("tenant", DevelopmentSeed.DunaId.ToString());
+            scope.Parameters.AddWithValue("tenant", TestFleetData.DunaId.ToString());
             await scope.ExecuteNonQueryAsync();
         }
         await using (var scoped = new NpgsqlCommand("SELECT count(*) FROM vehicles WHERE \"TenantId\" = @other", connection, transaction))
         {
-            scoped.Parameters.AddWithValue("other", DevelopmentSeed.PannonId);
+            scoped.Parameters.AddWithValue("other", TestFleetData.PannonId);
             Assert.Equal(0L, await scoped.ExecuteScalarAsync());
         }
         await using var insert = new NpgsqlCommand("""
             INSERT INTO vehicles ("TenantId", "Id", "Registration", "Make", "Model", "Status", "CreatedAt")
             VALUES (@other, @id, 'BAD-001', 'Ford', 'Focus', 'Active', now())
             """, connection, transaction);
-        insert.Parameters.AddWithValue("other", DevelopmentSeed.PannonId);
+        insert.Parameters.AddWithValue("other", TestFleetData.PannonId);
         insert.Parameters.AddWithValue("id", Guid.NewGuid());
         var exception = await Assert.ThrowsAsync<PostgresException>(() => insert.ExecuteNonQueryAsync());
         Assert.Equal(PostgresErrorCodes.InsufficientPrivilege, exception.SqlState);
@@ -123,25 +123,19 @@ public sealed class TenantIsolationTests(FleetFixture fixture) : IClassFixture<F
     public async Task Ef_writes_require_a_matching_tenant_even_with_explicit_save_options()
     {
         var context = new TenantContext();
-        context.Set(DevelopmentSeed.DunaId, FleetRole.Owner);
+        context.Set(TestFleetData.DunaId, FleetRole.Owner);
         await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, context);
-        db.Vehicles.Add(new Vehicle { TenantId = DevelopmentSeed.PannonId, Registration = "BAD-002", Make = "Ford", Model = "Focus" });
+        db.Vehicles.Add(new Vehicle { TenantId = TestFleetData.PannonId, Registration = "BAD-002", Make = "Ford", Model = "Focus" });
         await Assert.ThrowsAsync<InvalidOperationException>(() => db.SaveChangesAsync(true));
     }
 
     [Fact]
     public async Task Production_does_not_accept_development_identity_headers()
     {
-        await using var factory = fixture.CreateFactory("Production", false);
+        await using var factory = fixture.CreateFactory("Production");
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Development-User", "anna");
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/tenants")).StatusCode);
     }
 
-    [Fact]
-    public void Development_authentication_cannot_be_enabled_in_production()
-    {
-        using var factory = fixture.CreateFactory("Production", true);
-        Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
-    }
 }
