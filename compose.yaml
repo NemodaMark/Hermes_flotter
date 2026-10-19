@@ -1,0 +1,58 @@
+name: hermes
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: hermes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Copy .env.example to .env}
+      HERMES_MIGRATOR_PASSWORD: ${POSTGRES_MIGRATOR_PASSWORD:?Set the migration password}
+      HERMES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set the application password}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hermes"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  migrate:
+    build: ./backend
+    command: ["--migrate", "--seed"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Migrations: "Host=db;Database=hermes;Username=hermes_migrator;Password=${POSTGRES_MIGRATOR_PASSWORD}"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: ./backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__Database: "Host=db;Database=hermes;Username=hermes_app;Password=${POSTGRES_APP_PASSWORD}"
+    ports:
+      - "127.0.0.1:${API_PORT:-5080}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_ENABLE_DEVELOPMENT_AUTH: "true"
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  postgres-data:
