@@ -1,5 +1,9 @@
 # Projektutasítások
 
+## Fejlesztési prioritás
+
+A felhasználó kérése alapján a backend működése az elsődleges. A következő fejlesztéseknél az üzleti szabályokra, az API-ra, az adatbázisra, a többcéges jogosultságokra és ezek tesztelésére összpontosíts. A frontend egyelőre a működés kipróbálását szolgálja; a látvány finomítása külön kérésre kerüljön előtérbe.
+
 ## Git-munkarend
 
 A felhasználó állandó kérése: minden befejezett, fájlmódosítással járó feladat végén commitold és pushold a változtatásokat a GitHubra, külön megerősítés nélkül.
