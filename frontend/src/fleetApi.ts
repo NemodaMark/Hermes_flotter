@@ -93,4 +93,4 @@ export const ownerships = { Unknown: 'Nincs megadva', Owned: 'Saját', Leased: '
 export const frequencies = { Monthly: 'Havi', Quarterly: 'Negyedéves', Annual: 'Éves', Upfront: 'Egyszeri' }
 export const leaseStatuses = { Active: 'Aktív', Closed: 'Lezárt', Cancelled: 'Visszavont' }
 export const dateText = (value: string | null) => value ? new Date(`${value}T12:00:00`).toLocaleDateString('hu-HU') : '–'
-export const moneyText = (value: number | null, currency: string) => value === null ? '–' : new Intl.NumberFormat('hu-HU', { style: 'currency', currency }).format(value)
+export const moneyText = (value: number | null, currency: string) => value === null ? '–' : new Intl.NumberFormat('hu-HU', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)

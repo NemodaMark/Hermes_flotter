@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import { PartnerForm, PartnersPage } from './PartnersPage'
 import { VehicleDataForm, VehiclePage } from './VehiclePage'
 import { LeaseDialog, ServiceDialog } from './VehicleContracts'
-import { fleetApi } from './fleetApi'
+import { fleetApi, moneyText } from './fleetApi'
 import type { Lease, VehicleRecord } from './fleetApi'
 
 const record: VehicleRecord = {
@@ -24,6 +24,10 @@ beforeEach(() => {
   vi.restoreAllMocks()
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
+})
+it('keeps the saved cents visible in leasing and service amounts', () => {
+  expect(moneyText(250000.50, 'HUF')).toContain(',50')
+  expect(moneyText(47000.25, 'EUR')).toContain(',25')
 })
 it('uses the actual vehicle permissions for financial tabs, editing and archival', async () => {
   vi.spyOn(fleetApi, 'vehicle').mockResolvedValue(record)

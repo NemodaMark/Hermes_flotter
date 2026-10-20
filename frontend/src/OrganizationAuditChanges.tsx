@@ -1,3 +1,6 @@
+import { categories, fuels, transmissions, ownerships, frequencies, leaseStatuses, vehicleStatuses } from './fleetApi'
+
+const enumLabels: Record<string, string> = { ...categories, ...fuels, ...transmissions, ...ownerships, ...frequencies, ...leaseStatuses, ...vehicleStatuses, Suspended: 'Felfüggesztett' }
 const labels: Record<string, string> = {
   name: 'Név',
   legalname: 'Hivatalos cégnév',
@@ -61,13 +64,7 @@ function display(value: unknown, key: string) {
   if (value === null || value === undefined || value === '') return '–'
   if (typeof value === 'boolean') return value ? 'Igen' : 'Nem'
   if (Array.isArray(value)) return value.map(x => x && typeof x === 'object' ? Object.entries(x).filter(([, v]) => v).map(([k, v]) => `${labels[k.toLowerCase()] ?? k}: ${v}`).join('; ') : String(x)).join(' | ') || '–'
-  if (['Active', 'Suspended', 'Archived'].includes(String(value)))
-    return (
-      { Active: 'Aktív', Suspended: 'Felfüggesztett', Archived: 'Archivált' } as Record<
-        string,
-        string
-      >
-    )[String(value)]
+  if (['category', 'fueltype', 'transmission', 'ownership', 'billingfrequency', 'status'].includes(key.split('.').at(-1)!) && enumLabels[String(value)]) return enumLabels[String(value)]
   if (key.endsWith('at') && typeof value === 'string' && !Number.isNaN(Date.parse(value)))
     return new Date(value).toLocaleString('hu-HU')
   return String(value)
