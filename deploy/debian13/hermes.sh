@@ -99,7 +99,8 @@ wait_db() {
 restore_database() {
     local command=$1 dump=$2
     # This helper is called only for a fresh directory/project, never for the live database.
-    # shellcheck disable=SC2016 -- Expand the password inside the database container.
+    # Expand the password inside the database container.
+    # shellcheck disable=SC2016
     "$command" exec -T db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" exec pg_restore -U postgres -d hermes --clean --if-exists --exit-on-error --single-transaction' < "$dump"
 }
 validate_database() {
@@ -159,7 +160,8 @@ backup() {
     [[ -z $temporary_dir ]] && workdir
     local package="$temporary_dir/package"
     mkdir "$package"
-    # shellcheck disable=SC2016 -- Expand the password inside the database container.
+    # Expand the password inside the database container.
+    # shellcheck disable=SC2016
     dc exec -T db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" exec pg_dump -U postgres -d hermes --format=custom' > "$package/database.dump"
     dc exec -T db pg_restore --list < "$package/database.dump" > /dev/null
     # Include binaries, not just moving image tags: recovery works without rebuilding old code.
@@ -177,7 +179,7 @@ backup() {
     docker image save "${images[@]}" -o "$package/images.tar"
     tar -C "$HERMES_DATA_DIR" -cf "$package/keys-and-tls.tar" keys caddy-data caddy-config
     cp "$HERMES_DATA_DIR/release/source.tar" "$package/source.tar"
-    cp "${HERMES_CADDYFILE:-$HERMES_ROOT/deploy/debian13/Caddyfile}" "$package/Caddyfile"
+    docker cp "$(dc ps -q proxy):/etc/caddy/Caddyfile" "$package/Caddyfile"
     python3 - "$package/manifest.json" "$HERMES_RELEASE" <<'PY'
 import datetime, json, sys
 with open(sys.argv[1], 'w') as out:
