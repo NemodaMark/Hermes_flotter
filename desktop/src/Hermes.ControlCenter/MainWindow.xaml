@@ -1,0 +1,72 @@
+<Window x:Class="Hermes.ControlCenter.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="HERMES · Rendszervezérlő" Width="1320" Height="930" MinWidth="1050" MinHeight="760" WindowStartupLocation="CenterScreen"
+        Background="#F0F4F7" Foreground="#193746" FontFamily="Segoe UI" FontSize="13">
+  <Grid Margin="24,20">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <DockPanel Margin="0,0,0,18">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button Content="Alkalmazás megnyitása" Click="OpenFrontend"/>
+        <Button Content="Beállítások" Click="OpenSettings"/>
+        <Button Content="Naplómappa" Click="OpenLogs" Margin="0"/>
+      </StackPanel>
+      <StackPanel><TextBlock Text="HERMES" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="Helyi rendszervezérlő" Foreground="#627987" Margin="0,3,0,0"/></StackPanel>
+    </DockPanel>
+    <Border Grid.Row="1" Background="White" BorderBrush="#D9E2E8" BorderThickness="1" Padding="16" Margin="0,0,0,16">
+      <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel Margin="0,0,18,0"><TextBlock Text="HELYI FORRÁS" Foreground="#627987" FontSize="11"/><TextBlock x:Name="LocalVersion" Text="Git-állapot betöltése…" FontWeight="SemiBold" FontSize="17" Margin="0,5,0,5"/><TextBlock x:Name="LocalSubject" TextTrimming="CharacterEllipsis"/><TextBlock x:Name="RootLabel" Foreground="#627987" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,6,0,0"/></StackPanel>
+        <StackPanel Grid.Column="1" Margin="0,0,18,0"><TextBlock Text="GITHUB · KÖVETETT ÁG" Foreground="#627987" FontSize="11"/><TextBlock x:Name="RemoteVersion" Text="Ellenőrzés folyamatban…" FontWeight="SemiBold" FontSize="17" Margin="0,5,0,5"/><TextBlock x:Name="RemoteSubject" TextTrimming="CharacterEllipsis"/><TextBlock x:Name="GitFreshness" Foreground="#627987" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/></StackPanel>
+        <StackPanel Grid.Column="2" Width="230"><Button x:Name="GitButton" Content="GitHub ellenőrzése" Click="CheckGit" Margin="0,0,0,8"/><TextBlock x:Name="Comparison" Text="A fetch nem módosítja a projektfájlokat." TextWrapping="Wrap" Foreground="#456473"/></StackPanel>
+      </Grid>
+    </Border>
+    <DockPanel Grid.Row="2" Margin="0,0,0,10">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" x:Name="ActionButtons">
+        <Button Content="Állapot frissítése" Click="RefreshClicked"/>
+        <Button Content="Teljes rendszer újraindítása" Click="RestartAll" Background="#176860" Foreground="White" BorderBrush="#176860" Margin="0"/>
+      </StackPanel><TextBlock Text="Szolgáltatások" FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center"/>
+    </DockPanel>
+    <Border Grid.Row="3" Background="White" BorderBrush="#D9E2E8" BorderThickness="1" Margin="0,0,0,16">
+      <ItemsControl x:Name="ServiceList">
+        <ItemsControl.ItemTemplate><DataTemplate>
+          <Grid Margin="15,13">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="145"/><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="130"/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
+            <StackPanel><TextBlock Text="{Binding Data.Name}" FontSize="16" FontWeight="SemiBold"/><TextBlock Text="{Binding Data.Address}" Foreground="#627987" FontSize="11" Margin="0,5,0,0"/></StackPanel>
+            <StackPanel Grid.Column="1"><TextBlock Text="{Binding Data.State}" Foreground="{Binding Data.Color}" FontWeight="SemiBold"/><TextBlock Text="{Binding Data.Pids}" Foreground="#627987" FontSize="11" Margin="0,5,0,0"/></StackPanel>
+            <StackPanel Grid.Column="2" Margin="0,0,14,0"><TextBlock Text="{Binding Data.Detail}" TextWrapping="Wrap"/><TextBlock Text="{Binding Data.Version}" Foreground="#627987" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0"/></StackPanel>
+            <StackPanel Grid.Column="3"><TextBlock Text="{Binding Data.Latency}"/><TextBlock Text="{Binding Data.Resources}" Foreground="#627987" FontSize="11" Margin="0,5,0,0"/></StackPanel>
+            <Button Grid.Column="4" Content="Újraindítás" Tag="{Binding Data.Kind}" Click="RestartService" IsEnabled="{Binding Data.CanRestart}" Margin="8,0,0,0" VerticalAlignment="Center" AutomationProperties.Name="{Binding Data.RestartLabel}"/>
+          </Grid>
+        </DataTemplate></ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Border>
+    <TabControl Grid.Row="4" BorderBrush="#D9E2E8" Background="White">
+      <TabItem Header="Futó folyamatok">
+        <DataGrid x:Name="ProcessGrid" Margin="8" SelectionUnit="FullRow">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Szolgáltatás" Binding="{Binding Data.Service}" Width="145"/>
+            <DataGridTextColumn Header="Folyamat" Binding="{Binding Data.Name}" Width="185"/>
+            <DataGridTextColumn Header="PID" Binding="{Binding Data.Id}" Width="75"/>
+            <DataGridTextColumn Header="Szülő PID" Binding="{Binding Data.ParentId}" Width="85"/>
+            <DataGridTextColumn Header="Memória" Binding="{Binding Data.Memory}" Width="105"/>
+            <DataGridTextColumn Header="CPU" Binding="{Binding Data.Cpu}" Width="85"/>
+            <DataGridTextColumn Header="Futási idő" Binding="{Binding Data.Uptime}" Width="100"/>
+            <DataGridTextColumn Header="Futtatható fájl" Binding="{Binding Data.Executable}" Width="*"/>
+          </DataGrid.Columns>
+        </DataGrid>
+      </TabItem>
+      <TabItem Header="Események">
+        <TextBox x:Name="EventsText" IsReadOnly="True" FontFamily="Consolas" FontSize="12" BorderThickness="0" Padding="12" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
+      </TabItem>
+      <TabItem Header="Szolgáltatásnapló">
+        <DockPanel Margin="12"><ComboBox x:Name="LogSelector" DockPanel.Dock="Top" SelectedIndex="0" SelectionChanged="LogSelectionChanged" Margin="0,0,0,10" Padding="6"><ComboBoxItem Content="Backend"/><ComboBoxItem Content="Frontend"/><ComboBoxItem Content="Database"/></ComboBox>
+          <TextBox x:Name="ServiceLog" IsReadOnly="True" FontFamily="Consolas" FontSize="12" BorderThickness="0" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
+        </DockPanel>
+      </TabItem>
+    </TabControl>
+    <StackPanel Grid.Row="5" Margin="0,12,0,0">
+      <ProgressBar x:Name="OperationProgress" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,7"/>
+      <TextBlock x:Name="OperationStatus" Text="Állapotok betöltése…" TextWrapping="Wrap"/>
+      <TextBlock x:Name="LastChecked" Foreground="#627987" FontSize="11" Margin="0,5,0,0" TextWrapping="Wrap"/>
+    </StackPanel>
+  </Grid>
+</Window>

@@ -9,6 +9,25 @@ permissions:
   contents: read
 
 jobs:
+  control-center-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test desktop/tests/Hermes.ControlCenter.Tests/Hermes.ControlCenter.Tests.csproj -c Release
+
+  control-center-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test desktop/tests/Hermes.ControlCenter.Tests/Hermes.ControlCenter.Tests.csproj -c Release
+      - run: dotnet publish desktop/src/Hermes.ControlCenter/Hermes.ControlCenter.csproj -c Release -r win-x64 --self-contained true -o .local/control-center-ci
+
   frontend:
     runs-on: ubuntu-latest
     steps:

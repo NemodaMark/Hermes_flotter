@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/Hermes.ControlCenter.Core/Hermes.ControlCenter.Core.csproj" />
+  <Project Path="src/Hermes.ControlCenter/Hermes.ControlCenter.csproj" />
+  <Project Path="tests/Hermes.ControlCenter.Tests/Hermes.ControlCenter.Tests.csproj" />
+</Solution>

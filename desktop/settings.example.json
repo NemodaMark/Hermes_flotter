@@ -1,0 +1,11 @@
+{
+  "BackendPort": 5080,
+  "FrontendPort": 5173,
+  "DatabasePort": 5432,
+  "PostgresBin": "C:\\Program Files\\PostgreSQL\\18\\bin",
+  "PostgresData": "C:\\Program Files\\PostgreSQL\\18\\data",
+  "DotnetPath": "dotnet",
+  "NodePath": "node",
+  "GitPath": "git",
+  "PowerShellPath": "powershell.exe"
+}

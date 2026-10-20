@@ -14,6 +14,19 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
     private sealed record UserResponse(string Id, string DisplayName, string Email);
     private static string NewEmail() => $"user-{Guid.NewGuid():N}@example.test";
 
+    [Fact]
+    public async Task Health_version_identifies_the_actual_running_build_without_secrets()
+    {
+        using var client = await fixture.ClientAsync(null);
+        var response = await client.GetFromJsonAsync<JsonElement>("/health/version");
+        Assert.Equal("Hermes.Api", response.GetProperty("service").GetString());
+        Assert.Equal(Environment.ProcessId, response.GetProperty("processId").GetInt32());
+        Assert.True(response.GetProperty("startedAt").GetDateTimeOffset() <= DateTimeOffset.UtcNow);
+        Assert.False(string.IsNullOrWhiteSpace(response.GetProperty("version").GetString()));
+        Assert.False(response.TryGetProperty("connectionString", out _));
+        Assert.DoesNotContain(FleetFixture.Password, response.ToString());
+    }
+
     private async Task<(HttpClient Client, UserResponse User)> RegisterAsync(string? email = null)
     {
         var client = await fixture.ClientAsync(null);

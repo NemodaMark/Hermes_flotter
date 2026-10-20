@@ -48,6 +48,12 @@ A PostgreSQL-jelszavak csak az üres kötet első inicializálásakor jönnek l�
 
 ## Helyi frontend- és backendfejlesztés
 
+A szolgáltatások állapota, folyamatai és verziói a külön **[Windows rendszervezérlőben](desktop/README.md)** is láthatók, ahonnan egyenként vagy együtt újraindíthatók:
+
+```powershell
+./scripts/start-control-center.ps1 -CreateShortcut
+```
+
 Előfeltételek: Node.js 22.20 vagy újabb támogatott verzió, .NET 10 SDK és elérhető PostgreSQL 18.
 
 ```powershell
@@ -122,6 +128,7 @@ Frissítéskor a korábbi cég- és járműadatok megmaradnak. A régi fejleszt�
 | Céges jármű lekérése | `GET /api/v1/vehicles/{id}` |
 | Járműfelvétel Owner / FleetManager szerepkörrel | `POST /api/v1/vehicles` |
 | Folyamat állapota / adatbázis és migrációk | `GET /health/live`, `GET /health/ready` |
+| A ténylegesen futó backend buildje | `GET /health/version` |
 
 A regisztráció törzse `displayName`, `email`, `password`; a belépésé `email`, `password`; a céglétrehozásé `name`. A járműfelvétel törzse `registration`, `make`, `model`.
 

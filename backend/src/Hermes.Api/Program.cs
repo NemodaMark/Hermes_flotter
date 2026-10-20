@@ -98,6 +98,8 @@ app.UseMiddleware<CsrfProtectionMiddleware>();
 app.MapAccountEndpoints();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+// Build metadata contains no account, tenant or database credentials.
+app.MapGet("/health/version", () => Results.Ok(RuntimeBuild.Describe(app.Environment.EnvironmentName))).AllowAnonymous();
 app.MapGet("/health/ready", async (HermesDbContext db, CancellationToken cancellationToken) =>
 {
     try

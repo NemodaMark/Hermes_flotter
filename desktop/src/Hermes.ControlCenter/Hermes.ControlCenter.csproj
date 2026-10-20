@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyMetadataIncludeRuntime>false</AssemblyMetadataIncludeRuntime>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Hermes.ControlCenter.Core/Hermes.ControlCenter.Core.csproj" />
+  </ItemGroup>
+</Project>
