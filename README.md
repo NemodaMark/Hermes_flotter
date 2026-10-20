@@ -225,7 +225,9 @@ A központi napló profilváltozás, jelszócsere/elrendelés, globális jogmód
 | Globális jog kiosztása/visszavonása (`system.manage`) | `PUT /api/v1/system/users/{id}/system-access` |
 | Központi módosítási napló (`system.manage`) | `GET /api/v1/system/audit-events` |
 
-A globális listák `page` paraméterrel, 25 elem/oldal mérettel lapozhatók. A felhasználólista legfeljebb 100 karakteres `search` paramétert fogad: név, e-mail, pontos ID. Profilszerkesztés: `{ displayName, email, phoneNumber, version }`; jelszócsere-elrendelés: `{ version }`; globális jog: `{ enabled, version }`; saját jelszócsere: `{ currentPassword, newPassword, confirmPassword }`. A módosítások CSRF-védettek, a jelszóműveletek sebességkorlátozottak.
+A globális listák `page` paraméterrel, 25 elem/oldal mérettel lapozhatók. A felhasználólista legfeljebb 100 karakteres `search` paramétert fogad: név, e-mail, felhasználónév részlete. Szűrők: `role=all|admin|member` és `access=all|with|none`. Az adminszűrő a rendszerszintű kezelőket és az aktív céges adminokat is tartalmazza; a hozzáférés a felfüggesztést és a csoportból származó jogokat is figyelembe veszi. A válasz `isAdministrator` és `companyAccess` mezői megmutatják a jogkört és az érintett cégeket. A Felhasználók oldalon rendszerszintű kezelőként az Összes felhasználó fül az alapértelmezett, céges tagság nélküli fiókokkal együtt; cégkezelő továbbra is csak a saját céges tagjait láthatja.
+
+Profilszerkesztés: `{ displayName, email, phoneNumber, version }`; jelszócsere-elrendelés: `{ version }`; globális jog: `{ enabled, version }`; saját jelszócsere: `{ currentPassword, newPassword, confirmPassword }`. A módosítások CSRF-védettek, a jelszóműveletek sebességkorlátozottak.
 
 ### Céges és fiókvégpontok
 
@@ -290,10 +292,17 @@ A backendtesztek Testcontainers segítségével indítanak PostgreSQL 18-at. Doc
 Az elindított teljes alkalmazás gyors ellenőrzése:
 
 ```powershell
+$env:HERMES_SMOKE_ISOLATED = 'true'
 node scripts/smoke-auth.mjs
 ```
 
-Alapértelmezett címe http://localhost:8080; másik címhez állítsd be a `HERMES_BASE_URL` változót. A script saját, véletlen hitelesítő adatokkal két tesztfiókot és két céget hoz létre, ezért fejlesztői vagy CI-környezeten futtasd. Ellenőrzi a meghívást, a közvetlen jogokat, az azonnali visszavonást és az eseménynaplót is. A tesztjelszavakat és a meghívótokeneket nem írja ki.
+Alapértelmezett címe http://localhost:8080; másik címhez állítsd be a `HERMES_BASE_URL` változót. A script saját, véletlen hitelesítő adatokkal két tesztfiókot és két céget hoz létre, ezért kizárólag elkülönített, eldobható adatbázison futtasd. A `HERMES_SMOKE_ISOLATED=true` beállítás ezt kifejezetten jelzi; a kapcsoló önmagában nem hoz létre tesztadatbázist. A normál helyi `hermes` adatbázison ne futtasd. A CI külön PostgreSQL-konténert használ. Ellenőrzi a meghívást, a közvetlen jogokat, az azonnali visszavonást és az eseménynaplót is. A tesztjelszavakat és a meghívótokeneket nem írja ki.
+
+### Kifejezett helyi adminbeállítás és tesztadat-archiválás
+
+Az API nem hoz létre automatikus alapértelmezett fiókot. A `--configure-development-admin <manifest.json>` egyszeri üzemeltetői parancs kizárólag `Development` környezetben, helyi adatbázissal futtatható, a migrációs kapcsolattal. A jelszót a `HERMES_DEVELOPMENT_ADMIN_PASSWORD` környezeti változóból veszi; a manifest például `{ "archiveUserIds": [], "archiveTenantIds": [], "retireSubjects": [] }`. Előtte készíts `pg_dump` mentést, és állítsd le az API-t. A manifestbe csak előzetesen ellenőrzött tesztfiókok és tesztcégek pontos azonosítóit írd.
+
+A parancs létrehozza/frissíti az `admin` fiókot, kizárólag nála hagyja meg a `system.manage` jogot és az automatikusan bővülő admincsoportot, minden megmaradó céghez hozzáférést ad neki. Más valódi fiókok közvetlen jogait és üzleti adatait megőrzi. A kijelölt tesztfiókokat tartósan letiltja, a tesztcégeket archiválja: eltűnnek az aktív listákból, az ismert cégazonosító sem ad hozzáférést. A fiókok, cégek és megváltoztathatatlan naplók történeti rekordjai megmaradnak. A korábbi adminok és archivált fiókok munkameneteit érvényteleníti, minden érintett cégnél és a központi naplóban rögzíti a változást. A fejlesztői fiókkal éles környezetben sem belépni, sem korábban kiadott munkamenetet használni nem lehet. A szokásos regisztráció és jelszócsere legalább 12 karakteres követelménye változatlan.
 
 Új migráció a `backend` mappából:
 

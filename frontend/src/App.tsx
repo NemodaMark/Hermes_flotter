@@ -255,15 +255,17 @@ function FleetWorkspace({
   )
   const canCreate = tenant?.permissions.includes('vehicles.create') ?? false
   const canManageMembers =
-    tenant?.permissions.some((code) =>
-      [
-        'members.read',
-        'members.invite',
-        'members.update',
-        'permissions.manage',
-        'permission-groups.manage',
-      ].includes(code),
-    ) ?? false
+    (canManageSystem ||
+      tenant?.permissions.some((code) =>
+        [
+          'members.read',
+          'members.invite',
+          'members.update',
+          'permissions.manage',
+          'permission-groups.manage',
+        ].includes(code),
+      )) ??
+    false
   const viewTitle =
     view === 'fleet'
       ? 'Járművek'
@@ -453,7 +455,9 @@ function FleetWorkspace({
                     : view === 'fleet'
                       ? 'A kiválasztott cég járművei, egy helyen.'
                       : view === 'members'
-                        ? 'Céges tagok, meghívások és hozzáférések.'
+                        ? canManageSystem
+                          ? 'Összes felhasználó, céges hozzáférések és meghívások.'
+                          : 'Céges tagok, meghívások és hozzáférések.'
                         : 'Az aktuális munkaterület és hozzáférésed.'}
               </p>
             </div>
@@ -476,6 +480,8 @@ function FleetWorkspace({
             ) : (
               <p className="notice">Nincs rendszerszintű kezelési jogod.</p>
             )
+          ) : view === 'members' && canManageSystem && !tenant ? (
+            <SystemPage user={user} usersOnly />
           ) : tenants.isError ? (
             <div className="notice error" role="alert">
               <CircleHelp size={22} />

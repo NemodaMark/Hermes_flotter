@@ -15,6 +15,14 @@ export type UserProfile = {
   passwordChangeRequestedAt: string | null
   passwordChangedAt: string | null
   systemPermissions: string[]
+  isAdministrator?: boolean
+  companyAccess?: {
+    id: string
+    name: string
+    hasAccess: boolean
+    isAdmin: boolean
+    isSuspended: boolean
+  }[]
 }
 export type EditUserProfile = Pick<UserProfile, 'displayName' | 'email' | 'phoneNumber' | 'version'>
 export type SystemAudit = {
@@ -265,11 +273,18 @@ export const api = {
       newPassword,
       confirmPassword,
     }),
-  systemUsers: (page: number, search: string, signal?: AbortSignal) =>
-    request<Page<UserProfile>>(
-      `/api/v1/system/users?${new URLSearchParams({ page: String(page), search })}`,
-      { signal },
-    ),
+  systemUsers: (
+    page: number,
+    search: string,
+    signal?: AbortSignal,
+    role = 'all',
+    access = 'all',
+  ) => {
+    const query = new URLSearchParams({ page: String(page), search })
+    if (role !== 'all') query.set('role', role)
+    if (access !== 'all') query.set('access', access)
+    return request<Page<UserProfile>>(`/api/v1/system/users?${query}`, { signal })
+  },
   userProfile: (id: string, signal?: AbortSignal) =>
     request<UserProfile>(`/api/v1/system/users/${encodeURIComponent(id)}`, {
       signal,

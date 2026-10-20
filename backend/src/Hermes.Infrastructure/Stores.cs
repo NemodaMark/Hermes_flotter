@@ -58,8 +58,8 @@ public sealed class TenantDirectory(HermesDbContext db, TenantContext context) :
 
     public async Task<TenantMembership?> FindMembershipAsync(string subject, Guid tenantId, CancellationToken cancellationToken)
     {
-        if (await UserAccounts.IsSystemManager(db, subject, cancellationToken)
-            && await db.Tenants.AnyAsync(x => x.Id == tenantId, cancellationToken)) return SystemMembership(subject, tenantId);
+        if (!await db.Tenants.AnyAsync(x => x.Id == tenantId, cancellationToken)) return null;
+        if (await UserAccounts.IsSystemManager(db, subject, cancellationToken)) return SystemMembership(subject, tenantId);
         var member = await TenantTransaction.RunAsync(db, tenantId, () => db.Memberships.AsNoTracking().WithAccess()
             .IgnoreQueryFilters().SingleOrDefaultAsync(x => x.UserSubject == subject && x.TenantId == tenantId && x.IsActive, cancellationToken), cancellationToken);
         return member?.HasCompanyAccess == true ? member : null;

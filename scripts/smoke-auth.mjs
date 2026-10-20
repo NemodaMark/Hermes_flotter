@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
 
+if (process.env.HERMES_SMOKE_ISOLATED !== 'true') throw new Error('Run the smoke test against an isolated disposable database; set HERMES_SMOKE_ISOLATED=true only for that environment.')
+
 const baseUrl = process.env.HERMES_BASE_URL ?? 'http://localhost:8080'
 function createClient() {
   const cookies = new Map()

@@ -66,6 +66,8 @@ jobs:
       - run: |
           curl --fail --retry 20 --retry-all-errors --retry-delay 2 http://localhost:8080/health/ready
       - run: node scripts/smoke-auth.mjs
+        env:
+          HERMES_SMOKE_ISOLATED: "true"
       - if: always()
         run: docker compose logs --no-color
       - if: always()

@@ -6,17 +6,19 @@ import { UserProfileDialog } from './UserProfileDialog'
 import './members.css'
 import { PermissionGroups, GroupAssignmentDialog } from './PermissionGroups'
 
-export function SystemPage({ user }: { user: Session }) {
+export function SystemPage({ user, usersOnly = false }: { user: Session; usersOnly?: boolean }) {
   const [tab, setTab] = useState<'users' | 'audit' | 'company-groups'>('users')
   const [page, setPage] = useState(1)
+  const [roleFilter, setRoleFilter] = useState('all')
+  const [accessFilter, setAccessFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [draft, setDraft] = useState('')
   const client = useQueryClient()
   const [groupUserId, setGroupUserId] = useState<string | null>(null)
   const [profileId, setProfileId] = useState<string | null>(null)
   const users = useQuery({
-    queryKey: ['system-users', user.id, page, search],
-    queryFn: ({ signal }) => api.systemUsers(page, search, signal),
+    queryKey: ['system-users', user.id, page, search, roleFilter, accessFilter],
+    queryFn: ({ signal }) => api.systemUsers(page, search, signal, roleFilter, accessFilter),
     enabled: tab === 'users',
     retry: false,
   })
@@ -30,29 +32,39 @@ export function SystemPage({ user }: { user: Session }) {
   return (
     <section className="access-panel" aria-label="Rendszerszintű kezelés">
       <div className="access-toolbar">
-        <div className="access-tabs">
-          <button
-            aria-pressed={tab === 'users'}
-            onClick={() => {
-              setTab('users')
-              setPage(1)
-            }}
-          >
-            Összes felhasználó
-          </button>
-          <button
-            aria-pressed={tab === 'audit'}
-            onClick={() => {
-              setTab('audit')
-              setPage(1)
-            }}
-          >
-            Módosítási napló
-          </button>
-          <button aria-pressed={tab === 'company-groups'} onClick={() => setTab('company-groups')}>
-            Jogosultságcsoportok
-          </button>
-        </div>
+        {!usersOnly && (
+          <div className="access-tabs">
+            <button
+              aria-pressed={tab === 'users'}
+              onClick={() => {
+                setTab('users')
+                setPage(1)
+              }}
+            >
+              Összes felhasználó
+            </button>
+            <button
+              aria-pressed={tab === 'audit'}
+              onClick={() => {
+                setTab('audit')
+                setPage(1)
+              }}
+            >
+              Módosítási napló
+            </button>
+            <button
+              aria-pressed={tab === 'company-groups'}
+              onClick={() => setTab('company-groups')}
+            >
+              Jogosultságcsoportok
+            </button>
+          </div>
+        )}
+        {usersOnly && (
+          <p className="access-description">
+            Minden regisztrált fiók, a kiválasztott cégtől függetlenül.
+          </p>
+        )}
         <button
           className="text-button"
           onClick={() =>
@@ -66,7 +78,7 @@ export function SystemPage({ user }: { user: Session }) {
       </div>
       {tab === 'users' && (
         <form
-          className="access-search"
+          className="access-search system-user-search"
           onSubmit={(event) => {
             event.preventDefault()
             setSearch(draft.trim())
@@ -81,6 +93,36 @@ export function SystemPage({ user }: { user: Session }) {
             maxLength={100}
             onChange={(event) => setDraft(event.target.value)}
           />
+          <label>
+            Jogkör
+            <select
+              aria-label="Szűrés jogkör szerint"
+              value={roleFilter}
+              onChange={(e) => {
+                setRoleFilter(e.target.value)
+                setPage(1)
+              }}
+            >
+              <option value="all">Minden jogkör</option>
+              <option value="admin">Adminok</option>
+              <option value="member">Nem adminok</option>
+            </select>
+          </label>
+          <label>
+            Céges hozzáférés
+            <select
+              aria-label="Szűrés céges hozzáférés szerint"
+              value={accessFilter}
+              onChange={(e) => {
+                setAccessFilter(e.target.value)
+                setPage(1)
+              }}
+            >
+              <option value="all">Minden fiók</option>
+              <option value="with">Van céges hozzáférése</option>
+              <option value="none">Nincs céges hozzáférése</option>
+            </select>
+          </label>
           <button className="secondary-button">Keresés</button>
         </form>
       )}
@@ -101,6 +143,8 @@ export function SystemPage({ user }: { user: Session }) {
                   <thead>
                     <tr>
                       <th>Felhasználó</th>
+                      <th>Jogkör</th>
+                      <th>Céges hozzáférés</th>
                       <th>Biztonság</th>
                       <th>Művelet</th>
                     </tr>
@@ -112,6 +156,43 @@ export function SystemPage({ user }: { user: Session }) {
                           <strong>{profile.id}</strong>
                           <span className="member-email">{profile.displayName}</span>
                           <span className="member-email">{profile.email}</span>
+                        </td>
+                        <td>
+                          <strong>
+                            {profile.systemPermissions.includes('system.manage')
+                              ? 'Rendszergazda'
+                              : profile.isAdministrator
+                                ? 'Céges admin'
+                                : 'Felhasználó'}
+                          </strong>
+                          {(profile.companyAccess ?? []).some((c) => c.hasAccess && c.isAdmin) &&
+                            !profile.systemPermissions.includes('system.manage') && (
+                              <span className="member-email">
+                                {profile.companyAccess
+                                  ?.filter((c) => c.hasAccess && c.isAdmin)
+                                  .map((c) => c.name)
+                                  .join(', ')}
+                              </span>
+                            )}
+                        </td>
+                        <td>
+                          {profile.systemPermissions.includes('system.manage') ? (
+                            'Minden cég'
+                          ) : (profile.companyAccess ?? []).some((c) => c.hasAccess) ? (
+                            profile.companyAccess
+                              ?.filter((c) => c.hasAccess)
+                              .map((c) => c.name)
+                              .join(', ')
+                          ) : (
+                            <span className="member-grants">Nincs céges hozzáférés</span>
+                          )}
+                          {(profile.companyAccess ?? [])
+                            .filter((c) => c.isSuspended)
+                            .map((c) => (
+                              <span className="member-email" key={c.id}>
+                                Felfüggesztve: {c.name}
+                              </span>
+                            ))}
                         </td>
                         <td>
                           {profile.systemPermissions.includes('system.manage') && (

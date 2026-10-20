@@ -224,7 +224,7 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
     { if (!choices.Any(x => x.CanAssign)) throw Denied(); }
     private async Task<GroupUserSummary> User(string userId, PermissionGroupSummary[] available, CancellationToken ct)
     {
-        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId, ct) ?? throw UserAccounts.Error(404, "user_not_found", "A felhasználó nem található.");
+        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId && !db.AccountLifecycles.Any(a => a.UserId == x.Id && a.IsArchived), ct) ?? throw UserAccounts.Error(404, "user_not_found", "A felhasználó nem található.");
         var ids = await db.GroupUsers.Where(x => x.UserId == userId).Select(x => x.GroupId).ToArrayAsync(ct);
         var admin = available.SingleOrDefault(x => x.IsAdmin);
         var manageable = available.Where(x => x.CanAssign && !x.IsAdmin).Select(x => x.Id).ToArray();

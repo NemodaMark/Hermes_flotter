@@ -81,7 +81,7 @@ public static class AccountEndpoints
             return Results.Created("/api/v1/auth/session", await ToSession(user, accounts, ct));
         }).AllowAnonymous().RequireRateLimiting("accounts");
 
-        accounts.MapPost("/login", async (LoginRequest request, UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, UserAccounts accounts, CancellationToken ct) =>
+        accounts.MapPost("/login", async (LoginRequest request, UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, UserAccounts accounts, HermesDbContext db, CancellationToken ct) =>
         {
             if (string.IsNullOrEmpty(request.Password) || request.Password.Length > 128
                 || (request.UserName is null ? !ValidEmail(request.Email) : !UserNames.IsValid(request.UserName)))
@@ -89,6 +89,7 @@ public static class AccountEndpoints
             var user = request.UserName is { } name
                 ? await users.FindByNameAsync(UserNames.Normalize(name)) : await users.FindByEmailAsync(request.Email!.Trim());
             if (user is null) return InvalidLogin();
+            if (!app.Environment.IsDevelopment() && await db.AccountLifecycles.AnyAsync(x => x.UserId == user.Id && x.DevelopmentOnly, ct)) return InvalidLogin();
             var result = await signIn.PasswordSignInAsync(user, request.Password, isPersistent: false, lockoutOnFailure: true);
             return result.Succeeded ? Results.Ok(await ToSession(user, accounts, ct)) : InvalidLogin();
         }).AllowAnonymous().RequireRateLimiting("accounts");

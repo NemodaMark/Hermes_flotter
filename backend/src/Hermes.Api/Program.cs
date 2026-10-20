@@ -13,7 +13,9 @@ using System.Threading.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
 var migrationMode = args.Contains("--migrate", StringComparer.Ordinal);
 var bootstrapIndex = Array.IndexOf(args, "--bootstrap-system-admin");
-var maintenanceMode = migrationMode || bootstrapIndex >= 0;
+var developmentSetupIndex = Array.IndexOf(args, "--configure-development-admin");
+var maintenanceMode = migrationMode || bootstrapIndex >= 0 || developmentSetupIndex >= 0;
+if (developmentSetupIndex >= 0) DevelopmentSetup.Validate(builder.Environment.IsDevelopment(), builder.Configuration.GetConnectionString("Migrations") ?? "");
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ManagementExceptionHandler>();
@@ -34,6 +36,7 @@ builder.Services.AddScoped<IVehicleStore, VehicleStore>();
 if (!maintenanceMode)
 {
     builder.Services.AddScoped<UserAccounts>();
+    builder.Services.AddScoped<SystemUserDirectory>();
     builder.Services.AddScoped<IMemberManagement, MemberManagement>();
     builder.Services.AddScoped<IGroupManagement, GroupManagement>();
     builder.Services.AddIdentityCore<ApplicationUser>(options =>
@@ -58,6 +61,15 @@ if (!maintenanceMode)
         options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            await SecurityStampValidator.ValidatePrincipalAsync(context);
+            if (!builder.Environment.IsDevelopment() && context.Principal?.FindFirst("sub")?.Value is { } subject)
+            {
+                var db = context.HttpContext.RequestServices.GetRequiredService<HermesDbContext>();
+                if (await db.AccountLifecycles.AnyAsync(x => x.UserId == subject && x.DevelopmentOnly)) context.RejectPrincipal();
+            }
+        };
         options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
         options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
     });
@@ -100,6 +112,14 @@ if (maintenanceMode)
     await using (var scope = app.Services.CreateAsyncScope())
     {
         await scope.ServiceProvider.GetRequiredService<HermesDbContext>().Database.MigrateAsync();
+        if (developmentSetupIndex >= 0)
+        {
+            if (developmentSetupIndex + 1 >= args.Length) throw new InvalidOperationException("Specify a cleanup manifest path.");
+            var cleanup = System.Text.Json.JsonSerializer.Deserialize<DevelopmentCleanup>(await File.ReadAllTextAsync(args[developmentSetupIndex + 1]), new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            var password = Environment.GetEnvironmentVariable("HERMES_DEVELOPMENT_ADMIN_PASSWORD") ?? "";
+            var report = await DevelopmentSetup.Run(scope.ServiceProvider.GetRequiredService<HermesDbContext>(), builder.Environment.IsDevelopment(), password, cleanup, CancellationToken.None);
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(report));
+        }
         if (bootstrapIndex >= 0)
         {
             if (bootstrapIndex + 1 >= args.Length) throw new InvalidOperationException("Specify a user ID after --bootstrap-system-admin.");

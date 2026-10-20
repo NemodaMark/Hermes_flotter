@@ -2,7 +2,12 @@ namespace Hermes.Application;
 
 public sealed record UserProfile(string Id, string DisplayName, string Email, string? PhoneNumber,
     long Version, bool PasswordChangeRequired, DateTimeOffset? PasswordChangeRequestedAt,
-    DateTimeOffset? PasswordChangedAt, string[] SystemPermissions);
+    DateTimeOffset? PasswordChangedAt, string[] SystemPermissions)
+{
+    public bool IsAdministrator { get; init; }
+    public UserCompanyAccess[] CompanyAccess { get; init; } = [];
+}
+public sealed record UserCompanyAccess(Guid Id, string Name, bool HasAccess, bool IsAdmin, bool IsSuspended);
 public sealed record EditUserProfileRequest(string DisplayName, string Email, string? PhoneNumber, long Version);
 public sealed record UserVersionRequest(long Version);
 public sealed record ChangeSystemAccessRequest(bool? Enabled, long Version);

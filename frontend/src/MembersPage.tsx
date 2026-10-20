@@ -6,6 +6,7 @@ import type { Invitation, Member, Session, Tenant } from './api'
 import { AccessDialog } from './AccessDialog'
 import { InvitationDialog, PermissionsDialog, StatusDialog } from './MemberDialogs'
 import { permissionLabel } from './permissions'
+import { SystemPage } from './SystemPage'
 import { UserProfileDialog } from './UserProfileDialog'
 import './members.css'
 import { PermissionGroups, GroupAssignmentDialog } from './PermissionGroups'
@@ -62,16 +63,29 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
   }, [])
   const queryClient = useQueryClient()
   const [profileId, setProfileId] = useState<string | null>(null)
+  const canSeeAll = user.systemPermissions?.includes('system.manage') ?? false
   const canRead = tenant.permissions.includes('members.read')
   const canInvite = tenant.permissions.includes('members.invite')
   const canManage = tenant.permissions.includes('permissions.manage')
   const canGroups = canRead || canManage || tenant.permissions.includes('permission-groups.manage')
   const canUpdate = tenant.permissions.includes('members.update')
-  const [tab, setTab] = useState<'members' | 'invitations' | 'groups'>(
-    canRead ? 'members' : canInvite ? 'invitations' : canGroups ? 'groups' : 'members',
+  const [tab, setTab] = useState<'all' | 'members' | 'invitations' | 'groups'>(
+    canSeeAll
+      ? 'all'
+      : canRead
+        ? 'members'
+        : canInvite
+          ? 'invitations'
+          : canGroups
+            ? 'groups'
+            : 'members',
   )
   const activeTab =
-    (tab === 'invitations' && !canInvite) || (tab === 'groups' && !canGroups) ? 'members' : tab
+    (tab === 'all' && !canSeeAll) ||
+    (tab === 'invitations' && !canInvite) ||
+    (tab === 'groups' && !canGroups)
+      ? 'members'
+      : tab
   const [page, setPage] = useState(1)
   const [invitePage, setInvitePage] = useState(1)
   const [search, setSearch] = useState('')
@@ -105,6 +119,7 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ['tenants', user.id] })
     await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['system-users', user.id] }),
       queryClient.invalidateQueries({ queryKey: memberKey }),
       queryClient.invalidateQueries({ queryKey: invitationKey }),
       queryClient.invalidateQueries({ queryKey: ['permission-groups', user.id, tenant.id] }),
@@ -136,7 +151,7 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
       /* The mutation error is rendered below. */
     }
   }
-  const permitted = canRead || canInvite || canManage || canUpdate || canGroups
+  const permitted = canSeeAll || canRead || canInvite || canManage || canUpdate || canGroups
   if (!permitted)
     return <p className="notice">Nincs jogosultságod a céges felhasználók kezeléséhez.</p>
   return (
@@ -151,10 +166,11 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
               if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
               event.preventDefault()
               const tabs = [
+                ...(canSeeAll ? ['all'] : []),
                 'members',
                 ...(canInvite ? ['invitations'] : []),
                 ...(canGroups ? ['groups'] : []),
-              ] as Array<'members' | 'invitations' | 'groups'>
+              ] as Array<'all' | 'members' | 'invitations' | 'groups'>
               const index = tabs.indexOf(activeTab)
               const next =
                 event.key === 'Home'
@@ -168,6 +184,18 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
               event.currentTarget.querySelector<HTMLButtonElement>(`#${next}-tab`)?.focus()
             }}
           >
+            {canSeeAll && (
+              <button
+                id="all-tab"
+                role="tab"
+                aria-selected={activeTab === 'all'}
+                tabIndex={activeTab === 'all' ? 0 : -1}
+                aria-controls="access-panel"
+                onClick={() => setTab('all')}
+              >
+                Összes felhasználó
+              </button>
+            )}
             <button
               id="members-tab"
               role="tab"
@@ -233,7 +261,9 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
           </div>
         )}
         <div id="access-panel" role="tabpanel" aria-labelledby={`${activeTab}-tab`}>
-          {activeTab === 'groups' ? (
+          {activeTab === 'all' && canSeeAll ? (
+            <SystemPage user={user} usersOnly />
+          ) : activeTab === 'groups' ? (
             <PermissionGroups user={user} />
           ) : activeTab === 'members' ? (
             !canRead ? (

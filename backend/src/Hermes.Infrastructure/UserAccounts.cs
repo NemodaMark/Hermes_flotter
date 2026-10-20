@@ -26,6 +26,8 @@ public sealed class UserAccounts(HermesDbContext db, UserManager<ApplicationUser
             ?? throw Error(404, "user_not_found", "A felhasználó nem található.");
         // Cookie validation may already have tracked this user before the row lock was acquired.
         await db.Entry(user).ReloadAsync(ct);
+        if (await db.AccountLifecycles.AnyAsync(x => x.UserId == id && x.IsArchived, ct))
+            throw Error(404, "user_not_found", "A felhasználó nem található.");
         return user;
     }
     public static void Audit(HermesDbContext db, string actor, string? target, string action, object details, Guid? tenantId = null)

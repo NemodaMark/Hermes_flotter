@@ -551,6 +551,29 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("vehicles", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Infrastructure.AccountLifecycle", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("DevelopmentOnly")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("account_lifecycles", (string)null);
+                });
+
             modelBuilder.Entity("Hermes.Infrastructure.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -638,6 +661,24 @@ namespace Hermes.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("CK_identity_users_username_key", "\"Id\" ~ '^[a-z0-9][a-z0-9._-]{2,63}$' AND \"UserName\" IS NOT NULL AND \"UserName\" = \"Id\" AND \"NormalizedUserName\" IS NOT NULL AND \"NormalizedUserName\" = upper(\"Id\")");
                         });
+                });
+
+            modelBuilder.Entity("Hermes.Infrastructure.ArchivedTenant", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("archived_tenants", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -945,6 +986,24 @@ namespace Hermes.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("Hermes.Domain.Vehicle", b =>
+                {
+                    b.HasOne("Hermes.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Infrastructure.AccountLifecycle", b =>
+                {
+                    b.HasOne("Hermes.Infrastructure.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Infrastructure.ArchivedTenant", b =>
                 {
                     b.HasOne("Hermes.Domain.Tenant", null)
                         .WithMany()

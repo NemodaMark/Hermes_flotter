@@ -10,25 +10,12 @@ public static class SystemEndpoints
     public static void MapSystemEndpoints(this WebApplication app)
     {
         var system = app.MapGroup("/api/v1/system").RequireAuthorization(SystemPermissions.Manage);
-        system.MapGet("/users", async (UserAccounts accounts, HermesDbContext db, CancellationToken ct, int page = 1, string? search = null) =>
-        {
-            ValidatePage(page);
-            if (search?.Length > 100) throw UserAccounts.Error(400, "invalid_search", "A keresés legfeljebb 100 karakter lehet.");
-            var query = db.Users.AsNoTracking();
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var value = search.Trim().ToUpperInvariant();
-                query = query.Where(x => x.NormalizedEmail!.Contains(value) || x.DisplayName.ToUpper().Contains(value) || x.NormalizedUserName!.Contains(value));
-            }
-            var total = await query.CountAsync(ct);
-            var users = await query.OrderBy(x => x.NormalizedEmail).ThenBy(x => x.Id).Skip((page - 1) * 25).Take(25).ToArrayAsync(ct);
-            var result = new List<UserProfile>();
-            foreach (var user in users) result.Add(await accounts.Profile(user, ct));
-            return Results.Ok(new PageResult<UserProfile>(result.ToArray(), total, page, 25));
-        });
+        system.MapGet("/users", async (HttpContext context, SystemUserDirectory directory, CancellationToken ct,
+            int page = 1, string? search = null, string? role = null, string? access = null)
+            => Results.Ok(await directory.List(context.User.FindFirst("sub")!.Value, page, search, role, access, ct)));
         system.MapGet("/users/{id}", async (string id, UserAccounts accounts, HermesDbContext db, CancellationToken ct) =>
         {
-            var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
+            var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && !db.AccountLifecycles.Any(a => a.UserId == x.Id && a.IsArchived), ct)
                 ?? throw UserAccounts.Error(404, "user_not_found", "A felhasználó nem található.");
             return Results.Ok(await accounts.Profile(user, ct));
         });

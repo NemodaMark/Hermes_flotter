@@ -30,7 +30,13 @@ beforeEach(() => {
   }
 })
 
-function mount({ admin = true, forced = false, forceOnVehicle = false, hash = '' } = {}) {
+function mount({
+  admin = true,
+  forced = false,
+  forceOnVehicle = false,
+  hash = '',
+  noCompanies = false,
+} = {}) {
   if (hash) window.history.replaceState(null, '', hash)
   const session: Session = {
     id: 'anna',
@@ -70,13 +76,17 @@ function mount({ admin = true, forced = false, forceOnVehicle = false, hash = ''
         return json(state.session)
       }
       if (url.pathname === '/api/v1/tenants')
-        return json([
-          {
-            id: 'duna',
-            name: 'Duna',
-            permissions: Object.keys(permissionNames),
-          },
-        ])
+        return json(
+          noCompanies
+            ? []
+            : [
+                {
+                  id: 'duna',
+                  name: 'Duna',
+                  permissions: Object.keys(permissionNames),
+                },
+              ],
+        )
       if (url.pathname === '/api/v1/permissions')
         return json(
           Object.entries(permissionNames).map(([code, name]) => ({
@@ -302,6 +312,50 @@ it('hides global profile actions from users with company permissions only', asyn
   await screen.findByText(initial.displayName)
   expect(screen.queryByRole('button', { name: /Profil megnyitása/ })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Rendszerkezelés' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('tab', { name: 'Összes felhasználó' })).not.toBeInTheDocument()
+})
+
+it('opens the global directory from Users and filters admins or accounts without company access', async () => {
+  const { calls, state } = mount()
+  await userEvent.click(await screen.findByRole('button', { name: 'Felhasználók' }))
+  expect(await screen.findByRole('tab', { name: 'Összes felhasználó' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  expect(await screen.findByText('Nincs céges hozzáférés')).toBeInTheDocument()
+  expect(
+    calls.some((c) => new URL(c.path, 'https://hermes.test').pathname === '/api/v1/members'),
+  ).toBe(false)
+  await userEvent.type(
+    screen.getByRole('textbox', { name: 'Felhasználó keresése rendszerszinten' }),
+    'kiss',
+  )
+  await userEvent.click(screen.getByRole('button', { name: 'Keresés' }))
+  await userEvent.selectOptions(
+    screen.getByRole('combobox', { name: 'Szűrés céges hozzáférés szerint' }),
+    'none',
+  )
+  await waitFor(() =>
+    expect(
+      calls.some((c) => c.path.includes('search=kiss') && c.path.includes('access=none')),
+    ).toBe(true),
+  )
+  state.profile = { ...state.profile, isAdministrator: true, systemPermissions: ['system.manage'] }
+  await userEvent.selectOptions(
+    screen.getByRole('combobox', { name: 'Szűrés jogkör szerint' }),
+    'admin',
+  )
+  expect(await screen.findByText('Rendszergazda')).toBeInTheDocument()
+  await waitFor(() =>
+    expect(
+      calls.some(
+        (c) =>
+          c.path.includes('page=1') &&
+          c.path.includes('role=admin') &&
+          c.path.includes('access=none'),
+      ),
+    ).toBe(true),
+  )
 })
 
 it('lists system users and shows who changed what in the central journal', async () => {
@@ -317,4 +371,16 @@ it('lists system users and shows who changed what in the central journal', async
   expect(screen.getByText('Módosító: anna')).toBeInTheDocument()
   fireEvent.click(screen.getByText('Részletek'))
   await waitFor(() => expect(screen.getByText(/"DisplayName": "Régi"/)).toBeInTheDocument())
+})
+
+it('keeps global user management available before the first company is created', async () => {
+  mount({ noCompanies: true })
+  await userEvent.click(await screen.findByRole('button', { name: 'Felhasználók' }))
+  expect(
+    await screen.findByRole('button', { name: `Profil megnyitása: ${initial.email}` }),
+  ).toBeInTheDocument()
+  expect(screen.getByText('Nincs céges hozzáférés')).toBeInTheDocument()
+  expect(
+    screen.queryByRole('heading', { name: 'Hozd létre az első cégedet' }),
+  ).not.toBeInTheDocument()
 })

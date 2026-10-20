@@ -27,6 +27,8 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
     public DbSet<GroupUser> GroupUsers => Set<GroupUser>();
     public DbSet<GroupUserCompany> GroupUserCompanies => Set<GroupUserCompany>();
     public DbSet<MembershipGroup> MembershipGroups => Set<MembershipGroup>();
+    public DbSet<AccountLifecycle> AccountLifecycles => Set<AccountLifecycle>();
+    public DbSet<ArchivedTenant> ArchivedTenants => Set<ArchivedTenant>();
     private Guid? CurrentTenantId => tenantContext.TenantId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -74,9 +76,24 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
             entity.HasIndex(x => new { x.CreatedAt, x.Id });
         });
 
+        modelBuilder.Entity<AccountLifecycle>(entity =>
+        {
+            entity.ToTable("account_lifecycles");
+            entity.HasKey(x => x.UserId);
+            entity.Property(x => x.Reason).HasMaxLength(200);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ArchivedTenant>(entity =>
+        {
+            entity.ToTable("archived_tenants");
+            entity.HasKey(x => x.TenantId);
+            entity.Property(x => x.Reason).HasMaxLength(200);
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<Tenant>(entity =>
         {
             entity.ToTable("tenants");
+            entity.HasQueryFilter(x => !ArchivedTenants.Any(a => a.TenantId == x.Id));
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(160);
             entity.Property(x => x.TimeZone).HasMaxLength(80);
