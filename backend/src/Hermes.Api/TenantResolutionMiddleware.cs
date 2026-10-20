@@ -3,7 +3,7 @@ using Hermes.Infrastructure;
 
 namespace Hermes.Api;
 
-public sealed record TenantRequired;
+public sealed record TenantRequired(bool AllowInactive = false);
 
 public sealed class TenantResolutionMiddleware(RequestDelegate next)
 {
@@ -23,7 +23,8 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
         }
 
         var subject = context.User.FindFirst("sub")?.Value;
-        var membership = subject is null ? null : await directory.FindMembershipAsync(subject, tenantId, context.RequestAborted);
+        var allowInactive = context.GetEndpoint()?.Metadata.GetMetadata<TenantRequired>()?.AllowInactive == true;
+        var membership = subject is null ? null : await directory.FindMembershipAsync(subject, tenantId, context.RequestAborted, allowInactive);
         if (membership is null)
         {
             await Results.Problem(statusCode: 403, title: "Ehhez a céghez nincs hozzáférésed.").ExecuteAsync(context);

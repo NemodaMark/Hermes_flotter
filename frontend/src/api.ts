@@ -155,7 +155,7 @@ async function getCsrfToken() {
   }
 }
 
-async function request<T>(
+export async function request<T>(
   path: string,
   options: {
     tenantId?: string

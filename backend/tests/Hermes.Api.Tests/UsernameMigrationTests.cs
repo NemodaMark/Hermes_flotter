@@ -76,7 +76,7 @@ public sealed class UsernameMigrationTests(FleetFixture fixture) : IClassFixture
                 {
                     await setup.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO tenants (\"Id\",\"Name\",\"TimeZone\") VALUES ({company.Id},{company.Name},{"Europe/Budapest"})");
                     await setup.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO tenant_memberships (\"TenantId\",\"UserSubject\") VALUES ({company.Id},{firstId})");
-                    foreach (var code in Permissions.All.Except([Permissions.GroupsManage, Permissions.VehiclesUpdate, Permissions.OdometerCreate]))
+                    foreach (var code in await setup.PermissionDefinitions.Select(x => x.Code).ToArrayAsync())
                         await setup.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO tenant_membership_permissions (\"TenantId\",\"UserSubject\",\"Code\") VALUES ({company.Id},{firstId},{code})");
                     setup.Invitations.Add(new() { TenantId = company.Id, Id = invitationId, Email = "future@example.test", NormalizedEmail = "FUTURE@EXAMPLE.TEST", TokenHash = tokenHash, InvitedBy = firstId, ExpiresAt = DateTimeOffset.UtcNow.AddDays(7), Permissions = [new InvitationPermission { TenantId = company.Id, InvitationId = invitationId, Code = Permissions.VehiclesRead }] });
                     setup.AccessAuditEvents.Add(new() { TenantId = company.Id, ActorSubject = firstId, TargetSubject = firstId, Action = "company.created", Details = "{}" });

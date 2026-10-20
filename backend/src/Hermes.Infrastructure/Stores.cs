@@ -16,6 +16,8 @@ public sealed class TenantDirectory(HermesDbContext db, TenantContext context) :
             var creator = await db.Users.SingleAsync(x => x.Id == subject, cancellationToken);
             creator.ProfileVersion++; // Creating a company also creates a group assignment.
             db.Tenants.Add(tenant);
+            var profile = new CompanyProfile { TenantId = tenant.Id, CreatedAt = DateTimeOffset.UtcNow, CreatedBy = subject };
+            db.CompanyProfiles.Add(profile);
             var admin = await db.PermissionGroups.SingleAsync(x => x.IsAdmin, cancellationToken);
             db.GroupCompanies.Add(new GroupCompany { TenantId = tenant.Id, GroupId = admin.Id });
             if (!await db.GroupUsers.AnyAsync(x => x.GroupId == admin.Id && x.UserId == subject, cancellationToken))
@@ -26,19 +28,21 @@ public sealed class TenantDirectory(HermesDbContext db, TenantContext context) :
                 TenantId = tenant.Id, UserSubject = subject, JoinedAt = DateTimeOffset.UtcNow,
                 Groups = [new MembershipGroup { TenantId = tenant.Id, UserSubject = subject, GroupId = admin.Id, Group = admin }]
             });
-            db.AccessAuditEvents.Add(new AccessAuditEvent { TenantId = tenant.Id, ActorSubject = subject, Action = "company.created", TargetSubject = subject, Details = System.Text.Json.JsonSerializer.Serialize(new { permissions = Permissions.All, adminGroupId = admin.Id }) });
-            UserAccounts.Audit(db, subject, subject, "company.created", new { tenant.Name, permissions = Permissions.All, adminGroupId = admin.Id }, tenant.Id);
+            var creation = new { before = (object?)null, after = new { tenant.Id, tenant.Name, tenant.TimeZone, profile }, permissions = Permissions.All, adminGroupId = admin.Id };
+            db.AccessAuditEvents.Add(new AccessAuditEvent { TenantId = tenant.Id, ActorSubject = subject, Action = "company.created", TargetSubject = subject, Details = System.Text.Json.JsonSerializer.Serialize(creation) });
+            UserAccounts.Audit(db, subject, subject, "company.created", creation, tenant.Id);
             await db.SaveChangesAsync(cancellationToken);
             return new TenantSummary(tenant.Id, tenant.Name, Permissions.All);
         }, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<TenantSummary>> ListForUserAsync(string subject, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<TenantSummary>> ListForUserAsync(string subject, CancellationToken cancellationToken, bool includeInactive = false)
     {
+        var tenants = includeInactive ? db.Tenants.IgnoreQueryFilters() : db.Tenants;
         if (await UserAccounts.IsSystemManager(db, subject, cancellationToken))
-            return await db.Tenants.AsNoTracking().OrderBy(x => x.Name).Select(x => new TenantSummary(x.Id, x.Name, Permissions.All)).ToArrayAsync(cancellationToken);
+            return await tenants.AsNoTracking().OrderBy(x => x.Name).Select(x => new TenantSummary(x.Id, x.Name, Permissions.All)).ToArrayAsync(cancellationToken);
         var companies = await (from membership in db.Memberships.AsNoTracking()
-                  join tenant in db.Tenants.AsNoTracking() on membership.TenantId equals tenant.Id
+                  join tenant in tenants.AsNoTracking() on membership.TenantId equals tenant.Id
                   where membership.UserSubject == subject && membership.IsActive
                   orderby tenant.Name
                   select new { tenant.Id, tenant.Name })
@@ -56,9 +60,10 @@ public sealed class TenantDirectory(HermesDbContext db, TenantContext context) :
         return result;
     }
 
-    public async Task<TenantMembership?> FindMembershipAsync(string subject, Guid tenantId, CancellationToken cancellationToken)
+    public async Task<TenantMembership?> FindMembershipAsync(string subject, Guid tenantId, CancellationToken cancellationToken, bool includeInactive = false)
     {
-        if (!await db.Tenants.AnyAsync(x => x.Id == tenantId, cancellationToken)) return null;
+        var tenants = includeInactive ? db.Tenants.IgnoreQueryFilters() : db.Tenants;
+        if (!await tenants.AnyAsync(x => x.Id == tenantId, cancellationToken)) return null;
         if (await UserAccounts.IsSystemManager(db, subject, cancellationToken)) return SystemMembership(subject, tenantId);
         var member = await TenantTransaction.RunAsync(db, tenantId, () => db.Memberships.AsNoTracking().WithAccess()
             .IgnoreQueryFilters().SingleOrDefaultAsync(x => x.UserSubject == subject && x.TenantId == tenantId && x.IsActive, cancellationToken), cancellationToken);

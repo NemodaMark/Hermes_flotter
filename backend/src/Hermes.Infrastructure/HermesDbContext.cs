@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Hermes.Infrastructure;
 
-public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, ITenantContext tenantContext)
+public sealed partial class HermesDbContext(DbContextOptions<HermesDbContext> options, ITenantContext tenantContext)
     : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -29,11 +29,16 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
     public DbSet<MembershipGroup> MembershipGroups => Set<MembershipGroup>();
     public DbSet<AccountLifecycle> AccountLifecycles => Set<AccountLifecycle>();
     public DbSet<ArchivedTenant> ArchivedTenants => Set<ArchivedTenant>();
+    public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
+    public DbSet<CompanyContact> CompanyContacts => Set<CompanyContact>();
+    public DbSet<Site> Sites => Set<Site>();
+    public DbSet<VehicleSiteAssignment> VehicleSiteAssignments => Set<VehicleSiteAssignment>();
     private Guid? CurrentTenantId => tenantContext.TenantId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        ConfigureOrganizations(modelBuilder);
         modelBuilder.Entity<ApplicationUser>(entity =>
         {
             entity.ToTable("identity_users", table => table.HasCheckConstraint("CK_identity_users_username_key", UserNames.KeyConstraint));
@@ -89,6 +94,8 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
             entity.HasKey(x => x.TenantId);
             entity.Property(x => x.Reason).HasMaxLength(200);
             entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.Property(x => x.Reason).HasMaxLength(500);
+            entity.Property(x => x.Status).HasMaxLength(16).HasDefaultValue("Archived");
         });
         modelBuilder.Entity<Tenant>(entity =>
         {

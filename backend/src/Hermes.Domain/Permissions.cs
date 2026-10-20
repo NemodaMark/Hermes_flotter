@@ -14,6 +14,14 @@ public static class Permissions
     public const string MembersUpdate = "members.update";
     public const string Manage = "permissions.manage";
     public const string AuditRead = "audit.read";
+    public const string CompaniesRead = "companies.read";
+    public const string CompaniesUpdate = "companies.update";
+    public const string CompaniesStatus = "companies.status";
+    public const string SitesRead = "sites.read";
+    public const string SitesCreate = "sites.create";
+    public const string SitesUpdate = "sites.update";
+    public const string SitesArchive = "sites.archive";
+    public const string SitesAssignVehicles = "sites.vehicles.assign";
     public static readonly IReadOnlyList<PermissionDescription> Catalog = Array.AsReadOnly(new[]
     {
         new PermissionDescription(VehiclesRead, "Járművek megtekintése"), new(VehiclesCreate, "Jármű felvétele"),
@@ -21,7 +29,13 @@ public static class Permissions
         new(GroupsManage, "Jogosultságcsoportok kezelése"),
         new(MembersRead, "Céges felhasználók megtekintése"), new(MembersInvite, "Meghívások kezelése"),
         new(MembersUpdate, "Céges hozzáférések felfüggesztése és visszaállítása"),
-        new(Manage, "Céges jogosultságok kiosztása"), new(AuditRead, "Jogosultsági eseménynapló megtekintése")
+        new(Manage, "Céges jogosultságok kiosztása"), new(AuditRead, "Változásnapló megtekintése"),
+        new(CompaniesRead, "Cégadatok és kapcsolattartók megtekintése"),
+        new(CompaniesUpdate, "Cégadatok és kapcsolattartók szerkesztése"),
+        new(CompaniesStatus, "Cég felfüggesztése, archiválása és visszaállítása"),
+        new(SitesRead, "Telephelyek megtekintése"), new(SitesCreate, "Telephely létrehozása"),
+        new(SitesUpdate, "Telephelyadatok szerkesztése"), new(SitesArchive, "Telephely archiválása és visszaállítása"),
+        new(SitesAssignVehicles, "Jármű telephelyhez rendelése")
     });
     public static string[] All => Catalog.Select(item => item.Code).ToArray();
 }

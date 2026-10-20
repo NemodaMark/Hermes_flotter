@@ -20,12 +20,12 @@ import { api, ApiError, resetCsrfToken, vehicleKey } from './api'
 import type { NewVehicle, Session, Tenant, Vehicle } from './api'
 import { VehicleActions } from './VehicleActions'
 import { AuthScreen, CompanyDialog, CompanyForm } from './AccountForms'
+import { CompaniesPage } from './CompaniesPage'
 import { MembersPage } from './MembersPage'
 import { SystemPage } from './SystemPage'
 import { PasswordChangeScreen } from './PasswordChangeScreen'
 import { InvitationScreen } from './InvitationScreen'
 import { clearInvitation, readInvitation } from './invitationLink'
-import { permissionNames } from './permissions'
 import './App.css'
 import './accounts.css'
 
@@ -243,6 +243,7 @@ function FleetWorkspace({
       changeTenant(company.id)
       setCompanyOpen(false)
       await queryClient.invalidateQueries({ queryKey: ['tenants', user.id] })
+      await queryClient.invalidateQueries({ queryKey: ['companies', user.id] })
     },
   })
   const allVehicles = vehicles.data ?? []
@@ -273,7 +274,7 @@ function FleetWorkspace({
         ? 'Felhasználók'
         : view === 'system'
           ? 'Rendszerkezelés'
-          : 'Cégadatok'
+          : 'Cégek és telephelyek'
 
   function changeTenant(value: string) {
     setTenantId(value)
@@ -384,7 +385,7 @@ function FleetWorkspace({
             onClick={() => setView('organization')}
           >
             <Building2 size={19} />
-            Cégadatok
+            Cégek és telephelyek
             <ArrowRight size={16} />
           </button>
         </nav>
@@ -437,9 +438,11 @@ function FleetWorkspace({
           )}
           <div className="page-heading">
             <div>
-              <p className="eyebrow">{tenant?.name ?? 'HERMES'}</p>
+              <p className="eyebrow">
+                {view === 'organization' ? 'HERMES' : (tenant?.name ?? 'HERMES')}
+              </p>
               <h1>
-                {view === 'system'
+                {view === 'system' || view === 'organization'
                   ? viewTitle
                   : !tenant
                     ? 'Saját munkaterület'
@@ -448,17 +451,19 @@ function FleetWorkspace({
                       : viewTitle}
               </h1>
               <p className="page-description">
-                {view === 'system'
-                  ? 'Összes felhasználó és rendszerszintű módosítási napló.'
-                  : !tenant
-                    ? 'Hozd létre a cégedet a flottakezelés megkezdéséhez.'
-                    : view === 'fleet'
-                      ? 'A kiválasztott cég járművei, egy helyen.'
-                      : view === 'members'
-                        ? canManageSystem
-                          ? 'Összes felhasználó, céges hozzáférések és meghívások.'
-                          : 'Céges tagok, meghívások és hozzáférések.'
-                        : 'Az aktuális munkaterület és hozzáférésed.'}
+                {view === 'organization'
+                  ? 'Cégtörzs, kapcsolattartók, telephelyek és változásnapló.'
+                  : view === 'system'
+                    ? 'Összes felhasználó és rendszerszintű módosítási napló.'
+                    : !tenant
+                      ? 'Hozd létre a cégedet a flottakezelés megkezdéséhez.'
+                      : view === 'fleet'
+                        ? 'A kiválasztott cég járművei, egy helyen.'
+                        : view === 'members'
+                          ? canManageSystem
+                            ? 'Összes felhasználó, céges hozzáférések és meghívások.'
+                            : 'Céges tagok, meghívások és hozzáférések.'
+                          : 'Cégtörzs, kapcsolattartók, telephelyek és változásnapló.'}
               </p>
             </div>
             {view === 'fleet' && canCreate && (
@@ -474,7 +479,16 @@ function FleetWorkspace({
               </button>
             )}
           </div>
-          {view === 'system' ? (
+          {view === 'organization' ? (
+            <CompaniesPage
+              user={user}
+              initialCompanyId={tenant?.id}
+              onNewCompany={() => {
+                setCompanyError(null)
+                setCompanyOpen(true)
+              }}
+            />
+          ) : view === 'system' ? (
             canManageSystem ? (
               <SystemPage user={user} />
             ) : (
@@ -511,22 +525,6 @@ function FleetWorkspace({
             </section>
           ) : view === 'members' ? (
             <MembersPage key={tenant.id} user={user} tenant={tenant} />
-          ) : view === 'organization' ? (
-            <section className="organization-panel" aria-label="Munkaterület adatai">
-              <dl>
-                <div>
-                  <dt>Cég neve</dt>
-                  <dd>{tenant.name}</dd>
-                </div>
-                <div>
-                  <dt>Jogosultságaid</dt>
-                  <dd>
-                    {tenant.permissions.map((code) => permissionNames[code] ?? code).join(', ') ||
-                      'Nincs kiosztott jogosultság'}
-                  </dd>
-                </div>
-              </dl>
-            </section>
           ) : !tenant.permissions.includes('vehicles.read') ? (
             <p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p>
           ) : (

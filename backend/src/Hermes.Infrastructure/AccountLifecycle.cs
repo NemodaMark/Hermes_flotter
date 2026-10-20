@@ -13,6 +13,8 @@ public sealed class AccountLifecycle
 public sealed class ArchivedTenant
 {
     public Guid TenantId { get; init; }
-    public DateTimeOffset ArchivedAt { get; init; } = DateTimeOffset.UtcNow;
-    public required string Reason { get; init; }
+    public DateTimeOffset ArchivedAt { get; set; } = DateTimeOffset.UtcNow;
+    public required string Reason { get; set; }
+    // Compatibility with the existing archive: both inactive states leave the workspace directory.
+    public string Status { get; set; } = "Archived";
 }

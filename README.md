@@ -229,6 +229,38 @@ A globális listák `page` paraméterrel, 25 elem/oldal mérettel lapozhatók. A
 
 Profilszerkesztés: `{ displayName, email, phoneNumber, version }`; jelszócsere-elrendelés: `{ version }`; globális jog: `{ enabled, version }`; saját jelszócsere: `{ currentPassword, newPassword, confirmPassword }`. A módosítások CSRF-védettek, a jelszóműveletek sebességkorlátozottak.
 
+### Cégek, telephelyek és kapcsolattartók
+
+A **Cégek és telephelyek** oldalon kereshető, állapot szerint szűrhető céglista található. A megnyitott cégnél külön fülön szerkeszthetők a törzsadatok és kapcsolattartók, kezelhetők a telephelyek és jármű-hozzárendelések, illetve olvasható a változásnapló. A listában alapból az aktív cégek szerepelnek; az archivált és felfüggesztett cégek szűréssel érhetők el. A normál flottamunkaterület csak az aktív cégeket tartalmazza.
+
+| Művelet | Jogosultság | Végpont |
+|---|---|---|
+| Hozzáférhető céglista, állapottól függetlenül | Saját céges műveleti jogok alapján szűrve | `GET /api/v1/companies?page=1&search=&status=Active` |
+| Cégtörzs megtekintése | `companies.read` | `GET /api/v1/company` |
+| Cégtörzs módosítása | `companies.update` | `PUT /api/v1/company` |
+| Állapot és adatverzió lekérése | `companies.status` | `GET /api/v1/company/state` |
+| Felfüggesztés, archiválás, visszaállítás | `companies.status` | `PATCH /api/v1/company/status` |
+| Kapcsolattartók megtekintése | `companies.read` | `GET /api/v1/company/contacts?includeArchived=false` |
+| Kapcsolattartó létrehozása / módosítása | `companies.update` | `POST /api/v1/company/contacts`, `PUT /api/v1/company/contacts/{id}` |
+| Kapcsolattartó archiválása / visszaállítása | `companies.update` | `PATCH /api/v1/company/contacts/{id}/status` |
+| Telephelyek megtekintése | `sites.read` | `GET /api/v1/company/sites?includeArchived=false` |
+| Telephely létrehozása | `sites.create` | `POST /api/v1/company/sites` |
+| Telephely szerkesztése | `sites.update` | `PUT /api/v1/company/sites/{id}` |
+| Telephely archiválása / visszaállítása | `sites.archive` | `PATCH /api/v1/company/sites/{id}/status` |
+| Járművek és telephelyeik | `sites.read` és `vehicles.read` | `GET /api/v1/company/vehicles` |
+| Jármű áthelyezése / hozzárendelés megszüntetése | `sites.vehicles.assign` és `vehicles.read` | `PUT /api/v1/company/vehicles/{id}/site` |
+| Céges törzsadat-változások | `audit.read` | `GET /api/v1/company/audit-events?page=1` |
+
+A `/company` végpontok az `X-Tenant-Id` fejlécből választanak céget. Minden művelet a cég aktuális közvetlen és csoportos jogait ellenőrzi; az admincsoport az új jogokkal automatikusan bővül. A jogok cégszintű műveleti jogok, jelenleg nem telephelyenkénti felhasználói hozzáférési korlátozások. A jármű telephelyhez rendelése nem ad járműadat-szerkesztési vagy kilométer-rögzítési jogot. Az állapotkezelési jog önmagában nem tárja fel a cég hivatalos és kapcsolattartási adatait.
+
+A cégtörzs mezői: megjelenített és hivatalos név, adószám, cégjegyzékszám, közösségi adószám, strukturált székhely, központi e-mail, telefon, weboldal, időzóna, pénznem és távolságegység. Az országkód két, a pénznem három betű. Az adószámok tárolt törzsadatok; nincs külső cégnyilvántartási ellenőrzés. A távolságegység egy mentett alapbeállítás; a jelenlegi kilométeróra-adatok továbbra is kilométerben maradnak. A kapcsolattartó névvel, beosztással, e-maillel és telefonnal szerepel; a telephely saját névvel, cégen belül kis/nagybetűtől függetlenül egyedi ASCII-kóddal, címmel, e-maillel, telefonnal és opcionális kapcsolattartóval rendelkezik. A megjelenített cégnév kötelező, a többi törzsadat fokozatosan tölthető ki. A meglévő cégekhez a migráció HU / HUF / km alapbeállítást ad, de nem talál ki hivatalos nevet, címet vagy létrehozási időpontot.
+
+A módosítások `version` értékkel védettek; az elavult változat `409` választ kap, részleges mentés nélkül. Cégállapot-módosítás: `{ status: "Active" | "Suspended" | "Archived", reason, version }`; kapcsolattartó és telephely állapota: `{ isArchived, reason, version }`. Az indok kötelező. Jármű-hozzárendelés: `{ siteId, version }`, ahol a `null` megszünteti a hozzárendelést, a verzió pedig a jármű aktuális verziója. Telephely csak jármű-hozzárendelések nélkül archiválható. Aktív telephely kapcsolattartója előbb cserélendő; archivált kapcsolattartóhoz tartozó telephely visszaállítása előtt a kapcsolattartót is aktiválni kell. Archivált telephelykód nem használható újra.
+
+Inaktív cégnél a normál jármű-, tagság- és jogosultsági műveletek leállnak, a céges kezelővégpontokon a korábbi jogokkal továbbra is megtekinthetők az adatok és a napló. Törzsadatmódosítás csak visszaállítás után lehetséges. Az aktiválás megőrzi a tagságokat, a jogokat, a járműveket és a telephelyeket. A profilok, kapcsolattartók, telephelyek és jármű-hozzárendelések EF-szűrővel és PostgreSQL `FORCE ROW LEVEL SECURITY` szabállyal védettek; az összetett idegen kulcsok a másik céghez kapcsolást is kizárják. A műveletek a cégzáron belül újraellenőrzik a hozzáférést és az állapotot.
+
+Minden létrehozás, szerkesztés, állapotváltozás és jármű-hozzárendelés a céges és a központi naplóba kerül, a módosítóval és az előtte–utána adatokkal. Mindkét napló adatbázisszinten tiltja a meglévő sorok átírását és törlését. Nincs fizikai cégtörlési végpont; visszaállításhoz az állapotkezelést használd.
+
 ### Céges és fiókvégpontok
 
 | Művelet | Végpont |

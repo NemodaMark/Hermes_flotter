@@ -27,8 +27,8 @@ public sealed record RecordOdometerRequest(long? Kilometers, long Version);
 
 public interface ITenantDirectory
 {
-    Task<IReadOnlyList<TenantSummary>> ListForUserAsync(string subject, CancellationToken cancellationToken);
-    Task<TenantMembership?> FindMembershipAsync(string subject, Guid tenantId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<TenantSummary>> ListForUserAsync(string subject, CancellationToken cancellationToken, bool includeInactive = false);
+    Task<TenantMembership?> FindMembershipAsync(string subject, Guid tenantId, CancellationToken cancellationToken, bool includeInactive = false);
     Task<TenantSummary> CreateForUserAsync(string subject, CreateTenantRequest request, CancellationToken cancellationToken);
 }
 

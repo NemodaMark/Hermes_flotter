@@ -5,8 +5,8 @@ public enum VehicleStatus { Active, Maintenance, Inactive }
 public sealed class Tenant
 {
     public Guid Id { get; init; }
-    public required string Name { get; init; }
-    public string TimeZone { get; init; } = "Europe/Budapest";
+    public required string Name { get; set; }
+    public string TimeZone { get; set; } = "Europe/Budapest";
 }
 
 public sealed class TenantMembership : ITenantEntity

@@ -59,7 +59,9 @@ public sealed class PermissionMigrationTests(FleetFixture fixture) : IClassFixtu
             await TenantTransaction.RunAsync(upgraded, tenant, async () =>
             {
                 var members = await upgraded.Memberships.Include(item => item.Permissions).Include(item => item.Groups).ThenInclude(item => item.Group).ThenInclude(item => item.Permissions).ToDictionaryAsync(item => item.UserSubject);
-                Assert.Equal(Permissions.All.Except([Permissions.VehiclesUpdate, Permissions.OdometerCreate]).Order(), members["old"].Permissions.Select(item => item.Code).Order());
+                // Historical direct grants stay fixed; only the dynamic admin group gains future permissions.
+                Assert.Equal(new[] { Permissions.AuditRead, Permissions.GroupsManage, Permissions.Manage, Permissions.MembersRead,
+                    Permissions.MembersInvite, Permissions.MembersUpdate, Permissions.VehiclesRead, Permissions.VehiclesCreate }.Order(), members["old"].Permissions.Select(item => item.Code).Order());
                 Assert.Equal(Permissions.All.Order(), members["old"].EffectivePermissions.Order());
                 Assert.True(Assert.Single(members["old"].Groups).Group.IsAdmin);
                 Assert.Equal(new[] { Permissions.VehiclesCreate, Permissions.VehiclesRead }, members["legacy-manager"].Permissions.Select(item => item.Code).Order());

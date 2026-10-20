@@ -9,6 +9,14 @@ export const permissionNames: Record<string, string> = {
   'members.update': 'Céges hozzáférések kezelése',
   'permissions.manage': 'Jogosultságok kiosztása',
   'audit.read': 'Változásnapló megtekintése',
+  'companies.read': 'Cégadatok és kapcsolattartók megtekintése',
+  'companies.update': 'Cégadatok és kapcsolattartók szerkesztése',
+  'companies.status': 'Cég állapotának kezelése',
+  'sites.read': 'Telephelyek megtekintése',
+  'sites.create': 'Telephely létrehozása',
+  'sites.update': 'Telephelyadatok szerkesztése',
+  'sites.archive': 'Telephely archiválása és visszaállítása',
+  'sites.vehicles.assign': 'Jármű telephelyhez rendelése',
 }
 
 export function permissionLabel(code: string) {

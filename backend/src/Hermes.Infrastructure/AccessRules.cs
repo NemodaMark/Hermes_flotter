@@ -15,15 +15,21 @@ internal static class AccessRules
     internal static TenantAccess Access(TenantMembership member) => new(member.TenantId, member.UserSubject, member.IsActive, member.Version, member.EffectivePermissions)
     { DirectPermissions = member.Permissions.Select(x => x.Code).Order(StringComparer.Ordinal).ToArray(), Groups = Groups(member) };
 
-    internal static async Task LockTenant(HermesDbContext db, Guid tenantId, CancellationToken ct)
+    internal static async Task LockTenant(HermesDbContext db, Guid tenantId, CancellationToken ct, bool allowInactive = false)
     {
-        if (await db.Tenants.FromSqlInterpolated($"SELECT * FROM tenants WHERE \"Id\" = {tenantId} FOR UPDATE").AsNoTracking().SingleOrDefaultAsync(ct) is null)
+        var query = db.Tenants.FromSqlInterpolated($"SELECT * FROM tenants WHERE \"Id\" = {tenantId} FOR UPDATE");
+        if (allowInactive) query = query.IgnoreQueryFilters();
+        if (await query.AsNoTracking().SingleOrDefaultAsync(ct) is null)
             throw UserAccounts.Error(404, "tenant_not_found", "A cég nem található.");
     }
 
     // Call inside the tenant transaction, after the global shared lock and company row lock.
-    internal static async Task<TenantMembership> Authorize(HermesDbContext db, Guid tenantId, string subject, string permission, CancellationToken ct)
+    internal static async Task<TenantMembership> Authorize(HermesDbContext db, Guid tenantId, string subject, string permission, CancellationToken ct, bool allowInactive = false)
     {
+        // Recheck availability after the company lock; an earlier middleware snapshot can be stale.
+        var tenants = allowInactive ? db.Tenants.IgnoreQueryFilters() : db.Tenants;
+        if (!await tenants.AnyAsync(x => x.Id == tenantId, ct))
+            throw UserAccounts.Error(403, "company_inactive", "A cég nem aktív vagy nem érhető el.");
         if (await UserAccounts.IsSystemManager(db, subject, ct)) return TenantDirectory.SystemMembership(subject, tenantId);
         var member = await db.Memberships.AsNoTracking().WithAccess().SingleOrDefaultAsync(x => x.TenantId == tenantId && x.UserSubject == subject && x.IsActive, ct);
         if (member is null || !member.HasCompanyAccess || !member.EffectivePermissions.Contains(permission))
