@@ -59,6 +59,13 @@ load_config() {
     done
     [[ $HERMES_INSTANCE =~ ^hermes-[a-z0-9-]+$ ]] || die 'Instance must start with hermes- and contain lowercase letters, digits and hyphens.'
     [[ $HERMES_DOMAIN =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && $HERMES_DOMAIN == *.* ]] || die 'Supply a DNS hostname, without protocol, path or port.'
+    python3 - "${HERMES_EDGE_SUBNET:-172.30.90.0/24}" "${HERMES_EDGE_DYNAMIC_RANGE:-172.30.90.128/25}" "${HERMES_PROXY_IP:-172.30.90.2}" <<'PY'
+import ipaddress, sys
+network, dynamic = map(ipaddress.ip_network, sys.argv[1:3])
+proxy = ipaddress.ip_address(sys.argv[3])
+if not dynamic.subnet_of(network) or proxy not in network or proxy in dynamic or proxy in (network.network_address, network.broadcast_address, network.network_address + 1):
+    raise SystemExit('Proxy IP must be inside the edge subnet and outside its dynamic address pool/gateway.')
+PY
     for name in POSTGRES_ADMIN_PASSWORD POSTGRES_MIGRATOR_PASSWORD POSTGRES_APP_PASSWORD; do
         [[ ${!name:-} =~ ^[a-zA-Z0-9]{32,128}$ ]] || die "$name must be 32–128 alphanumeric characters (init generates it)."
     done
@@ -144,6 +151,7 @@ HERMES_FRONTEND_IMAGE=hermes-frontend:initial
 HERMES_POSTGRES_IMAGE=postgres:18-alpine
 HERMES_CADDY_IMAGE=caddy:2.11.7-alpine
 HERMES_EDGE_SUBNET=172.30.90.0/24
+HERMES_EDGE_DYNAMIC_RANGE=172.30.90.128/25
 HERMES_PROXY_IP=172.30.90.2
 POSTGRES_ADMIN_PASSWORD=$(openssl rand -hex 32)
 POSTGRES_MIGRATOR_PASSWORD=$(openssl rand -hex 32)

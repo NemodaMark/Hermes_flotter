@@ -102,4 +102,7 @@ networks:
   database: { internal: true }
   edge:
     ipam:
-      config: [{ subnet: "${HERMES_EDGE_SUBNET:-172.30.90.0/24}" }]
+      config:
+        - subnet: ${HERMES_EDGE_SUBNET:-172.30.90.0/24}
+          # Automatic service addresses cannot consume the trusted proxy's static IP.
+          ip_range: ${HERMES_EDGE_DYNAMIC_RANGE:-172.30.90.128/25}

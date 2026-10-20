@@ -10,6 +10,8 @@ export HERMES_WORK_DIR="$HERMES_CI_TEMP/work"
 tool="$root/deploy/debian13/hermes.sh"
 dc() { docker compose --project-name hermes-staging --env-file "$HERMES_CONFIG_FILE" -f "$root/deploy/debian13/compose.yaml" "$@"; }
 cleanup() {
+    local result=$?
+    if ((result != 0)); then dc ps || true; dc logs --tail 60 api proxy || true; fi
     dc down --remove-orphans >/dev/null 2>&1 || true
     if [[ -f $HERMES_CI_TEMP/recovered.env ]]; then HERMES_CONFIG_FILE="$HERMES_CI_TEMP/recovered.env" bash "$tool" stop >/dev/null 2>&1 || true; fi
 }

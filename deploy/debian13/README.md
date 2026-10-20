@@ -34,7 +34,7 @@ bash deploy/debian13/hermes.sh deploy
 curl --fail https://flotta-teszt.sajatdomain.hu/health/ready
 ```
 
-A `deploy` a tiszta, commitolt checkoutot fordítja; a futó API verziója tartalmazza a commitot. A Data Protection-kulcsok `/var/lib/hermes/keys`, az adatbázis `/var/lib/hermes/postgres`, a TLS-állományok `/var/lib/hermes/caddy-*` alatt maradnak meg. A csomag alapból a `172.30.90.0/24` hálózatot és a proxy számára `172.30.90.2` címet használja; ütközés esetén indulás előtt együtt módosítsd a `HERMES_EDGE_SUBNET` és `HERMES_PROXY_IP` értékét. A backend csak ettől az egy proxytól fogadja el a továbbított HTTPS-/klienscím-fejlécet. A fájlhatár 10 MiB, a teljes HTTP-kérésé 12 MiB.
+A `deploy` a tiszta, commitolt checkoutot fordítja; a futó API verziója tartalmazza a commitot. A Data Protection-kulcsok `/var/lib/hermes/keys`, az adatbázis `/var/lib/hermes/postgres`, a TLS-állományok `/var/lib/hermes/caddy-*` alatt maradnak meg. A csomag alapból a `172.30.90.0/24` hálózatot és a proxy számára `172.30.90.2` címet használja; az automatikus címek a külön `172.30.90.128/25` tartományból érkeznek. Ütközés esetén indulás előtt együtt módosítsd a `HERMES_EDGE_SUBNET`, `HERMES_EDGE_DYNAMIC_RANGE` és `HERMES_PROXY_IP` értékét. A proxy címe a hálózaton belül, de az automatikus tartományon kívül legyen. A backend csak ettől az egy proxytól fogadja el a továbbított HTTPS-/klienscím-fejlécet. A fájlhatár 10 MiB, a teljes HTTP-kérésé 12 MiB.
 
 Nyisd meg az oldalt, regisztrálj egy saját, erős jelszavú fiókot, majd add meg a kanonikus felhasználónevét:
 
