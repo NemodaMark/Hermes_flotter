@@ -17,7 +17,15 @@ safe_path() {
     [[ $(realpath -m -- "$1") == "$1" ]] || die "Path must be canonical: $1"
 }
 dc() { docker compose --project-name "$HERMES_INSTANCE" --env-file "$HERMES_CONFIG_FILE" -f "$HERMES_ROOT/deploy/debian13/compose.yaml" "$@"; }
-rc() { docker compose --project-name "$drill_project" --env-file "$drill_config" -f "$drill_root/deploy/debian13/compose.restore.yaml" "$@"; }
+rc() (
+    # Compose gives exported variables precedence over --env-file. Override the live
+    # configuration in this subshell before starting any isolated drill container.
+    set -a
+    # shellcheck disable=SC1090
+    source "$drill_config"
+    set +a
+    docker compose --project-name "$drill_project" --env-file "$drill_config" -f "$drill_root/deploy/debian13/compose.restore.yaml" "$@"
+)
 cleanup() {
     local result=$?
     trap - EXIT
@@ -167,12 +175,13 @@ backup() {
     docker image save "${images[@]}" -o "$package/images.tar"
     tar -C "$HERMES_DATA_DIR" -cf "$package/keys-and-tls.tar" keys caddy-data caddy-config
     cp "$HERMES_DATA_DIR/release/source.tar" "$package/source.tar"
+    cp "${HERMES_CADDYFILE:-$HERMES_ROOT/deploy/debian13/Caddyfile}" "$package/Caddyfile"
     python3 - "$package/manifest.json" "$HERMES_RELEASE" <<'PY'
 import datetime, json, sys
 with open(sys.argv[1], 'w') as out:
     json.dump({'format': 1, 'release': sys.argv[2], 'postgresMajor': 18, 'createdUtc': datetime.datetime.now(datetime.timezone.utc).isoformat()}, out)
 PY
-    (cd "$package" && sha256sum database.dump images.tar keys-and-tls.tar source.tar deployment.env manifest.json > SHA256SUMS)
+    (cd "$package" && sha256sum database.dump images.tar keys-and-tls.tar source.tar deployment.env Caddyfile manifest.json > SHA256SUMS)
     restic backup "$package" --tag hermes --host "$HERMES_INSTANCE" --json > "$temporary_dir/restic.json"
     python3 - "$temporary_dir/restic.json" "$HERMES_DATA_DIR/last-backup.json" <<'PY'
 import json, sys
@@ -195,7 +204,7 @@ extract_snapshot() {
     python3 - "$package" <<'PY'
 import hashlib, json, pathlib, sys
 root = pathlib.Path(sys.argv[1])
-expected = {'database.dump','images.tar','keys-and-tls.tar','source.tar','deployment.env','manifest.json'}
+expected = {'database.dump','images.tar','keys-and-tls.tar','source.tar','deployment.env','Caddyfile','manifest.json'}
 lines = (root/'SHA256SUMS').read_text().splitlines()
 found = set()
 for line in lines:
@@ -273,6 +282,7 @@ recover() {
     install -d -m 0700 "$target_root" "$target_data" "$(dirname "$target_config")"
     tar -C "$target_root" -xf "$package/source.tar"
     tar -C "$target_data" -xf "$package/keys-and-tls.tar"
+    cp "$package/Caddyfile" "$target_data/Caddyfile"
     docker image load -i "$package/images.tar" > /dev/null
     cp "$package/deployment.env" "$target_config"
     local old_config=$HERMES_CONFIG_FILE work=$HERMES_WORK_DIR
@@ -288,6 +298,7 @@ PY
     write_setting HERMES_ROOT "$target_root"
     write_setting HERMES_DATA_DIR "$target_data"
     write_setting HERMES_WORK_DIR "$work"
+    write_setting HERMES_CADDYFILE "$target_data/Caddyfile"
     # Isolate the new database/project even when recovering on the old host.
     write_setting HERMES_INSTANCE "hermes-recovery-$(openssl rand -hex 6)"
     set -a

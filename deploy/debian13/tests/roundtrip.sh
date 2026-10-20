@@ -57,6 +57,7 @@ recovered_instance=$(sed -n 's/^HERMES_INSTANCE=//p' "$HERMES_CONFIG_FILE")
 docker compose --project-name "$recovered_instance" --env-file "$HERMES_CONFIG_FILE" -f "$root/deploy/debian13/compose.yaml" exec -T db psql -U postgres -d hermes -At < "$root/deploy/debian13/tests/fingerprint.sql" > "$HERMES_CI_TEMP/after-recovery.txt"
 cmp "$HERMES_CI_TEMP/before.txt" "$HERMES_CI_TEMP/after-recovery.txt"
 bash "$tool" start
+export NODE_EXTRA_CA_CERTS="$HERMES_CI_TEMP/recovered-data/caddy-data/caddy/pki/authorities/local/root.crt"
 node "$root/deploy/debian13/tests/staging-roundtrip.mjs" verify "$HERMES_CI_TEMP/state.json"
 bash "$tool" status
 echo 'PASS: Debian 13 install, Production HTTPS, encrypted backup, isolated restore drill, full recovery, all-table fingerprints, binary document, sessions and tenant isolation.'
