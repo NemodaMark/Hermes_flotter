@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, RefreshCw, Upload } from 'lucide-react'
+import { Download, Eye, RefreshCw, Upload } from 'lucide-react'
 import { AccessDialog } from './AccessDialog'
 import { NotesField, QueryMessage } from './FleetFields'
-import { documentApi, saveDownload } from './documentApi'
+import { canPreviewDocument, documentApi, saveDownload } from './documentApi'
+import { DocumentPreview } from './DocumentPreview'
 import type { DocumentChange, DocumentKind, VehicleDocument } from './documentApi'
 
 export type DocumentTarget = { id: string; name: string; version: number; isVoided?: boolean }
@@ -22,6 +23,8 @@ export function VehicleDocuments({ tenantId, vehicleId, registration, kind, targ
   const [change, setChange] = useState<{ file: VehicleDocument; withdrawn: boolean } | null>(null)
   const [reason, setReason] = useState('')
   const [message, setMessage] = useState('')
+  const [previewId, setPreviewId] = useState<string | null>(null)
+  const previewButton = useRef<HTMLButtonElement | null>(null)
   const key = ['fleet-management', tenantId, vehicleId, kind, target.id, 'documents']
   const list = useQuery({ queryKey: key, queryFn: ({ signal }) => documentApi.list(tenantId, vehicleId, kind, target.id, signal), enabled: canRead, retry: false })
   const parentVersion = list.data?.parentVersion ?? version
@@ -48,8 +51,12 @@ export function VehicleDocuments({ tenantId, vehicleId, registration, kind, targ
   const invalidFile = file && (file.size < 1 || file.size > maxBytes || !/\.(pdf|jpe?g|png|docx|xlsx)$/i.test(file.name))
   const items = list.data?.items.filter(x => showWithdrawn || !x.isWithdrawn) ?? []
   const editable = canManage && !target.isVoided
-  return <AccessDialog title={kind === 'leases' ? 'Lízingszerződés dokumentumai' : 'Szervizdokumentumok'} pending={pending} onClose={onClose}>
+  const preview = canRead && !list.error ? list.data?.items.find(x => x.id === previewId && canPreviewDocument(x)) : undefined
+  useEffect(() => { if (!preview) previewButton.current?.focus() }, [preview])
+  return <AccessDialog className={preview ? 'document-preview-dialog' : ''} title={preview ? 'Dokumentum előnézete' : kind === 'leases' ? 'Lízingszerződés dokumentumai' : 'Szervizdokumentumok'} pending={pending} onClose={onClose}>
     <p className="access-description">{registration} · {target.name}</p>
+    {preview && <DocumentPreview key={`${tenantId}:${vehicleId}:${kind}:${target.id}:${preview.id}`} tenantId={tenantId} vehicleId={vehicleId} kind={kind} parentId={target.id} document={preview} onBack={() => setPreviewId(null)} onDownload={() => download.mutate(preview)} downloading={download.isPending} downloadError={download.error?.message} />}
+    <div hidden={!!preview}>
     {editable && <form className="document-upload" onSubmit={e => { e.preventDefault(); if (file && !invalidFile) { setMessage(''); upload.mutate() } }}>
       <label className="org-field"><span>Fájl kiválasztása</span><input ref={input} type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" disabled={pending} onChange={e => { setFile(e.target.files?.[0] ?? null); upload.reset(); setMessage('') }} /></label>
       <p className="field-hint">PDF, JPG, PNG, DOCX vagy XLSX · legfeljebb 10 MB fájlonként.</p>
@@ -64,6 +71,7 @@ export function VehicleDocuments({ tenantId, vehicleId, registration, kind, targ
         <div><strong>{doc.fileName}</strong><p className="fleet-detail-caption">{bytesText(doc.byteLength)} · {new Date(doc.uploadedAt).toLocaleString('hu-HU')} · {doc.uploadedBy}</p>
           {doc.isWithdrawn && <p className="fleet-detail-caption">Visszavont · {doc.statusReason}</p>}</div>
         <div className="member-actions">
+          {canPreviewDocument(doc) && <button className="secondary-button" aria-label={`Megtekintés: ${doc.fileName}`} disabled={pending} onClick={e => { previewButton.current = e.currentTarget; download.reset(); setPreviewId(doc.id) }}><Eye size={15} />Megtekintés</button>}
           {!doc.isWithdrawn && <button className="secondary-button" aria-label={`Letöltés: ${doc.fileName}`} disabled={pending} onClick={() => download.mutate(doc)}><Download size={15} />Letöltés</button>}
           {editable && <button className="secondary-button" disabled={pending} onClick={() => { setChange({ file: doc, withdrawn: !doc.isWithdrawn }); setReason(''); status.reset() }}>{doc.isWithdrawn ? 'Visszaállítás' : 'Visszavonás'}</button>}
         </div>
@@ -77,5 +85,6 @@ export function VehicleDocuments({ tenantId, vehicleId, registration, kind, targ
     {[upload.error, status.error, download.error].filter(Boolean).map((error, index) => <p key={index} className="form-error" role="alert">{error!.message}</p>)}
     {message && <p className="access-success" role="status">{message}</p>}
     <div className="dialog-actions"><button className="secondary-button" disabled={pending} onClick={onClose}>Bezárás</button></div>
+    </div>
   </AccessDialog>
 }

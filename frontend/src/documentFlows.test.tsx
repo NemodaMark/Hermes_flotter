@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { VehicleDocuments } from './VehicleDocuments'
@@ -7,6 +7,8 @@ import { documentApi, saveDownload } from './documentApi'
 import type { DocumentCollection, VehicleDocument } from './documentApi'
 
 vi.mock('./documentApi', async importOriginal => ({ ...await importOriginal<typeof import('./documentApi')>(), saveDownload: vi.fn() }))
+const pdf = vi.hoisted(() => ({ destroy: vi.fn(async () => {}), cancel: vi.fn(), render: vi.fn(), getPage: vi.fn(), getDocument: vi.fn() }))
+vi.mock('pdfjs-dist', () => ({ GlobalWorkerOptions: {}, version: 'test', getDocument: pdf.getDocument }))
 const doc: VehicleDocument = { id: 'doc', fileName: 'szerzodes.pdf', contentType: 'application/pdf', byteLength: 128, sha256: 'hash', uploadedBy: 'operator', uploadedAt: '2026-10-20T10:00:00Z', version: 1, isWithdrawn: false, statusReason: null, statusChangedBy: null, statusChangedAt: null }
 const collection = (items = [doc], parentVersion = 7): DocumentCollection => ({ items, parentVersion, vehicleVersion: 9, totalBytes: 128 })
 function mount(canRead = true, canManage = true, isVoided = false) {
@@ -21,6 +23,12 @@ beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
   vi.spyOn(documentApi, 'list').mockResolvedValue(collection())
+  vi.stubGlobal('ResizeObserver', class { callback: ResizeObserverCallback; constructor(callback: ResizeObserverCallback) { this.callback = callback } observe() { this.callback([{ contentRect: { width: 800 } } as ResizeObserverEntry], this as unknown as ResizeObserver) } disconnect() {} })
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:test-image'), revokeObjectURL: vi.fn() }))
+  pdf.destroy.mockClear(); pdf.cancel.mockClear()
+  pdf.render.mockReset().mockReturnValue({ promise: Promise.resolve(), cancel: pdf.cancel })
+  pdf.getPage.mockReset().mockImplementation(async () => ({ getViewport: ({ scale }: { scale: number }) => ({ width: 600 * scale, height: 800 * scale }), render: pdf.render }))
+  pdf.getDocument.mockReset().mockImplementation(() => ({ promise: Promise.resolve({ numPages: 2, getPage: pdf.getPage }), destroy: pdf.destroy }))
 })
 it('uploads to the selected record with its current version and refreshes the list', async () => {
   const upload = vi.spyOn(documentApi, 'upload').mockResolvedValue({ document: doc, parentVersion: 8, vehicleVersion: 10 })
@@ -103,4 +111,81 @@ it('keeps historical documents readable when the record cannot be modified', asy
   expect(await screen.findByRole('button', { name: /Letöltés/ })).toBeInTheDocument()
   expect(screen.queryByLabelText('Fájl kiválasztása')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Visszavonás' })).not.toBeInTheDocument()
+})
+it('previews PDF pages with paging and zoom while keeping the download behind a fresh request', async () => {
+  const blob = new Blob(['%PDF-1.7'], { type: 'application/pdf' })
+  const content = vi.spyOn(documentApi, 'content').mockResolvedValue(blob)
+  mount(true, false)
+  await userEvent.click(await screen.findByRole('button', { name: `Megtekintés: ${doc.fileName}` }))
+  expect(await screen.findByRole('img', { name: `${doc.fileName} – 1. oldal` })).toBeInTheDocument()
+  expect(pdf.getDocument).toHaveBeenCalledWith(expect.objectContaining({ data: expect.any(Uint8Array), enableXfa: false, cMapUrl: '/pdfjs/test/cmaps/' }))
+  expect(content).toHaveBeenCalledWith('company', 'car', 'leases', 'lease', doc.id, expect.any(AbortSignal))
+  await userEvent.click(screen.getByRole('button', { name: 'Következő PDF-oldal' }))
+  expect(await screen.findByRole('img', { name: `${doc.fileName} – 2. oldal` })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Nagyítás' }))
+  await waitFor(() => expect(screen.getByLabelText('Nagyítás', { selector: 'output' })).toHaveTextContent('125%'))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Szélességhez igazítás' })).toBeEnabled())
+  await userEvent.click(screen.getByRole('button', { name: 'Szélességhez igazítás' }))
+  await waitFor(() => expect(screen.getByLabelText('Nagyítás', { selector: 'output' })).toHaveTextContent('100%'))
+  await userEvent.click(screen.getByRole('button', { name: 'Letöltés' }))
+  await waitFor(() => expect(content).toHaveBeenCalledTimes(2))
+  await userEvent.click(screen.getByRole('button', { name: 'Vissza a dokumentumokhoz' }))
+  await waitFor(() => expect(pdf.destroy).toHaveBeenCalledTimes(1))
+  expect(screen.getByRole('button', { name: `Megtekintés: ${doc.fileName}` })).toHaveFocus()
+})
+it('releases image URLs on close and preserves an upload draft while viewing another document', async () => {
+  const image = { ...doc, fileName: 'szerviz.png', contentType: 'image/png' }
+  vi.mocked(documentApi.list).mockResolvedValue(collection([image]))
+  vi.spyOn(documentApi, 'content').mockResolvedValue(new Blob(['image'], { type: 'image/png' }))
+  mount()
+  await screen.findByText(image.fileName)
+  const file = new File(['%PDF-1.7'], 'uj.pdf')
+  await userEvent.upload(screen.getByLabelText('Fájl kiválasztása'), file)
+  await userEvent.click(screen.getByRole('button', { name: `Megtekintés: ${image.fileName}` }))
+  expect(await screen.findByRole('img', { name: image.fileName })).toHaveAttribute('src', 'blob:test-image')
+  await userEvent.click(screen.getByRole('button', { name: 'Nagyítás' }))
+  expect(screen.getByRole('img', { name: image.fileName })).toHaveStyle({ width: '125%' })
+  await userEvent.click(screen.getByRole('button', { name: 'Vissza a dokumentumokhoz' }))
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-image')
+  expect((screen.getByLabelText('Fájl kiválasztása') as HTMLInputElement).files?.[0]).toBe(file)
+})
+it('aborts a pending preview when leaving it and discards a late response', async () => {
+  let resolve!: (blob: Blob) => void
+  const content = vi.spyOn(documentApi, 'content').mockImplementation(() => new Promise(done => { resolve = done }))
+  mount(true, false)
+  await userEvent.click(await screen.findByRole('button', { name: `Megtekintés: ${doc.fileName}` }))
+  await screen.findByText('Dokumentum betöltése…')
+  const signal = content.mock.calls[0][5]!
+  await userEvent.click(screen.getByRole('button', { name: 'Vissza a dokumentumokhoz' }))
+  expect(signal.aborted).toBe(true)
+  await act(async () => resolve(new Blob(['pdf'], { type: 'application/pdf' })))
+  expect(pdf.getDocument).not.toHaveBeenCalled()
+  expect(URL.createObjectURL).not.toHaveBeenCalled()
+})
+it('reports a fresh authorization failure without rendering old content and allows a retry', async () => {
+  const content = vi.spyOn(documentApi, 'content').mockRejectedValueOnce(new Error('Nincs hozzáférés.')).mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }))
+  mount(true, false)
+  await userEvent.click(await screen.findByRole('button', { name: `Megtekintés: ${doc.fileName}` }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Nincs hozzáférés.')
+  expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Újrapróbálom' }))
+  await screen.findByRole('img', { name: `${doc.fileName} – 1. oldal` })
+  expect(content).toHaveBeenCalledTimes(2)
+})
+it('does not offer previews for withdrawn files or office documents', async () => {
+  vi.mocked(documentApi.list).mockResolvedValue(collection([{ ...doc, isWithdrawn: true }, { ...doc, id: 'office', fileName: 'szerzodes.docx', contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }]))
+  const content = vi.spyOn(documentApi, 'content')
+  mount()
+  await screen.findByText('szerzodes.docx')
+  await userEvent.click(screen.getByLabelText('Visszavontak is'))
+  expect(screen.queryByRole('button', { name: /Megtekintés:/ })).not.toBeInTheDocument()
+  expect(content).not.toHaveBeenCalled()
+})
+it('shows a useful error for password-protected PDF files and keeps download available', async () => {
+  vi.spyOn(documentApi, 'content').mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }))
+  pdf.getDocument.mockImplementation(() => ({ promise: Promise.reject(Object.assign(new Error(), { name: 'PasswordException' })), destroy: pdf.destroy }))
+  mount(true, false)
+  await userEvent.click(await screen.findByRole('button', { name: `Megtekintés: ${doc.fileName}` }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('jelszóval védett')
+  expect(screen.getByRole('button', { name: 'Letöltés' })).toBeInTheDocument()
 })

@@ -26,10 +26,12 @@ describe('authenticated API requests', () => {
     const fetch = vi.fn().mockResolvedValueOnce(new Response('%PDF-1.7', { headers: { 'Content-Type': 'application/pdf' } }))
       .mockResolvedValueOnce(new Response('{"title":"Nincs jogosultság."}', { status: 403 }))
     vi.stubGlobal('fetch', fetch)
-    const blob = await documentApi.content('company', 'car', 'services', 'service', 'doc')
+    const controller = new AbortController()
+    const blob = await documentApi.content('company', 'car', 'services', 'service', 'doc', controller.signal)
     expect(blob.type).toBe('application/pdf')
     expect(await blob.text()).toBe('%PDF-1.7')
     expect(new Headers(fetch.mock.calls[0][1].headers).get('X-Tenant-Id')).toBe('company')
+    expect(fetch.mock.calls[0][1].signal).toBe(controller.signal)
     await expect(documentApi.content('company', 'car', 'services', 'service', 'doc')).rejects.toMatchObject({ status: 403, message: 'Nincs jogosultság.' })
   })
   it('uses the username login field independently of the email field', async () => {

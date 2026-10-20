@@ -315,6 +315,10 @@ Az új profil-, rendszám-, partner-, lízing- és szerviztáblák PostgreSQL `F
 
 A **Járművek → Adatlap → Lízing / Szerviz → Dokumentumok** ablak a mentett szerződéshez vagy szervizbejegyzéshez csatol fájlokat; új bejegyzés mentése után automatikusan megnyílik. A webcímek továbbra is használhatók. Támogatott: PDF, JPG/JPEG, PNG, makrómentes DOCX és XLSX. A szerver a kiterjesztést és a fájl tartalmi jellemzőit is ellenőrzi, a beküldött MIME-típusra nem hagyatkozik. Fájlonként 10 MiB, kérésenként 12 MiB a korlát; bejegyzésenként legfeljebb 20 aktív, 100 összes tárolt fájl és 100 MiB összes adat engedélyezett. A visszavont fájl is beleszámít a tárolási keretbe.
 
+Az aktív PDF-, JPG- és PNG-fájlok **Megtekintés** gombja az alkalmazáson belül nyit előnézetet. A PDF lapozható, a PDF és a kép nagyítható, illetve szélességhez igazítható. A DOCX és XLSX továbbra is letölthető. Jelszóval védett vagy nem megjeleníthető fájlnál a felület hibajelzést és letöltési lehetőséget ad. Az előnézet minden megnyitáskor a védett tartalomvégpontot használja az aktuális céggel és sütis hitelesítéssel. Bezáráskor a folyamatban levő lekérés megszakad, a kép ideiglenes URL-je és a PDF-megjelenítő erőforrásai felszabadulnak; a fájltartalom nem kerül a közös lekérdezési gyorsítótárba. A megjelenítőben választott letöltés ismét szerveroldali hozzáférés-ellenőrzést kér.
+
+A PDF-et a helyben csomagolt Mozilla PDF.js rajzolja vászonra; a megjelenítő, worker, betűkészletek, karaktertáblák és dekódolók az alkalmazás saját kiszolgálójáról töltődnek be. A frontend build a verzióhoz kötött kiegészítőket a `dist/pdfjs/{version}/` könyvtárba másolja, a fejlesztői szerver ugyanazokat a csomagfájlokat szolgálja ki. Az előnézethez nincs külön API-végpont, adatbázis-migráció vagy új jogosultság.
+
 | Művelet | Végpont az `/api/v1/vehicles/{vehicleId}` alatt | Jog |
 |---|---|---|
 | Lista | `GET /leases/{parentId}/documents` vagy `/services/{parentId}/documents` | megfelelő `vehicles.leasing.read` / `vehicles.service.read` |

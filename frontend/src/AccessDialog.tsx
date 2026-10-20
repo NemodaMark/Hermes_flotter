@@ -7,11 +7,13 @@ export function AccessDialog({
   pending,
   onClose,
   children,
+  className = '',
 }: {
   title: string
   pending: boolean
   onClose: () => void
   children: ReactNode
+  className?: string
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -23,7 +25,7 @@ export function AccessDialog({
   return (
     <dialog
       ref={dialog}
-      className="access-dialog"
+      className={`access-dialog ${className}`.trim()}
       aria-labelledby="access-dialog-title"
       onCancel={(event) => {
         event.preventDefault()

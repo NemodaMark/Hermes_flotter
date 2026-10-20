@@ -68,6 +68,7 @@ jobs:
       - run: node scripts/smoke-auth.mjs
         env:
           HERMES_SMOKE_ISOLATED: "true"
+      - run: node scripts/smoke-document-preview.mjs
       - if: always()
         run: docker compose logs --no-color
       - if: always()

@@ -20,9 +20,10 @@ export const documentApi = {
   },
   status: (tenantId: string, car: string, kind: DocumentKind, parent: string, file: VehicleDocument, isWithdrawn: boolean, reason: string, parentVersion: number) =>
     request<DocumentChange>(`${path(car, kind, parent)}/${file.id}/status`, { tenantId, method: 'PATCH', body: { isWithdrawn, reason, version: file.version, parentVersion } }),
-  content: (tenantId: string, car: string, kind: DocumentKind, parent: string, id: string) =>
-    request<Blob>(`${path(car, kind, parent)}/${id}/content`, { tenantId, responseType: 'blob' }),
+  content: (tenantId: string, car: string, kind: DocumentKind, parent: string, id: string, signal?: AbortSignal) =>
+    request<Blob>(`${path(car, kind, parent)}/${id}/content`, { tenantId, responseType: 'blob', signal }),
 }
+export const canPreviewDocument = (doc: VehicleDocument) => !doc.isWithdrawn && ['application/pdf', 'image/jpeg', 'image/png'].includes(doc.contentType)
 export function saveDownload(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
