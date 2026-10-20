@@ -99,6 +99,7 @@ wait_db() {
 restore_database() {
     local command=$1 dump=$2
     # This helper is called only for a fresh directory/project, never for the live database.
+    # shellcheck disable=SC2016 -- Expand the password inside the database container.
     "$command" exec -T db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" exec pg_restore -U postgres -d hermes --clean --if-exists --exit-on-error --single-transaction' < "$dump"
 }
 validate_database() {
@@ -158,6 +159,7 @@ backup() {
     [[ -z $temporary_dir ]] && workdir
     local package="$temporary_dir/package"
     mkdir "$package"
+    # shellcheck disable=SC2016 -- Expand the password inside the database container.
     dc exec -T db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" exec pg_dump -U postgres -d hermes --format=custom' > "$package/database.dump"
     dc exec -T db pg_restore --list < "$package/database.dump" > /dev/null
     # Include binaries, not just moving image tags: recovery works without rebuilding old code.
@@ -243,7 +245,8 @@ restore_drill() {
 }
 deploy() {
     [[ ! -e $HERMES_DATA_DIR/deploying ]] || die 'Previous deployment is incomplete; follow the recovery procedure.'
-    git -C "$HERMES_ROOT" diff --quiet && git -C "$HERMES_ROOT" diff --cached --quiet || die 'Deploy a clean committed checkout.'
+    git -C "$HERMES_ROOT" diff --quiet || die 'Deploy a clean committed checkout.'
+    git -C "$HERMES_ROOT" diff --cached --quiet || die 'Deploy a clean committed checkout.'
     [[ -z $(git -C "$HERMES_ROOT" ls-files --others --exclude-standard) ]] || die 'Commit untracked project files before deployment.'
     local release api_image frontend_image
     release=$(git -C "$HERMES_ROOT" rev-parse HEAD)
