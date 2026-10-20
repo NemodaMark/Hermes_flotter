@@ -23,6 +23,14 @@ public sealed class GroupCompany
 {
     public Guid GroupId { get; init; }
     public Guid TenantId { get; init; }
+    public bool RestrictSites { get; set; }
+    public List<GroupCompanySite> Sites { get; set; } = [];
+}
+public sealed class GroupCompanySite
+{
+    public Guid GroupId { get; init; }
+    public Guid TenantId { get; init; }
+    public Guid SiteId { get; init; }
 }
 public sealed class GroupUser
 {

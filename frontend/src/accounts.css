@@ -183,3 +183,21 @@
     padding-right: 0;
   }
 }
+.group-site-fields {
+  margin: 18px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.group-site-fields legend { font-size: 13px; font-weight: 600; padding: 0 5px; }
+.group-site-fields select, #vehicle-site {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  font: inherit;
+  color: inherit;
+  background: white;
+  border: 1px solid #bdcbd4;
+  border-radius: 4px;
+}
+.group-site-options { max-height: 240px; overflow-y: auto; margin-top: 12px; }

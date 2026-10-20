@@ -1,6 +1,9 @@
 namespace Hermes.Application;
 
-public sealed record CompanyRow(Guid Id, string Name, string Status, string[] Permissions);
+public sealed record CompanyRow(Guid Id, string Name, string Status, string[] Permissions)
+{
+    public Hermes.Domain.PermissionSiteScope[] PermissionScopes { get; init; } = [];
+}
 public sealed record AddressInput(string CountryCode, string? PostalCode, string? City, string? AddressLine1, string? AddressLine2);
 public sealed record CompanyInput(string Name, string? LegalName, string? TaxNumber, string? RegistrationNumber,
     string? EuVatNumber, AddressInput Address, string? Email, string? Phone, string? Website,
@@ -15,6 +18,14 @@ public sealed record ContactDetails(Guid Id, ContactInput Data, bool IsArchived,
     DateTimeOffset? ArchivedAt, DateTimeOffset CreatedAt, string CreatedBy, DateTimeOffset? UpdatedAt, string? UpdatedBy);
 public sealed record SiteInput(string Name, string Code, AddressInput Address, string? Email, string? Phone, Guid? ContactId, long Version = 0);
 public sealed record SiteDetails(Guid Id, SiteInput Data, string? ContactName, bool IsArchived, string? StatusReason,
-    DateTimeOffset? ArchivedAt, int VehicleCount, DateTimeOffset CreatedAt, string CreatedBy, DateTimeOffset? UpdatedAt, string? UpdatedBy);
-public sealed record SiteVehicle(Guid Id, string Registration, string Make, string Model, Guid? SiteId, string? SiteName, long Version);
+    DateTimeOffset? ArchivedAt, int? VehicleCount, DateTimeOffset CreatedAt, string CreatedBy, DateTimeOffset? UpdatedAt, string? UpdatedBy)
+{
+    public string[] Permissions { get; init; } = [];
+}
+public sealed record SiteVehicle(Guid Id, string Registration, string Make, string Model, Guid? SiteId, string? SiteName, long Version)
+{
+    public string[] Permissions { get; init; } = [];
+    public Guid[] AssignableSiteIds { get; init; } = [];
+    public bool CanUnassign { get; init; }
+}
 public sealed record AssignVehicleSite(Guid? SiteId, long Version);

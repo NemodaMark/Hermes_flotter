@@ -11,6 +11,9 @@ const message = (error: unknown) =>
   error instanceof Error ? error.message : 'A művelet nem sikerült.'
 const date = (value: string) =>
   new Date(value).toLocaleString('hu-HU', { dateStyle: 'short', timeStyle: 'short' })
+const directGrantOptions = (tenant: Tenant) => tenant.permissions.filter((code) =>
+  !tenant.permissionScopes || !(code.startsWith('vehicles.') || code.startsWith('sites.') || code === 'audit.read')
+  || tenant.permissionScopes.some((scope) => scope.code === code && scope.allSites))
 
 export function PermissionFields({
   catalog,
@@ -157,7 +160,7 @@ export function InvitationDialog({
             <PermissionFields
               catalog={catalog}
               selected={permissions}
-              available={tenant.permissions}
+              available={directGrantOptions(tenant)}
               onChange={setPermissions}
               disabled={mutation.isPending}
             />
@@ -247,7 +250,7 @@ export function PermissionsDialog({
         <PermissionFields
           catalog={catalog}
           selected={selected}
-          available={tenant.permissions}
+            available={directGrantOptions(tenant)}
           onChange={setSelected}
           disabled={mutation.isPending || reload.isPending}
         />

@@ -1,7 +1,7 @@
 import { request } from './api'
-import type { Page } from './api'
+import type { Page, PermissionSiteScope } from './api'
 
-export type CompanyRow = { id: string; name: string; status: string; permissions: string[] }
+export type CompanyRow = { id: string; name: string; status: string; permissions: string[]; permissionScopes?: PermissionSiteScope[] }
 export type Address = {
   countryCode: string
   postalCode: string | null
@@ -70,7 +70,8 @@ export type Site = Metadata &
     id: string
     data: SiteInput
     contactName: string | null
-    vehicleCount: number
+    vehicleCount: number | null
+    permissions?: string[]
   }
 export type SiteVehicle = {
   id: string
@@ -80,6 +81,9 @@ export type SiteVehicle = {
   siteId: string | null
   siteName: string | null
   version: number
+  permissions?: string[]
+  assignableSiteIds?: string[]
+  canUnassign?: boolean
 }
 export type OrganizationAudit = {
   id: string

@@ -9,6 +9,7 @@ function mountApp({
   permissions = ['vehicles.read', 'vehicles.create'],
   signedIn = true,
   expire = false,
+  canCreateUnassigned = true,
 } = {}) {
   resetCsrfToken()
   const user = { id: 'anna', displayName: 'Kovács Anna', email: 'anna@example.test' }
@@ -46,7 +47,9 @@ function mountApp({
         }
         return json(tenants)
       }
+      if (path.endsWith('/vehicles/create-options')) return json({ canCreateUnassigned, sites: [{ id: 'site-a', name: 'Budapest', code: 'BP' }] })
       if (path.includes('/vehicles')) {
+        if (options.method === 'POST') return json({ id: 'created', ...JSON.parse(String(options.body)) }, 201)
         if (expire) {
           session = null
           return json({}, 401)
@@ -101,6 +104,27 @@ it('does not fetch or display vehicles without read permission, even with create
   expect(vi.mocked(fetch).mock.calls.some(([path]) => String(path).includes('/vehicles'))).toBe(
     false,
   )
+})
+
+it('requires an allowed site for vehicle creation with a site-restricted permission', async () => {
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
+  mountApp({ permissions: ['vehicles.create'], canCreateUnassigned: false })
+  await userEvent.click(await screen.findByRole('button', { name: 'Új jármű' }))
+  const site = await screen.findByRole('combobox', { name: 'Telephely' })
+  await waitFor(() => expect(site).toBeEnabled())
+  expect(site).toBeRequired()
+  expect(screen.queryByRole('option', { name: 'Nincs telephelyhez rendelve' })).not.toBeInTheDocument()
+  await userEvent.type(screen.getByLabelText('Rendszám'), 'NEW-001')
+  await userEvent.type(screen.getByLabelText('Gyártó'), 'Ford')
+  await userEvent.type(screen.getByLabelText('Modell'), 'Focus')
+  await userEvent.click(screen.getByRole('button', { name: 'Mentés' }))
+  expect(vi.mocked(fetch).mock.calls.some(([path, options]) => String(path).endsWith('/vehicles') && options?.method === 'POST')).toBe(false)
+  await userEvent.selectOptions(site, 'site-a')
+  await userEvent.click(screen.getByRole('button', { name: 'Mentés' }))
+  await waitFor(() => expect(vi.mocked(fetch).mock.calls.find(([path, options]) => String(path).endsWith('/vehicles') && options?.method === 'POST')?.[1]).toMatchObject({
+    body: JSON.stringify({ registration: 'NEW-001', make: 'Ford', model: 'Focus', siteId: 'site-a' }),
+  }))
 })
 
 it('logs in and offers company creation to a user without memberships', async () => {

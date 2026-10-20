@@ -7,6 +7,7 @@ import type { PermissionGroup, GroupCompanyOption, GroupUser } from './api'
 import { PermissionGroups, GroupAssignmentDialog } from './PermissionGroups'
 import { permissionNames } from './permissions'
 import { MembersPage } from './MembersPage'
+import { VehicleActions } from './VehicleActions'
 
 const user = { id: 'anna', displayName: 'Anna', email: 'anna@example.test' }
 const codes = Object.keys(permissionNames)
@@ -102,8 +103,92 @@ it('selects multiple managed companies and restricts permissions to their inters
       permissions: ['vehicles.read'],
       companyIds: ['a', 'b'],
       allPermissions: false,
+      siteScopes: [
+        { companyId: 'a', allSites: true, siteIds: [] },
+        { companyId: 'b', allSites: true, siteIds: [] },
+      ],
     }),
   )
+})
+
+it('selects sites independently inside each company and requires a nonempty restricted selection', async () => {
+  const sites = [
+    { id: 'bp', name: 'Budapest', code: 'BP', isArchived: false },
+    { id: 'gyor', name: 'Győr', code: 'GYOR', isArchived: false },
+  ]
+  vi.mocked(api.groupCompanies).mockResolvedValue(companies.map((c, i) => ({ ...c, sites: [sites[i] ?? sites[0]] })))
+  const create = vi.spyOn(api, 'createGroup').mockResolvedValue(group)
+  mount(<PermissionGroups user={user} />)
+  await userEvent.click(await screen.findByRole('button', { name: 'Új jogosultságcsoport' }))
+  const dialog = within(screen.getByRole('dialog'))
+  await userEvent.type(dialog.getByLabelText('Csoport neve'), 'Kijelölt telephelyek')
+  await userEvent.click(dialog.getByLabelText('Duna'))
+  await userEvent.click(dialog.getByLabelText('Pannon'))
+  await userEvent.selectOptions(dialog.getByRole('combobox', { name: 'Duna: telephely-hozzáférés' }), 'selected')
+  expect(dialog.getByRole('button', { name: 'Jogosultságcsoport mentése' })).toBeDisabled()
+  await userEvent.click(dialog.getByRole('checkbox', { name: 'Duna: Budapest (BP)' }))
+  await userEvent.selectOptions(dialog.getByRole('combobox', { name: 'Pannon: telephely-hozzáférés' }), 'selected')
+  await userEvent.click(dialog.getByRole('checkbox', { name: 'Pannon: Győr (GYOR)' }))
+  await userEvent.click(dialog.getByLabelText('Járművek megtekintése'))
+  await userEvent.click(dialog.getByRole('button', { name: 'Jogosultságcsoport mentése' }))
+  await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({
+    companyIds: ['a', 'b'], permissions: ['vehicles.read'], siteScopes: [
+      { companyId: 'a', allSites: false, siteIds: ['bp'] },
+      { companyId: 'b', allSites: false, siteIds: ['gyor'] },
+    ],
+  })))
+})
+
+it('keeps a restricted site selection when editing only the group name', async () => {
+  const site = { id: 'bp', name: 'Budapest', code: 'BP', isArchived: false }
+  vi.mocked(api.groupCompanies).mockResolvedValue([{ ...companies[0], sites: [site] }])
+  vi.mocked(api.groups).mockResolvedValue([{ ...group, companies: [{ id: 'a', name: 'Duna', allSites: false, sites: [site] }] }])
+  const update = vi.spyOn(api, 'updateGroup').mockResolvedValue(group)
+  mount(<PermissionGroups user={user} />)
+  await userEvent.click(await screen.findByRole('button', { name: `Jogosultságcsoport szerkesztése: ${group.name}` }))
+  const dialog = within(screen.getByRole('dialog'))
+  expect(dialog.getByRole('combobox', { name: 'Duna: telephely-hozzáférés' })).toHaveValue('selected')
+  expect(dialog.getByRole('checkbox', { name: 'Duna: Budapest (BP)' })).toBeChecked()
+  await userEvent.type(dialog.getByLabelText('Csoport neve'), ' új')
+  await userEvent.click(dialog.getByRole('button', { name: 'Jogosultságcsoport mentése' }))
+  await waitFor(() => expect(update).toHaveBeenCalledWith(group.id, expect.objectContaining({
+    siteScopes: [{ companyId: 'a', allSites: false, siteIds: ['bp'] }], version: group.version,
+  })))
+})
+
+it('limits a manager permission picker to the sites where that permission may be delegated', async () => {
+  vi.mocked(api.groupCompanies).mockResolvedValue([{ ...companies[0], canGrantAll: false,
+    permissions: ['vehicles.read'], permissionScopes: [{ code: 'vehicles.read', allSites: false, siteIds: ['bp'] }],
+    sites: [
+      { id: 'bp', name: 'Budapest', code: 'BP', isArchived: false },
+      { id: 'gyor', name: 'Győr', code: 'GYOR', isArchived: false },
+    ],
+  }])
+  mount(<PermissionGroups user={user} />)
+  await userEvent.click(await screen.findByRole('button', { name: 'Új jogosultságcsoport' }))
+  const dialog = within(screen.getByRole('dialog'))
+  await userEvent.click(dialog.getByLabelText('Duna'))
+  expect(dialog.getByLabelText(/Járművek megtekintése/)).toBeDisabled()
+  await userEvent.selectOptions(dialog.getByRole('combobox', { name: 'Duna: telephely-hozzáférés' }), 'selected')
+  await userEvent.click(dialog.getByRole('checkbox', { name: 'Duna: Budapest (BP)' }))
+  expect(dialog.getByLabelText('Járművek megtekintése')).toBeEnabled()
+  await userEvent.click(dialog.getByLabelText('Járművek megtekintése'))
+  await userEvent.click(dialog.getByRole('checkbox', { name: 'Duna: Győr (GYOR)' }))
+  expect(dialog.getByLabelText(/Járművek megtekintése/)).toBeDisabled()
+  expect(dialog.getByLabelText(/Járművek megtekintése/)).not.toBeChecked()
+})
+
+it('renders vehicle actions using the rights for that particular vehicle', () => {
+  const tenant = { id: 'a', name: 'Duna', permissions: ['vehicles.update', 'vehicles.odometer.create'] }
+  const car = { id: 'car', make: 'Ford', model: 'Focus', status: 'Active' }
+  mount(<>
+    <VehicleActions user={user} tenant={tenant} vehicle={{ ...car, registration: 'SITE-A', permissions: ['vehicles.update'] }} />
+    <VehicleActions user={user} tenant={tenant} vehicle={{ ...car, registration: 'SITE-B', permissions: ['vehicles.odometer.create'] }} />
+  </>)
+  expect(screen.getByRole('button', { name: 'Jármű szerkesztése: SITE-A' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Kilométerállás: SITE-A' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Kilométerállás: SITE-B' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Jármű szerkesztése: SITE-B' })).not.toBeInTheDocument()
 })
 
 it('supports future expanding administrator access only in companies where it may be granted', async () => {
@@ -139,6 +224,7 @@ it('updates a group using its version and sends the changed company list', async
       companyIds: ['a'],
       allPermissions: false,
       version: 4,
+      siteScopes: [{ companyId: 'a', allSites: true, siteIds: [] }],
     }),
   )
 })

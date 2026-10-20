@@ -9,13 +9,14 @@ public sealed class OrganizationManagement(HermesDbContext db, TenantContext con
 {
     private Guid TenantId => context.TenantId ?? throw new InvalidOperationException("Company context is required.");
     private string Actor => context.UserSubject!;
+    private ResourceAccess access = null!;
     private static ManagementException Error(int status, string code, string message) => UserAccounts.Error(status, code, message);
     private Task<T> Scoped<T>(string permission, bool write, Func<Task<T>> action, CancellationToken ct, bool changeStatus = false)
         => TenantTransaction.RunAsync(db, TenantId, async () =>
         {
             await UserAccounts.LockSystemAccess(db, ct, shared: true);
             await AccessRules.LockTenant(db, TenantId, ct, allowInactive: true);
-            await AccessRules.Authorize(db, TenantId, Actor, permission, ct, allowInactive: true);
+            access = new(await AccessRules.Authorize(db, TenantId, Actor, permission, ct, allowInactive: true));
             if (write && !changeStatus && await db.ArchivedTenants.AnyAsync(x => x.TenantId == TenantId, ct))
                 throw Error(409, "company_inactive", "A módosításhoz előbb állítsd vissza a céget aktív állapotba.");
             return await action();
@@ -36,7 +37,14 @@ public sealed class OrganizationManagement(HermesDbContext db, TenantContext con
             throw Error(400, "invalid_search", "Érvénytelen keresés, oldalszám vagy cégállapot.");
         var accessible = (await directory.ListForUserAsync(actor, ct, includeInactive: true)).Where(HasOrganizationAccess).ToArray();
         var inactive = await db.ArchivedTenants.AsNoTracking().ToDictionaryAsync(x => x.TenantId, x => x.Status, ct);
-        var matches = accessible.Select(x => new CompanyRow(x.Id, x.Name, inactive.GetValueOrDefault(x.Id, "Active"), x.Permissions))
+        var rows = new List<CompanyRow>();
+        foreach (var x in accessible)
+        {
+            var member = await directory.FindMembershipAsync(actor, x.Id, ct, includeInactive: true);
+            if (member is not null) rows.Add(new(x.Id, x.Name, inactive.GetValueOrDefault(x.Id, "Active"), x.Permissions)
+                { PermissionScopes = new ResourceAccess(member).Describe() });
+        }
+        var matches = rows
             .Where(x => (status == "all" || x.Status == status) && (string.IsNullOrWhiteSpace(search) || x.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)))
             .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Id).ToArray();
         return new(matches.Skip((page - 1) * 25).Take(25).ToArray(), matches.Length, page, 25);
@@ -139,16 +147,19 @@ public sealed class OrganizationManagement(HermesDbContext db, TenantContext con
     private async Task<SiteDetails> SiteDto(Site x, CancellationToken ct) => new(x.Id, new(x.Name, x.Code,
         new(x.CountryCode, x.PostalCode, x.City, x.AddressLine1, x.AddressLine2), x.Email, x.Phone, x.ContactId, x.Version),
         x.ContactId is { } id ? await db.CompanyContacts.Where(c => c.Id == id).Select(c => c.Name).SingleOrDefaultAsync(ct) : null,
-        x.IsArchived, x.StatusReason, x.ArchivedAt, await db.VehicleSiteAssignments.CountAsync(a => a.SiteId == x.Id, ct),
-        x.CreatedAt, x.CreatedBy, x.UpdatedAt, x.UpdatedBy);
+        x.IsArchived, x.StatusReason, x.ArchivedAt, access.Allows(Permissions.VehiclesRead, x.Id) ? await db.VehicleSiteAssignments.CountAsync(a => a.SiteId == x.Id, ct) : null,
+        x.CreatedAt, x.CreatedBy, x.UpdatedAt, x.UpdatedBy) { Permissions = VehicleAccess.PermissionsFor(access, x.Id) };
     public Task<SiteDetails[]> Sites(bool includeArchived, CancellationToken ct) => Scoped(Permissions.SitesRead, false, async () =>
     {
         var result = new List<SiteDetails>();
-        foreach (var site in await db.Sites.AsNoTracking().Where(x => includeArchived || !x.IsArchived).OrderBy(x => x.Name).ToArrayAsync(ct)) result.Add(await SiteDto(site, ct));
+        var ids = access.Sites(Permissions.SitesRead); var all = access.CompanyWide(Permissions.SitesRead);
+        foreach (var site in await db.Sites.AsNoTracking().Where(x => (includeArchived || !x.IsArchived) && (all || ids.Contains(x.Id))).OrderBy(x => x.Name).ToArrayAsync(ct)) result.Add(await SiteDto(site, ct));
         return result.ToArray();
     }, ct);
     public Task<SiteDetails> SaveSite(Guid? id, SiteInput input, CancellationToken ct) => Scoped(id is null ? Permissions.SitesCreate : Permissions.SitesUpdate, true, async () =>
     {
+        if (!access.Allows(id is null ? Permissions.SitesCreate : Permissions.SitesUpdate, id))
+            throw Error(id is null ? 403 : 404, "site_access_denied", "Ehhez a telephelyművelethez nincs hozzáférésed.");
         var data = OrganizationValidation.Site(input);
         var code = data.Code.ToUpperInvariant();
         if (await db.Sites.AnyAsync(x => x.NormalizedCode == code && x.Id != id, ct)) throw Error(409, "site_code_exists", "Ez a telephelykód ennél a cégnél már foglalt, az archivált telephelyeket is beleértve.");
@@ -167,6 +178,7 @@ public sealed class OrganizationManagement(HermesDbContext db, TenantContext con
     }, ct);
     public Task<SiteDetails> SiteStatus(Guid id, ChangeArchiveStatus input, CancellationToken ct) => Scoped(Permissions.SitesArchive, true, async () =>
     {
+        if (!access.Allows(Permissions.SitesArchive, id)) throw Error(404, "site_not_found", "A telephely nem található.");
         if (input.IsArchived is null) throw Error(400, "missing_status", "Add meg az archiválás állapotát.");
         var reason = OrganizationValidation.Reason(input.Reason);
         var x = await Site(id, ct); OrganizationValidation.Revision(x.Version, input.Version);
@@ -182,19 +194,28 @@ public sealed class OrganizationManagement(HermesDbContext db, TenantContext con
     public Task<SiteVehicle[]> Vehicles(CancellationToken ct) => Scoped(Permissions.SitesRead, false, async () =>
     {
         await AccessRules.Authorize(db, TenantId, Actor, Permissions.VehiclesRead, ct, allowInactive: true);
-        return await (from vehicle in db.Vehicles.AsNoTracking()
+        var vehicles = await (from vehicle in VehicleAccess.Query(db, access, Permissions.VehiclesRead).AsNoTracking()
             join assignment in db.VehicleSiteAssignments on vehicle.Id equals assignment.VehicleId into assignments
             from assignment in assignments.DefaultIfEmpty()
             join site in db.Sites on assignment.SiteId equals site.Id into sites
             from site in sites.DefaultIfEmpty()
             orderby vehicle.Registration
             select new SiteVehicle(vehicle.Id, vehicle.Registration, vehicle.Make, vehicle.Model, (Guid?)assignment.SiteId, site.Name, vehicle.Version)).ToArrayAsync(ct);
+        var activeSites = await db.Sites.Where(x => !x.IsArchived).Select(x => x.Id).ToArrayAsync(ct);
+        var allowed = activeSites.Where(id => access.Allows(Permissions.SitesAssignVehicles, id) && access.Allows(Permissions.VehiclesRead, id)).ToArray();
+        return vehicles.Select(x => x with { Permissions = VehicleAccess.PermissionsFor(access, x.SiteId), AssignableSiteIds = allowed,
+            CanUnassign = access.Allows(Permissions.SitesAssignVehicles, null) && access.Allows(Permissions.VehiclesRead, null) }).ToArray();
     }, ct);
     public Task<SiteVehicle> Assign(Guid vehicleId, AssignVehicleSite input, CancellationToken ct) => Scoped(Permissions.SitesAssignVehicles, true, async () =>
     {
         await AccessRules.Authorize(db, TenantId, Actor, Permissions.VehiclesRead, ct);
-        var vehicle = await db.Vehicles.SingleOrDefaultAsync(x => x.Id == vehicleId, ct) ?? throw Error(404, "vehicle_not_found", "A jármű nem található ennél a cégnél.");
+        var assignableVehicles = VehicleAccess.Query(db, access, Permissions.SitesAssignVehicles).Select(v => v.Id);
+        var vehicle = await VehicleAccess.Query(db, access, Permissions.VehiclesRead)
+            .Where(x => assignableVehicles.Contains(x.Id))
+            .SingleOrDefaultAsync(x => x.Id == vehicleId, ct) ?? throw Error(404, "vehicle_not_found", "A jármű nem található ennél a cégnél.");
         OrganizationValidation.Revision(vehicle.Version, input.Version);
+        if (!access.Allows(Permissions.SitesAssignVehicles, input.SiteId) || !access.Allows(Permissions.VehiclesRead, input.SiteId))
+            throw Error(403, "site_access_denied", "A jármű csak számodra engedélyezett telephelyre helyezhető át.");
         var target = input.SiteId is { } id ? await Site(id, ct) : null;
         if (target?.IsArchived == true) throw Error(409, "site_archived", "Archivált telephelyhez nem rendelhetsz járművet.");
         var assignment = await db.VehicleSiteAssignments.SingleOrDefaultAsync(x => x.VehicleId == vehicleId, ct);
@@ -210,7 +231,7 @@ public sealed class OrganizationManagement(HermesDbContext db, TenantContext con
     public Task<PageResult<AuditSummary>> History(int page, CancellationToken ct) => Scoped(Permissions.AuditRead, false, async () =>
     {
         if (page is < 1 or > 10000) throw Error(400, "invalid_page", "Érvénytelen oldalszám.");
-        var query = db.AccessAuditEvents.AsNoTracking().Where(x => x.Action.StartsWith("company.") || x.Action.StartsWith("site.") || x.Action.StartsWith("contact."));
+        var query = (await VehicleAccess.AuditQuery(db, access, ct)).AsNoTracking().Where(x => x.Action.StartsWith("company.") || x.Action.StartsWith("site.") || x.Action.StartsWith("contact."));
         var total = await query.CountAsync(ct);
         var rows = await query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip((page - 1) * 25).Take(25)
             .Select(x => new AuditSummary(x.Id, x.ActorSubject, x.Action, x.TargetSubject, x.Details, x.CreatedAt)).ToArrayAsync(ct);

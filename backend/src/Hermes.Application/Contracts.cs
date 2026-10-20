@@ -9,7 +9,10 @@ public interface ITenantContext
     IReadOnlySet<string> Permissions { get; }
 }
 
-public sealed record TenantSummary(Guid Id, string Name, string[] Permissions);
+public sealed record TenantSummary(Guid Id, string Name, string[] Permissions)
+{
+    public PermissionSiteScope[] PermissionScopes { get; init; } = [];
+}
 public sealed record TenantAccess(Guid TenantId, string UserId, bool IsActive, long Version, string[] Permissions)
 {
     public string[] DirectPermissions { get; init; } = [];
@@ -20,8 +23,13 @@ public sealed record VehicleSummary(Guid Id, string Registration, string Make, s
 {
     public long Version { get; init; } = 1;
     public long? OdometerKm { get; init; }
+    public Guid? SiteId { get; init; }
+    public string? SiteName { get; init; }
+    public string[] Permissions { get; init; } = [];
 }
-public sealed record CreateVehicleRequest(string Registration, string Make, string Model);
+public sealed record CreateVehicleRequest(string Registration, string Make, string Model, Guid? SiteId = null);
+public sealed record VehicleSiteOption(Guid Id, string Name, string Code);
+public sealed record VehicleCreationOptions(bool CanCreateUnassigned, VehicleSiteOption[] Sites);
 public sealed record UpdateVehicleRequest(string Registration, string Make, string Model, long Version);
 public sealed record RecordOdometerRequest(long? Kilometers, long Version);
 
@@ -34,6 +42,7 @@ public interface ITenantDirectory
 
 public interface IVehicleStore
 {
+    Task<VehicleCreationOptions> CreationOptionsAsync(CancellationToken ct);
     Task<IReadOnlyList<VehicleSummary>> ListAsync(CancellationToken cancellationToken);
     Task<VehicleSummary?> GetAsync(Guid id, CancellationToken cancellationToken);
     Task<VehicleSummary> CreateAsync(CreateVehicleRequest request, CancellationToken cancellationToken);

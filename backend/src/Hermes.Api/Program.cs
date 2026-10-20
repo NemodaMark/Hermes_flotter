@@ -177,6 +177,8 @@ api.MapPost("/tenants", async (CreateTenantRequest request, HttpContext context,
 });
 
 var vehicles = api.MapGroup("/vehicles").WithMetadata(new TenantRequired());
+vehicles.MapGet("/create-options", async (IVehicleStore store, CancellationToken ct)
+    => Results.Ok(await store.CreationOptionsAsync(ct))).RequireAuthorization(Permissions.VehiclesCreate);
 vehicles.MapGet("/", async (IVehicleStore store, CancellationToken cancellationToken)
     => Results.Ok(await store.ListAsync(cancellationToken))).RequireAuthorization(Permissions.VehiclesRead);
 vehicles.MapGet("/{id:guid}", async (Guid id, IVehicleStore store, CancellationToken cancellationToken)

@@ -405,7 +405,8 @@ function CompanyWorkspace({
               />
               Archiváltak megjelenítése
             </label>
-            {active && (tab === 'contacts' ? has('companies.update') : has('sites.create')) && (
+            {active && (tab === 'contacts' ? has('companies.update') : has('sites.create') &&
+              (!company.permissionScopes || company.permissionScopes.some((s) => s.code === 'sites.create' && s.allSites))) && (
               <button
                 className="primary-button"
                 onClick={() =>
@@ -522,10 +523,10 @@ function CompanyWorkspace({
                           </span>
                         </td>
                         <td>{site.contactName ?? '–'}</td>
-                        <td>{site.vehicleCount}</td>
+                        <td>{site.vehicleCount ?? '–'}</td>
                         <td>
                           <div className="member-actions">
-                            {active && !site.isArchived && has('sites.update') && (
+                            {active && !site.isArchived && (site.permissions ?? company.permissions).includes('sites.update') && (
                               <button
                                 className="secondary-button"
                                 aria-label={`Telephely szerkesztése: ${site.data.name}`}
@@ -534,7 +535,7 @@ function CompanyWorkspace({
                                 Szerkesztés
                               </button>
                             )}
-                            {active && has('sites.archive') && (
+                            {active && (site.permissions ?? company.permissions).includes('sites.archive') && (
                               <button
                                 className="secondary-button"
                                 aria-label={`Telephely állapota: ${site.data.name}`}
@@ -582,7 +583,7 @@ function CompanyWorkspace({
                         </td>
                         <td>{vehicle.siteName ?? 'Nincs hozzárendelve'}</td>
                         <td>
-                          {active && has('sites.vehicles.assign') && (
+                          {active && (vehicle.permissions ?? company.permissions).includes('sites.vehicles.assign') && (
                             <button
                               className="secondary-button"
                               aria-label={`Telephely-hozzárendelés: ${vehicle.registration}`}
@@ -753,9 +754,9 @@ function VehicleSiteDialog({
         <label className="org-field">
           <span>Telephely</span>
           <select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
-            <option value="">Nincs hozzárendelve</option>
+            {vehicle.canUnassign !== false && <option value="">Nincs hozzárendelve</option>}
             {sites
-              .filter((x) => !x.isArchived)
+              .filter((x) => !x.isArchived && (!vehicle.assignableSiteIds || vehicle.assignableSiteIds.includes(x.id)))
               .map((site) => (
                 <option key={site.id} value={site.id}>
                   {site.data.name} ({site.data.code})

@@ -8,6 +8,7 @@ import type {
   GroupUser,
   Permission,
   Session,
+  GroupSiteSelection,
 } from './api'
 import { AccessDialog } from './AccessDialog'
 import { PermissionFields } from './MemberDialogs'
@@ -15,6 +16,10 @@ import { permissionLabel } from './permissions'
 
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'A művelet nem sikerült.'
+
+const scopedPermission = (code: string) => code.startsWith('vehicles.') || code.startsWith('sites.') || code === 'audit.read'
+const companyScopeLabel = (company: PermissionGroup['companies'][number]) =>
+  `${company.name}: ${company.allSites !== false ? 'teljes cég' : company.sites?.map((s) => `${s.name} (${s.code})`).join(', ') || 'kijelölt telephelyek'}`
 
 export function PermissionGroups({ user }: { user: Session }) {
   const client = useQueryClient()
@@ -35,7 +40,7 @@ export function PermissionGroups({ user }: { user: Session }) {
   })
   async function refresh() {
     await Promise.all(
-      ['permission-groups', 'tenants', 'members', 'system-audit'].map((key) =>
+      ['permission-groups', 'tenants', 'members', 'system-audit', 'vehicles', 'companies', 'organization', 'vehicle-create-options'].map((key) =>
         client.invalidateQueries({ queryKey: [key] }),
       ),
     )
@@ -98,7 +103,7 @@ export function PermissionGroups({ user }: { user: Session }) {
                       <td>
                         {group.isAdmin
                           ? 'Felhasználónként kijelölhető cégek'
-                          : group.companies.map((c) => c.name).join(', ')}
+                          : group.companies.map((c) => <div key={c.id}>{companyScopeLabel(c)}</div>)}
                       </td>
                       <td>
                         <span className="member-grants">
@@ -184,13 +189,37 @@ function GroupEditor({
     group?.allPermissions ? [] : (group?.permissions ?? []),
   )
   const [allPermissions, setAll] = useState(group?.allPermissions ?? false)
+  const [siteScopes, setSiteScopes] = useState<GroupSiteSelection[]>(
+    group?.companies.map((c) => ({ companyId: c.id, allSites: c.allSites !== false, siteIds: c.sites?.map((s) => s.id) ?? [] })) ?? [],
+  )
+  const scopeFor = (id: string, scopes = siteScopes): GroupSiteSelection =>
+    scopes.find((s) => s.companyId === id) ?? { companyId: id, allSites: true, siteIds: [] }
+  function canUse(company: GroupCompanyOption, code: string, scopes = siteScopes) {
+    if (!company.permissions.includes(code)) return false
+    if (!scopedPermission(code)) return true
+    const target = scopeFor(company.id, scopes)
+    if (code === 'sites.create' && !target.allSites) return false
+    if (!company.permissionScopes) return true
+    const own = company.permissionScopes.find((s) => s.code === code)
+    return !!own && (own.allSites || (!target.allSites && target.siteIds.length > 0 && target.siteIds.every((id) => own.siteIds.includes(id))))
+  }
+  function trimPermissions(nextIds: string[], scopes: GroupSiteSelection[]) {
+    const choices = companies.filter((c) => nextIds.includes(c.id))
+    setPermissions((values) => values.filter((code) => choices.length > 0 && choices.every((c) => canUse(c, code, scopes))))
+  }
+  function changeScope(selection: GroupSiteSelection) {
+    const next = [...siteScopes.filter((s) => s.companyId !== selection.companyId), selection]
+    setSiteScopes(next)
+    trimPermissions(ids, next)
+  }
   const eligible = companies.filter(
     (c) => c.canEdit && (!group?.memberCount || c.canAssign) && (!group?.isAdmin || c.canGrantAll),
   )
   const selected = companies.filter((c) => ids.includes(c.id))
   const available = catalog
     .map((x) => x.code)
-    .filter((code) => selected.length > 0 && selected.every((c) => c.permissions.includes(code)))
+    .filter((code) => selected.length > 0 && selected.every((c) => canUse(c, code)))
+  const invalidScope = ids.some((id) => !scopeFor(id).allSites && scopeFor(id).siteIds.length === 0)
   const canAll = selected.length > 0 && selected.every((c) => c.canGrantAll)
   const save = useMutation({
     mutationFn: () => {
@@ -199,6 +228,7 @@ function GroupEditor({
         permissions: allPermissions ? [] : permissions,
         companyIds: ids,
         allPermissions,
+        siteScopes: ids.map((id) => scopeFor(id)),
       }
       return group
         ? api.updateGroup(group.id, { ...body, version: group.version })
@@ -208,11 +238,7 @@ function GroupEditor({
   function selectCompanies(next: string[]) {
     setIds(next)
     const choices = companies.filter((c) => next.includes(c.id))
-    setPermissions((values) =>
-      values.filter(
-        (code) => choices.length > 0 && choices.every((c) => c.permissions.includes(code)),
-      ),
-    )
+    trimPermissions(next, siteScopes)
     if (!choices.length || choices.some((c) => !c.canGrantAll)) setAll(false)
   }
   return (
@@ -261,6 +287,42 @@ function GroupEditor({
           ))}
         </fieldset>
         {!ids.length && <p className="field-hint">Válassz legalább egy céget.</p>}
+        {selected.map((company) => {
+          const scope = scopeFor(company.id)
+          return (
+            <fieldset key={company.id} className="group-site-fields" disabled={save.isPending}>
+              <legend>{company.name} · telephely-hozzáférés</legend>
+              <select
+                aria-label={`${company.name}: telephely-hozzáférés`}
+                value={scope.allSites ? 'all' : 'selected'}
+                onChange={(e) => changeScope({ companyId: company.id, allSites: e.target.value === 'all', siteIds: [] })}
+              >
+                <option value="all">Teljes cég, telephely nélküli járművekkel</option>
+                <option value="selected">Csak kijelölt telephelyek</option>
+              </select>
+              {!scope.allSites && (
+                <div className="group-site-options">
+                  {(company.sites ?? []).map((site) => (
+                    <label className="permission-option" key={site.id}>
+                      <input type="checkbox" aria-label={`${company.name}: ${site.name} (${site.code})`}
+                        checked={scope.siteIds.includes(site.id)}
+                        disabled={site.isArchived && !scope.siteIds.includes(site.id)}
+                        onChange={(e) => changeScope({ ...scope, siteIds: e.target.checked ? [...scope.siteIds, site.id] : scope.siteIds.filter((id) => id !== site.id) })}
+                      />
+                      <span>{site.name} ({site.code}){site.isArchived ? ' · Archivált' : ''}</span>
+                    </label>
+                  ))}
+                  {!(company.sites?.length) && <p className="field-hint">Ennél a cégnél még nincs telephely.</p>}
+                  {!scope.siteIds.length && <p className="field-hint">Válassz legalább egy telephelyet.</p>}
+                </div>
+              )}
+            </fieldset>
+          )
+        })}
+        {ids.length > 0 && <p className="field-hint">
+          A telephelykijelölés a jármű- és telephelyműveleteket, valamint ezek naplóját korlátozza.
+          A többi céges jog cégszintű. Más csoportból és közvetlenül kapott jogok hozzáadódnak.
+        </p>}
         <label className="permission-option">
           <input
             type="checkbox"
@@ -301,7 +363,7 @@ function GroupEditor({
           >
             Mégse
           </button>
-          <button className="primary-button" disabled={save.isPending || !ids.length}>
+          <button className="primary-button" disabled={save.isPending || !ids.length || invalidScope}>
             Jogosultságcsoport mentése
           </button>
         </div>
@@ -392,6 +454,10 @@ export function GroupAssignmentDialog({
         'system-users',
         'user-profile',
         'system-audit',
+        'vehicles',
+        'companies',
+        'organization',
+        'vehicle-create-options',
       ].map((key) => client.invalidateQueries({ queryKey: [key] })),
     )
   }
@@ -485,7 +551,7 @@ function AssignmentFields({
               <span>
                 {group.name}
                 {!group.isAdmin && (
-                  <small>Cégek: {group.companies.map((x) => x.name).join(', ')}</small>
+                  <small>{group.companies.map(companyScopeLabel).join(' · ')}</small>
                 )}
                 <small>
                   {group.allPermissions

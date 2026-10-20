@@ -36,12 +36,17 @@ export type SystemAudit = {
   originalActorSubject?: string | null
   originalTargetSubject?: string | null
 }
-export type Tenant = { id: string; name: string; permissions: string[] }
+export type Tenant = { id: string; name: string; permissions: string[]; permissionScopes?: PermissionSiteScope[] }
 export type AssignedGroup = { id: string; name: string; isAdmin: boolean }
+export type PermissionSiteScope = { code: string; allSites: boolean; siteIds: string[] }
+export type GroupSiteOption = { id: string; name: string; code: string; isArchived: boolean }
+export type GroupSiteSelection = { companyId: string; allSites: boolean; siteIds: string[] }
 export type GroupCompanyOption = Tenant & {
   canEdit: boolean
   canAssign: boolean
   canGrantAll: boolean
+  sites?: GroupSiteOption[]
+  permissionScopes?: PermissionSiteScope[]
 }
 export type PermissionGroup = {
   id: string
@@ -51,7 +56,7 @@ export type PermissionGroup = {
   allPermissions: boolean
   isAdmin: boolean
   permissions: string[]
-  companies: { id: string; name: string }[]
+  companies: { id: string; name: string; allSites?: boolean; sites?: GroupSiteOption[] }[]
   memberCount: number
   canEdit: boolean
   canAssign: boolean
@@ -61,6 +66,7 @@ export type GroupDraft = {
   permissions: string[]
   companyIds: string[]
   allPermissions: boolean
+  siteScopes?: GroupSiteSelection[]
 }
 export type GroupUser = {
   userId: string
@@ -77,8 +83,12 @@ export type Vehicle = {
   status: string
   version?: number
   odometerKm?: number | null
+  siteId?: string | null
+  siteName?: string | null
+  permissions?: string[]
 }
-export type NewVehicle = { registration: string; make: string; model: string }
+export type NewVehicle = { registration: string; make: string; model: string; siteId?: string | null }
+export type VehicleCreationOptions = { canCreateUnassigned: boolean; sites: { id: string; name: string; code: string }[] }
 export type RegisterInput = {
   userName: string
   displayName: string
@@ -357,5 +367,7 @@ export const api = {
     request<Vehicle[]>('/api/v1/vehicles', { tenantId, signal }),
   createVehicle: (tenantId: string, body: NewVehicle) =>
     request<Vehicle>('/api/v1/vehicles', { tenantId, body }),
+  vehicleCreationOptions: (tenantId: string, signal?: AbortSignal) =>
+    request<VehicleCreationOptions>('/api/v1/vehicles/create-options', { tenantId, signal }),
   health: (signal?: AbortSignal) => request<{ status: string }>('/health/ready', { signal }),
 }

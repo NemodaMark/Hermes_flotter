@@ -36,11 +36,13 @@ const statuses: Record<string, string> = {
 }
 
 function VehicleForm({
+  tenantId,
   onClose,
   onSave,
   pending,
   error,
 }: {
+  tenantId: string
   onClose: () => void
   onSave: (vehicle: NewVehicle) => void
   pending: boolean
@@ -48,6 +50,10 @@ function VehicleForm({
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const registrationInput = useRef<HTMLInputElement>(null)
+  const siteOptions = useQuery({
+    queryKey: ['vehicle-create-options', tenantId],
+    queryFn: ({ signal }) => api.vehicleCreationOptions(tenantId, signal), retry: false,
+  })
   useEffect(() => {
     dialog.current?.showModal()
     registrationInput.current?.focus()
@@ -59,6 +65,7 @@ function VehicleForm({
       registration: String(values.get('registration')),
       make: String(values.get('make')),
       model: String(values.get('model')),
+      ...(values.get('siteId') ? { siteId: String(values.get('siteId')) } : {}),
     })
   }
   return (
@@ -105,6 +112,13 @@ function VehicleForm({
           placeholder="Például Octavia"
           disabled={pending}
         />
+        <label htmlFor="vehicle-site">Telephely</label>
+        <select id="vehicle-site" name="siteId" required={!siteOptions.data?.canCreateUnassigned}
+          disabled={pending || !siteOptions.data} defaultValue="">
+          <option value="">{siteOptions.data?.canCreateUnassigned ? 'Nincs telephelyhez rendelve' : 'Válassz telephelyet'}</option>
+          {siteOptions.data?.sites.map((site) => <option key={site.id} value={site.id}>{site.name} ({site.code})</option>)}
+        </select>
+        {siteOptions.isError && <p className="form-error" role="alert">{siteOptions.error.message}</p>}
         {error && (
           <p className="form-error" role="alert">
             {error}
@@ -114,7 +128,7 @@ function VehicleForm({
           <button type="button" className="secondary-button" onClick={onClose} disabled={pending}>
             Mégse
           </button>
-          <button className="primary-button" disabled={pending}>
+          <button className="primary-button" disabled={pending || !siteOptions.data}>
             {pending ? <LoaderCircle size={17} className="spinning" /> : <Check size={17} />}
             Mentés
           </button>
@@ -153,6 +167,7 @@ function FleetTable({
                   <CarFront size={19} aria-hidden="true" />
                   {vehicle.registration}
                 </span>
+                {vehicle.siteName && <span className="member-email">{vehicle.siteName}</span>}
               </td>
               <td>
                 <span className="vehicle-make">{vehicle.make}</span>
@@ -618,6 +633,7 @@ function FleetWorkspace({
       )}
       {formOpen && (
         <VehicleForm
+          tenantId={tenant!.id}
           onClose={() => setFormOpen(false)}
           onSave={(input) => void saveVehicle(input)}
           pending={create.isPending}

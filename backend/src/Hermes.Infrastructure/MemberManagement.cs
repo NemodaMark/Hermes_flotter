@@ -59,8 +59,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     }
     private static void MayDelegate(TenantMembership actor, IEnumerable<string> affected)
     {
-        var own = Codes(actor).ToHashSet(StringComparer.Ordinal);
-        if (affected.Any(code => !own.Contains(code))) throw Error(403, "delegation_denied", "Csak a saját jogosultságaid körén belül adhatsz vagy vonhatsz vissza hozzáférést.");
+        AccessRules.Delegate(actor, affected);
     }
     private async Task ProtectLastManager(TenantMembership member, bool active, string[] permissions, CancellationToken ct)
     {
@@ -136,7 +135,8 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         var active = request.IsActive.Value;
         var target = await Member(userId, ct);
         CheckVersion(target, request.Version);
-        if (!target.IsActive && active) MayDelegate(actor, Codes(target));
+        if (!target.IsActive && active && !new ResourceAccess(actor).Covers(target))
+            throw Error(403, "delegation_denied", "Csak a saját jogosultságaid és telephely-hozzáféréseid körén belül állíthatsz vissza hozzáférést.");
         if (!target.IsActive && active && target.HasAdminAuthority && !actor.HasAdminAuthority
             && !await UserAccounts.IsSystemManager(db, Actor, ct))
             throw Error(403, "admin_delegation_denied", "Az admin hozzáférést céges admin vagy rendszergazda állíthatja vissza.");
@@ -221,7 +221,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
             var issuer = await db.Memberships.AsNoTracking().WithAccess().SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == invitation.InvitedBy && item.IsActive, ct);
             var grants = invitation.Permissions.Select(item => item.Code).ToArray();
             if (!await UserAccounts.IsSystemManager(db, invitation.InvitedBy, ct)
-                && (issuer is null || !Codes(issuer).Contains(Permissions.MembersInvite) || (grants.Length > 0 && !Codes(issuer).Contains(Permissions.Manage)) || grants.Except(Codes(issuer)).Any()))
+                && (issuer is null || !Codes(issuer).Contains(Permissions.MembersInvite) || (grants.Length > 0 && !Codes(issuer).Contains(Permissions.Manage)) || grants.Any(code => !new ResourceAccess(issuer).CompanyWide(code))))
                 throw Error(409, "inviter_access_changed", "A meghívó jogosultságai időközben megváltoztak. Kérj új meghívást.");
             var existing = await db.Memberships.WithAccess().SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == userId, ct);
             if (existing is not null && (existing.HasCompanyAccess || !existing.IsActive))
@@ -244,10 +244,10 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
             return Access(member);
         }, ct);
     }
-    public Task<PageResult<AuditSummary>> AuditAsync(int page, int pageSize, CancellationToken ct) => Scoped<PageResult<AuditSummary>>(async () =>
+    public Task<PageResult<AuditSummary>> AuditAsync(int page, int pageSize, CancellationToken ct) => Authorized<PageResult<AuditSummary>>(Permissions.AuditRead, async actor =>
     {
         var offset = Offset(page, pageSize);
-        var query = db.AccessAuditEvents.AsNoTracking();
+        var query = (await VehicleAccess.AuditQuery(db, new ResourceAccess(actor), ct)).AsNoTracking();
         var items = await query.OrderByDescending(item => item.CreatedAt).ThenByDescending(item => item.Id).Skip(offset).Take(pageSize)
             .Select(item => new AuditSummary(item.Id, item.ActorSubject, item.Action, item.TargetSubject, item.Details, item.CreatedAt)).ToArrayAsync(ct);
         var names = await IdentityHistory.Resolve(db, items.SelectMany(x => new[] { x.ActorSubject, x.TargetSubject }), ct);

@@ -253,7 +253,23 @@ A cégűrlapon az időzóna és a pénznem legördülő listából választható
 | Jármű áthelyezése / hozzárendelés megszüntetése | `sites.vehicles.assign` és `vehicles.read` | `PUT /api/v1/company/vehicles/{id}/site` |
 | Céges törzsadat-változások | `audit.read` | `GET /api/v1/company/audit-events?page=1` |
 
-A `/company` végpontok az `X-Tenant-Id` fejlécből választanak céget. Minden művelet a cég aktuális közvetlen és csoportos jogait ellenőrzi; az admincsoport az új jogokkal automatikusan bővül. A jogok cégszintű műveleti jogok, jelenleg nem telephelyenkénti felhasználói hozzáférési korlátozások. A jármű telephelyhez rendelése nem ad járműadat-szerkesztési vagy kilométer-rögzítési jogot. Az állapotkezelési jog önmagában nem tárja fel a cég hivatalos és kapcsolattartási adatait.
+A `/company` végpontok az `X-Tenant-Id` fejlécből választanak céget. Minden művelet a cég aktuális közvetlen és csoportos jogait ellenőrzi; az admincsoport az új jogokkal automatikusan bővül. A jármű- és telephelyjogok csoportonként, cégenként kijelölt telephelyekre is korlátozhatók. A jármű telephelyhez rendelése nem ad járműadat-szerkesztési vagy kilométer-rögzítési jogot. Az állapotkezelési jog önmagában nem tárja fel a cég hivatalos és kapcsolattartási adatait.
+
+#### Telephelyekre korlátozott jogosultságcsoportok
+
+A csoportszerkesztő minden kiválasztott cégnél külön kínál **Teljes cég** vagy **Csak kijelölt telephelyek** hozzáférést. Az utóbbihoz legalább egy aktív telephely szükséges. A teljes céges hozzáférés a későbbi telephelyeket és a telephely nélküli járműveket is tartalmazza; egy korlátozott csoport csak a kijelölt telephelyek járműveit éri el, az adott joggal. Például az A telephely szerkesztőcsoportja és a B telephely kilométer-rögzítő csoportja együtt sem ad szerkesztési jogot a B telephelyre. A közvetlenül vagy más csoportból kapott jogok összeadódnak. A közös, védett admin továbbra is a felhasználónként kijelölt teljes cégekre szól.
+
+A `vehicles.*`, `sites.*` és a jármű-/telephelynaplókhoz az `audit.read` telephelyenként érvényesül. A többi céges jog (például felhasználó- vagy cégtörzs-kezelés) cégszintű marad. Új telephely létrehozásához teljes céges `sites.create` jog kell. A járműlisták és közvetlen ID-s végpontok, a kilométer-rögzítés és a naplók szerveroldalon szűrtek. A felület a járműhöz visszaadott `permissions` alapján mutat műveleteket. Áthelyezéshez a forrás és a cél is engedélyezett kell legyen; a hozzárendelés megszüntetéséhez teljes céges olvasási és áthelyezési jog szükséges.
+
+A csoport létrehozásakor vagy módosításakor a `siteScopes` a `companyIds` minden cégéhez egy elemet tartalmaz:
+
+```json
+{"companyId":"<cég UUID>","allSites":false,"siteIds":["<telephely UUID>"]}
+```
+
+Teljes céghez `allSites: true` és üres `siteIds` kell. Új csoportnál a kihagyott `siteScopes` teljes céges működést ad, régi kliens módosításánál pedig megőrzi a már meglévő telephelykorlátokat. Idegen cég telephelye, ismétlődő vagy üres korlátozott kijelölés nem menthető. Archivált telephely újonnan nem osztható ki; meglévő kijelölése névváltoztatáskor megőrizhető. A kezelő csak a saját jogának telephelykörén belül delegálhat; ez a közvetlen jogokra, csoport-hozzárendelésre, meghívásokra és felfüggesztett hozzáférések visszaállítására is vonatkozik. Egy telephelyre korlátozott automatikus teljes jogkör nem ad teljes céges admin-delegálási jogot.
+
+A `GET /api/v1/vehicles/create-options` kizárólag `vehicles.create` joggal visszaadja a felvételhez választható aktív telephelyeket és a `canCreateUnassigned` jelzést. A `POST /api/v1/vehicles` opcionális `siteId` mezőt fogad; korlátozott felvételnél ez kötelező, és a jármű a hozzárendeléssel közös tranzakcióban készül. A migráció az összes meglévő csoportot teljes cégesként őrzi meg. A korlátok eltávolításával járó visszamigrálás tiltott, mert észrevétlenül szélesítené a hozzáférést; visszaállításhoz mentés és a hozzá tartozó korábbi alkalmazásverzió használható.
 
 A cégtörzs mezői: megjelenített és hivatalos név, adószám, cégjegyzékszám, közösségi adószám, strukturált székhely, központi e-mail, telefon, weboldal, időzóna, pénznem és távolságegység. Az országkód két, a pénznem három betű. Az adószámok tárolt törzsadatok; nincs külső cégnyilvántartási ellenőrzés. A távolságegység egy mentett alapbeállítás; a jelenlegi kilométeróra-adatok továbbra is kilométerben maradnak. A kapcsolattartó névvel, beosztással, e-maillel és telefonnal szerepel; a telephely saját névvel, cégen belül kis/nagybetűtől függetlenül egyedi ASCII-kóddal, címmel, e-maillel, telefonnal és opcionális kapcsolattartóval rendelkezik. A megjelenített cégnév kötelező, a többi törzsadat fokozatosan tölthető ki. A meglévő cégekhez a migráció HU / HUF / km alapbeállítást ad, de nem talál ki hivatalos nevet, címet vagy létrehozási időpontot.
 

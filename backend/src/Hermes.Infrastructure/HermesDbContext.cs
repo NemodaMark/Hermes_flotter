@@ -24,6 +24,7 @@ public sealed partial class HermesDbContext(DbContextOptions<HermesDbContext> op
     public DbSet<PermissionGroup> PermissionGroups => Set<PermissionGroup>();
     public DbSet<GroupPermission> GroupPermissions => Set<GroupPermission>();
     public DbSet<GroupCompany> GroupCompanies => Set<GroupCompany>();
+    public DbSet<GroupCompanySite> GroupCompanySites => Set<GroupCompanySite>();
     public DbSet<GroupUser> GroupUsers => Set<GroupUser>();
     public DbSet<GroupUserCompany> GroupUserCompanies => Set<GroupUserCompany>();
     public DbSet<MembershipGroup> MembershipGroups => Set<MembershipGroup>();
@@ -167,6 +168,13 @@ public sealed partial class HermesDbContext(DbContextOptions<HermesDbContext> op
             entity.HasKey(x => new { x.GroupId, x.TenantId });
             entity.HasOne<PermissionGroup>().WithMany(x => x.Companies).HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<GroupCompanySite>(entity =>
+        {
+            entity.ToTable("company_access_site_scopes");
+            entity.HasKey(x => new { x.GroupId, x.TenantId, x.SiteId });
+            entity.HasOne<GroupCompany>().WithMany(x => x.Sites).HasForeignKey(x => new { x.GroupId, x.TenantId }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Site>().WithMany().HasForeignKey(x => new { x.TenantId, Id = x.SiteId }).OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<GroupUser>(entity =>
         {

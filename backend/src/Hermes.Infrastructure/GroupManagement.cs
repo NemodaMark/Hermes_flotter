@@ -8,7 +8,7 @@ namespace Hermes.Infrastructure;
 
 public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) : IGroupManagement
 {
-    private sealed record State(string Name, bool AllPermissions, string[] Permissions, Guid[] CompanyIds);
+    private sealed record State(string Name, bool AllPermissions, string[] Permissions, Guid[] CompanyIds, GroupSiteSelection[]? SiteScopes = null);
     private static ManagementException Denied() => UserAccounts.Error(403, "group_permission_denied", "Minden érintett cégnél rendelkezned kell a művelethez és a kiosztandó jogokhoz szükséges hozzáféréssel.");
     private Task<T> Run<T>(bool write, Func<Task<T>> action, CancellationToken ct) => RunCore(write, action, ct);
     private async Task<T> RunCore<T>(bool write, Func<Task<T>> action, CancellationToken ct)
@@ -31,27 +31,62 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
     }
     private async Task<GroupCompanyOption[]> Choices(string actor, CancellationToken ct)
     {
-        if (await UserAccounts.IsSystemManager(db, actor, ct))
-            return (await db.Tenants.AsNoTracking().OrderBy(x => x.Name).ToArrayAsync(ct)).Select(x => new GroupCompanyOption(x.Id, x.Name, Permissions.All, true, true, true)).ToArray();
-        var candidates = await db.Memberships.AsNoTracking().Where(x => x.UserSubject == actor && x.IsActive)
-            .Join(db.Tenants, x => x.TenantId, x => x.Id, (m, t) => new { t.Id, t.Name }).OrderBy(x => x.Name).ToArrayAsync(ct);
+        var system = await UserAccounts.IsSystemManager(db, actor, ct);
+        var companies = system ? db.Tenants.AsNoTracking()
+            : db.Tenants.AsNoTracking().Where(t => db.Memberships.Any(m => m.TenantId == t.Id && m.UserSubject == actor && m.IsActive));
+        var candidates = await companies.OrderBy(x => x.Name).ToArrayAsync(ct);
         var choices = new List<GroupCompanyOption>();
         foreach (var candidate in candidates)
         {
-            var member = await InCompany(candidate.Id, actor, scoped => scoped.Memberships.AsNoTracking().WithAccess()
-                .SingleAsync(x => x.TenantId == candidate.Id && x.UserSubject == actor, ct), ct);
-            var codes = member.EffectivePermissions;
-            if (member.HasCompanyAccess && codes.Intersect([Permissions.GroupsManage, Permissions.Manage, Permissions.MembersRead]).Any())
-                choices.Add(new(candidate.Id, candidate.Name, codes, codes.Contains(Permissions.GroupsManage), codes.Contains(Permissions.Manage), member.HasAdminAuthority));
+            var choice = await InCompany(candidate.Id, actor, async scoped =>
+            {
+                var member = system ? TenantDirectory.SystemMembership(actor, candidate.Id)
+                    : await scoped.Memberships.AsNoTracking().WithAccess().SingleAsync(x => x.TenantId == candidate.Id && x.UserSubject == actor, ct);
+                var codes = member.EffectivePermissions;
+                if (!member.HasCompanyAccess || !codes.Intersect([Permissions.GroupsManage, Permissions.Manage, Permissions.MembersRead]).Any()) return null;
+                return new GroupCompanyOption(candidate.Id, candidate.Name, codes, codes.Contains(Permissions.GroupsManage), codes.Contains(Permissions.Manage), system || member.HasAdminAuthority)
+                {
+                    Sites = await scoped.Sites.AsNoTracking().OrderBy(x => x.Name).Select(x => new GroupSiteOption(x.Id, x.Name, x.Code, x.IsArchived)).ToArrayAsync(ct),
+                    PermissionScopes = new ResourceAccess(member).Describe()
+                };
+            }, ct);
+            if (choice is not null) choices.Add(choice);
         }
         return choices.ToArray();
     }
     public Task<GroupCompanyOption[]> CompaniesAsync(string actor, CancellationToken ct) => Run(false, () => Choices(actor, ct), ct);
-    private static bool Allows(GroupCompanyOption[] choices, Guid[] ids, string[] codes, bool all, bool edit, bool assign)
+    private static bool Allows(GroupCompanyOption[] choices, Guid[] ids, string[] codes, bool all, bool edit, bool assign, GroupSiteSelection[]? scopes = null)
         => ids.Length > 0 && ids.All(id => choices.Any(x => x.Id == id && (!edit || x.CanEdit) && (!assign || x.CanAssign)
-            && (!all || x.CanGrantAll) && !codes.Except(x.Permissions).Any()));
-    private static void Require(GroupCompanyOption[] choices, Guid[] ids, string[] codes, bool all, bool edit, bool assign)
-    { if (!Allows(choices, ids, codes, all, edit, assign)) throw Denied(); }
+            && (!all || x.CanGrantAll) && codes.All(code => CanDelegate(x, code, scopes?.SingleOrDefault(s => s.CompanyId == id)))));
+    private static bool CanDelegate(GroupCompanyOption company, string code, GroupSiteSelection? target)
+    {
+        if (!company.Permissions.Contains(code)) return false;
+        if (!ResourceAccess.IsScoped(code)) return true;
+        var own = company.PermissionScopes.SingleOrDefault(x => x.Code == code);
+        return own is not null && (own.AllSites || target?.AllSites == false && !target.SiteIds.Except(own.SiteIds).Any());
+    }
+    private static void Require(GroupCompanyOption[] choices, Guid[] ids, string[] codes, bool all, bool edit, bool assign, GroupSiteSelection[]? scopes = null)
+    { if (!Allows(choices, ids, codes, all, edit, assign, scopes)) throw Denied(); }
+    private static GroupSiteSelection[] SiteSelections(Guid[] companies, GroupCompanyOption[] choices, GroupSiteSelection[]? requested, State? before = null)
+    {
+        if (requested is not null && (requested.Length != companies.Length || requested.Any(x => x is null)
+            || requested.Select(x => x.CompanyId).Distinct().Count() != requested.Length || requested.Any(x => !companies.Contains(x.CompanyId))))
+            throw UserAccounts.Error(400, "invalid_site_scopes", "Minden kiválasztott céghez egyszer add meg a telephely-hozzáférést.");
+        return companies.Select(id =>
+        {
+            var selection = requested?.Single(x => x.CompanyId == id)
+                ?? before?.SiteScopes?.SingleOrDefault(x => x.CompanyId == id) ?? new(id, true, []);
+            var company = choices.SingleOrDefault(x => x.Id == id) ?? throw Denied();
+            if (selection.SiteIds is null || selection.SiteIds.Length > 2000 || selection.SiteIds.Contains(Guid.Empty)
+                || selection.SiteIds.Distinct().Count() != selection.SiteIds.Length || selection.AllSites && selection.SiteIds.Length > 0
+                || !selection.AllSites && selection.SiteIds.Length == 0)
+                throw UserAccounts.Error(400, "invalid_site_scopes", "Válaszd a teljes céget vagy legalább egy különböző telephelyet.");
+            foreach (var site in selection.SiteIds)
+                if (!company.Sites.Any(x => x.Id == site && (!x.IsArchived || before?.SiteScopes?.Any(s => s.CompanyId == id && s.SiteIds.Contains(site)) == true)))
+                    throw UserAccounts.Error(400, "invalid_site_scopes", "Csak a kiválasztott cég aktív telephelyei adhatók meg.");
+            return selection with { SiteIds = selection.SiteIds.Order().ToArray() };
+        }).ToArray();
+    }
     private static Guid[] Companies(Guid[]? ids)
     {
         if (ids is null || ids.Length is < 1 or > 100 || ids.Contains(Guid.Empty) || ids.Distinct().Count() != ids.Length)
@@ -77,18 +112,19 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
             throw UserAccounts.Error(409, "group_name_exists", "Ezeknél a cégeknél már létezik ilyen nevű csoport.");
     }
     private static ManagementException ProtectedAdmin() => UserAccounts.Error(409, "protected_admin_group", "Az admin közös rendszercsoport, nem módosítható és nem törölhető. A cégeket a felhasználó csoporttagságánál válaszd ki.");
-    private static State Snapshot(PermissionGroup group) => new(group.Name, group.AllPermissions, group.EffectivePermissions.Order(StringComparer.Ordinal).ToArray(), group.Companies.Select(x => x.TenantId).Order().ToArray());
+    private static State Snapshot(PermissionGroup group) => new(group.Name, group.AllPermissions, group.EffectivePermissions.Order(StringComparer.Ordinal).ToArray(), group.Companies.Select(x => x.TenantId).Order().ToArray(),
+        group.Companies.Select(x => new GroupSiteSelection(x.TenantId, !x.RestrictSites, x.Sites.Select(s => s.SiteId).Order().ToArray())).ToArray());
     private async Task<PermissionGroup> Group(Guid id, GroupCompanyOption[] choices, CancellationToken ct)
     {
         var visible = choices.Select(x => x.Id).ToArray();
-        return await db.PermissionGroups.Include(x => x.Permissions).Include(x => x.Companies).AsSplitQuery()
+        return await db.PermissionGroups.Include(x => x.Permissions).Include(x => x.Companies).ThenInclude(x => x.Sites).AsSplitQuery()
             .SingleOrDefaultAsync(x => x.Id == id && (x.IsAdmin || (x.Companies.Any() && x.Companies.All(c => visible.Contains(c.TenantId)))) && visible.Length > 0, ct)
             ?? throw UserAccounts.Error(404, "group_not_found", "A jogosultságcsoport nem található, vagy nem minden cégéhez férsz hozzá.");
     }
     private async Task<PermissionGroupSummary[]> List(GroupCompanyOption[] choices, CancellationToken ct)
     {
         var visible = choices.Select(x => x.Id).ToArray();
-        var groups = await db.PermissionGroups.AsNoTracking().Include(x => x.Permissions).Include(x => x.Companies).AsSplitQuery()
+        var groups = await db.PermissionGroups.AsNoTracking().Include(x => x.Permissions).Include(x => x.Companies).ThenInclude(x => x.Sites).AsSplitQuery()
             .Where(x => visible.Length > 0 && (x.IsAdmin || (x.Companies.Any() && x.Companies.All(c => visible.Contains(c.TenantId))))).OrderBy(x => x.Name).ThenBy(x => x.Id).ToArrayAsync(ct);
         var ids = groups.Select(x => x.Id).ToArray();
         var counts = await db.GroupUsers.Where(x => ids.Contains(x.GroupId)).GroupBy(x => x.GroupId)
@@ -108,9 +144,13 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
         }
         var state = Snapshot(group);
         return new(group.Id, group.Name, group.CreatedBy, group.Version, group.AllPermissions, group.IsAdmin, state.Permissions,
-            state.CompanyIds.Select(id => new GroupCompanyTarget(id, choices.Single(x => x.Id == id).Name)).ToArray(), count,
-            Allows(choices, state.CompanyIds, state.Permissions, group.AllPermissions, edit: true, assign: count > 0),
-            Allows(choices, state.CompanyIds, state.Permissions, group.AllPermissions, edit: false, assign: true));
+            state.CompanyIds.Select(id => new GroupCompanyTarget(id, choices.Single(x => x.Id == id).Name)
+            {
+                AllSites = state.SiteScopes!.Single(x => x.CompanyId == id).AllSites,
+                Sites = choices.Single(x => x.Id == id).Sites.Where(s => state.SiteScopes!.Single(x => x.CompanyId == id).SiteIds.Contains(s.Id)).ToArray()
+            }).ToArray(), count,
+            Allows(choices, state.CompanyIds, state.Permissions, group.AllPermissions, edit: true, assign: count > 0, scopes: state.SiteScopes),
+            Allows(choices, state.CompanyIds, state.Permissions, group.AllPermissions, edit: false, assign: true, scopes: state.SiteScopes));
     }
     public Task<PermissionGroupSummary[]> ListAsync(string actor, CancellationToken ct) => Run(false, async () => await List(await Choices(actor, ct), ct), ct);
 
@@ -152,8 +192,8 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
                 // A suspended membership is never reactivated by adding or changing a group.
                 scoped.AccessAuditEvents.Add(new() { TenantId = company, ActorSubject = actor, Action = action, Details = JsonSerializer.Serialize(new
                 {
-                    groupId, before = before is null ? null : new { before.Name, before.AllPermissions, before.Permissions, applies = before.CompanyIds.Contains(company) },
-                    after = after is null ? null : new { after.Name, after.AllPermissions, after.Permissions, applies = after.CompanyIds.Contains(company) }, affectedUsers = affected
+                    groupId, before = before is null ? null : new { before.Name, before.AllPermissions, before.Permissions, applies = before.CompanyIds.Contains(company), siteScope = before.SiteScopes?.SingleOrDefault(x => x.CompanyId == company) },
+                    after = after is null ? null : new { after.Name, after.AllPermissions, after.Permissions, applies = after.CompanyIds.Contains(company), siteScope = after.SiteScopes?.SingleOrDefault(x => x.CompanyId == company) }, affectedUsers = affected
                 }) });
                 await scoped.SaveChangesAsync(ct);
                 scoped.GroupUserCompanies.RemoveRange(scopes.Where(x => !desired.Contains(x.UserId)));
@@ -172,13 +212,15 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
     {
         var choices = await Choices(actor, ct);
         var ids = Companies(request.CompanyIds); var name = Name(request.Name); var codes = AccessRules.Validate(request.Permissions);
+        var sites = SiteSelections(ids, choices, request.SiteScopes);
         if (request.AllPermissions && codes.Length > 0) throw UserAccounts.Error(400, "invalid_permissions", "Automatikus teljes jogkörnél ne adj meg külön joglistát.");
-        Require(choices, ids, request.AllPermissions ? Permissions.All : codes, request.AllPermissions, edit: true, assign: false);
+        Require(choices, ids, request.AllPermissions ? Permissions.All : codes, request.AllPermissions, edit: true, assign: false, scopes: sites);
         if (name.Equals("admin", StringComparison.OrdinalIgnoreCase)) throw ProtectedAdmin();
         await Unique(name, ids, null, ct);
         var group = new PermissionGroup { CreatedBy = actor, Name = name, NormalizedName = name.ToUpperInvariant(), AllPermissions = request.AllPermissions };
         group.Permissions = codes.Select(code => new GroupPermission { GroupId = group.Id, Code = code }).ToList();
-        group.Companies = ids.Select(id => new GroupCompany { GroupId = group.Id, TenantId = id }).ToList();
+        group.Companies = sites.Select(scope => new GroupCompany { GroupId = group.Id, TenantId = scope.CompanyId, RestrictSites = !scope.AllSites,
+            Sites = scope.SiteIds.Select(site => new GroupCompanySite { GroupId = group.Id, TenantId = scope.CompanyId, SiteId = site }).ToList() }).ToList();
         db.PermissionGroups.Add(group); await db.SaveChangesAsync(ct);
         await Sync(actor, group.Id, null, Snapshot(group), [], [], [], "group.created", ct);
         return Summary(group, choices, 0);
@@ -189,10 +231,11 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
         var choices = await Choices(actor, ct); var group = await Group(id, choices, ct); Version(group.Version, request.Version);
         if (group.IsAdmin) throw ProtectedAdmin();
         var before = Snapshot(group); var ids = Companies(request.CompanyIds); var name = Name(request.Name); var codes = AccessRules.Validate(request.Permissions);
+        var sites = SiteSelections(ids, choices, request.SiteScopes, before);
         if (request.AllPermissions && codes.Length > 0) throw UserAccounts.Error(400, "invalid_permissions", "Automatikus teljes jogkörnél ne adj meg külön joglistát.");
         var users = await db.GroupUsers.Where(x => x.GroupId == id).Select(x => x.UserId).ToArrayAsync(ct);
-        Require(choices, before.CompanyIds, before.Permissions, before.AllPermissions, edit: true, assign: users.Length > 0);
-        Require(choices, ids, request.AllPermissions ? Permissions.All : codes, request.AllPermissions, edit: true, assign: users.Length > 0);
+        Require(choices, before.CompanyIds, before.Permissions, before.AllPermissions, edit: true, assign: users.Length > 0, scopes: before.SiteScopes);
+        Require(choices, ids, request.AllPermissions ? Permissions.All : codes, request.AllPermissions, edit: true, assign: users.Length > 0, scopes: sites);
         if (group.IsAdmin && (name != group.Name || !request.AllPermissions)) throw ProtectedAdmin();
         if (!group.IsAdmin && name != group.Name && name.Equals("admin", StringComparison.OrdinalIgnoreCase)) throw ProtectedAdmin();
         await Unique(name, ids, id, ct);
@@ -201,9 +244,18 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
         foreach (var code in codes.Except(group.Permissions.Select(x => x.Code))) group.Permissions.Add(new() { GroupId = id, Code = code });
         var removedScopes = group.Companies.Where(x => !ids.Contains(x.TenantId)).ToArray();
         foreach (var added in ids.Except(before.CompanyIds)) group.Companies.Add(new() { GroupId = id, TenantId = added });
+        foreach (var selection in sites)
+        {
+            var scope = group.Companies.Single(x => x.TenantId == selection.CompanyId);
+            scope.RestrictSites = !selection.AllSites;
+            foreach (var old in scope.Sites.Where(x => !selection.SiteIds.Contains(x.SiteId)).ToArray())
+            { scope.Sites.Remove(old); db.GroupCompanySites.Remove(old); }
+            foreach (var site in selection.SiteIds.Except(scope.Sites.Select(x => x.SiteId)))
+                scope.Sites.Add(new() { GroupId = id, TenantId = selection.CompanyId, SiteId = site });
+        }
         group.Name = name; group.NormalizedName = name.ToUpperInvariant(); group.AllPermissions = request.AllPermissions; group.Version++;
         await db.SaveChangesAsync(ct); // Insert new scope keys before materializing memberships; retain old scope FKs until removal.
-        var after = new State(name, request.AllPermissions, group.EffectivePermissions.Order(StringComparer.Ordinal).ToArray(), ids);
+        var after = new State(name, request.AllPermissions, group.EffectivePermissions.Order(StringComparer.Ordinal).ToArray(), ids, sites);
         await Sync(actor, id, before, after, users, users, managers, "group.updated", ct);
         foreach (var scope in removedScopes) { group.Companies.Remove(scope); db.GroupCompanies.Remove(scope); }
         await db.SaveChangesAsync(ct);
@@ -214,7 +266,7 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
         var choices = await Choices(actor, ct); var group = await Group(id, choices, ct); Version(group.Version, version);
         if (group.IsAdmin) throw ProtectedAdmin();
         var before = Snapshot(group); var users = await db.GroupUsers.Where(x => x.GroupId == id).Select(x => x.UserId).ToArrayAsync(ct);
-        Require(choices, before.CompanyIds, before.Permissions, before.AllPermissions, edit: true, assign: users.Length > 0);
+        Require(choices, before.CompanyIds, before.Permissions, before.AllPermissions, edit: true, assign: users.Length > 0, scopes: before.SiteScopes);
         var managers = await Managers(actor, before.CompanyIds, ct);
         await Sync(actor, id, before, null, users, [], managers, "group.deleted", ct);
         db.PermissionGroups.Remove(group); await db.SaveChangesAsync(ct); return true;

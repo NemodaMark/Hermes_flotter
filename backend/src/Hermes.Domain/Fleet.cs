@@ -21,7 +21,8 @@ public sealed class TenantMembership : ITenantEntity
     public List<MembershipPermission> Permissions { get; set; } = [];
     public List<MembershipGroup> Groups { get; set; } = [];
     public bool HasCompanyAccess => IsActive && (HasDirectAccess || Groups.Count > 0);
-    public bool HasAdminAuthority => Groups.Any(x => x.Group.AllPermissions);
+    public bool HasAdminAuthority => Groups.Any(x => x.Group.AllPermissions
+        && x.Group.Companies.Any(c => c.TenantId == TenantId && !c.RestrictSites));
     public string[] EffectivePermissions => Permissions.Select(x => x.Code)
         .Concat(Groups.SelectMany(x => x.Group.EffectivePermissions))
         .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();

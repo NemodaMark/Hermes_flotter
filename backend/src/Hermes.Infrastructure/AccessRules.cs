@@ -8,7 +8,8 @@ internal static class AccessRules
 {
     internal static IQueryable<TenantMembership> WithAccess(this IQueryable<TenantMembership> query)
         => query.Include(x => x.Permissions)
-            .Include(x => x.Groups).ThenInclude(x => x.Group).ThenInclude(x => x.Permissions).AsSplitQuery();
+            .Include(x => x.Groups).ThenInclude(x => x.Group).ThenInclude(x => x.Permissions)
+            .Include(x => x.Groups).ThenInclude(x => x.Group).ThenInclude(x => x.Companies).ThenInclude(x => x.Sites).AsSplitQuery();
 
     internal static AssignedGroup[] Groups(TenantMembership member) => member.Groups
         .Select(x => new AssignedGroup(x.GroupId, x.Group.Name, x.Group.IsAdmin)).OrderBy(x => x.Name).ToArray();
@@ -45,7 +46,7 @@ internal static class AccessRules
     }
     internal static void Delegate(TenantMembership actor, IEnumerable<string> permissions)
     {
-        if (permissions.Except(actor.EffectivePermissions).Any())
+        if (permissions.Any(code => !new ResourceAccess(actor).CompanyWide(code)))
             throw UserAccounts.Error(403, "delegation_denied", "Csak a saját jogosultságaid körén belül adhatsz vagy vonhatsz vissza hozzáférést.");
     }
     internal static ManagementException LastManager() => UserAccounts.Error(409, "last_permission_manager", "Az utolsó aktív jogosultságkezelő hozzáférése nem szüntethető meg. Előbb adj másik aktív tagnak jogosultságkezelési jogot.");
