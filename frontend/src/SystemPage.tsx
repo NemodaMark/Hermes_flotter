@@ -4,7 +4,7 @@ import { api } from './api'
 import type { Session } from './api'
 import { UserProfileDialog } from './UserProfileDialog'
 import './members.css'
-import { CompanyAccessGroups, CompanyGroupAssignment } from './CompanyAccessGroups'
+import { PermissionGroups, GroupAssignmentDialog } from './PermissionGroups'
 
 export function SystemPage({ user }: { user: Session }) {
   const [tab, setTab] = useState<'users' | 'audit' | 'company-groups'>('users')
@@ -50,14 +50,14 @@ export function SystemPage({ user }: { user: Session }) {
             Módosítási napló
           </button>
           <button aria-pressed={tab === 'company-groups'} onClick={() => setTab('company-groups')}>
-            Többcéges csoportok
+            Jogosultságcsoportok
           </button>
         </div>
         <button
           className="text-button"
           onClick={() =>
             tab === 'company-groups'
-              ? void client.invalidateQueries({ queryKey: ['company-access-groups', user.id] })
+              ? void client.invalidateQueries({ queryKey: ['permission-groups', user.id] })
               : void query.refetch()
           }
         >
@@ -85,7 +85,7 @@ export function SystemPage({ user }: { user: Session }) {
         </form>
       )}
       {tab === 'company-groups' ? (
-        <CompanyAccessGroups user={user} />
+        <PermissionGroups user={user} />
       ) : query.isError ? (
         <p className="notice error" role="alert">
           {query.error.message}
@@ -131,10 +131,10 @@ export function SystemPage({ user }: { user: Session }) {
                           </button>
                           <button
                             className="secondary-button"
-                            aria-label={`Többcéges csoportok: ${profile.email}`}
+                            aria-label={`Jogosultságcsoportok: ${profile.email}`}
                             onClick={() => setGroupUserId(profile.id)}
                           >
-                            Többcéges csoportok
+                            Jogosultságcsoportok
                           </button>
                         </td>
                       </tr>
@@ -212,7 +212,7 @@ export function SystemPage({ user }: { user: Session }) {
         </>
       )}
       {groupUserId && (
-        <CompanyGroupAssignment
+        <GroupAssignmentDialog
           user={user}
           userId={groupUserId}
           onClose={() => setGroupUserId(null)}

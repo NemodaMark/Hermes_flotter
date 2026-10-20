@@ -20,11 +20,10 @@ public sealed class TenantMembership : ITenantEntity
     public DateTimeOffset? DisabledAt { get; set; }
     public List<MembershipPermission> Permissions { get; set; } = [];
     public List<MembershipGroup> Groups { get; set; } = [];
-    public List<CompanyAccessMembership> CompanyGroups { get; set; } = [];
-    public bool HasCompanyAccess => IsActive && (HasDirectAccess || CompanyGroups.Count > 0);
-    public bool HasAdminAuthority => Groups.Any(x => x.Group.IsAdmin) || CompanyGroups.Any(x => x.Group.AllPermissions);
+    public bool HasCompanyAccess => IsActive && (HasDirectAccess || Groups.Count > 0);
+    public bool HasAdminAuthority => Groups.Any(x => x.Group.AllPermissions);
     public string[] EffectivePermissions => Permissions.Select(x => x.Code)
-        .Concat(Groups.SelectMany(x => x.Group.EffectivePermissions)).Concat(CompanyGroups.SelectMany(x => x.Group.EffectivePermissions))
+        .Concat(Groups.SelectMany(x => x.Group.EffectivePermissions))
         .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
 }
 

@@ -8,7 +8,6 @@ import { InvitationDialog, PermissionsDialog, StatusDialog } from './MemberDialo
 import { permissionLabel } from './permissions'
 import { UserProfileDialog } from './UserProfileDialog'
 import './members.css'
-import { CompanyAccessGroups, CompanyGroupAssignment } from './CompanyAccessGroups'
 import { PermissionGroups, GroupAssignmentDialog } from './PermissionGroups'
 
 const message = (error: unknown) =>
@@ -68,20 +67,17 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
   const canManage = tenant.permissions.includes('permissions.manage')
   const canGroups = canRead || canManage || tenant.permissions.includes('permission-groups.manage')
   const canUpdate = tenant.permissions.includes('members.update')
-  const [tab, setTab] = useState<'members' | 'invitations' | 'groups' | 'company-groups'>(
+  const [tab, setTab] = useState<'members' | 'invitations' | 'groups'>(
     canRead ? 'members' : canInvite ? 'invitations' : canGroups ? 'groups' : 'members',
   )
   const activeTab =
-    (tab === 'invitations' && !canInvite) ||
-    ((tab === 'groups' || tab === 'company-groups') && !canGroups)
-      ? 'members'
-      : tab
+    (tab === 'invitations' && !canInvite) || (tab === 'groups' && !canGroups) ? 'members' : tab
   const [page, setPage] = useState(1)
   const [invitePage, setInvitePage] = useState(1)
   const [search, setSearch] = useState('')
   const [draftSearch, setDraftSearch] = useState('')
   const [dialog, setDialog] = useState<
-    | { kind: 'permissions' | 'status' | 'groups' | 'company-groups'; member: Member }
+    | { kind: 'permissions' | 'status' | 'groups'; member: Member }
     | { kind: 'invite' }
     | { kind: 'revoke'; invitation: Invitation }
     | null
@@ -157,8 +153,8 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
               const tabs = [
                 'members',
                 ...(canInvite ? ['invitations'] : []),
-                ...(canGroups ? ['groups', 'company-groups'] : []),
-              ] as Array<'members' | 'invitations' | 'groups' | 'company-groups'>
+                ...(canGroups ? ['groups'] : []),
+              ] as Array<'members' | 'invitations' | 'groups'>
               const index = tabs.indexOf(activeTab)
               const next =
                 event.key === 'Home'
@@ -206,18 +202,6 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
                 Jogosultságcsoportok
               </button>
             )}
-            {canGroups && (
-              <button
-                id="company-groups-tab"
-                role="tab"
-                aria-selected={activeTab === 'company-groups'}
-                tabIndex={activeTab === 'company-groups' ? 0 : -1}
-                aria-controls="access-panel"
-                onClick={() => setTab('company-groups')}
-              >
-                Többcéges csoportok
-              </button>
-            )}
           </div>
           <div className="access-tools">
             <button
@@ -249,18 +233,8 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
           </div>
         )}
         <div id="access-panel" role="tabpanel" aria-labelledby={`${activeTab}-tab`}>
-          {activeTab === 'company-groups' ? (
-            <CompanyAccessGroups user={user} />
-          ) : activeTab === 'groups' ? (
-            <PermissionGroups
-              user={user}
-              tenant={tenant}
-              catalog={catalog.data ?? []}
-              onChanged={async () => {
-                await queryClient.invalidateQueries({ queryKey: ['tenants', user.id] })
-                await queryClient.invalidateQueries({ queryKey: memberKey })
-              }}
-            />
+          {activeTab === 'groups' ? (
+            <PermissionGroups user={user} />
           ) : activeTab === 'members' ? (
             !canRead ? (
               <div className="notice">
@@ -340,12 +314,7 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
                             <td>
                               {!!member.groups?.length && (
                                 <strong className="member-grants">
-                                  Csoportok:{' '}
-                                  {member.groups
-                                    .map((x) =>
-                                      x.isMultiCompany ? `${x.name} (többcéges)` : x.name,
-                                    )
-                                    .join(', ')}
+                                  Csoportok: {member.groups.map((x) => x.name).join(', ')}
                                 </strong>
                               )}
                               <span className="member-grants">
@@ -576,16 +545,6 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
       )}
       {dialog?.kind === 'groups' && canManage && (
         <GroupAssignmentDialog
-          user={user}
-          tenant={tenant}
-          userId={dialog.member.userId}
-          onClose={() => setDialog(null)}
-          onCompanyGroups={() => setDialog({ kind: 'company-groups', member: dialog.member })}
-          onChanged={refresh}
-        />
-      )}
-      {dialog?.kind === 'company-groups' && canManage && (
-        <CompanyGroupAssignment
           user={user}
           userId={dialog.member.userId}
           onClose={() => setDialog(null)}

@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from './api'
-import type { MemberAccess, Permission, PermissionGroup, Session, Tenant } from './api'
+import { api } from './api'
+import type {
+  GroupDraft,
+  PermissionGroup,
+  GroupCompanyOption,
+  GroupUser,
+  Permission,
+  Session,
+} from './api'
 import { AccessDialog } from './AccessDialog'
 import { PermissionFields } from './MemberDialogs'
 import { permissionLabel } from './permissions'
@@ -9,168 +16,206 @@ import { permissionLabel } from './permissions'
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'A művelet nem sikerült.'
 
-export function PermissionGroups({
-  user,
-  tenant,
-  catalog,
-  onChanged,
-}: {
-  user: Session
-  tenant: Tenant
-  catalog: Permission[]
-  onChanged: () => Promise<void>
-}) {
+export function PermissionGroups({ user }: { user: Session }) {
   const client = useQueryClient()
-  const key = ['permission-groups', user.id, tenant.id]
-  const groups = useQuery({
-    queryKey: key,
-    queryFn: ({ signal }) => api.groups(tenant.id, signal),
-    retry: false,
-  })
   const [dialog, setDialog] = useState<
     { kind: 'edit' | 'delete'; group: PermissionGroup } | { kind: 'create' } | null
   >(null)
-  const canManage = tenant.permissions.includes('permission-groups.manage')
+  const data = useQuery({
+    queryKey: ['permission-groups', user.id],
+    queryFn: async ({ signal }) => {
+      const [groups, companies, catalog] = await Promise.all([
+        api.groups(signal),
+        api.groupCompanies(signal),
+        api.permissions(signal),
+      ])
+      return { groups, companies, catalog }
+    },
+    retry: false,
+  })
   async function refresh() {
-    await client.invalidateQueries({ queryKey: key })
-    await onChanged()
+    await Promise.all(
+      ['permission-groups', 'tenants', 'members', 'system-audit'].map((key) =>
+        client.invalidateQueries({ queryKey: [key] }),
+      ),
+    )
   }
   return (
-    <div className="groups-content">
+    <div>
       <div className="access-toolbar">
         <p className="access-description">
-          A csoport jogai minden hozzárendelt felhasználóra érvényesek.
+          A csoporttagok a kijelölt cégekhez kapnak hozzáférést, a megadott jogokkal.
         </p>
-        {canManage && (
-          <button
-            className="primary-button"
-            disabled={!catalog.length || !groups.isSuccess}
-            onClick={() => setDialog({ kind: 'create' })}
-          >
-            Új csoport
+        <div className="member-actions">
+          <button className="text-button" onClick={() => void data.refetch()}>
+            Csoportlista frissítése
           </button>
-        )}
+          {data.data?.companies.some((c) => c.canEdit) && (
+            <button className="primary-button" onClick={() => setDialog({ kind: 'create' })}>
+              Új jogosultságcsoport
+            </button>
+          )}
+        </div>
       </div>
-      {groups.isPending && (
+      {data.isPending && (
         <p className="notice" role="status">
-          Csoportok betöltése…
+          Jogosultságcsoportok betöltése…
         </p>
       )}
-      {groups.isError && (
-        <div className="notice error" role="alert">
-          {message(groups.error)}{' '}
-          <button className="text-button" onClick={() => void groups.refetch()}>
-            Újrapróbálom
-          </button>
-        </div>
+      {data.isError && (
+        <p className="notice error" role="alert">
+          {message(data.error)}
+        </p>
       )}
-      {groups.isSuccess && (
-        <div className="table-scroll">
-          <table className="groups-table">
-            <thead>
-              <tr>
-                <th>Csoport</th>
-                <th>Jogosultságok</th>
-                <th>Tagok</th>
-                <th>Művelet</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groups.data.map((group) => (
-                <tr key={group.id}>
-                  <td>
-                    <strong>{group.name}</strong>
-                    {group.isAdmin && (
-                      <small className="member-grants">Minden jelenlegi és későbbi céges jog</small>
-                    )}
-                  </td>
-                  <td>
-                    <span className="member-grants">
-                      {group.permissions.map(permissionLabel).join(', ') || 'Nincs kiosztott jog'}
-                    </span>
-                  </td>
-                  <td>{group.memberCount}</td>
-                  <td>
-                    {group.isAdmin ? (
-                      <span className="field-hint">Automatikusan kezelt</span>
-                    ) : canManage ? (
-                      <div className="row-actions">
-                        <button
-                          className="secondary-button"
-                          onClick={() => setDialog({ kind: 'edit', group })}
-                          aria-label={`Csoport szerkesztése: ${group.name}`}
-                        >
-                          Szerkesztés
-                        </button>
-                        <button
-                          className="secondary-button danger-text"
-                          onClick={() => setDialog({ kind: 'delete', group })}
-                          aria-label={`Csoport törlése: ${group.name}`}
-                        >
-                          Törlés
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="field-hint">Megtekintés</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {(dialog?.kind === 'create' || dialog?.kind === 'edit') && (
-        <GroupEditor
-          tenant={tenant}
-          catalog={catalog}
-          group={dialog.kind === 'edit' ? dialog.group : undefined}
-          onClose={() => setDialog(null)}
-          onChanged={refresh}
-        />
-      )}
-      {dialog?.kind === 'delete' && (
-        <DeleteGroup
-          tenant={tenant}
-          group={dialog.group}
-          onClose={() => setDialog(null)}
-          onChanged={refresh}
-        />
+      {data.isSuccess && (
+        <>
+          {data.data.groups.length ? (
+            <div className="table-scroll">
+              <table className="groups-table">
+                <thead>
+                  <tr>
+                    <th>Csoport</th>
+                    <th>Cégek</th>
+                    <th>Jogosultságok</th>
+                    <th>Tagok</th>
+                    <th>Művelet</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.data.groups.map((group) => (
+                    <tr key={group.id}>
+                      <td>
+                        <strong>{group.name}</strong>
+                        {group.isAdmin && (
+                          <span className="member-email">
+                            Védett admin · automatikusan bővülő jogkör
+                          </span>
+                        )}
+                        <span className="member-email">Létrehozó: {group.createdBy}</span>
+                      </td>
+                      <td>{group.companies.map((c) => c.name).join(', ')}</td>
+                      <td>
+                        <span className="member-grants">
+                          {group.allPermissions
+                            ? 'Minden jelenlegi és későbbi céges jog'
+                            : group.permissions.map(permissionLabel).join(', ') ||
+                              'Nincs kiosztott jog'}
+                        </span>
+                      </td>
+                      <td>{group.memberCount}</td>
+                      <td>
+                        {group.canEdit ? (
+                          <div className="member-actions">
+                            <button
+                              className="secondary-button"
+                              aria-label={`Jogosultságcsoport szerkesztése: ${group.name}`}
+                              onClick={() => setDialog({ kind: 'edit', group })}
+                            >
+                              Szerkesztés
+                            </button>
+                            {!group.isAdmin && (
+                              <button
+                                className="secondary-button danger-text"
+                                aria-label={`Jogosultságcsoport törlése: ${group.name}`}
+                                onClick={() => setDialog({ kind: 'delete', group })}
+                              >
+                                Törlés
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          'Megtekintés'
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="notice">Nincs megjeleníthető jogosultságcsoport.</p>
+          )}
+          <p className="notice">
+            A felhasználó sorában a Csoportok gombbal osztható ki. Új cég hozzáadása a meglévő
+            csoporttagokra is érvényes.
+          </p>
+          {(dialog?.kind === 'create' || dialog?.kind === 'edit') && (
+            <GroupEditor
+              group={dialog.kind === 'edit' ? dialog.group : undefined}
+              companies={data.data.companies}
+              catalog={data.data.catalog}
+              onClose={() => setDialog(null)}
+              onChanged={refresh}
+            />
+          )}
+          {dialog?.kind === 'delete' && (
+            <GroupDelete group={dialog.group} onClose={() => setDialog(null)} onChanged={refresh} />
+          )}
+        </>
       )}
     </div>
   )
 }
 
 function GroupEditor({
-  tenant,
-  catalog,
   group,
+  companies,
+  catalog,
   onClose,
   onChanged,
 }: {
-  tenant: Tenant
-  catalog: Permission[]
   group?: PermissionGroup
+  companies: GroupCompanyOption[]
+  catalog: Permission[]
   onClose: () => void
   onChanged: () => Promise<void>
 }) {
   const [name, setName] = useState(group?.name ?? '')
-  const [permissions, setPermissions] = useState(group?.permissions ?? [])
+  const [ids, setIds] = useState(group?.companies.map((x) => x.id) ?? [])
+  const [permissions, setPermissions] = useState(
+    group?.allPermissions ? [] : (group?.permissions ?? []),
+  )
+  const [allPermissions, setAll] = useState(group?.allPermissions ?? false)
+  const eligible = companies.filter(
+    (c) => c.canEdit && (!group?.memberCount || c.canAssign) && (!group?.isAdmin || c.canGrantAll),
+  )
+  const selected = companies.filter((c) => ids.includes(c.id))
+  const available = catalog
+    .map((x) => x.code)
+    .filter((code) => selected.length > 0 && selected.every((c) => c.permissions.includes(code)))
+  const canAll = selected.length > 0 && selected.every((c) => c.canGrantAll)
   const save = useMutation({
-    mutationFn: () =>
-      group
-        ? api.updateGroup(tenant.id, group.id, name.trim(), permissions, group.version)
-        : api.createGroup(tenant.id, name.trim(), permissions),
+    mutationFn: () => {
+      const body: GroupDraft = {
+        name: name.trim(),
+        permissions: allPermissions ? [] : permissions,
+        companyIds: ids,
+        allPermissions,
+      }
+      return group
+        ? api.updateGroup(group.id, { ...body, version: group.version })
+        : api.createGroup(body)
+    },
   })
+  function selectCompanies(next: string[]) {
+    setIds(next)
+    const choices = companies.filter((c) => next.includes(c.id))
+    setPermissions((values) =>
+      values.filter(
+        (code) => choices.length > 0 && choices.every((c) => c.permissions.includes(code)),
+      ),
+    )
+    if (!choices.length || choices.some((c) => !c.canGrantAll)) setAll(false)
+  }
   return (
     <AccessDialog
-      title={group ? 'Csoport szerkesztése' : 'Új jogosultságcsoport'}
+      title={group ? 'Jogosultságcsoport szerkesztése' : 'Új jogosultságcsoport'}
       pending={save.isPending}
       onClose={onClose}
     >
       <form
-        onSubmit={(event) => {
-          event.preventDefault()
+        onSubmit={(e) => {
+          e.preventDefault()
           void save
             .mutateAsync()
             .then(async () => {
@@ -180,35 +225,63 @@ function GroupEditor({
             .catch(() => {})
         }}
       >
-        <p className="access-description">
-          {tenant.name}
-          {group && ' · A változás minden csoporttag jogait módosítja.'}
-        </p>
-        <label htmlFor="group-name">Csoport neve</label>
+        <label htmlFor="company-group-name">Csoport neve</label>
         <input
-          id="group-name"
+          id="company-group-name"
           data-autofocus
           required
           maxLength={80}
           value={name}
-          disabled={save.isPending}
+          disabled={save.isPending || group?.isAdmin}
           onChange={(e) => setName(e.target.value)}
         />
-        <PermissionFields
-          catalog={catalog}
-          selected={permissions}
-          available={tenant.permissions}
-          onChange={setPermissions}
-          disabled={save.isPending}
-        />
+        <fieldset className="permission-fields company-options" disabled={save.isPending}>
+          <legend>Hozzáférés ezekhez a cégekhez</legend>
+          {eligible.map((company) => (
+            <label className="permission-option" key={company.id}>
+              <input
+                type="checkbox"
+                checked={ids.includes(company.id)}
+                onChange={(e) =>
+                  selectCompanies(
+                    e.target.checked ? [...ids, company.id] : ids.filter((id) => id !== company.id),
+                  )
+                }
+              />
+              <span>{company.name}</span>
+            </label>
+          ))}
+        </fieldset>
+        {!ids.length && <p className="field-hint">Válassz legalább egy céget.</p>}
+        <label className="permission-option">
+          <input
+            type="checkbox"
+            checked={allPermissions}
+            disabled={save.isPending || !canAll || group?.isAdmin}
+            onChange={(e) => setAll(e.target.checked)}
+          />
+          <span>
+            Minden jelenlegi és későbbi céges jog
+            <small>Csak a kijelölt cégek adminjai oszthatják ki.</small>
+          </span>
+        </label>
+        {!allPermissions && ids.length > 0 && (
+          <PermissionFields
+            catalog={catalog}
+            selected={permissions}
+            available={available}
+            onChange={setPermissions}
+            disabled={save.isPending || !ids.length}
+          />
+        )}
+        <p className="field-hint">
+          Csak minden kijelölt cégnél kiosztható jogot választhatsz. Cégek kivétele a csoporttagok
+          hozzáférését is visszavonja; a külön kiosztott jogaik megmaradnak.
+        </p>
         {save.isError && (
           <p className="form-error" role="alert">
-            {message(save.error)}
-          </p>
-        )}
-        {save.error instanceof ApiError && save.error.status === 409 && (
-          <p className="field-hint">
-            Zárd be az ablakot, frissítsd a listát, majd nyisd meg újra a csoportot.
+            {message(save.error)} Zárd be az ablakot és frissítsd a listát, ha az adatok időközben
+            megváltoztak.
           </p>
         )}
         <div className="dialog-actions">
@@ -220,37 +293,34 @@ function GroupEditor({
           >
             Mégse
           </button>
-          <button className="primary-button" disabled={save.isPending}>
-            Csoport mentése
+          <button className="primary-button" disabled={save.isPending || !ids.length}>
+            Jogosultságcsoport mentése
           </button>
         </div>
       </form>
     </AccessDialog>
   )
 }
-
-function DeleteGroup({
-  tenant,
+function GroupDelete({
   group,
   onClose,
   onChanged,
 }: {
-  tenant: Tenant
   group: PermissionGroup
   onClose: () => void
   onChanged: () => Promise<void>
 }) {
   const remove = useMutation({
-    mutationFn: () => api.deleteGroup(tenant.id, group.id, group.version),
+    mutationFn: () => api.deleteGroup(group.id, group.version),
   })
   return (
-    <AccessDialog title="Csoport törlése" pending={remove.isPending} onClose={onClose}>
-      <p className="access-description">
-        <strong>{group.name}</strong> · {tenant.name}
+    <AccessDialog title="Jogosultságcsoport törlése" pending={remove.isPending} onClose={onClose}>
+      <p>
+        <strong>{group.name}</strong>
       </p>
       <p>
-        A törlés {group.memberCount} felhasználótól vonja vissza a csoportból kapott jogokat. Más
-        csoportjaik és egyedi jogaik megmaradnak.
+        {group.memberCount} felhasználó csoportból kapott hozzáférése szűnik meg ezeknél a cégeknél:{' '}
+        {group.companies.map((x) => x.name).join(', ')}.
       </p>
       {remove.isError && (
         <p className="form-error" role="alert">
@@ -274,7 +344,7 @@ function DeleteGroup({
               .catch(() => {})
           }
         >
-          Csoport törlése
+          Jogosultságcsoport törlése
         </button>
       </div>
     </AccessDialog>
@@ -283,37 +353,44 @@ function DeleteGroup({
 
 export function GroupAssignmentDialog({
   user,
-  tenant,
   userId,
   onClose,
-  onChanged,
-  onCompanyGroups,
 }: {
   user: Session
-  tenant: Tenant
   userId: string
   onClose: () => void
-  onChanged: () => Promise<void>
-  onCompanyGroups?: () => void
 }) {
+  const client = useQueryClient()
+  const [pending, setPending] = useState(false)
   const data = useQuery({
-    queryKey: ['group-assignment', user.id, tenant.id, userId],
+    queryKey: ['group-user', user.id, userId],
     queryFn: async ({ signal }) => {
-      const [access, groups] = await Promise.all([
-        api.memberAccess(tenant.id, userId, signal),
-        api.groups(tenant.id, signal),
+      const [groups, access] = await Promise.all([
+        api.groups(signal),
+        api.groupUser(userId, signal),
       ])
-      return { access, groups }
+      return { groups: groups.filter((x) => x.canAssign), access }
     },
     retry: false,
-    staleTime: 0,
     refetchOnWindowFocus: false,
+    staleTime: 0,
   })
-  const [pending, setPending] = useState(false)
+  async function refresh() {
+    await Promise.all(
+      [
+        'tenants',
+        'members',
+        'permission-groups',
+        'system-users',
+        'user-profile',
+        'system-audit',
+      ].map((key) => client.invalidateQueries({ queryKey: [key] })),
+    )
+  }
   return (
-    <AccessDialog title="Felhasználó csoportjai" pending={pending} onClose={onClose}>
+    <AccessDialog title="Felhasználó jogosultságcsoportjai" pending={pending} onClose={onClose}>
       <p className="access-description">
-        <strong>{userId}</strong> · {tenant.name}
+        <strong>{userId}</strong>
       </p>
       {data.isPending && <p role="status">Csoportok betöltése…</p>}
       {data.isError && (
@@ -324,58 +401,45 @@ export function GroupAssignmentDialog({
       {data.isSuccess && !data.isFetching && (
         <AssignmentFields
           key={data.dataUpdatedAt}
-          tenant={tenant}
-          access={data.data.access}
           groups={data.data.groups}
+          access={data.data.access}
           onPending={setPending}
+          onChanged={refresh}
           onClose={onClose}
-          onChanged={onChanged}
         />
       )}
-      {onCompanyGroups && (
-        <button
-          type="button"
-          className="secondary-button"
-          disabled={pending}
-          onClick={onCompanyGroups}
-        >
-          Többcéges csoportok
-        </button>
-      )}
-      {!pending && (
-        <button type="button" className="text-button" onClick={() => void data.refetch()}>
-          Friss adatok betöltése
-        </button>
-      )}
+      <button
+        type="button"
+        className="text-button"
+        disabled={pending || data.isFetching}
+        onClick={() => void data.refetch()}
+      >
+        Csoporttagságok újratöltése
+      </button>
     </AccessDialog>
   )
 }
-
 function AssignmentFields({
-  tenant,
-  access,
   groups,
+  access,
   onPending,
-  onClose,
   onChanged,
+  onClose,
 }: {
-  tenant: Tenant
-  access: MemberAccess
   groups: PermissionGroup[]
+  access: GroupUser
   onPending: (value: boolean) => void
-  onClose: () => void
   onChanged: () => Promise<void>
+  onClose: () => void
 }) {
-  const [selected, setSelected] = useState(
-    access.groups?.filter((x) => !x.isMultiCompany).map((x) => x.id) ?? [],
-  )
+  const [ids, setIds] = useState(access.groupIds)
   const save = useMutation({
-    mutationFn: () => api.assignGroups(tenant.id, access.userId, selected, access.version),
+    mutationFn: () => api.assignGroups(access.userId, ids, access.version),
   })
   return (
     <form
-      onSubmit={(event) => {
-        event.preventDefault()
+      onSubmit={(e) => {
+        e.preventDefault()
         onPending(true)
         void save
           .mutateAsync()
@@ -388,25 +452,21 @@ function AssignmentFields({
       }}
     >
       <fieldset className="permission-fields" disabled={save.isPending}>
-        <legend>Csoporttagságok</legend>
+        <legend>Jogosultságcsoporttagságok</legend>
         {groups.map((group) => (
           <label className="permission-option" key={group.id}>
             <input
               type="checkbox"
-              checked={selected.includes(group.id)}
-              disabled={group.permissions.some((code) => !tenant.permissions.includes(code))}
+              checked={ids.includes(group.id)}
               onChange={(e) =>
-                setSelected(
-                  e.target.checked
-                    ? [...selected, group.id]
-                    : selected.filter((id) => id !== group.id),
-                )
+                setIds(e.target.checked ? [...ids, group.id] : ids.filter((id) => id !== group.id))
               }
             />
             <span>
               {group.name}
+              <small>Cégek: {group.companies.map((x) => x.name).join(', ')}</small>
               <small>
-                {group.isAdmin
+                {group.allPermissions
                   ? 'Minden jelenlegi és későbbi céges jog'
                   : group.permissions.map(permissionLabel).join(', ') || 'Nincs kiosztott jog'}
               </small>
@@ -414,9 +474,18 @@ function AssignmentFields({
           </label>
         ))}
       </fieldset>
+      {!groups.length && (
+        <p className="notice">
+          Nincs általad minden cégénél kiosztható csoport. Először hozz létre egyet a
+          Jogosultságcsoportok fülön.
+        </p>
+      )}
+      {access.hasOtherGroups && (
+        <p className="field-hint">Más, általad nem kezelhető csoporttagságok megmaradnak.</p>
+      )}
       <p className="field-hint">
-        A csoportok és az egyedi jogok összeadódnak. Az admin tagságot céges admin vagy
-        rendszergazda módosíthatja.
+        A kijelölés minden felsorolt cégre érvényes. A korábban felfüggesztett céges hozzáférés
+        felfüggesztve marad.
       </p>
       {save.isError && (
         <p className="form-error" role="alert">
@@ -432,8 +501,8 @@ function AssignmentFields({
         >
           Mégse
         </button>
-        <button className="primary-button" disabled={save.isPending}>
-          Csoporttagság mentése
+        <button className="primary-button" disabled={save.isPending || !groups.length}>
+          Tagság mentése
         </button>
       </div>
     </form>

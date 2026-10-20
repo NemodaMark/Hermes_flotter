@@ -7,11 +7,11 @@ namespace Hermes.Infrastructure;
 internal static class AccessRules
 {
     internal static IQueryable<TenantMembership> WithAccess(this IQueryable<TenantMembership> query)
-        => query.Include(x => x.Permissions).Include(x => x.Groups).ThenInclude(x => x.Group).ThenInclude(x => x.Permissions)
-            .Include(x => x.CompanyGroups).ThenInclude(x => x.Group).ThenInclude(x => x.Permissions).AsSplitQuery();
+        => query.Include(x => x.Permissions)
+            .Include(x => x.Groups).ThenInclude(x => x.Group).ThenInclude(x => x.Permissions).AsSplitQuery();
 
-    internal static AssignedGroup[] Groups(TenantMembership member) => member.Groups.Select(x => new AssignedGroup(x.GroupId, x.Group.Name, x.Group.IsAdmin))
-        .Concat(member.CompanyGroups.Select(x => new AssignedGroup(x.GroupId, x.Group.Name, x.Group.AllPermissions) { IsMultiCompany = true })).OrderBy(x => x.Name).ToArray();
+    internal static AssignedGroup[] Groups(TenantMembership member) => member.Groups
+        .Select(x => new AssignedGroup(x.GroupId, x.Group.Name, x.Group.IsAdmin)).OrderBy(x => x.Name).ToArray();
     internal static TenantAccess Access(TenantMembership member) => new(member.TenantId, member.UserSubject, member.IsActive, member.Version, member.EffectivePermissions)
     { DirectPermissions = member.Permissions.Select(x => x.Code).Order(StringComparer.Ordinal).ToArray(), Groups = Groups(member) };
 

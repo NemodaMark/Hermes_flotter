@@ -156,49 +156,35 @@ A webes felületen válassz céget, majd nyisd meg a **Felhasználók** menüt. 
 
 A listavégpontok `page` (1–10000) és `pageSize` (1–100, alapból 25) paramétert, a taglista `search` paramétert is elfogad; válaszuk `{ "items": [], "total": 0, "page": 1, "pageSize": 25 }`. A hozzáférések változásai ugyanabban a tranzakcióban kerülnek az eseménynaplóba, mint az adatváltozás.
 
-### Jogosultságcsoportok
+### Közös jogosultságcsoport-kezelés
 
-A **Felhasználók → Jogosultságcsoportok** fülön hozhatók létre a céges jogcsomagok; a felhasználók sorában a **Csoportok** gomb kezeli a hozzárendelést. Több csoport is kiosztható. Az effektív jogok az egyedi és csoportjogok uniója; nincs tiltó jog vagy szinthierarchia. A tagság felfüggesztése minden céges jogot kikapcsol. A meghívás továbbra is egyedi induló jogokat fogad; csoportok az elfogadás után rendelhetők a taghoz.
+A **Felhasználók → Jogosultságcsoportok** fül egy közös listát használ. Minden csoportnál név, egy vagy több cég és jogcsomag adható meg; nincs külön céges és többcéges csoporttípus. A munkaterületváltás nem szűri le ezt a listát egyetlen cégre. A felhasználó sorában a **Csoportok** gomb rendeli hozzá a csoportokat. A rendszerszintű kezelők ugyanezt a Rendszerkezelés oldalon is elérik, meglévő cégtagság nélküli fiókokhoz is.
 
-Minden céghez tartozik egy védett **admin** csoport. Ennek jogai futásidőben a teljes `Permissions.Catalog` katalógusból jönnek, tehát egy új jog automatikusan elérhető lesz minden céges adminnak. A csoport neve és jogai nem szerkeszthetők, a csoport nem törölhető. Új cég létrehozója ezt a csoportot kapja. A céges admin nem kap globális `system.manage` jogot.
+Létrehozáshoz minden kijelölt cégnél `permission-groups.manage`, hozzárendeléshez `permissions.manage` szükséges. A kezelőnek a csoport teljes jogcsomagjával rendelkeznie kell minden érintett cégnél. Már kiosztott csoport szerkesztéséhez vagy törléséhez mindkét kezelési jog szükséges az összes korábbi és új cégnél. A létrehozó személye önmagában nem ad kezelési jogot. A lista csak olyan csoportokat mutat, amelyek valamennyi cégénél van taglista-olvasási, csoportkezelési vagy jogosultságkiosztási jog; a `canEdit` és `canAssign` a tényleges műveleti lehetőséget jelzi.
 
-Csoportot a `permission-groups.manage`, csoporttagságot a `permissions.manage` jog kezel. Mindkét műveletnél csak a saját effektív jogok delegálhatók. A csoportszerkesztő a meglévő és az új teljes jogcsomag fölött is rendelkezzen; így egy más által létrehozott csoporttal sem emelheti a jogait. A jövőbeli jogokra is kiterjedő admin tagságot kizárólag céges admin vagy rendszergazda oszthatja ki, vonhatja vissza vagy állíthatja vissza felfüggesztés után. Az utolsó aktív jogkezelő védelme a csoportok szerkesztésére, törlésére és visszavonására is érvényes. A műveletek céges és rendszerszintű naplóba kerülnek, az adatváltozással azonos tranzakcióban.
+A közvetlen jogok és a csoportok jogai összeadódnak; nincs tiltó jog vagy szinthierarchia. A hozzárendelés minden kiválasztott cégnél hozzáférést készít, már regisztrált fióknak, külön meghívás nélkül. A céglista utólagos bővítése a meglévő csoporttagokra is érvényes. Cég kivétele, csoport törlése vagy tagság visszavonása csak az ebből a csoportból származó hozzáférést szünteti meg. Az önálló cégtagság, a közvetlen jogok és más csoportok jogai megmaradnak. Csoportművelet sosem aktivál újra felfüggesztett cégtagságot. Az üres, kizárólag csoportból létrejött hozzáférés eltűnik a munkaterületlistából, de a tagsági sor megőrzi a felfüggesztés és verzió előzményeit. Közvetlen nem üres joglista vagy elfogadott meghívó önálló hozzáférést alapít.
 
-- `GET /api/v1/permission-groups`: lista `members.read`, `permissions.manage` vagy `permission-groups.manage` joggal.
-- `POST /api/v1/permission-groups`: `{ "name": "Km rögzítők", "permissions": ["vehicles.read", "vehicles.odometer.create"] }`.
-- `PUT /api/v1/permission-groups/{id}`: ugyanaz a törzs, továbbá a csoport `version` mezője.
-- `DELETE /api/v1/permission-groups/{id}?version=3`: a hozzárendeléseket is visszavonja.
-- `PUT /api/v1/members/{userId}/groups`: `{ "groupIds": ["csoport-uuid"], "version": 2 }`; a verzió a cégtagságé. Az üres lista minden csoporttagságot megszüntet, az egyedi jogokat megtartja.
-
-A tag- és hozzáférésválasz `permissions` mezője az effektív jogokat, `directPermissions` az egyedi jogokat, `groups` a hozzárendelt csoportokat tartalmazza. A közvetlen jogokat szerkesztő kliens mindig a `directPermissions` mezőből induljon. Csoportnév cégenként egyedi, kis- és nagybetűtől független; legfeljebb 80 karakter. Módosításnál kötelező a verzió; ütközéskor friss lekérés szükséges.
-
-A járműadatok külön `PUT /api/v1/vehicles/{id}` végponton módosíthatók (`registration`, `make`, `model`, `version`). A km-rögzítés külön `POST /api/v1/vehicles/{id}/odometer` végpont (`kilometers`, `version`), amely változtathatatlan előzményt ment, és nem enged csökkenő vagy negatív értéket. Mindkettő a jármű verzióját növeli. Telephelymodul még nincs; ennek saját jogait a modul elkészítésekor kell felvenni és szerveroldalon ellenőrizni.
-
-A csoportmigráció megtartja a korábbi egyedi jogokat. A korábbi `permissions.manage` jog mellé `permission-groups.manage` jár. Automatikus admin csoporttagságot csak az auditnaplóval igazolt cégalapító/korábbi tulajdonos kap, ha aktív és az eredeti hét jog mindegyikével még rendelkezik; más teljes jogú tag nem kap automatikus jövőbeli jogokat. Az átalakítás naplózott. A csoportok, kapcsolataik és km-előzmények tenantkulcsos FK-t és FORCE RLS-t kapnak. A visszaállításhoz adatbázismentés szükséges.
-
-### Többcéges csoportok
-
-A **Felhasználók → Többcéges csoportok** fülön egyetlen jogcsomaghoz több cég választható. A felhasználó sorában a **Csoportok → Többcéges csoportok** ablak rendeli hozzá a csoportot. A rendszerszintű kezelők ugyanezt a Rendszerkezelés oldalon is elérik, meglévő cégtagság nélküli fiókokhoz is.
-
-Cégkezelők is használhatják: létrehozáskor minden kiválasztott cégnél `permission-groups.manage`, kiosztáskor mindegyik cégnél `permissions.manage` szükséges. A csoport összes jogával minden érintett cégnél rendelkezniük kell. Már kiosztott csoport szerkesztéséhez vagy törléséhez mindkét jog szükséges minden korábbi és új cégénél. A csoport létrehozója önmagában nem kap külön kezelési jogot. A katalógus csak azokat a csoportokat mutatja, amelyek minden cégéhez a kezelőnek csoportkezelési, kiosztási vagy taglista-olvasási joga van. A `canEdit`/`canAssign` mezők a teljes jogcsomag alapján jelzik a tényleges műveleti lehetőségeket.
-
-Hozzárendeléskor az összes kijelölt cégnél csoportból származó tagság készül, külön meghívás nélkül, már regisztrált fiókhoz. Új cég kijelölése a meglévő csoporttagokra is érvényes. Cég kivétele vagy csoporttagság visszavonása csak a csoportból kapott hozzáférést szünteti meg. Az önálló tagságok, közvetlen jogok és helyi csoportjogok megmaradnak. A csoportból létrehozott üres tagság a munkaterületlistából eltűnik, de a felfüggesztés előzménye megmarad; újabb hozzárendelés nem aktiválja újra. A közvetlenül kiosztott nem üres joglista vagy helyi csoport önálló hozzáférést alapít.
-
-A **Minden jelenlegi és későbbi céges jog** opció automatikusan követi a jogkatalógust; csak minden kiválasztott cégnél már admin jogosultságú kezelő, illetve rendszerszintű kezelő oszthatja ki. Nem ad `system.manage` jogot, és nem von be automatikusan később létrejövő cégeket.
+Új cég létrehozásakor védett **admin** csoport készül a közös modellben, kezdetben az új céghez, a létrehozó hozzárendelésével. Az admin neve és automatikus jogköre védett, és nem törölhető; a céglistája ugyanazon szerkesztőben módosítható. A korábban külön cégekhez tartozó admin csoportok külön bejegyzésként maradnak meg, eltérő céglistával és tagsággal, így az összevonás nem terjeszt ki hozzáférést. A **Minden jelenlegi és későbbi céges jog** opció a futásidejű `Permissions.Catalog` katalógust követi. Kiosztásához minden érintett cégnél automatikusan bővülő admin jogkör vagy `system.manage` szükséges; a jelenlegi összes jog közvetlen birtoklása önmagában nem elég. Egyik csoport sem ad globális `system.manage` jogot, és az új cégek nem kerülnek automatikusan a céglistájába.
 
 | Végpont | Művelet |
 |---|---|
-| `GET /api/v1/company-access/companies` | Saját, kezelhető vagy taglistajoggal látható cégek és műveleti lehetőségek |
-| `GET /api/v1/company-access/groups` | Minden cégükben látható többcéges csoportok |
-| `POST /api/v1/company-access/groups` | `{ "name": "Sofőrök", "permissions": ["vehicles.read", "vehicles.odometer.create"], "companyIds": ["cég-uuid"], "allPermissions": false }` |
-| `PUT /api/v1/company-access/groups/{id}` | Ugyanez, továbbá a csoport `version` mezője |
-| `DELETE /api/v1/company-access/groups/{id}?version=2` | Csoport és a belőle származó hozzáférések megszüntetése |
-| `GET /api/v1/company-access/users/{userId}` | Az adott kezelő által kiosztható tagságok és a fiók aktuális verziója |
-| `PUT /api/v1/company-access/users/{userId}` | `{ "groupIds": ["csoport-uuid"], "version": 3 }`; a verzió a fióké, nem a céges tagságé |
+| `GET /api/v1/permission-groups/companies` | Látható cégek, kiosztható jogok és kezelési lehetőségek |
+| `GET /api/v1/permission-groups` | Közös csoportlista, céglistával, jogokkal és tagszámmal |
+| `POST /api/v1/permission-groups` | `{ "name": "Sofőrök", "permissions": ["vehicles.read", "vehicles.odometer.create"], "companyIds": ["cég-uuid"], "allPermissions": false }` |
+| `PUT /api/v1/permission-groups/{id}` | Ugyanez, továbbá a csoport aktuális `version` mezője |
+| `DELETE /api/v1/permission-groups/{id}?version=2` | Csoport és a belőle származó hozzáférések megszüntetése |
+| `GET /api/v1/permission-groups/users/{userId}` | Kiosztható tagságok és a fiók aktuális verziója |
+| `PUT /api/v1/permission-groups/users/{userId}` | `{ "groupIds": ["csoport-uuid"], "version": 3 }`; a verzió a fióké, nem a cégtagságé |
 
-A felhasználói csoportlista módosítása csak a kezelő által minden cégében kiosztható csoportokat cseréli le. Az egyéb tagságok változatlanok; ezt a `hasOtherGroups` mező jelzi, idegen cégnevek és csoportadatok felfedése nélkül. A céges tagválasz `groups` mezőjében az `isMultiCompany` különbözteti meg a két forrást; ezeket az azonosítókat nem szabad a helyi csoporttagság-végpontra másolni.
+A korábbi `/api/v1/company-access/*` és `PUT /api/v1/members/{userId}/groups` végpontok megszűntek. A felhasználói csoportlista mentése csak az adott kezelő által minden cégénél kiosztható csoportokat cseréli le. A többi tagság megmarad, amit a `hasOtherGroups` jelez, idegen cég- és csoportadatok nélkül. Csoportnév ugyanazon teljes cégkijelölésen belül egyedi, kis- és nagybetűtől függetlenül, legfeljebb 80 karakter. Módosításnál kötelező az aktuális verzió, ütközéskor új lekérés szükséges. Céglétrehozás is növeli a létrehozó fiókverzióját, mert új csoporttagságot hoz létre.
 
-A változások több cégre kiterjedően is egy tranzakcióban történnek, megőrzik az utolsó aktív jogkezelőt, és céges/rendszerszintű naplót készítenek. A céges napló csak az adott cégre vonatkozó hatást tartalmazza. A globális csoportdefiníciókat az API minden érintett cégre elvégzett ellenőrzése védi; a céges hozzáférési vetületeken FORCE RLS és a céghatárt, csoporthatókört, valamint tényleges csoporttagságot összekötő FK-k működnek. A migráció az összes meglévő tagságot önállóként őrzi meg. Visszaállításhoz adatbázismentés szükséges.
+A tag- és hozzáférésválasz `permissions` mezője az effektív jogokat, `directPermissions` az egyedi jogokat, `groups` a csoportokat tartalmazza. A közvetlen jogokat szerkesztő kliens a `directPermissions` mezőből induljon. A csoportlistákban már nincs `isMultiCompany` típusjelző.
+
+Minden módosítás egy tranzakcióban történik, az utolsó aktív jogkezelő védelmével és céges/rendszerszintű naplózással. A céges napló csak az adott cégre vonatkozó hatást tartalmazza. A globális definíciókat minden érintett cégre elvégzett API-ellenőrzés védi; a céges hozzáférési vetületeken FORCE RLS és a tényleges csoporttagságot, céglistát összekötő FK-k működnek. A `CreatedBy` történeti eredetadat; a migrált helyi csoportoknál `system:migration`, az eredeti műveletek változatlan auditrekordjai megmaradnak. Régi, fiók nélküli alanyok hozzárendelése is megmarad, a nevük foglalt; új hozzárendeléshez az API létező fiókot követel meg.
+
+A `UnifiedPermissionGroups` migráció átmásolja a régi céges definíciókat, jogokat és tagságokat az egyetlen közös táblacsaládba, majd eltávolítja a régi három táblát. Az egyforma nevek nem vonódnak össze; ID-ütközéskor új csoportazonosító készül, az átvezetést a `group.unified` audit rögzíti. A közvetlen hozzáférés és felfüggesztés változatlan marad. A kapcsolódó csoport-, fiók- és tagságverziók frissülnek, ezért a korábban megnyitott űrlapokat újra kell tölteni. Frissítés előtt állítsd le az API-t, készíts mentést, futtasd a migrációt, és az új buildet indítsd. Visszaállítás mentéssel és a hozzá tartozó korábbi builddel lehetséges.
+
+A járműadatok külön `PUT /api/v1/vehicles/{id}` végponton módosíthatók (`registration`, `make`, `model`, `version`). A km-rögzítés külön `POST /api/v1/vehicles/{id}/odometer` végpont (`kilometers`, `version`), változtathatatlan előzménnyel, csökkenő vagy negatív érték nélkül. Mindkettő növeli a jármű verzióját. Telephelymodul még nincs; a saját jogait a modul elkészítésekor kell felvenni és szerveroldalon ellenőrizni.
 
 ## API
 

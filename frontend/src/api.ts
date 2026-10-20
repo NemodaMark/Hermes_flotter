@@ -29,40 +29,36 @@ export type SystemAudit = {
   originalTargetSubject?: string | null
 }
 export type Tenant = { id: string; name: string; permissions: string[] }
-export type AssignedGroup = { id: string; name: string; isAdmin: boolean; isMultiCompany?: boolean }
-export type CompanyAccessOption = Tenant & {
+export type AssignedGroup = { id: string; name: string; isAdmin: boolean }
+export type GroupCompanyOption = Tenant & {
   canEdit: boolean
   canAssign: boolean
   canGrantAll: boolean
 }
-export type CompanyAccessGroup = {
+export type PermissionGroup = {
   id: string
   name: string
   createdBy: string
   version: number
   allPermissions: boolean
+  isAdmin: boolean
   permissions: string[]
   companies: { id: string; name: string }[]
   memberCount: number
   canEdit: boolean
   canAssign: boolean
 }
-export type CompanyAccessDraft = {
+export type GroupDraft = {
   name: string
   permissions: string[]
   companyIds: string[]
   allPermissions: boolean
 }
-export type CompanyAccessUser = {
+export type GroupUser = {
   userId: string
   version: number
   groupIds: string[]
   hasOtherGroups: boolean
-}
-export type PermissionGroup = AssignedGroup & {
-  version: number
-  permissions: string[]
-  memberCount: number
 }
 export type Vehicle = {
   id: string
@@ -215,52 +211,22 @@ async function authenticate(path: string, body: unknown) {
 }
 
 export const api = {
-  companyAccessOptions: (signal?: AbortSignal) =>
-    request<CompanyAccessOption[]>('/api/v1/company-access/companies', { signal }),
-  companyAccessGroups: (signal?: AbortSignal) =>
-    request<CompanyAccessGroup[]>('/api/v1/company-access/groups', { signal }),
-  createCompanyAccessGroup: (body: CompanyAccessDraft) =>
-    request<CompanyAccessGroup>('/api/v1/company-access/groups', { body }),
-  updateCompanyAccessGroup: (id: string, body: CompanyAccessDraft & { version: number }) =>
-    request<CompanyAccessGroup>(`/api/v1/company-access/groups/${id}`, { method: 'PUT', body }),
-  deleteCompanyAccessGroup: (id: string, version: number) =>
-    request<void>(`/api/v1/company-access/groups/${id}?version=${version}`, { method: 'DELETE' }),
-  companyAccessUser: (id: string, signal?: AbortSignal) =>
-    request<CompanyAccessUser>(`/api/v1/company-access/users/${encodeURIComponent(id)}`, {
+  groupCompanies: (signal?: AbortSignal) =>
+    request<GroupCompanyOption[]>('/api/v1/permission-groups/companies', { signal }),
+  groups: (signal?: AbortSignal) =>
+    request<PermissionGroup[]>('/api/v1/permission-groups', { signal }),
+  createGroup: (body: GroupDraft) =>
+    request<PermissionGroup>('/api/v1/permission-groups', { body }),
+  updateGroup: (id: string, body: GroupDraft & { version: number }) =>
+    request<PermissionGroup>(`/api/v1/permission-groups/${id}`, { method: 'PUT', body }),
+  deleteGroup: (id: string, version: number) =>
+    request<void>(`/api/v1/permission-groups/${id}?version=${version}`, { method: 'DELETE' }),
+  groupUser: (id: string, signal?: AbortSignal) =>
+    request<GroupUser>(`/api/v1/permission-groups/users/${encodeURIComponent(id)}`, {
       signal,
     }),
-  assignCompanyAccessGroups: (id: string, groupIds: string[], version: number) =>
-    request<CompanyAccessUser>(`/api/v1/company-access/users/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      body: { groupIds, version },
-    }),
-  groups: (tenantId: string, signal?: AbortSignal) =>
-    request<PermissionGroup[]>('/api/v1/permission-groups', { tenantId, signal }),
-  createGroup: (tenantId: string, name: string, permissions: string[]) =>
-    request<PermissionGroup>('/api/v1/permission-groups', {
-      tenantId,
-      body: { name, permissions },
-    }),
-  updateGroup: (
-    tenantId: string,
-    id: string,
-    name: string,
-    permissions: string[],
-    version: number,
-  ) =>
-    request<PermissionGroup>(`/api/v1/permission-groups/${id}`, {
-      tenantId,
-      method: 'PUT',
-      body: { name, permissions, version },
-    }),
-  deleteGroup: (tenantId: string, id: string, version: number) =>
-    request<void>(`/api/v1/permission-groups/${id}?version=${version}`, {
-      tenantId,
-      method: 'DELETE',
-    }),
-  assignGroups: (tenantId: string, userId: string, groupIds: string[], version: number) =>
-    request<MemberAccess>(`/api/v1/members/${encodeURIComponent(userId)}/groups`, {
-      tenantId,
+  assignGroups: (id: string, groupIds: string[], version: number) =>
+    request<GroupUser>(`/api/v1/permission-groups/users/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: { groupIds, version },
     }),

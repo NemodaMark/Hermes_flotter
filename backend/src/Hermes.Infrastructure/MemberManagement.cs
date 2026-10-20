@@ -83,7 +83,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     {
         var offset = Offset(page, pageSize);
         if (search?.Length > 100) throw Error(400, "invalid_search", "A keresés legfeljebb 100 karakter lehet.");
-        var query = db.Memberships.AsNoTracking().Where(item => item.TenantId == TenantId && (item.HasDirectAccess || item.CompanyGroups.Any()));
+        var query = db.Memberships.AsNoTracking().Where(item => item.TenantId == TenantId && (item.HasDirectAccess || item.Groups.Any()));
         if (!string.IsNullOrWhiteSpace(search))
         {
             var value = search.Trim().ToUpperInvariant();
@@ -119,8 +119,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         CheckVersion(target, request.Version);
         var before = Direct(target);
         MayDelegate(actor, before.Except(desired).Concat(desired.Except(before)));
-        await ProtectLastManager(target, target.IsActive, desired.Concat(target.Groups.SelectMany(x => x.Group.EffectivePermissions))
-            .Concat(target.CompanyGroups.SelectMany(x => x.Group.EffectivePermissions)).Distinct().ToArray(), ct);
+        await ProtectLastManager(target, target.IsActive, desired.Concat(target.Groups.SelectMany(x => x.Group.EffectivePermissions)).Distinct().ToArray(), ct);
         foreach (var removed in target.Permissions.Where(item => !desired.Contains(item.Code)).ToArray())
         { target.Permissions.Remove(removed); db.MembershipPermissions.Remove(removed); }
         foreach (var added in desired.Except(before)) target.Permissions.Add(new() { TenantId = TenantId, UserSubject = userId, Code = added });
@@ -163,7 +162,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         MayDelegate(actor, grants);
         var email = request.Email.Trim();
         var normalized = normalizer.NormalizeEmail(email)!;
-        if (await db.Memberships.AnyAsync(member => member.TenantId == TenantId && (member.HasDirectAccess || member.CompanyGroups.Any() || !member.IsActive)
+        if (await db.Memberships.AnyAsync(member => member.TenantId == TenantId && (member.HasDirectAccess || member.Groups.Any() || !member.IsActive)
             && db.Users.Any(user => user.Id == member.UserSubject && user.NormalizedEmail == normalized), ct))
             throw Error(409, "already_member", "Ez a felhasználó már a cég tagja. A meglévő tagságát kezeld.");
         var pending = await db.Invitations.Where(item => item.NormalizedEmail == normalized && item.AcceptedAt == null && item.RevokedAt == null).ToListAsync(ct);
