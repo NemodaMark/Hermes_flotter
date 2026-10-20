@@ -10,6 +10,7 @@ namespace Hermes.Api;
 public sealed record RegisterRequest(string DisplayName, string Email, string Password);
 public sealed record LoginRequest(string Email, string Password);
 public sealed record SessionResponse(string Id, string DisplayName, string Email);
+public sealed record UpdateProfileRequest(string DisplayName);
 
 public static class AccountEndpoints
 {
@@ -23,6 +24,17 @@ public static class AccountEndpoints
         {
             var user = await users.GetUserAsync(context.User);
             return user is null ? Results.Unauthorized() : Results.Ok(ToSession(user));
+        }).RequireAuthorization();
+
+        accounts.MapPut("/profile", async (UpdateProfileRequest request, HttpContext context, UserManager<ApplicationUser> users) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.DisplayName) || request.DisplayName.Trim().Length > 120)
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["displayName"] = ["Adj meg egy legfeljebb 120 karakteres nevet."] });
+            var user = await users.GetUserAsync(context.User);
+            if (user is null) return Results.Unauthorized();
+            user.DisplayName = request.DisplayName.Trim();
+            var result = await users.UpdateAsync(user);
+            return result.Succeeded ? Results.Ok(ToSession(user)) : Results.Problem(statusCode: 409, title: "A profil időközben megváltozott. Próbáld újra.");
         }).RequireAuthorization();
 
         accounts.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn) =>

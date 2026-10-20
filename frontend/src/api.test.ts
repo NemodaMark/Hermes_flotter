@@ -26,7 +26,7 @@ describe('authenticated API requests', () => {
         posts.push(options)
         return new Response(
           JSON.stringify(
-            path.endsWith('/login') ? user : { id: 'tenant-a', name: 'Új cég', role: 'Owner' },
+            path.endsWith('/login') ? user : { id: 'tenant-a', name: 'Új cég', permissions: [] },
           ),
         )
       }),

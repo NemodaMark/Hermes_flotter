@@ -187,7 +187,9 @@ export function CompanyForm({
         disabled={pending}
         placeholder="Például Duna Fuvar Kft."
       />
-      <p className="field-hint">Az új cégnél tulajdonosi hozzáférést kapsz.</p>
+      <p className="field-hint">
+        Az új cégnél megkapod a működéshez és a jogosultságok kiosztásához szükséges jogokat.
+      </p>
       {error && (
         <p className="form-error" role="alert">
           {error}

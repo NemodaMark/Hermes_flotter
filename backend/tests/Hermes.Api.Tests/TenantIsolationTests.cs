@@ -65,7 +65,7 @@ public sealed class TenantIsolationTests(FleetFixture fixture) : IClassFixture<F
     }
 
     [Fact]
-    public async Task Viewer_cannot_create_a_vehicle()
+    public async Task Read_only_permission_does_not_allow_vehicle_creation()
     {
         using var client = await fixture.ClientAsync("bela", TestFleetData.DunaId);
         var response = await client.PostAsJsonAsync("/api/v1/vehicles", new CreateVehicleRequest("READ-001", "Ford", "Focus"));
@@ -123,7 +123,7 @@ public sealed class TenantIsolationTests(FleetFixture fixture) : IClassFixture<F
     public async Task Ef_writes_require_a_matching_tenant_even_with_explicit_save_options()
     {
         var context = new TenantContext();
-        context.Set(TestFleetData.DunaId, FleetRole.Owner);
+        context.Set(TestFleetData.DunaId, "test:anna", Permissions.All);
         await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, context);
         db.Vehicles.Add(new Vehicle { TenantId = TestFleetData.PannonId, Registration = "BAD-002", Make = "Ford", Model = "Focus" });
         await Assert.ThrowsAsync<InvalidOperationException>(() => db.SaveChangesAsync(true));

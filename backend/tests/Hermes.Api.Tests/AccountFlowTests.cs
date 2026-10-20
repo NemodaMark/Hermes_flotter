@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Hermes.Application;
+using Hermes.Domain;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -73,7 +74,7 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
     }
 
     [Fact]
-    public async Task A_user_can_create_multiple_companies_with_owner_membership()
+    public async Task A_user_can_create_multiple_companies_with_bootstrap_permissions()
     {
         var (client, user) = await RegisterAsync();
         using (client)
@@ -84,7 +85,7 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
             Assert.Equal(HttpStatusCode.Created, second.StatusCode);
             var tenants = await client.GetFromJsonAsync<TenantSummary[]>("/api/v1/tenants");
             Assert.Equal(2, tenants!.Length);
-            Assert.All(tenants, tenant => Assert.Equal("Owner", tenant.Role));
+            Assert.All(tenants, tenant => Assert.Equal(Permissions.All.Order(), tenant.Permissions.Order()));
             await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, new Infrastructure.TenantContext());
             var memberships = await db.Memberships.Where(membership => membership.UserSubject == user.Id).ToListAsync();
             Assert.Equal(2, memberships.Count);

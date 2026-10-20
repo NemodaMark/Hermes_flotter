@@ -20,6 +20,7 @@ public sealed class FleetFixture : IAsyncLifetime
     private readonly string suffix = Guid.NewGuid().ToString("N");
     public string ApplicationConnection { get; private set; } = "";
     public string MigrationConnection { get; private set; } = "";
+    internal string AdministrationConnection => adminConnection;
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
     private string Database => $"hermes_tests_{suffix}";
     private string Migrator => $"migrator_{suffix}";
@@ -54,7 +55,7 @@ public sealed class FleetFixture : IAsyncLifetime
         foreach (var tenantId in new[] { TestFleetData.DunaId, TestFleetData.PannonId })
         {
             var context = new TenantContext();
-            context.Set(tenantId, FleetRole.Owner);
+            context.Set(tenantId, "test:anna", Permissions.All);
             await using var db = CreateContext(MigrationConnection, context);
             await TestFleetData.ApplyAsync(db, context);
         }

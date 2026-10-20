@@ -22,6 +22,134 @@ namespace Hermes.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Hermes.Domain.AccessAuditEvent", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("ActorSubject")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("TargetSubject")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "CreatedAt", "Id");
+
+                    b.ToTable("access_audit_events", (string)null);
+                });
+
+            modelBuilder.Entity("Hermes.Domain.InvitationPermission", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("InvitationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("TenantId", "InvitationId", "Code");
+
+                    b.HasIndex("Code");
+
+                    b.ToTable("tenant_invitation_permissions", (string)null);
+                });
+
+            modelBuilder.Entity("Hermes.Domain.MembershipPermission", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserSubject")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("TenantId", "UserSubject", "Code");
+
+                    b.HasIndex("Code");
+
+                    b.ToTable("tenant_membership_permissions", (string)null);
+                });
+
+            modelBuilder.Entity("Hermes.Domain.PermissionDefinition", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.HasKey("Code");
+
+                    b.ToTable("permission_definitions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "vehicles.read",
+                            Name = "Járművek megtekintése"
+                        },
+                        new
+                        {
+                            Code = "vehicles.create",
+                            Name = "Jármű felvétele"
+                        },
+                        new
+                        {
+                            Code = "members.read",
+                            Name = "Céges felhasználók megtekintése"
+                        },
+                        new
+                        {
+                            Code = "members.invite",
+                            Name = "Meghívások kezelése"
+                        },
+                        new
+                        {
+                            Code = "members.update",
+                            Name = "Céges hozzáférések felfüggesztése és visszaállítása"
+                        },
+                        new
+                        {
+                            Code = "permissions.manage",
+                            Name = "Céges jogosultságok kiosztása"
+                        },
+                        new
+                        {
+                            Code = "audit.read",
+                            Name = "Jogosultsági eseménynapló megtekintése"
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Domain.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -43,6 +171,55 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("tenants", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Domain.TenantInvitation", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvitedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedEmail")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "NormalizedEmail")
+                        .IsUnique()
+                        .HasFilter("\"AcceptedAt\" IS NULL AND \"RevokedAt\" IS NULL");
+
+                    b.ToTable("tenant_invitations", (string)null);
+                });
+
             modelBuilder.Entity("Hermes.Domain.TenantMembership", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -52,10 +229,22 @@ namespace Hermes.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                    b.Property<DateTimeOffset?>("DisabledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTimeOffset?>("JoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
 
                     b.HasKey("TenantId", "UserSubject");
 
@@ -305,6 +494,54 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("identity_user_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Domain.AccessAuditEvent", b =>
+                {
+                    b.HasOne("Hermes.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.InvitationPermission", b =>
+                {
+                    b.HasOne("Hermes.Domain.PermissionDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("Code")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hermes.Domain.TenantInvitation", null)
+                        .WithMany("Permissions")
+                        .HasForeignKey("TenantId", "InvitationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.MembershipPermission", b =>
+                {
+                    b.HasOne("Hermes.Domain.PermissionDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("Code")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hermes.Domain.TenantMembership", null)
+                        .WithMany("Permissions")
+                        .HasForeignKey("TenantId", "UserSubject")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.TenantInvitation", b =>
+                {
+                    b.HasOne("Hermes.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Hermes.Domain.TenantMembership", b =>
                 {
                     b.HasOne("Hermes.Domain.Tenant", null)
@@ -372,6 +609,16 @@ namespace Hermes.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.TenantInvitation", b =>
+                {
+                    b.Navigation("Permissions");
+                });
+
+            modelBuilder.Entity("Hermes.Domain.TenantMembership", b =>
+                {
+                    b.Navigation("Permissions");
                 });
 #pragma warning restore 612, 618
         }

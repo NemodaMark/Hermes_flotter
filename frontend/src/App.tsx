@@ -21,10 +21,14 @@ import { AuthScreen, CompanyDialog, CompanyForm } from './AccountForms'
 import './App.css'
 import './accounts.css'
 
-const roles: Record<string, string> = {
-  Owner: 'Cégtulajdonos',
-  FleetManager: 'Flottakezelő',
-  Viewer: 'Megtekintő',
+const permissionNames: Record<string, string> = {
+  'vehicles.read': 'Járművek megtekintése',
+  'vehicles.create': 'Jármű felvétele',
+  'members.read': 'Felhasználók megtekintése',
+  'members.invite': 'Meghívások kezelése',
+  'members.update': 'Céges hozzáférések kezelése',
+  'permissions.manage': 'Jogosultságok kiosztása',
+  'audit.read': 'Változásnapló megtekintése',
 }
 const statuses: Record<string, string> = {
   Active: 'Aktív',
@@ -181,6 +185,7 @@ function FleetWorkspace({
   const tenants = useQuery({
     queryKey: ['tenants', user.id],
     queryFn: ({ signal }) => api.tenants(signal),
+    refetchInterval: 30_000,
     retry: false,
   })
   const tenant: Tenant | undefined =
@@ -188,7 +193,7 @@ function FleetWorkspace({
   const vehicles = useQuery({
     queryKey: vehicleKey(user.id, tenant?.id),
     queryFn: ({ signal }) => api.vehicles(tenant!.id, signal),
-    enabled: !!tenant,
+    enabled: !!tenant?.permissions.includes('vehicles.read'),
     retry: false,
   })
   const health = useQuery({
@@ -231,7 +236,7 @@ function FleetWorkspace({
         .includes(search.toLocaleLowerCase('hu')) &&
       (status === 'all' || vehicle.status === status),
   )
-  const canCreate = tenant?.role === 'Owner' || tenant?.role === 'FleetManager'
+  const canCreate = tenant?.permissions.includes('vehicles.create') ?? false
 
   function changeTenant(value: string) {
     setTenantId(value)
@@ -343,7 +348,9 @@ function FleetWorkspace({
             </span>
             <span>
               {user.displayName}
-              <small>{tenant ? roles[tenant.role] : 'Nincs kiválasztott cég'}</small>
+              <small>
+                {tenant ? `${tenant.permissions.length} jogosultság` : 'Nincs kiválasztott cég'}
+              </small>
             </span>
           </div>
         </div>
@@ -431,11 +438,16 @@ function FleetWorkspace({
                   <dd>{tenant.name}</dd>
                 </div>
                 <div>
-                  <dt>Jogosultságod</dt>
-                  <dd>{roles[tenant.role]}</dd>
+                  <dt>Jogosultságaid</dt>
+                  <dd>
+                    {tenant.permissions.map((code) => permissionNames[code] ?? code).join(', ') ||
+                      'Nincs kiosztott jogosultság'}
+                  </dd>
                 </div>
               </dl>
             </section>
+          ) : !tenant.permissions.includes('vehicles.read') ? (
+            <p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p>
           ) : (
             <section className="fleet-panel" aria-label="Járműlista">
               <div className="fleet-summary">
@@ -510,7 +522,7 @@ function FleetWorkspace({
                 </div>
               )}
               <div className="table-footer">
-                {visibleVehicles.length} megjelenített jármű<span>{roles[tenant.role]}</span>
+                {visibleVehicles.length} megjelenített jármű<span>Céges hozzáférés</span>
               </div>
             </section>
           )}

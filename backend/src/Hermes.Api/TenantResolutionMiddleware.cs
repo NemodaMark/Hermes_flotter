@@ -30,7 +30,7 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
             return;
         }
 
-        tenantContext.Set(tenantId, membership.Role);
+        tenantContext.Set(tenantId, subject!, membership.Permissions.Select(permission => permission.Code));
         await next(context);
     }
 }

@@ -3,6 +3,7 @@ using Hermes.Application;
 using Hermes.Domain;
 using Hermes.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 var migrationMode = args.Contains("--migrate", StringComparer.Ordinal);
 
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ManagementExceptionHandler>();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(services => services.GetRequiredService<TenantContext>());
@@ -29,6 +31,7 @@ builder.Services.AddScoped<IVehicleStore, VehicleStore>();
 
 if (!migrationMode)
 {
+    builder.Services.AddScoped<IMemberManagement, MemberManagement>();
     builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
         options.ClaimsIdentity.UserIdClaimType = "sub";
@@ -75,7 +78,12 @@ if (!migrationMode)
             QueueLimit = 0
         }));
     });
-    builder.Services.AddAuthorization();
+    builder.Services.AddScoped<IAuthorizationHandler, TenantPermissionHandler>();
+    builder.Services.AddAuthorization(options =>
+    {
+        foreach (var permission in Permissions.Catalog)
+            options.AddPolicy(permission.Code, policy => policy.RequireAuthenticatedUser().AddRequirements(new TenantPermissionRequirement(permission.Code)));
+    });
 }
 
 var app = builder.Build();
@@ -96,6 +104,7 @@ app.UseAuthorization();
 app.UseRateLimiter();
 app.UseMiddleware<CsrfProtectionMiddleware>();
 app.MapAccountEndpoints();
+app.MapMemberEndpoints();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 // Build metadata contains no account, tenant or database credentials.
@@ -130,12 +139,11 @@ api.MapPost("/tenants", async (CreateTenantRequest request, HttpContext context,
 
 var vehicles = api.MapGroup("/vehicles").WithMetadata(new TenantRequired());
 vehicles.MapGet("/", async (IVehicleStore store, CancellationToken cancellationToken)
-    => Results.Ok(await store.ListAsync(cancellationToken)));
+    => Results.Ok(await store.ListAsync(cancellationToken))).RequireAuthorization(Permissions.VehiclesRead);
 vehicles.MapGet("/{id:guid}", async (Guid id, IVehicleStore store, CancellationToken cancellationToken)
-    => await store.GetAsync(id, cancellationToken) is { } vehicle ? Results.Ok(vehicle) : Results.NotFound());
-vehicles.MapPost("/", async (CreateVehicleRequest request, ITenantContext tenantContext, IVehicleStore store, CancellationToken cancellationToken) =>
+    => await store.GetAsync(id, cancellationToken) is { } vehicle ? Results.Ok(vehicle) : Results.NotFound()).RequireAuthorization(Permissions.VehiclesRead);
+vehicles.MapPost("/", async (CreateVehicleRequest request, IVehicleStore store, CancellationToken cancellationToken) =>
 {
-    if (tenantContext.Role is not (FleetRole.Owner or FleetRole.FleetManager)) return Results.Forbid();
     var errors = VehicleValidation.Validate(request);
     if (errors.Count > 0) return Results.ValidationProblem(errors);
     try
@@ -147,7 +155,7 @@ vehicles.MapPost("/", async (CreateVehicleRequest request, ITenantContext tenant
     {
         return Results.Problem(statusCode: 409, title: "Ez a rendszám már szerepel a cég flottájában.");
     }
-});
+}).RequireAuthorization(Permissions.VehiclesCreate);
 
 await app.RunAsync();
 

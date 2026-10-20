@@ -5,14 +5,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { resetCsrfToken } from './api'
 
-function mountApp({ role = 'Owner', signedIn = true, expire = false } = {}) {
+function mountApp({
+  permissions = ['vehicles.read', 'vehicles.create'],
+  signedIn = true,
+  expire = false,
+} = {}) {
   resetCsrfToken()
   const user = { id: 'anna', displayName: 'Kovács Anna', email: 'anna@example.test' }
   let session = signedIn ? user : null
   let tenants = signedIn
     ? [
-        { id: 'duna', name: 'Duna', role },
-        { id: 'pannon', name: 'Pannon', role },
+        { id: 'duna', name: 'Duna', permissions },
+        { id: 'pannon', name: 'Pannon', permissions },
       ]
     : []
   vi.stubGlobal(
@@ -32,7 +36,11 @@ function mountApp({ role = 'Owner', signedIn = true, expire = false } = {}) {
       if (path.endsWith('/tenants')) {
         if (options.method === 'POST') {
           const input = JSON.parse(options.body as string) as { name: string }
-          const tenant = { id: 'new-company', name: input.name, role: 'Owner' }
+          const tenant = {
+            id: 'new-company',
+            name: input.name,
+            permissions: ['vehicles.read', 'vehicles.create'],
+          }
           tenants = [...tenants, tenant]
           return json(tenant, 201)
         }
@@ -78,10 +86,21 @@ it('replaces the visible fleet when a different company is selected', async () =
   expect(screen.queryByText('DUN-001')).not.toBeInTheDocument()
 })
 
-it('shows the fleet but does not offer vehicle creation to viewers', async () => {
-  mountApp({ role: 'Viewer' })
+it('offers vehicle creation only with the explicit permission', async () => {
+  mountApp({ permissions: ['vehicles.read'] })
   expect(await screen.findByText('DUN-001')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Új jármű' })).not.toBeInTheDocument()
+})
+
+it('does not fetch or display vehicles without read permission, even with create permission', async () => {
+  mountApp({ permissions: ['vehicles.create'] })
+  expect(
+    await screen.findByText('Nincs jogosultságod a járműlista megtekintéséhez.'),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Új jármű' })).toBeInTheDocument()
+  expect(vi.mocked(fetch).mock.calls.some(([path]) => String(path).includes('/vehicles'))).toBe(
+    false,
+  )
 })
 
 it('logs in and offers company creation to a user without memberships', async () => {

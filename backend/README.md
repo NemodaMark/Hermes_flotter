@@ -6,13 +6,16 @@ Az ASP.NET Core 10 + Entity Framework Core + PostgreSQL 18 backend jelenlegi kii
 
 - Regisztráció, bejelentkezés, munkamenet-lekérdezés és kijelentkezés ASP.NET Core Identity használatával.
 - Hash-elt jelszavak, HttpOnly munkamenetsüti, CSRF-védelem, belépési korlátozás és ideiglenes fiókzárolás.
-- Saját cégek lekérdezése és új cég létrehozása; a létrehozó Owner-tagsága a céggel közös tranzakcióban készül el.
-- Egy felhasználó több cég tagja lehet, cégenként Owner, FleetManager vagy Viewer szerepkörrel.
+- Saját cégek lekérdezése és új cég létrehozása; a létrehozó konkrét induló jogai a céggel közös tranzakcióban készülnek el.
+- Közvetlen jogkiosztás felhasználónként és cégenként, fix szerepkörök nélkül; alapértelmezett tiltás és friss jogellenőrzés minden céges kérésnél.
+- Céges taglista, keresés, lapozás, jogmódosítás, felfüggesztés/visszaállítás, egyszer használható meghívások és eseménynapló.
+- Cégenként sorzárral védett hozzáférés-módosítás, tagsági verzióellenőrzés, delegálási korlát és az utolsó jogosultságkezelő védelme.
+- Saját megjelenített név módosítása; más tag globális fiókját a céges kezelő nem írhatja át.
 - Céges járművek listázása, egyedi lekérése és felvétele, cégenként egyedi rendszámmal.
-- Tagságellenőrzés minden céges járműkérésnél, EF Core tenantszűrés és PostgreSQL FORCE ROW LEVEL SECURITY a járműtáblán.
+- Aktív tagság és műveleti jog ellenőrzése, EF Core tenantszűrés és PostgreSQL FORCE ROW LEVEL SECURITY a járműveken és az új céges hozzáférési táblákon.
 - Külön migrációs és alkalmazás-adatbázisszerepkör, készenléti végpont és PostgreSQL-es integrációs tesztek.
 
-A cégek és tagságok hozzáférését az API ellenőrzi; adatbázisszintű RLS jelenleg a járműtáblán van. Új céges üzleti táblánál a tenantkapcsolatokat és az adatbázisvédelmet is ki kell alakítani.
+A globális Identity-fiókok, cégek és tagságok hozzáférését az API kifejezett felhasználó-/cégfeltételei ellenőrzik. RLS védi a járműveket, közvetlen jogokat, meghívásokat, meghívási jogokat és eseménynaplót. Új céges táblánál a tenantkapcsolatokat és az adatbázisvédelmet is ki kell alakítani.
 
 ## Felépítés
 
@@ -20,7 +23,7 @@ A cégek és tagságok hozzáférését az API ellenőrzi; adatbázisszintű RLS
 |---|---|
 | `src/Hermes.Api` | HTTP-végpontok, hitelesítés, CSRF és tenantfeloldás |
 | `src/Hermes.Application` | Alkalmazásszerződések, DTO-k és validáció |
-| `src/Hermes.Domain` | Üzleti entitások és szerepkörök |
+| `src/Hermes.Domain` | Üzleti entitások és jogkatalógus |
 | `src/Hermes.Infrastructure` | Identity, EF Core, PostgreSQL, migrációk és adattárolás |
 | `tests/Hermes.Api.Tests` | Fiókfolyamatok, jogosultságok és céges adatelkülönítés ellenőrzése |
 
@@ -58,6 +61,6 @@ A teljes HTTP-s regisztrációs és céges folyamatot a [smoke teszt](../scripts
 
 ## További backendmunka
 
-A járműkezelés következő bővítése lehet az adatok és állapot módosítása, archiválás, valamint szerveroldali keresés és lapozás. Ezt követhetik a sofőrök, a jármű-hozzárendelések, a karbantartások és a költségek. Minden új céges művelethez tartozzon szerveroldali validáció, szerepkör-ellenőrzés és cégek közötti hozzáférést kizáró teszt.
+A járműkezelés következő bővítése lehet az adatok és állapot módosítása, archiválás, valamint szerveroldali keresés és lapozás. Ezt követhetik a sofőrök, a jármű-hozzárendelések, a karbantartások és a költségek. Minden új céges művelethez tartozzon külön jog, szerveroldali validáció és cégek közötti hozzáférést kizáró teszt.
 
-Az alap jelenleg nem tartalmaz e-mail-megerősítést, jelszó-visszaállítást, meghívásos tagságkezelést, előfizetést vagy a fenti új üzleti modulokat.
+Az alap jelenleg nem tartalmaz e-mail-megerősítést, jelszó-visszaállítást, e-mail-küldő integrációt, webes tagkezelő oldalt, előfizetést vagy a fenti új üzleti modulokat. A meghívási token egyszer kerül vissza a létrehozó API-válaszban, és külön kell eljuttatni a címzettnek. A jogkatalógust, az API-végpontokat, a használati példákat és a régi szerepköröket átalakító migráció szabályait a [projekt README-je](../README.md#céges-felhasználók-és-jogok) tartalmazza.

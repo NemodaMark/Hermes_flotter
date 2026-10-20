@@ -5,10 +5,12 @@ namespace Hermes.Application;
 public interface ITenantContext
 {
     Guid? TenantId { get; }
-    FleetRole? Role { get; }
+    string? UserSubject { get; }
+    IReadOnlySet<string> Permissions { get; }
 }
 
-public sealed record TenantSummary(Guid Id, string Name, string Role);
+public sealed record TenantSummary(Guid Id, string Name, string[] Permissions);
+public sealed record TenantAccess(Guid TenantId, string UserId, bool IsActive, long Version, string[] Permissions);
 public sealed record CreateTenantRequest(string Name);
 public sealed record VehicleSummary(Guid Id, string Registration, string Make, string Model, string Status);
 public sealed record CreateVehicleRequest(string Registration, string Make, string Model);

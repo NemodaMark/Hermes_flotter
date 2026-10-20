@@ -1,5 +1,5 @@
 export type Session = { id: string; displayName: string; email: string }
-export type Tenant = { id: string; name: string; role: 'Owner' | 'FleetManager' | 'Viewer' }
+export type Tenant = { id: string; name: string; permissions: string[] }
 export type Vehicle = {
   id: string
   registration: string

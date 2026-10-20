@@ -4,6 +4,8 @@
 
 A felhasználó kérése alapján a backend működése az elsődleges. A következő fejlesztéseknél az üzleti szabályokra, az API-ra, az adatbázisra, a többcéges jogosultságokra és ezek tesztelésére összpontosíts. A frontend egyelőre a működés kipróbálását szolgálja; a látvány finomítása külön kérésre kerüljön előtérbe.
 
+A hozzáférés műveleti jogokon alapul, cégenként és felhasználónként közvetlenül kiosztva. Ne vezess vissza fix felhasználói szinteket vagy szerepköröket. Új céges művelethez add meg a szükséges jogot, a szerveroldali ellenőrzést és a cégek elkülönítését igazoló tesztet.
+
 ## Git-munkarend
 
 A felhasználó állandó kérése: minden befejezett, fájlmódosítással járó feladat végén commitold és pushold a változtatásokat a GitHubra, külön megerősítés nélkül.

@@ -7,10 +7,10 @@ A React + TypeScript + Vite kliens jelenlegi kiinduló állapota. A frontend mos
 - Regisztráció, bejelentkezés és kijelentkezés a valódi API-val.
 - Első cég létrehozása, további cégek felvétele és cégváltás.
 - Céges járműlista, kliensoldali keresés és állapotszűrés, járműfelvétel.
-- Aktuális cégadatok és a felhasználó céges szerepkörének megjelenítése.
+- Aktuális cégadatok és a felhasználó cégenkénti konkrét jogainak megjelenítése.
 - Betöltési és hibaállapotok, munkamenet-ellenőrzés és a privát lekérdezési adatok törlése kijelentkezéskor vagy észlelt lejáratkor.
 
-A járműfelvételt a felület Owner és FleetManager szerepkörnél kínálja fel. A jogosultságok végső ellenőrzése a backend feladata.
+A járműfelvételt a felület `vehicles.create`, a járműlistát `vehicles.read` jog esetén kínálja fel. A saját céges jogokat időszakosan frissíti; a végső ellenőrzés minden kérésnél a backend feladata. A felhasználó- és jogosultságkezelés jelenleg API-n érhető el, külön kezelőoldal még nincs.
 
 ## Indítás és ellenőrzés
 

@@ -4,30 +4,48 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Hermes.Infrastructure;
 
-public sealed class TenantDirectory(HermesDbContext db) : ITenantDirectory
+public sealed class TenantDirectory(HermesDbContext db, TenantContext context) : ITenantDirectory
 {
     public async Task<TenantSummary> CreateForUserAsync(string subject, CreateTenantRequest request, CancellationToken cancellationToken)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var tenant = new Tenant { Id = Guid.CreateVersion7(), Name = request.Name.Trim() };
-        db.Tenants.Add(tenant);
-        db.Memberships.Add(new TenantMembership { TenantId = tenant.Id, UserSubject = subject, Role = FleetRole.Owner });
-        await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return new TenantSummary(tenant.Id, tenant.Name, FleetRole.Owner.ToString());
+        context.Set(tenant.Id, subject, Permissions.All);
+        return await TenantTransaction.RunAsync(db, tenant.Id, async () =>
+        {
+            db.Tenants.Add(tenant);
+            db.Memberships.Add(new TenantMembership
+            {
+                TenantId = tenant.Id, UserSubject = subject, JoinedAt = DateTimeOffset.UtcNow,
+                Permissions = Permissions.All.Select(code => new MembershipPermission { TenantId = tenant.Id, UserSubject = subject, Code = code }).ToList()
+            });
+            db.AccessAuditEvents.Add(new AccessAuditEvent { TenantId = tenant.Id, ActorSubject = subject, Action = "company.created", TargetSubject = subject, Details = System.Text.Json.JsonSerializer.Serialize(new { permissions = Permissions.All }) });
+            await db.SaveChangesAsync(cancellationToken);
+            return new TenantSummary(tenant.Id, tenant.Name, Permissions.All);
+        }, cancellationToken);
     }
 
     public async Task<IReadOnlyList<TenantSummary>> ListForUserAsync(string subject, CancellationToken cancellationToken)
-        => await (from membership in db.Memberships.AsNoTracking()
+    {
+        var companies = await (from membership in db.Memberships.AsNoTracking()
                   join tenant in db.Tenants.AsNoTracking() on membership.TenantId equals tenant.Id
-                  where membership.UserSubject == subject
+                  where membership.UserSubject == subject && membership.IsActive
                   orderby tenant.Name
-                  select new TenantSummary(tenant.Id, tenant.Name, membership.Role.ToString()))
+                  select new { tenant.Id, tenant.Name })
             .ToListAsync(cancellationToken);
+        var result = new List<TenantSummary>();
+        foreach (var company in companies)
+        {
+            var permissions = await TenantTransaction.RunAsync(db, company.Id, () => db.MembershipPermissions.IgnoreQueryFilters()
+                .Where(permission => permission.TenantId == company.Id && permission.UserSubject == subject)
+                .OrderBy(permission => permission.Code).Select(permission => permission.Code).ToArrayAsync(cancellationToken), cancellationToken);
+            result.Add(new(company.Id, company.Name, permissions));
+        }
+        return result;
+    }
 
     public Task<TenantMembership?> FindMembershipAsync(string subject, Guid tenantId, CancellationToken cancellationToken)
-        => db.Memberships.AsNoTracking().SingleOrDefaultAsync(
-            x => x.UserSubject == subject && x.TenantId == tenantId, cancellationToken);
+        => TenantTransaction.RunAsync(db, tenantId, () => db.Memberships.AsNoTracking().Include(x => x.Permissions)
+            .IgnoreQueryFilters().SingleOrDefaultAsync(x => x.UserSubject == subject && x.TenantId == tenantId && x.IsActive, cancellationToken), cancellationToken);
 }
 
 public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContext) : IVehicleStore

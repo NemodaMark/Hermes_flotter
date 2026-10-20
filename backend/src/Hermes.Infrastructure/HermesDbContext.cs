@@ -12,6 +12,11 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<TenantMembership> Memberships => Set<TenantMembership>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<PermissionDefinition> PermissionDefinitions => Set<PermissionDefinition>();
+    public DbSet<MembershipPermission> MembershipPermissions => Set<MembershipPermission>();
+    public DbSet<TenantInvitation> Invitations => Set<TenantInvitation>();
+    public DbSet<InvitationPermission> InvitationPermissions => Set<InvitationPermission>();
+    public DbSet<AccessAuditEvent> AccessAuditEvents => Set<AccessAuditEvent>();
     private Guid? CurrentTenantId => tenantContext.TenantId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -43,9 +48,63 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
             entity.ToTable("tenant_memberships");
             entity.HasKey(x => new { x.TenantId, x.UserSubject });
             entity.Property(x => x.UserSubject).HasMaxLength(256);
-            entity.Property(x => x.Role).HasConversion<string>().HasMaxLength(32);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.Property(x => x.Version).HasDefaultValue(1L);
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
             entity.HasIndex(x => x.UserSubject);
             entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PermissionDefinition>(entity =>
+        {
+            entity.ToTable("permission_definitions");
+            entity.HasKey(x => x.Code);
+            entity.Property(x => x.Code).HasMaxLength(80);
+            entity.Property(x => x.Name).HasMaxLength(160);
+            entity.HasData(Permissions.Catalog.Select(item => new PermissionDefinition { Code = item.Code, Name = item.Name }));
+        });
+        modelBuilder.Entity<MembershipPermission>(entity =>
+        {
+            entity.ToTable("tenant_membership_permissions");
+            entity.HasKey(x => new { x.TenantId, x.UserSubject, x.Code });
+            entity.Property(x => x.UserSubject).HasMaxLength(256);
+            entity.Property(x => x.Code).HasMaxLength(80);
+            entity.HasOne<TenantMembership>().WithMany(x => x.Permissions).HasForeignKey(x => new { x.TenantId, x.UserSubject }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<PermissionDefinition>().WithMany().HasForeignKey(x => x.Code).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
+        });
+        modelBuilder.Entity<TenantInvitation>(entity =>
+        {
+            entity.ToTable("tenant_invitations");
+            entity.HasKey(x => new { x.TenantId, x.Id });
+            entity.Property(x => x.Email).HasMaxLength(254);
+            entity.Property(x => x.NormalizedEmail).HasMaxLength(254);
+            entity.Property(x => x.TokenHash).HasMaxLength(64);
+            entity.Property(x => x.InvitedBy).HasMaxLength(256);
+            entity.HasIndex(x => new { x.TenantId, x.NormalizedEmail }).IsUnique().HasFilter("\"AcceptedAt\" IS NULL AND \"RevokedAt\" IS NULL");
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
+        });
+        modelBuilder.Entity<InvitationPermission>(entity =>
+        {
+            entity.ToTable("tenant_invitation_permissions");
+            entity.HasKey(x => new { x.TenantId, x.InvitationId, x.Code });
+            entity.Property(x => x.Code).HasMaxLength(80);
+            entity.HasOne<TenantInvitation>().WithMany(x => x.Permissions).HasForeignKey(x => new { x.TenantId, x.InvitationId }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<PermissionDefinition>().WithMany().HasForeignKey(x => x.Code).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
+        });
+        modelBuilder.Entity<AccessAuditEvent>(entity =>
+        {
+            entity.ToTable("access_audit_events");
+            entity.HasKey(x => new { x.TenantId, x.Id });
+            entity.Property(x => x.ActorSubject).HasMaxLength(256);
+            entity.Property(x => x.TargetSubject).HasMaxLength(256);
+            entity.Property(x => x.Action).HasMaxLength(80);
+            entity.Property(x => x.Details).HasColumnType("jsonb");
+            entity.HasIndex(x => new { x.TenantId, x.CreatedAt, x.Id });
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
         });
 
         modelBuilder.Entity<Vehicle>(entity =>
@@ -79,13 +138,13 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
 
     private void ValidateTenantWrites()
     {
-        foreach (var entry in ChangeTracker.Entries<Vehicle>())
+        foreach (var entry in ChangeTracker.Entries().Where(entry => entry.Entity is ITenantEntity))
         {
             if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted)) continue;
-            if (tenantContext.TenantId is null || entry.Entity.TenantId != tenantContext.TenantId)
-                throw new InvalidOperationException("A vehicle write requires a matching tenant context.");
-            if (entry.State != EntityState.Added && entry.Property(x => x.TenantId).IsModified)
-                throw new InvalidOperationException("A vehicle cannot be moved between tenants.");
+            if (tenantContext.TenantId is null || ((ITenantEntity)entry.Entity).TenantId != tenantContext.TenantId)
+                throw new InvalidOperationException("A tenant-owned write requires a matching tenant context.");
+            if (entry.State != EntityState.Added && entry.Property("TenantId").IsModified)
+                throw new InvalidOperationException("An entity cannot be moved between tenants.");
         }
     }
 }
