@@ -83,7 +83,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     {
         var offset = Offset(page, pageSize);
         if (search?.Length > 100) throw Error(400, "invalid_search", "A keresés legfeljebb 100 karakter lehet.");
-        var query = db.Memberships.AsNoTracking().Where(item => item.TenantId == TenantId);
+        var query = db.Memberships.AsNoTracking().Where(item => item.TenantId == TenantId && (item.HasDirectAccess || item.CompanyGroups.Any()));
         if (!string.IsNullOrWhiteSpace(search))
         {
             var value = search.Trim().ToUpperInvariant();
@@ -119,10 +119,12 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         CheckVersion(target, request.Version);
         var before = Direct(target);
         MayDelegate(actor, before.Except(desired).Concat(desired.Except(before)));
-        await ProtectLastManager(target, target.IsActive, desired.Concat(target.Groups.SelectMany(x => x.Group.EffectivePermissions)).Distinct().ToArray(), ct);
+        await ProtectLastManager(target, target.IsActive, desired.Concat(target.Groups.SelectMany(x => x.Group.EffectivePermissions))
+            .Concat(target.CompanyGroups.SelectMany(x => x.Group.EffectivePermissions)).Distinct().ToArray(), ct);
         foreach (var removed in target.Permissions.Where(item => !desired.Contains(item.Code)).ToArray())
         { target.Permissions.Remove(removed); db.MembershipPermissions.Remove(removed); }
         foreach (var added in desired.Except(before)) target.Permissions.Add(new() { TenantId = TenantId, UserSubject = userId, Code = added });
+        if (desired.Length > 0) target.HasDirectAccess = true;
         target.Version++;
         Audit("member.permissions_changed", userId, new { before, after = desired, version = target.Version });
         await db.SaveChangesAsync(ct);
@@ -136,7 +138,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         var target = await Member(userId, ct);
         CheckVersion(target, request.Version);
         if (!target.IsActive && active) MayDelegate(actor, Codes(target));
-        if (!target.IsActive && active && target.Groups.Any(x => x.Group.IsAdmin) && !actor.Groups.Any(x => x.Group.IsAdmin)
+        if (!target.IsActive && active && target.HasAdminAuthority && !actor.HasAdminAuthority
             && !await UserAccounts.IsSystemManager(db, Actor, ct))
             throw Error(403, "admin_delegation_denied", "Az admin hozzáférést céges admin vagy rendszergazda állíthatja vissza.");
         await ProtectLastManager(target, active, Codes(target), ct);
@@ -161,7 +163,8 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         MayDelegate(actor, grants);
         var email = request.Email.Trim();
         var normalized = normalizer.NormalizeEmail(email)!;
-        if (await db.Memberships.AnyAsync(member => member.TenantId == TenantId && db.Users.Any(user => user.Id == member.UserSubject && user.NormalizedEmail == normalized), ct))
+        if (await db.Memberships.AnyAsync(member => member.TenantId == TenantId && (member.HasDirectAccess || member.CompanyGroups.Any() || !member.IsActive)
+            && db.Users.Any(user => user.Id == member.UserSubject && user.NormalizedEmail == normalized), ct))
             throw Error(409, "already_member", "Ez a felhasználó már a cég tagja. A meglévő tagságát kezeld.");
         var pending = await db.Invitations.Where(item => item.NormalizedEmail == normalized && item.AcceptedAt == null && item.RevokedAt == null).ToListAsync(ct);
         if (pending.Any(item => item.ExpiresAt > DateTimeOffset.UtcNow)) throw Error(409, "pending_invitation", "Ehhez az e-mail-címhez már van érvényes meghívás.");
@@ -221,14 +224,21 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
             if (!await UserAccounts.IsSystemManager(db, invitation.InvitedBy, ct)
                 && (issuer is null || !Codes(issuer).Contains(Permissions.MembersInvite) || (grants.Length > 0 && !Codes(issuer).Contains(Permissions.Manage)) || grants.Except(Codes(issuer)).Any()))
                 throw Error(409, "inviter_access_changed", "A meghívó jogosultságai időközben megváltoztak. Kérj új meghívást.");
-            if (await db.Memberships.AnyAsync(item => item.TenantId == TenantId && item.UserSubject == userId, ct))
+            var existing = await db.Memberships.WithAccess().SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == userId, ct);
+            if (existing is not null && (existing.HasCompanyAccess || !existing.IsActive))
                 throw Error(409, "already_member", "Már van tagságod ennél a cégnél; a meghívó nem írhatja felül a hozzáférésedet.");
-            var member = new TenantMembership
+            var member = existing ?? new TenantMembership
             {
                 TenantId = TenantId, UserSubject = userId, JoinedAt = DateTimeOffset.UtcNow,
                 Permissions = grants.Select(code => new MembershipPermission { TenantId = TenantId, UserSubject = userId, Code = code }).ToList()
             };
-            db.Memberships.Add(member);
+            if (existing is null) db.Memberships.Add(member);
+            else
+            {
+                member.HasDirectAccess = true;
+                member.Version++;
+                member.Permissions.AddRange(grants.Select(code => new MembershipPermission { TenantId = TenantId, UserSubject = userId, Code = code }));
+            }
             invitation.AcceptedAt = DateTimeOffset.UtcNow;
             Audit("invitation.accepted", userId, new { invitationId = invitation.Id, permissions = grants });
             await db.SaveChangesAsync(ct);

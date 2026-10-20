@@ -40,13 +40,12 @@ public sealed class TenantDirectory(HermesDbContext db, TenantContext context) :
         var result = new List<TenantSummary>();
         foreach (var company in companies)
         {
-            var permissions = await TenantTransaction.RunAsync(db, company.Id, async () =>
+            var member = await TenantTransaction.RunAsync(db, company.Id, async () =>
             {
-                var member = await db.Memberships.AsNoTracking().WithAccess().IgnoreQueryFilters()
+                return await db.Memberships.AsNoTracking().WithAccess().IgnoreQueryFilters()
                     .SingleAsync(x => x.TenantId == company.Id && x.UserSubject == subject, cancellationToken);
-                return member.EffectivePermissions;
             }, cancellationToken);
-            result.Add(new(company.Id, company.Name, permissions));
+            if (member.HasCompanyAccess) result.Add(new(company.Id, company.Name, member.EffectivePermissions));
         }
         return result;
     }
@@ -55,8 +54,9 @@ public sealed class TenantDirectory(HermesDbContext db, TenantContext context) :
     {
         if (await UserAccounts.IsSystemManager(db, subject, cancellationToken)
             && await db.Tenants.AnyAsync(x => x.Id == tenantId, cancellationToken)) return SystemMembership(subject, tenantId);
-        return await TenantTransaction.RunAsync(db, tenantId, () => db.Memberships.AsNoTracking().WithAccess()
+        var member = await TenantTransaction.RunAsync(db, tenantId, () => db.Memberships.AsNoTracking().WithAccess()
             .IgnoreQueryFilters().SingleOrDefaultAsync(x => x.UserSubject == subject && x.TenantId == tenantId && x.IsActive, cancellationToken), cancellationToken);
+        return member?.HasCompanyAccess == true ? member : null;
     }
     internal static TenantMembership SystemMembership(string subject, Guid tenantId)
         => new() { TenantId = tenantId, UserSubject = subject, Permissions = Permissions.All.Select(code => new MembershipPermission

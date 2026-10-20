@@ -287,12 +287,14 @@ export function GroupAssignmentDialog({
   userId,
   onClose,
   onChanged,
+  onCompanyGroups,
 }: {
   user: Session
   tenant: Tenant
   userId: string
   onClose: () => void
   onChanged: () => Promise<void>
+  onCompanyGroups?: () => void
 }) {
   const data = useQuery({
     queryKey: ['group-assignment', user.id, tenant.id, userId],
@@ -330,6 +332,16 @@ export function GroupAssignmentDialog({
           onChanged={onChanged}
         />
       )}
+      {onCompanyGroups && (
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={pending}
+          onClick={onCompanyGroups}
+        >
+          Többcéges csoportok
+        </button>
+      )}
       {!pending && (
         <button type="button" className="text-button" onClick={() => void data.refetch()}>
           Friss adatok betöltése
@@ -354,7 +366,9 @@ function AssignmentFields({
   onClose: () => void
   onChanged: () => Promise<void>
 }) {
-  const [selected, setSelected] = useState(access.groups?.map((x) => x.id) ?? [])
+  const [selected, setSelected] = useState(
+    access.groups?.filter((x) => !x.isMultiCompany).map((x) => x.id) ?? [],
+  )
   const save = useMutation({
     mutationFn: () => api.assignGroups(tenant.id, access.userId, selected, access.version),
   })

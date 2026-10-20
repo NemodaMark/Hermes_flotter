@@ -65,6 +65,7 @@ public sealed class PermissionMigrationTests(FleetFixture fixture) : IClassFixtu
                 Assert.Equal(new[] { Permissions.VehiclesCreate, Permissions.VehiclesRead }, members["legacy-manager"].Permissions.Select(item => item.Code).Order());
                 Assert.Equal(Permissions.VehiclesRead, Assert.Single(members["legacy-viewer"].Permissions).Code);
                 Assert.All(members.Values, member => { Assert.True(member.IsActive); Assert.Equal(member.UserSubject == "old" ? 2 : 1, member.Version); });
+                Assert.All(members.Values, member => Assert.True(member.HasDirectAccess));
                 Assert.Equal("OLD-001", (await upgraded.Vehicles.SingleAsync()).Registration);
                 Assert.Equal(3, await upgraded.AccessAuditEvents.CountAsync(item => item.Action == "permissions.migrated"));
                 return true;

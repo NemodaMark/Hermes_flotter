@@ -36,6 +36,7 @@ if (!maintenanceMode)
     builder.Services.AddScoped<UserAccounts>();
     builder.Services.AddScoped<IMemberManagement, MemberManagement>();
     builder.Services.AddScoped<IGroupManagement, GroupManagement>();
+    builder.Services.AddScoped<ICompanyAccessGroups, CompanyAccessGroups>();
     builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
         options.ClaimsIdentity.UserIdClaimType = "sub";
@@ -121,6 +122,7 @@ app.UseMiddleware<CsrfProtectionMiddleware>();
 app.MapAccountEndpoints();
 app.MapMemberEndpoints();
 app.MapGroupEndpoints();
+app.MapCompanyAccessEndpoints();
 app.MapSystemEndpoints();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" })).AllowAnonymous();

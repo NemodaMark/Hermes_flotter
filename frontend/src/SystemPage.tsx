@@ -1,15 +1,18 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
 import type { Session } from './api'
 import { UserProfileDialog } from './UserProfileDialog'
 import './members.css'
+import { CompanyAccessGroups, CompanyGroupAssignment } from './CompanyAccessGroups'
 
 export function SystemPage({ user }: { user: Session }) {
-  const [tab, setTab] = useState<'users' | 'audit'>('users')
+  const [tab, setTab] = useState<'users' | 'audit' | 'company-groups'>('users')
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [draft, setDraft] = useState('')
+  const client = useQueryClient()
+  const [groupUserId, setGroupUserId] = useState<string | null>(null)
   const [profileId, setProfileId] = useState<string | null>(null)
   const users = useQuery({
     queryKey: ['system-users', user.id, page, search],
@@ -46,8 +49,18 @@ export function SystemPage({ user }: { user: Session }) {
           >
             Módosítási napló
           </button>
+          <button aria-pressed={tab === 'company-groups'} onClick={() => setTab('company-groups')}>
+            Többcéges csoportok
+          </button>
         </div>
-        <button className="text-button" onClick={() => void query.refetch()}>
+        <button
+          className="text-button"
+          onClick={() =>
+            tab === 'company-groups'
+              ? void client.invalidateQueries({ queryKey: ['company-access-groups', user.id] })
+              : void query.refetch()
+          }
+        >
           Frissítés
         </button>
       </div>
@@ -71,7 +84,9 @@ export function SystemPage({ user }: { user: Session }) {
           <button className="secondary-button">Keresés</button>
         </form>
       )}
-      {query.isError ? (
+      {tab === 'company-groups' ? (
+        <CompanyAccessGroups user={user} />
+      ) : query.isError ? (
         <p className="notice error" role="alert">
           {query.error.message}
         </p>
@@ -113,6 +128,13 @@ export function SystemPage({ user }: { user: Session }) {
                             onClick={() => setProfileId(profile.id)}
                           >
                             Profil megnyitása
+                          </button>
+                          <button
+                            className="secondary-button"
+                            aria-label={`Többcéges csoportok: ${profile.email}`}
+                            onClick={() => setGroupUserId(profile.id)}
+                          >
+                            Többcéges csoportok
                           </button>
                         </td>
                       </tr>
@@ -188,6 +210,13 @@ export function SystemPage({ user }: { user: Session }) {
             </div>
           </div>
         </>
+      )}
+      {groupUserId && (
+        <CompanyGroupAssignment
+          user={user}
+          userId={groupUserId}
+          onClose={() => setGroupUserId(null)}
+        />
       )}
       {profileId && (
         <UserProfileDialog id={profileId} actor={user} onClose={() => setProfileId(null)} />

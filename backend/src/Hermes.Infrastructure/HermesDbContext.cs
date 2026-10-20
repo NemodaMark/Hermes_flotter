@@ -24,6 +24,11 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
     public DbSet<GroupPermission> GroupPermissions => Set<GroupPermission>();
     public DbSet<MembershipGroup> MembershipGroups => Set<MembershipGroup>();
     public DbSet<OdometerReading> OdometerReadings => Set<OdometerReading>();
+    public DbSet<CompanyAccessGroup> CompanyAccessGroups => Set<CompanyAccessGroup>();
+    public DbSet<CompanyAccessPermission> CompanyAccessPermissions => Set<CompanyAccessPermission>();
+    public DbSet<CompanyAccessScope> CompanyAccessScopes => Set<CompanyAccessScope>();
+    public DbSet<CompanyAccessUser> CompanyAccessUsers => Set<CompanyAccessUser>();
+    public DbSet<CompanyAccessMembership> CompanyAccessMemberships => Set<CompanyAccessMembership>();
     private Guid? CurrentTenantId => tenantContext.TenantId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -83,11 +88,14 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
         {
             entity.ToTable("tenant_memberships");
             entity.Ignore(x => x.EffectivePermissions);
+            entity.Ignore(x => x.HasCompanyAccess);
+            entity.Ignore(x => x.HasAdminAuthority);
             entity.HasKey(x => new { x.TenantId, x.UserSubject });
             entity.Property(x => x.UserSubject).HasMaxLength(256);
             entity.Property(x => x.Version).IsConcurrencyToken();
             entity.Property(x => x.Version).HasDefaultValue(1L);
             entity.Property(x => x.IsActive).HasDefaultValue(true);
+            entity.Property(x => x.HasDirectAccess).HasDefaultValue(true);
             entity.HasIndex(x => x.UserSubject);
             entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -108,6 +116,52 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
             entity.Property(x => x.Code).HasMaxLength(80);
             entity.HasOne<TenantMembership>().WithMany(x => x.Permissions).HasForeignKey(x => new { x.TenantId, x.UserSubject }).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<PermissionDefinition>().WithMany().HasForeignKey(x => x.Code).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
+        });
+        modelBuilder.Entity<CompanyAccessGroup>(entity =>
+        {
+            entity.ToTable("company_access_groups");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(80);
+            entity.Property(x => x.NormalizedName).HasMaxLength(80);
+            entity.Property(x => x.CreatedBy).HasMaxLength(256);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.Ignore(x => x.EffectivePermissions);
+            entity.HasIndex(x => new { x.CreatedBy, x.NormalizedName }).IsUnique();
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.CreatedBy).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<CompanyAccessPermission>(entity =>
+        {
+            entity.ToTable("company_access_permissions");
+            entity.HasKey(x => new { x.GroupId, x.Code });
+            entity.Property(x => x.Code).HasMaxLength(80);
+            entity.HasOne<CompanyAccessGroup>().WithMany(x => x.Permissions).HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<PermissionDefinition>().WithMany().HasForeignKey(x => x.Code).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<CompanyAccessScope>(entity =>
+        {
+            entity.ToTable("company_access_scopes");
+            entity.HasKey(x => new { x.GroupId, x.TenantId });
+            entity.HasOne<CompanyAccessGroup>().WithMany(x => x.Companies).HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<CompanyAccessUser>(entity =>
+        {
+            entity.ToTable("company_access_users");
+            entity.HasKey(x => new { x.GroupId, x.UserId });
+            entity.Property(x => x.UserId).HasMaxLength(256);
+            entity.HasOne<CompanyAccessGroup>().WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<CompanyAccessMembership>(entity =>
+        {
+            entity.ToTable("company_access_memberships");
+            entity.HasKey(x => new { x.TenantId, x.UserSubject, x.GroupId });
+            entity.Property(x => x.UserSubject).HasMaxLength(256);
+            entity.HasOne<TenantMembership>().WithMany(x => x.CompanyGroups).HasForeignKey(x => new { x.TenantId, x.UserSubject }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Group).WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<CompanyAccessScope>().WithMany().HasForeignKey(x => new { x.GroupId, x.TenantId }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<CompanyAccessUser>().WithMany().HasForeignKey(x => new { x.GroupId, UserId = x.UserSubject }).OnDelete(DeleteBehavior.Restrict);
             entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
         });
         modelBuilder.Entity<PermissionGroup>(entity =>

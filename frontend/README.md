@@ -66,3 +66,11 @@ A Felhasználók oldalon a Jogosultságcsoportok fül listázza a céges jogcsom
 A védett admin csoport minden jelenlegi és jövőbeli céges jogot megkap. Nem szerkeszthető és nem törölhető; tagságát céges admin vagy rendszergazda kezelheti. A csoportból kapott jogok a felhasználói listában láthatók. Csoportszerkesztés minden tagot érint; törlés előtt megjelenik az érintett felhasználók száma. Ütköző verzió esetén friss adatokat kell betölteni.
 
 A járműlistában külön gomb kezeli az adatokat (`vehicles.update`) és a kilométerállást (`vehicles.odometer.create`). A km-rögzítőnek nem kell járműszerkesztési jog. A listához továbbra is `vehicles.read` szükséges. A beviteli ablakok a szerver által visszaadott verziót küldik, és megjelenítik a visszautasítás okát.
+
+## Többcéges csoportok
+
+A Felhasználók → Többcéges csoportok fül csoportonként cégeket és jogokat kezel. A cégkezelő csak a saját, megfelelő joggal kezelt cégeit választhatja; a joglista a kiválasztott cégeknél kiosztható jogok metszete. A cégválasztás megváltoztatása törli a már nem kiosztható jogok jelölését. A teljes, későbbi jogokra is kiterjedő hozzáférés külön opció, admin jogosultsághoz kötve.
+
+Kiosztás: felhasználó sora → Csoportok → Többcéges csoportok. A checkboxoknál látható a céglista és a jogcsomag. Új cég kijelölése meglévő csoporttagokat is hozzáad; cég vagy csoport kivétele csak az onnan kapott hozzáférést szünteti meg, és nem aktivál felfüggesztett tagságot. A nem kezelhető csoporttagságok megmaradnak. Rendszerszintű kezelő a Rendszerkezelés felhasználói listájáról, cégtagság nélkül is indíthat hozzárendelést.
+
+A helyi csoportszerkesztő kiszűri az `isMultiCompany` jelölésű csoportokat. A többcéges kiosztás a fiók verzióját, a csoportszerkesztés a csoport verzióját küldi. Ütközéskor az újratöltés friss verzióval kezdi újra a szerkesztést.

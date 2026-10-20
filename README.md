@@ -176,6 +176,30 @@ A járműadatok külön `PUT /api/v1/vehicles/{id}` végponton módosíthatók (
 
 A csoportmigráció megtartja a korábbi egyedi jogokat. A korábbi `permissions.manage` jog mellé `permission-groups.manage` jár. Automatikus admin csoporttagságot csak az auditnaplóval igazolt cégalapító/korábbi tulajdonos kap, ha aktív és az eredeti hét jog mindegyikével még rendelkezik; más teljes jogú tag nem kap automatikus jövőbeli jogokat. Az átalakítás naplózott. A csoportok, kapcsolataik és km-előzmények tenantkulcsos FK-t és FORCE RLS-t kapnak. A visszaállításhoz adatbázismentés szükséges.
 
+### Többcéges csoportok
+
+A **Felhasználók → Többcéges csoportok** fülön egyetlen jogcsomaghoz több cég választható. A felhasználó sorában a **Csoportok → Többcéges csoportok** ablak rendeli hozzá a csoportot. A rendszerszintű kezelők ugyanezt a Rendszerkezelés oldalon is elérik, meglévő cégtagság nélküli fiókokhoz is.
+
+Cégkezelők is használhatják: létrehozáskor minden kiválasztott cégnél `permission-groups.manage`, kiosztáskor mindegyik cégnél `permissions.manage` szükséges. A csoport összes jogával minden érintett cégnél rendelkezniük kell. Már kiosztott csoport szerkesztéséhez vagy törléséhez mindkét jog szükséges minden korábbi és új cégénél. A csoport létrehozója önmagában nem kap külön kezelési jogot. A katalógus csak azokat a csoportokat mutatja, amelyek minden cégéhez a kezelőnek csoportkezelési, kiosztási vagy taglista-olvasási joga van. A `canEdit`/`canAssign` mezők a teljes jogcsomag alapján jelzik a tényleges műveleti lehetőségeket.
+
+Hozzárendeléskor az összes kijelölt cégnél csoportból származó tagság készül, külön meghívás nélkül, már regisztrált fiókhoz. Új cég kijelölése a meglévő csoporttagokra is érvényes. Cég kivétele vagy csoporttagság visszavonása csak a csoportból kapott hozzáférést szünteti meg. Az önálló tagságok, közvetlen jogok és helyi csoportjogok megmaradnak. A csoportból létrehozott üres tagság a munkaterületlistából eltűnik, de a felfüggesztés előzménye megmarad; újabb hozzárendelés nem aktiválja újra. A közvetlenül kiosztott nem üres joglista vagy helyi csoport önálló hozzáférést alapít.
+
+A **Minden jelenlegi és későbbi céges jog** opció automatikusan követi a jogkatalógust; csak minden kiválasztott cégnél már admin jogosultságú kezelő, illetve rendszerszintű kezelő oszthatja ki. Nem ad `system.manage` jogot, és nem von be automatikusan később létrejövő cégeket.
+
+| Végpont | Művelet |
+|---|---|
+| `GET /api/v1/company-access/companies` | Saját, kezelhető vagy taglistajoggal látható cégek és műveleti lehetőségek |
+| `GET /api/v1/company-access/groups` | Minden cégükben látható többcéges csoportok |
+| `POST /api/v1/company-access/groups` | `{ "name": "Sofőrök", "permissions": ["vehicles.read", "vehicles.odometer.create"], "companyIds": ["cég-uuid"], "allPermissions": false }` |
+| `PUT /api/v1/company-access/groups/{id}` | Ugyanez, továbbá a csoport `version` mezője |
+| `DELETE /api/v1/company-access/groups/{id}?version=2` | Csoport és a belőle származó hozzáférések megszüntetése |
+| `GET /api/v1/company-access/users/{userId}` | Az adott kezelő által kiosztható tagságok és a fiók aktuális verziója |
+| `PUT /api/v1/company-access/users/{userId}` | `{ "groupIds": ["csoport-uuid"], "version": 3 }`; a verzió a fióké, nem a céges tagságé |
+
+A felhasználói csoportlista módosítása csak a kezelő által minden cégében kiosztható csoportokat cseréli le. Az egyéb tagságok változatlanok; ezt a `hasOtherGroups` mező jelzi, idegen cégnevek és csoportadatok felfedése nélkül. A céges tagválasz `groups` mezőjében az `isMultiCompany` különbözteti meg a két forrást; ezeket az azonosítókat nem szabad a helyi csoporttagság-végpontra másolni.
+
+A változások több cégre kiterjedően is egy tranzakcióban történnek, megőrzik az utolsó aktív jogkezelőt, és céges/rendszerszintű naplót készítenek. A céges napló csak az adott cégre vonatkozó hatást tartalmazza. A globális csoportdefiníciókat az API minden érintett cégre elvégzett ellenőrzése védi; a céges hozzáférési vetületeken FORCE RLS és a céghatárt, csoporthatókört, valamint tényleges csoporttagságot összekötő FK-k működnek. A migráció az összes meglévő tagságot önállóként őrzi meg. Visszaállításhoz adatbázismentés szükséges.
+
 ## API
 
 ### Rendszerszintű felhasználókezelés

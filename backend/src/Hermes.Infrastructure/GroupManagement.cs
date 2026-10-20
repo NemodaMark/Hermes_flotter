@@ -73,7 +73,8 @@ public sealed class GroupManagement(HermesDbContext db, TenantContext context) :
     {
         var members = await db.Memberships.AsNoTracking().WithAccess().Where(x => x.TenantId == TenantId && x.IsActive).ToListAsync(ct);
         if (members.Any(x => x.EffectivePermissions.Contains(Permissions.Manage)) && !members.Any(x =>
-            x.Permissions.Any(p => p.Code == Permissions.Manage) || x.Groups.Any(g => (g.GroupId == groupId ? after : g.Group.EffectivePermissions).Contains(Permissions.Manage))))
+            x.Permissions.Any(p => p.Code == Permissions.Manage) || x.CompanyGroups.Any(g => g.Group.EffectivePermissions.Contains(Permissions.Manage))
+                || x.Groups.Any(g => (g.GroupId == groupId ? after : g.Group.EffectivePermissions).Contains(Permissions.Manage))))
             throw AccessRules.LastManager();
     }
     public Task<PermissionGroupSummary> UpdateAsync(Guid id, UpdateGroupRequest request, CancellationToken ct) => Authorized(Permissions.GroupsManage, async actor =>
@@ -130,9 +131,10 @@ public sealed class GroupManagement(HermesDbContext db, TenantContext context) :
         var before = target.Groups.Select(x => x.GroupId).ToArray();
         var changed = desired.Where(x => !before.Contains(x.Id)).Concat(target.Groups.Where(x => !request.GroupIds.Contains(x.GroupId)).Select(x => x.Group)).ToArray();
         AccessRules.Delegate(actor, changed.SelectMany(x => x.EffectivePermissions));
-        if (changed.Any(x => x.IsAdmin) && !actor.Groups.Any(x => x.Group.IsAdmin) && !await UserAccounts.IsSystemManager(db, Actor, ct))
+        if (changed.Any(x => x.IsAdmin) && !actor.HasAdminAuthority && !await UserAccounts.IsSystemManager(db, Actor, ct))
             throw UserAccounts.Error(403, "admin_delegation_denied", "Az automatikusan bővülő admin hozzáférést céges admin vagy rendszergazda oszthatja ki.");
-        var afterPermissions = target.Permissions.Select(x => x.Code).Concat(desired.SelectMany(x => x.EffectivePermissions)).ToArray();
+        var afterPermissions = target.Permissions.Select(x => x.Code).Concat(desired.SelectMany(x => x.EffectivePermissions))
+            .Concat(target.CompanyGroups.SelectMany(x => x.Group.EffectivePermissions)).ToArray();
         if (target.IsActive && target.EffectivePermissions.Contains(Permissions.Manage) && !afterPermissions.Contains(Permissions.Manage))
         {
             var others = await db.Memberships.AsNoTracking().WithAccess().Where(x => x.TenantId == TenantId && x.IsActive && x.UserSubject != userId).ToListAsync(ct);
@@ -141,6 +143,7 @@ public sealed class GroupManagement(HermesDbContext db, TenantContext context) :
         foreach (var removed in target.Groups.Where(x => !request.GroupIds.Contains(x.GroupId)).ToArray())
         { target.Groups.Remove(removed); db.MembershipGroups.Remove(removed); }
         foreach (var added in desired.Where(x => !before.Contains(x.Id))) target.Groups.Add(new() { TenantId = TenantId, UserSubject = userId, GroupId = added.Id, Group = added });
+        if (desired.Count > 0) target.HasDirectAccess = true;
         target.Version++;
         Audit("member.groups_changed", userId, new { before, after = request.GroupIds, version = target.Version });
         await db.SaveChangesAsync(ct);

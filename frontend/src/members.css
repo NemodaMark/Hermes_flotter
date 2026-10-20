@@ -20,6 +20,9 @@
 }
 .access-tabs {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
   gap: 20px;
 }
 .access-tabs button {
@@ -365,4 +368,12 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.company-options {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.system-users-table td:last-child > button {
+  margin: 0 8px 8px 0;
 }
