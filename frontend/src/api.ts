@@ -25,6 +25,8 @@ export type SystemAudit = {
   action: string
   details: string
   createdAt: string
+  originalActorSubject?: string | null
+  originalTargetSubject?: string | null
 }
 export type Tenant = { id: string; name: string; permissions: string[] }
 export type Vehicle = {
@@ -36,6 +38,7 @@ export type Vehicle = {
 }
 export type NewVehicle = { registration: string; make: string; model: string }
 export type RegisterInput = {
+  userName: string
   displayName: string
   email: string
   password: string
@@ -185,8 +188,11 @@ export const api = {
     }
   },
   register: (input: RegisterInput) => authenticate('/api/v1/auth/register', input),
-  login: (email: string, password: string) =>
-    authenticate('/api/v1/auth/login', { email, password }),
+  login: (login: string, password: string) =>
+    authenticate(
+      '/api/v1/auth/login',
+      login.includes('@') ? { email: login, password } : { userName: login, password },
+    ),
   changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
     authenticate('/api/v1/auth/change-password', {
       currentPassword,

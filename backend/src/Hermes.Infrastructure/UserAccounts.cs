@@ -71,7 +71,6 @@ public sealed class UserAccounts(HermesDbContext db, UserManager<ApplicationUser
             var emailChanged = user.Email != request.Email.Trim();
             user.DisplayName = request.DisplayName.Trim();
             user.Email = request.Email.Trim();
-            user.UserName = user.Email;
             if (emailChanged) user.EmailConfirmed = false;
             var phone = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
             if (phone != user.PhoneNumber) user.PhoneNumberConfirmed = false;

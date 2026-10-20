@@ -18,11 +18,11 @@ public sealed class UserProfileTests(FleetFixture fixture) : IClassFixture<Fleet
         var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
         var email = $"profile-{Guid.NewGuid():N}@example.test";
-        var response = await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Profil Teszt", email, password = FleetFixture.Password, systemPermissions = new[] { SystemPermissions.Manage } });
+        var response = await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Profil Teszt", email, password = FleetFixture.Password, userName = email.Split('@')[0], systemPermissions = new[] { SystemPermissions.Manage } });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var user = await response.Content.ReadFromJsonAsync<JsonElement>();
         var id = user.GetProperty("id").GetString()!;
-        Assert.Equal(7, Guid.Parse(id).Version);
+        Assert.Equal(email.Split('@')[0], id);
         Assert.Empty(user.GetProperty("systemPermissions").EnumerateArray());
         if (system)
         {
@@ -116,7 +116,7 @@ public sealed class UserProfileTests(FleetFixture fixture) : IClassFixture<Fleet
         await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, new TenantContext());
         var saved = await db.Users.AsNoTracking().SingleAsync(x => x.Id == target.Id);
         Assert.Equal(email.ToUpperInvariant(), saved.NormalizedEmail);
-        Assert.Equal(email, saved.UserName);
+        Assert.Equal(target.Id, saved.UserName);
         Assert.NotEqual("forged", saved.PasswordHash);
         var entry = await db.SystemAuditEvents.SingleAsync(x => x.Action == "user.profile_changed" && x.TargetSubject == target.Id);
         Assert.Equal(admin.Id, entry.ActorSubject);
@@ -189,7 +189,7 @@ public sealed class UserProfileTests(FleetFixture fixture) : IClassFixture<Fleet
         Assert.False(after.PasswordChangeRequired);
         Assert.Empty(after.SystemPermissions);
         await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, new TenantContext());
-        Assert.False(await db.SystemAuditEvents.AnyAsync(x => x.TargetSubject == target.Id));
+        Assert.False(await db.SystemAuditEvents.AnyAsync(x => x.TargetSubject == target.Id && x.Action != "user.registered"));
     }
 
     [Fact]

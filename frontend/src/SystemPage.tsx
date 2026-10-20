@@ -63,7 +63,7 @@ export function SystemPage({ user }: { user: Session }) {
           <input
             className="system-search"
             aria-label="Felhasználó keresése rendszerszinten"
-            placeholder="Név, e-mail vagy pontos ID"
+            placeholder="Felhasználónév, teljes név vagy e-mail"
             value={draft}
             maxLength={100}
             onChange={(event) => setDraft(event.target.value)}
@@ -94,7 +94,8 @@ export function SystemPage({ user }: { user: Session }) {
                     {users.data?.items.map((profile) => (
                       <tr key={profile.id}>
                         <td>
-                          <strong>{profile.displayName}</strong>
+                          <strong>{profile.id}</strong>
+                          <span className="member-email">{profile.displayName}</span>
                           <span className="member-email">{profile.email}</span>
                         </td>
                         <td>
@@ -123,7 +124,7 @@ export function SystemPage({ user }: { user: Session }) {
                   <thead>
                     <tr>
                       <th>Időpont / művelet</th>
-                      <th>Módosító / érintett ID</th>
+                      <th>Módosító / érintett felhasználó</th>
                       <th>Változás</th>
                     </tr>
                   </thead>
@@ -146,6 +147,15 @@ export function SystemPage({ user }: { user: Session }) {
                           <details>
                             <summary>Részletek</summary>
                             <pre>{JSON.stringify(JSON.parse(entry.details), null, 2)}</pre>
+                            {(entry.originalActorSubject || entry.originalTargetSubject) && (
+                              <p className="field-hint">
+                                Eredeti módosító ID:{' '}
+                                {entry.originalActorSubject ?? entry.actorSubject}
+                                <br />
+                                Eredeti érintett ID:{' '}
+                                {entry.originalTargetSubject ?? entry.targetSubject ?? '–'}
+                              </p>
+                            )}
                           </details>
                         </td>
                       </tr>

@@ -18,7 +18,7 @@ public static class SystemEndpoints
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var value = search.Trim().ToUpperInvariant();
-                query = query.Where(x => x.NormalizedEmail!.Contains(value) || x.DisplayName.ToUpper().Contains(value) || x.Id == search.Trim());
+                query = query.Where(x => x.NormalizedEmail!.Contains(value) || x.DisplayName.ToUpper().Contains(value) || x.NormalizedUserName!.Contains(value));
             }
             var total = await query.CountAsync(ct);
             var users = await query.OrderBy(x => x.NormalizedEmail).ThenBy(x => x.Id).Skip((page - 1) * 25).Take(25).ToArrayAsync(ct);
@@ -42,9 +42,17 @@ public static class SystemEndpoints
         {
             ValidatePage(page);
             var query = db.SystemAuditEvents.AsNoTracking();
-            return Results.Ok(new PageResult<SystemAuditSummary>(await query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            var items = await query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
                 .Skip((page - 1) * 25).Take(25).Select(x => new SystemAuditSummary(x.Id, x.ActorSubject, x.TargetSubject, x.TenantId, x.Action, x.Details, x.CreatedAt))
-                .ToArrayAsync(ct), await query.CountAsync(ct), page, 25));
+                .ToArrayAsync(ct);
+            var names = await IdentityHistory.Resolve(db, items.SelectMany(x => new[] { x.ActorSubject, x.TargetSubject }), ct);
+            return Results.Ok(new PageResult<SystemAuditSummary>(items.Select(x => x with
+            {
+                ActorSubject = IdentityHistory.Subject(names, x.ActorSubject),
+                TargetSubject = x.TargetSubject is null ? null : IdentityHistory.Subject(names, x.TargetSubject),
+                OriginalActorSubject = names.TryGetValue(x.ActorSubject, out var actor) && actor != x.ActorSubject ? x.ActorSubject : null,
+                OriginalTargetSubject = x.TargetSubject is { } target && names.TryGetValue(target, out var name) && name != target ? target : null
+            }).ToArray(), await query.CountAsync(ct), page, 25));
         });
     }
     private static void ValidatePage(int page)

@@ -304,6 +304,29 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("tenant_memberships", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Domain.UserIdentityHistory", b =>
+                {
+                    b.Property<string>("PreviousId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReservedName")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("text")
+                        .HasComputedColumnSql("lower(\"PreviousId\")", true);
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.HasKey("PreviousId");
+
+                    b.HasIndex("ReservedName");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("user_identity_history", (string)null);
+                });
+
             modelBuilder.Entity("Hermes.Domain.Vehicle", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -426,7 +449,10 @@ namespace Hermes.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
-                    b.ToTable("identity_users", (string)null);
+                    b.ToTable("identity_users", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_identity_users_username_key", "\"Id\" ~ '^[a-z0-9][a-z0-9._-]{2,63}$' AND \"UserName\" IS NOT NULL AND \"UserName\" = \"Id\" AND \"NormalizedUserName\" IS NOT NULL AND \"NormalizedUserName\" = upper(\"Id\")");
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -625,6 +651,14 @@ namespace Hermes.Infrastructure.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.UserIdentityHistory", b =>
+                {
+                    b.HasOne("Hermes.Infrastructure.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Hermes.Domain.Vehicle", b =>

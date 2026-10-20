@@ -9,6 +9,7 @@ A `system.manage` joggal rendelkező felhasználó a **Rendszerkezelés** menüb
 Előírt jelszócsere esetén belépés után a **Kötelező jelszócsere** képernyő jelenik meg a munkaterület és a meghívóelfogadás előtt. Csak sikeres, jelenlegi jelszóval igazolt csere után lehet továbblépni; kijelentkezni közben is lehet. A backend ugyanezt a korlátozást minden üzleti API-n ellenőrzi. A globális jog első, naplózott beállítását és az API-k részleteit a [projekt leírása](../README.md#rendszerszintű-felhasználókezelés) tartalmazza.
 
 - Regisztráció, bejelentkezés és kijelentkezés a valódi API-val.
+- Regisztrációnál külön, egyedi felhasználónév választható, amely az állandó belső ID is. Belépni felhasználónévvel vagy e-maillel lehet. A taglisták a felhasználónevet mutatják elsődlegesen, mellette a teljes nevet és az e-mailt. A régi naplóknál a feloldott felhasználónév mellett a részletekben az eredeti ID is megmarad.
 - Első cég létrehozása, további cégek felvétele és cégváltás.
 - Céges járműlista, kliensoldali keresés és állapotszűrés, járműfelvétel.
 - Aktuális cégadatok és a felhasználó cégenkénti konkrét jogainak megjelenítése.

@@ -271,11 +271,14 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
                           <tr key={member.userId}>
                             <td>
                               <strong>
-                                {member.displayName ?? 'Név nélküli felhasználó'}
+                                {member.userId}
                                 {member.userId === user.id && (
                                   <span className="self-label"> (te)</span>
                                 )}
                               </strong>
+                              <span className="member-email">
+                                {member.displayName ?? 'Név nélküli felhasználó'}
+                              </span>
                               <span className="member-email">{member.email ?? member.userId}</span>
                             </td>
                             <td>

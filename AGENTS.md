@@ -6,6 +6,8 @@ A felhasználó kérése alapján a backend működése az elsődleges. A követ
 
 A hozzáférés műveleti jogokon alapul, cégenként és felhasználónként közvetlenül kiosztva. Ne vezess vissza fix felhasználói szinteket vagy szerepköröket. Új céges művelethez add meg a szükséges jogot, a szerveroldali ellenőrzést és a cégek elkülönítését igazoló tesztet.
 
+A felhasználó kérése alapján a felhasználó belső elsődleges kulcsa maga az egyedi, kanonikus felhasználónév (`Id = UserName`), a teljes névtől és e-mailtől függetlenül. Ne vezess vissza külön UUID-alapú felhasználói kulcsot. A régi azonosítók csak a naplózási előzmények és névfoglalás miatt maradnak meg.
+
 ## Git-munkarend
 
 A felhasználó állandó kérése: minden befejezett, fájlmódosítással járó feladat végén commitold és pushold a változtatásokat a GitHubra, külön megerősítés nélkül.

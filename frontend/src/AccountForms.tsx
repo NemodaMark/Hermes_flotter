@@ -31,6 +31,7 @@ export function AuthScreen({
         mode === 'login'
           ? await api.login(email, password)
           : await api.register({
+              userName: String(values.get('userName')).trim(),
               displayName: String(values.get('displayName')).trim(),
               email,
               password,
@@ -93,6 +94,22 @@ export function AuthScreen({
         <form key={mode} onSubmit={submit} className="account-form">
           {mode === 'register' && (
             <>
+              <label htmlFor="userName">Felhasználónév</label>
+              <input
+                id="userName"
+                name="userName"
+                autoComplete="username"
+                required
+                minLength={3}
+                maxLength={64}
+                pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,63}"
+                disabled={pending}
+                aria-describedby="username-hint"
+              />
+              <p className="field-hint" id="username-hint">
+                Egyedi, állandó azonosító. 3–64 karakter: angol betű, szám, pont, kötőjel vagy
+                aláhúzás. A kis- és nagybetű azonosnak számít.
+              </p>
               <label htmlFor="displayName">Teljes név</label>
               <input
                 id="displayName"
@@ -104,12 +121,14 @@ export function AuthScreen({
               />
             </>
           )}
-          <label htmlFor="email">E-mail-cím</label>
+          <label htmlFor="email">
+            {mode === 'login' ? 'Felhasználónév vagy e-mail-cím' : 'E-mail-cím'}
+          </label>
           <input
             id="email"
             name="email"
-            type="email"
-            autoComplete="username"
+            type={mode === 'login' ? 'text' : 'email'}
+            autoComplete={mode === 'login' ? 'username' : 'email'}
             required
             maxLength={254}
             disabled={pending}

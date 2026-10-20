@@ -411,7 +411,7 @@ it('keeps a pending invitation through login and selects its company only after 
   const url = invitationUrl(acceptance)
   const { calls, state } = mount({ signedIn: false, hash: new URL(url).hash })
   expect(await screen.findByText(/Céges meghívó elfogadásához/)).toBeInTheDocument()
-  await userEvent.type(screen.getByLabelText('E-mail-cím'), user.email)
+  await userEvent.type(screen.getByLabelText('Felhasználónév vagy e-mail-cím'), user.email)
   await userEvent.type(screen.getByLabelText('Jelszó', { exact: true }), 'test-password-123')
   await userEvent.click(screen.getByRole('button', { name: 'Belépés' }))
   await screen.findByRole('heading', { name: 'Céges meghívó' })

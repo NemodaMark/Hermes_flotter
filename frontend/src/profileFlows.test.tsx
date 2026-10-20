@@ -8,7 +8,7 @@ import type { Session, UserProfile } from './api'
 import { permissionNames } from './permissions'
 
 const initial: UserProfile = {
-  id: '01a15815-06cf-7c23-b0b4-ff9941894029',
+  id: 'kiss.eszter',
   displayName: 'Kiss Eszter',
   email: 'eszter@example.test',
   phoneNumber: null,

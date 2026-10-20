@@ -106,7 +106,7 @@ it('does not fetch or display vehicles without read permission, even with create
 it('logs in and offers company creation to a user without memberships', async () => {
   mountApp({ signedIn: false })
   await screen.findByRole('heading', { name: 'Bejelentkezés' })
-  await userEvent.type(screen.getByLabelText('E-mail-cím'), 'anna@example.test')
+  await userEvent.type(screen.getByLabelText('Felhasználónév vagy e-mail-cím'), 'anna@example.test')
   await userEvent.type(screen.getByLabelText('Jelszó', { exact: true }), 'test-password-123')
   await userEvent.click(screen.getByRole('button', { name: 'Belépés' }))
   expect(
@@ -117,6 +117,7 @@ it('logs in and offers company creation to a user without memberships', async ()
 it('takes a newly registered user through creating their first company', async () => {
   mountApp({ signedIn: false })
   await userEvent.click(await screen.findByRole('button', { name: 'Regisztráció' }))
+  await userEvent.type(screen.getByLabelText('Felhasználónév', { exact: true }), 'teszt.elek')
   await userEvent.type(screen.getByLabelText('Teljes név'), 'Teszt Elek')
   await userEvent.type(screen.getByLabelText('E-mail-cím'), 'elek@example.test')
   await userEvent.type(screen.getByLabelText('Jelszó', { exact: true }), 'test-password-123')

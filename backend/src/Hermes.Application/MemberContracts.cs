@@ -15,7 +15,11 @@ public sealed record AcceptInvitationRequest(Guid TenantId, Guid InvitationId, s
 public sealed record InvitationSummary(Guid Id, string Email, string[] Permissions, DateTimeOffset CreatedAt,
     DateTimeOffset ExpiresAt, DateTimeOffset? AcceptedAt, DateTimeOffset? RevokedAt);
 public sealed record CreatedInvitation(InvitationSummary Invitation, AcceptInvitationRequest Acceptance);
-public sealed record AuditSummary(Guid Id, string ActorSubject, string Action, string? TargetSubject, string Details, DateTimeOffset CreatedAt);
+public sealed record AuditSummary(Guid Id, string ActorSubject, string Action, string? TargetSubject, string Details, DateTimeOffset CreatedAt)
+{
+    public string? OriginalActorSubject { get; init; }
+    public string? OriginalTargetSubject { get; init; }
+}
 
 public interface IMemberManagement
 {

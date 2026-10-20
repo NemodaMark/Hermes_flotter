@@ -28,7 +28,9 @@ function createClient() {
     const email = `smoke-${randomUUID()}@example.test`
     const password = randomBytes(32).toString('base64url')
     await refreshCsrf()
-    const user = await request('/api/v1/auth/register', { method: 'POST', body: { displayName: 'CI ellenőrzés', email, password }, status: 201 })
+    const userName = email.split('@')[0]
+    const user = await request('/api/v1/auth/register', { method: 'POST', body: { displayName: 'CI ellenőrzés', userName, email, password }, status: 201 })
+    assert.equal(user.id, userName)
     await refreshCsrf()
     return { ...user, password }
   }
@@ -52,7 +54,7 @@ assert.equal((await request('/api/v1/vehicles', { tenantId: second.id })).length
 await request('/api/v1/auth/logout', { method: 'POST', status: 204 })
 await request('/api/v1/auth/session', { status: 401 })
 await owner.refreshCsrf()
-await request('/api/v1/auth/login', { method: 'POST', body: { email: user.email, password: user.password } })
+await request('/api/v1/auth/login', { method: 'POST', body: { userName: user.id.toUpperCase(), password: user.password } })
 await owner.refreshCsrf()
 assert.equal((await request('/api/v1/tenants')).length, 2)
 const recipient = await member.register()

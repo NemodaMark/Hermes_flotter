@@ -55,7 +55,7 @@ public sealed class FleetFixture : IAsyncLifetime
         foreach (var tenantId in new[] { TestFleetData.DunaId, TestFleetData.PannonId })
         {
             var context = new TenantContext();
-            context.Set(tenantId, "test:anna", Permissions.All);
+            context.Set(tenantId, "anna", Permissions.All);
             await using var db = CreateContext(MigrationConnection, context);
             await TestFleetData.ApplyAsync(db, context);
         }
@@ -64,7 +64,7 @@ public sealed class FleetFixture : IAsyncLifetime
         var users = userScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         foreach (var name in new[] { "anna", "bela" })
         {
-            var result = await users.CreateAsync(new ApplicationUser { Id = $"test:{name}", UserName = $"{name}@example.test", Email = $"{name}@example.test", DisplayName = name == "anna" ? "Kovács Anna" : "Nagy Béla" }, Password);
+            var result = await users.CreateAsync(new ApplicationUser { Id = name, UserName = name, Email = $"{name}@example.test", DisplayName = name == "anna" ? "Kovács Anna" : "Nagy Béla" }, Password);
             if (!result.Succeeded) throw new InvalidOperationException("Could not create the test identity.");
         }
     }

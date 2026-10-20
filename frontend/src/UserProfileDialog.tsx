@@ -70,7 +70,7 @@ export function UserProfileDialog({
           </p>
           <dl className="profile-details">
             <div>
-              <dt>Felhasználói ID (állandó)</dt>
+              <dt>Felhasználónév / belső ID (állandó)</dt>
               <dd>{query.data.id}</dd>
             </div>
             <div>
@@ -244,7 +244,7 @@ function ProfileForm({
       />
       <p className="field-hint">
         Az e-mail módosítása minden meglévő munkamenetet érvénytelenít. A felhasználó az új címmel
-        tud belépni.
+        vagy a változatlan felhasználónevével tud belépni.
       </p>
       <label htmlFor="profile-phone">Telefonszám</label>
       <input

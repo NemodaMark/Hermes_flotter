@@ -5,6 +5,7 @@ Az ASP.NET Core 10 + Entity Framework Core + PostgreSQL 18 backend jelenlegi kii
 ## Az alapban működő funkciók
 
 - Regisztráció, bejelentkezés, munkamenet-lekérdezés és kijelentkezés ASP.NET Core Identity használatával.
+- Az egyedi, kisbetűs felhasználónév maga a felhasználó belső elsődleges kulcsa (`Id = UserName`), a névtől/e-mailtől függetlenül; belépés felhasználónévvel vagy e-maillel. A meglévő UUID-s fiókok, hivatkozások és történeti naplók migrációját a [projekt leírása](../README.md#rendszerszintű-felhasználókezelés) részletezi.
 - Hash-elt jelszavak, HttpOnly munkamenetsüti, CSRF-védelem, belépési korlátozás és ideiglenes fiókzárolás.
 - Saját cégek lekérdezése és új cég létrehozása; a létrehozó konkrét induló jogai a céggel közös tranzakcióban készülnek el.
 - Közvetlen jogkiosztás felhasználónként és cégenként, fix szerepkörök nélkül; alapértelmezett tiltás és friss jogellenőrzés minden céges kérésnél.

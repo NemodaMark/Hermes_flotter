@@ -19,6 +19,7 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
     public DbSet<AccessAuditEvent> AccessAuditEvents => Set<AccessAuditEvent>();
     public DbSet<SystemPermissionGrant> SystemPermissionGrants => Set<SystemPermissionGrant>();
     public DbSet<SystemAuditEvent> SystemAuditEvents => Set<SystemAuditEvent>();
+    public DbSet<UserIdentityHistory> UserIdentityHistory => Set<UserIdentityHistory>();
     private Guid? CurrentTenantId => tenantContext.TenantId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -26,7 +27,7 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
         base.OnModelCreating(modelBuilder);
         modelBuilder.Entity<ApplicationUser>(entity =>
         {
-            entity.ToTable("identity_users");
+            entity.ToTable("identity_users", table => table.HasCheckConstraint("CK_identity_users_username_key", UserNames.KeyConstraint));
             entity.Property(x => x.DisplayName).HasMaxLength(120);
             entity.Property(x => x.PhoneNumber).HasMaxLength(40);
             entity.Property(x => x.ProfileVersion).HasDefaultValue(1L).IsConcurrencyToken();
@@ -38,6 +39,15 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
         modelBuilder.Entity<IdentityUserToken<string>>().ToTable("identity_user_tokens");
         modelBuilder.Entity<IdentityUserRole<string>>().ToTable("identity_user_roles");
         modelBuilder.Entity<IdentityRoleClaim<string>>().ToTable("identity_role_claims");
+
+        modelBuilder.Entity<UserIdentityHistory>(entity =>
+        {
+            entity.ToTable("user_identity_history");
+            entity.HasKey(x => x.PreviousId);
+            entity.Property(x => x.ReservedName).HasComputedColumnSql("lower(\"PreviousId\")", stored: true);
+            entity.HasIndex(x => x.ReservedName);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         modelBuilder.Entity<SystemPermissionGrant>(entity =>
         {

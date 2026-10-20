@@ -5,6 +5,23 @@ afterEach(resetCsrfToken)
 const user = { id: 'user-a', displayName: 'Teszt Elek', email: 'elek@example.test' }
 
 describe('authenticated API requests', () => {
+  it('uses the username login field independently of the email field', async () => {
+    const bodies: unknown[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (path: string, options: RequestInit) => {
+        if (path.endsWith('/csrf')) return new Response('{"requestToken":"test-token"}')
+        bodies.push(JSON.parse(String(options.body)))
+        return new Response(JSON.stringify(user))
+      }),
+    )
+    await api.login('Nemoda.Mark', 'test-password-123')
+    await api.login('mark@example.test', 'test-password-123')
+    expect(bodies).toEqual([
+      { userName: 'Nemoda.Mark', password: 'test-password-123' },
+      { email: 'mark@example.test', password: 'test-password-123' },
+    ])
+  })
   it('sends the tenant and browser credentials without development identity headers', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response('[]', { status: 200 }))
     vi.stubGlobal('fetch', fetch)

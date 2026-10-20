@@ -14,6 +14,7 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
 {
     private sealed record UserResponse(string Id, string DisplayName, string Email);
     private static string NewEmail() => $"user-{Guid.NewGuid():N}@example.test";
+    private static string NewUserName() => $"user-{Guid.NewGuid():N}";
 
     [Fact]
     public async Task Health_version_identifies_the_actual_running_build_without_secrets()
@@ -32,7 +33,7 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
     {
         var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
-        var response = await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt Felhasználó", email = email ?? NewEmail(), password = FleetFixture.Password });
+        var response = await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt Felhasználó", email = email ?? NewEmail(), password = FleetFixture.Password, userName = NewUserName() });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var user = await response.Content.ReadFromJsonAsync<UserResponse>();
         await FleetFixture.RefreshCsrfAsync(client);
@@ -45,7 +46,7 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
         using var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
         var email = NewEmail();
-        var registration = await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Új Felhasználó", email, password = FleetFixture.Password });
+        var registration = await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Új Felhasználó", email, password = FleetFixture.Password, userName = NewUserName() });
         Assert.Equal(HttpStatusCode.Created, registration.StatusCode);
         var cookie = Assert.Single(registration.Headers.GetValues("Set-Cookie"), value => value.StartsWith("Hermes.Session="));
         Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);
@@ -79,7 +80,7 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
         var (client, user) = await RegisterAsync();
         using (client)
         {
-            var first = await client.PostAsJsonAsync("/api/v1/tenants", new { name = "Első cég", role = "Viewer", userSubject = "test:bela" });
+            var first = await client.PostAsJsonAsync("/api/v1/tenants", new { name = "Első cég", role = "Viewer", userSubject = "bela" });
             var second = await client.PostAsJsonAsync("/api/v1/tenants", new { name = "Második cég" });
             Assert.Equal(HttpStatusCode.Created, first.StatusCode);
             Assert.Equal(HttpStatusCode.Created, second.StatusCode);
@@ -131,7 +132,7 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
     {
         using var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
-        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt", email = NewEmail(), password = FleetFixture.Password })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt", email = NewEmail(), password = FleetFixture.Password, userName = NewUserName() })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/tenants", new { name = "Elavult token" })).StatusCode);
         await FleetFixture.RefreshCsrfAsync(client);
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/tenants", new { name = "Friss token" })).StatusCode);
@@ -146,8 +147,8 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
         await FleetFixture.RefreshCsrfAsync(first);
         await FleetFixture.RefreshCsrfAsync(second);
         var responses = await Task.WhenAll(
-            first.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Egy", email, password = FleetFixture.Password }),
-            second.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Kettő", email = email.ToUpperInvariant(), password = FleetFixture.Password }));
+            first.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Egy", email, password = FleetFixture.Password, userName = NewUserName() }),
+            second.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Kettő", email = email.ToUpperInvariant(), password = FleetFixture.Password, userName = NewUserName() }));
         Assert.Single(responses, response => response.StatusCode == HttpStatusCode.Created);
         Assert.Single(responses, response => response.StatusCode == HttpStatusCode.BadRequest);
     }
@@ -160,7 +161,7 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
     {
         using var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt", email = NewEmail(), password })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt", email = NewEmail(), password, userName = NewUserName() })).StatusCode);
     }
 
     [Fact]

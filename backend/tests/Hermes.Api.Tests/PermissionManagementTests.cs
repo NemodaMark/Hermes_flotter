@@ -23,7 +23,7 @@ public sealed class PermissionManagementTests(FleetFixture fixture) : IClassFixt
         var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
         var response = await client.PostAsJsonAsync("/api/v1/auth/register", new
-        { displayName = "Jogosultság Teszt", email = $"access-{Guid.NewGuid():N}@example.test", password = FleetFixture.Password });
+        { displayName = "Jogosultság Teszt", email = $"access-{Guid.NewGuid():N}@example.test", password = FleetFixture.Password, userName = $"access-{Guid.NewGuid():N}" });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var user = (await response.Content.ReadFromJsonAsync<User>())!;
         await FleetFixture.RefreshCsrfAsync(client);
@@ -286,7 +286,7 @@ public sealed class PermissionManagementTests(FleetFixture fixture) : IClassFixt
         scope.Parameters.AddWithValue("tenant", TestFleetData.DunaId.ToString());
         await scope.ExecuteNonQueryAsync();
         await using var insert = new NpgsqlCommand("""
-            INSERT INTO tenant_membership_permissions ("TenantId", "UserSubject", "Code") VALUES (@other, 'test:anna', 'members.read')
+            INSERT INTO tenant_membership_permissions ("TenantId", "UserSubject", "Code") VALUES (@other, 'anna', 'members.read')
             """, connection, tx);
         insert.Parameters.AddWithValue("other", TestFleetData.PannonId);
         Assert.Equal(PostgresErrorCodes.InsufficientPrivilege, (await Assert.ThrowsAsync<PostgresException>(() => insert.ExecuteNonQueryAsync())).SqlState);
@@ -330,7 +330,7 @@ public sealed class PermissionManagementTests(FleetFixture fixture) : IClassFixt
     public async Task Profile_updates_only_the_current_users_display_name_and_catalog_is_authenticated()
     {
         using var account = await Register();
-        var response = await account.Client.PutAsJsonAsync("/api/v1/auth/profile", new { displayName = "Új Név", id = "test:anna", role = "Owner" });
+        var response = await account.Client.PutAsJsonAsync("/api/v1/auth/profile", new { displayName = "Új Név", id = "anna", role = "Owner" });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(account.User.Id, (await response.Content.ReadFromJsonAsync<User>())!.Id);
         Assert.Equal("Új Név", (await account.Client.GetFromJsonAsync<User>("/api/v1/auth/session"))!.DisplayName);

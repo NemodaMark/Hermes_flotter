@@ -92,7 +92,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         {
             var value = search.Trim().ToUpperInvariant();
             query = query.Where(item => db.Users.Any(user => user.Id == item.UserSubject
-                && (user.NormalizedEmail!.Contains(value) || user.DisplayName.ToUpper().Contains(value))));
+                && (user.NormalizedEmail!.Contains(value) || user.DisplayName.ToUpper().Contains(value) || user.NormalizedUserName!.Contains(value))));
         }
         var total = await query.CountAsync(ct);
         var members = await query.Include(item => item.Permissions).OrderBy(item => item.UserSubject).Skip(offset).Take(pageSize).ToListAsync(ct);
@@ -236,7 +236,15 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     {
         var offset = Offset(page, pageSize);
         var query = db.AccessAuditEvents.AsNoTracking();
-        return new(await query.OrderByDescending(item => item.CreatedAt).ThenByDescending(item => item.Id).Skip(offset).Take(pageSize)
-            .Select(item => new AuditSummary(item.Id, item.ActorSubject, item.Action, item.TargetSubject, item.Details, item.CreatedAt)).ToArrayAsync(ct), await query.CountAsync(ct), page, pageSize);
+        var items = await query.OrderByDescending(item => item.CreatedAt).ThenByDescending(item => item.Id).Skip(offset).Take(pageSize)
+            .Select(item => new AuditSummary(item.Id, item.ActorSubject, item.Action, item.TargetSubject, item.Details, item.CreatedAt)).ToArrayAsync(ct);
+        var names = await IdentityHistory.Resolve(db, items.SelectMany(x => new[] { x.ActorSubject, x.TargetSubject }), ct);
+        return new(items.Select(x => x with
+        {
+            ActorSubject = IdentityHistory.Subject(names, x.ActorSubject),
+            TargetSubject = x.TargetSubject is null ? null : IdentityHistory.Subject(names, x.TargetSubject),
+            OriginalActorSubject = names.TryGetValue(x.ActorSubject, out var actor) && actor != x.ActorSubject ? x.ActorSubject : null,
+            OriginalTargetSubject = x.TargetSubject is { } target && names.TryGetValue(target, out var name) && name != target ? target : null
+        }).ToArray(), await query.CountAsync(ct), page, pageSize);
     }, ct);
 }

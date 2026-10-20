@@ -123,7 +123,7 @@ public sealed class TenantIsolationTests(FleetFixture fixture) : IClassFixture<F
     public async Task Ef_writes_require_a_matching_tenant_even_with_explicit_save_options()
     {
         var context = new TenantContext();
-        context.Set(TestFleetData.DunaId, "test:anna", Permissions.All);
+        context.Set(TestFleetData.DunaId, "anna", Permissions.All);
         await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, context);
         db.Vehicles.Add(new Vehicle { TenantId = TestFleetData.PannonId, Registration = "BAD-002", Make = "Ford", Model = "Focus" });
         await Assert.ThrowsAsync<InvalidOperationException>(() => db.SaveChangesAsync(true));

@@ -30,8 +30,8 @@ public static class TestFleetData
                 TenantId = tenantId, UserSubject = user,
                 Permissions = permissions.Select(code => new MembershipPermission { TenantId = tenantId, UserSubject = user, Code = code }).ToList()
             };
-            db.Memberships.Add(Membership("test:anna", tenantId == DunaId ? Permissions.All : [Permissions.VehiclesRead, Permissions.VehiclesCreate]));
-            if (tenantId == DunaId) db.Memberships.Add(Membership("test:bela", [Permissions.VehiclesRead]));
+            db.Memberships.Add(Membership("anna", tenantId == DunaId ? Permissions.All : [Permissions.VehiclesRead, Permissions.VehiclesCreate]));
+            if (tenantId == DunaId) db.Memberships.Add(Membership("bela", [Permissions.VehiclesRead]));
         }
         if (!await db.Vehicles.AnyAsync(cancellationToken))
         {

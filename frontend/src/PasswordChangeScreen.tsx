@@ -56,7 +56,7 @@ export function PasswordChangeScreen({
       <section className="account-panel" aria-labelledby="password-change-title">
         <h1 id="password-change-title">Kötelező jelszócsere</h1>
         <p className="account-description">
-          {user.email}
+          {user.id} · {user.email}
           <br />A rendszer kezelője jelszócserét kért. A folytatáshoz adj meg egy új jelszót.
         </p>
         <form className="account-form" onSubmit={submit}>
