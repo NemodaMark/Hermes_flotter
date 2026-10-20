@@ -12,6 +12,8 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 var migrationMode = args.Contains("--migrate", StringComparer.Ordinal);
+var bootstrapIndex = Array.IndexOf(args, "--bootstrap-system-admin");
+var maintenanceMode = migrationMode || bootstrapIndex >= 0;
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ManagementExceptionHandler>();
@@ -21,7 +23,7 @@ builder.Services.AddScoped<ITenantContext>(services => services.GetRequiredServi
 builder.Services.AddDbContext<HermesDbContext>((services, options) =>
 {
     var configuration = services.GetRequiredService<IConfiguration>();
-    var connectionString = configuration.GetConnectionString(migrationMode ? "Migrations" : "Database");
+    var connectionString = configuration.GetConnectionString(maintenanceMode ? "Migrations" : "Database");
     if (string.IsNullOrWhiteSpace(connectionString))
         throw new InvalidOperationException("Configure the Database and Migrations connection strings. See README.md.");
     options.UseNpgsql(connectionString);
@@ -29,8 +31,9 @@ builder.Services.AddDbContext<HermesDbContext>((services, options) =>
 builder.Services.AddScoped<ITenantDirectory, TenantDirectory>();
 builder.Services.AddScoped<IVehicleStore, VehicleStore>();
 
-if (!migrationMode)
+if (!maintenanceMode)
 {
+    builder.Services.AddScoped<UserAccounts>();
     builder.Services.AddScoped<IMemberManagement, MemberManagement>();
     builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
@@ -45,6 +48,7 @@ if (!migrationMode)
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     }).AddEntityFrameworkStores<HermesDbContext>().AddSignInManager();
     builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
+    builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
     builder.Services.ConfigureApplicationCookie(options =>
     {
         options.Cookie.Name = "Hermes.Session";
@@ -79,8 +83,10 @@ if (!migrationMode)
         }));
     });
     builder.Services.AddScoped<IAuthorizationHandler, TenantPermissionHandler>();
+    builder.Services.AddScoped<IAuthorizationHandler, SystemManageHandler>();
     builder.Services.AddAuthorization(options =>
     {
+        options.AddPolicy(SystemPermissions.Manage, policy => policy.RequireAuthenticatedUser().AddRequirements(new SystemManageRequirement()));
         foreach (var permission in Permissions.Catalog)
             options.AddPolicy(permission.Code, policy => policy.RequireAuthenticatedUser().AddRequirements(new TenantPermissionRequirement(permission.Code)));
     });
@@ -88,10 +94,17 @@ if (!migrationMode)
 
 var app = builder.Build();
 
-if (migrationMode)
+if (maintenanceMode)
 {
     await using (var scope = app.Services.CreateAsyncScope())
+    {
         await scope.ServiceProvider.GetRequiredService<HermesDbContext>().Database.MigrateAsync();
+        if (bootstrapIndex >= 0)
+        {
+            if (bootstrapIndex + 1 >= args.Length) throw new InvalidOperationException("Specify a user ID after --bootstrap-system-admin.");
+            await UserAccounts.Bootstrap(scope.ServiceProvider.GetRequiredService<HermesDbContext>(), args[bootstrapIndex + 1], CancellationToken.None);
+        }
+    }
     return;
 }
 
@@ -99,12 +112,14 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseRouting();
 app.UseAuthentication();
+app.UseMiddleware<PasswordChangeMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.UseMiddleware<CsrfProtectionMiddleware>();
 app.MapAccountEndpoints();
 app.MapMemberEndpoints();
+app.MapSystemEndpoints();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 // Build metadata contains no account, tenant or database credentials.

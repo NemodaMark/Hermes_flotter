@@ -11,6 +11,9 @@ Az ASP.NET Core 10 + Entity Framework Core + PostgreSQL 18 backend jelenlegi kii
 - Céges taglista, keresés, lapozás, jogmódosítás, felfüggesztés/visszaállítás, egyszer használható meghívások és eseménynapló.
 - Cégenként sorzárral védett hozzáférés-módosítás, tagsági verzióellenőrzés, delegálási korlát és az utolsó jogosultságkezelő védelme.
 - Saját megjelenített név módosítása; más tag globális fiókját a céges kezelő nem írhatja át.
+- Külön, közvetlen `system.manage` jog: minden cég elérése, globális profilok és rendszerszintű jogok kezelése, kötelező jelszócsere elrendelése.
+- Kötelező jelszócsere szerveroldali korlátozással, a régi munkamenetek érvénytelenítésével és a sikeres csere utáni feloldással.
+- Központi, a runtime adatbázisszerepkörrel utólag nem módosítható/törölhető napló: módosító, érintett, időpont és a releváns régi/új értékek, jelszó nélkül.
 - Céges járművek listázása, egyedi lekérése és felvétele, cégenként egyedi rendszámmal.
 - Aktív tagság és műveleti jog ellenőrzése, EF Core tenantszűrés és PostgreSQL FORCE ROW LEVEL SECURITY a járműveken és az új céges hozzáférési táblákon.
 - Külön migrációs és alkalmazás-adatbázisszerepkör, készenléti végpont és PostgreSQL-es integrációs tesztek.

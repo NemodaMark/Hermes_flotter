@@ -1,9 +1,11 @@
 param(
     [switch]$Migrate,
+    [string]$BootstrapSystemAdminUserId,
     [int]$DatabasePort = 0
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Migrate -and $BootstrapSystemAdminUserId) { throw 'A migrációt és az első rendszerszintű jog kiosztását külön paranccsal futtasd.' }
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $envPath = Join-Path $projectRoot '.env'
 if (-not (Test-Path -LiteralPath $envPath)) { throw 'Először másold a .env.example fájlt .env néven a projekt gyökerébe.' }
@@ -40,12 +42,14 @@ function Get-ConnectionString([string]$Username, [string]$Password) {
 $env:ASPNETCORE_ENVIRONMENT = 'Development'
 $env:ASPNETCORE_URLS = 'http://127.0.0.1:5080'
 $env:ConnectionStrings__Database = Get-ConnectionString 'hermes_app' $settings['POSTGRES_APP_PASSWORD']
-if ($Migrate) { $env:ConnectionStrings__Migrations = Get-ConnectionString 'hermes_migrator' $settings['POSTGRES_MIGRATOR_PASSWORD'] }
+if ($Migrate -or $BootstrapSystemAdminUserId) { $env:ConnectionStrings__Migrations = Get-ConnectionString 'hermes_migrator' $settings['POSTGRES_MIGRATOR_PASSWORD'] }
 
 Push-Location (Join-Path $projectRoot 'backend\src\Hermes.Api')
 try {
     $arguments = @('run', '--no-launch-profile')
+    if ($BootstrapSystemAdminUserId) { $arguments += @('--configuration', 'Release') }
     if ($Migrate) { $arguments += @('--', '--migrate') }
+    elseif ($BootstrapSystemAdminUserId) { $arguments += @('--', '--bootstrap-system-admin', $BootstrapSystemAdminUserId) }
     & $dotnetPath @arguments
     if ($LASTEXITCODE -ne 0) { throw 'A backend parancs hibával fejeződött be.' }
 } finally { Pop-Location }

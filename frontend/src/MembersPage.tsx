@@ -6,12 +6,16 @@ import type { Invitation, Member, Session, Tenant } from './api'
 import { AccessDialog } from './AccessDialog'
 import { InvitationDialog, PermissionsDialog, StatusDialog } from './MemberDialogs'
 import { permissionLabel } from './permissions'
+import { UserProfileDialog } from './UserProfileDialog'
 import './members.css'
 
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'A művelet nem sikerült.'
 const date = (value: string) =>
-  new Date(value).toLocaleString('hu-HU', { dateStyle: 'short', timeStyle: 'short' })
+  new Date(value).toLocaleString('hu-HU', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
 
 function Pagination({
   page,
@@ -56,6 +60,7 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
     return () => window.clearInterval(timer)
   }, [])
   const queryClient = useQueryClient()
+  const [profileId, setProfileId] = useState<string | null>(null)
   const canRead = tenant.permissions.includes('members.read')
   const canInvite = tenant.permissions.includes('members.invite')
   const canManage = tenant.permissions.includes('permissions.manage')
@@ -106,10 +111,18 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
     onSuccess: (access) =>
       setDialog({
         kind: 'permissions',
-        member: { ...access, displayName: null, email: null, joinedAt: null, disabledAt: null },
+        member: {
+          ...access,
+          displayName: null,
+          email: null,
+          joinedAt: null,
+          disabledAt: null,
+        },
       }),
   })
-  const revoke = useMutation({ mutationFn: (id: string) => api.revokeInvitation(tenant.id, id) })
+  const revoke = useMutation({
+    mutationFn: (id: string) => api.revokeInvitation(tenant.id, id),
+  })
   async function confirmRevoke(id: string) {
     try {
       await revoke.mutateAsync(id)
@@ -284,6 +297,15 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
                             </td>
                             <td>
                               <div className="member-actions">
+                                {user.systemPermissions?.includes('system.manage') && (
+                                  <button
+                                    className="secondary-button"
+                                    aria-label={`Profil megnyitása: ${member.email ?? member.userId}`}
+                                    onClick={() => setProfileId(member.userId)}
+                                  >
+                                    Profil megnyitása
+                                  </button>
+                                )}
                                 {canManage && (
                                   <button
                                     className="secondary-button"
@@ -445,6 +467,9 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
             </p>
           )}
         </section>
+      )}
+      {profileId && user.systemPermissions?.includes('system.manage') && (
+        <UserProfileDialog id={profileId} actor={user} onClose={() => setProfileId(null)} />
       )}
       {dialog?.kind === 'invite' && canInvite && (
         <InvitationDialog

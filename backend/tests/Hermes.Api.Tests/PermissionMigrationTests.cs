@@ -41,11 +41,18 @@ public sealed class PermissionMigrationTests(FleetFixture fixture) : IClassFixtu
                 await command.ExecuteNonQueryAsync();
                 await tx.CommitAsync();
             }
-            db.Users.Add(new ApplicationUser { Id = "legacy-owner", DisplayName = "Meglévő felhasználó", UserName = "old@example.test", Email = "old@example.test", NormalizedEmail = "OLD@EXAMPLE.TEST", PasswordHash = "existing-password-hash" });
-            await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlRawAsync("""
+                INSERT INTO identity_users ("Id", "DisplayName", "UserName", "Email", "NormalizedEmail", "PasswordHash",
+                    "EmailConfirmed", "PhoneNumberConfirmed", "TwoFactorEnabled", "LockoutEnabled", "AccessFailedCount")
+                VALUES ('legacy-owner', 'Meglévő felhasználó', 'old@example.test', 'old@example.test', 'OLD@EXAMPLE.TEST',
+                    'existing-password-hash', false, false, false, false, 0);
+                """);
             await db.Database.MigrateAsync();
             Assert.Empty(await db.Database.GetPendingMigrationsAsync());
             Assert.Equal("existing-password-hash", (await db.Users.AsNoTracking().SingleAsync()).PasswordHash);
+            Assert.False((await db.Users.AsNoTracking().SingleAsync()).PasswordChangeRequired);
+            Assert.Equal(1, (await db.Users.AsNoTracking().SingleAsync()).ProfileVersion);
+            Assert.Empty(await db.SystemPermissionGrants.ToArrayAsync());
             var scoped = new TenantContext();
             scoped.Set(tenant, "legacy-owner", Permissions.All);
             await using var upgraded = FleetFixture.CreateContext(migrator.ConnectionString, scoped);

@@ -27,6 +27,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     }
     private async Task<TenantMembership> ActorWith(string permission, CancellationToken ct)
     {
+        if (await UserAccounts.IsSystemManager(db, Actor, ct)) return TenantDirectory.SystemMembership(Actor, TenantId);
         var actor = await db.Memberships.AsNoTracking().Include(item => item.Permissions)
             .SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == Actor && item.IsActive, ct);
         if (actor is null || !actor.Permissions.Any(item => item.Code == permission)) throw Forbidden();
@@ -34,6 +35,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     }
     private Task<T> Authorized<T>(string permission, Func<TenantMembership, Task<T>> action, CancellationToken ct) => Scoped(async () =>
     {
+        await UserAccounts.LockSystemAccess(db, ct, shared: true);
         await LockTenant(ct);
         var actor = await ActorWith(permission, ct);
         return await action(actor);
@@ -41,8 +43,11 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     private async Task<TenantMembership> Member(string userId, CancellationToken ct)
         => await db.Memberships.Include(item => item.Permissions).SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == userId, ct)
             ?? throw Error(404, "member_not_found", "A céges felhasználó nem található.");
-    private void Audit(string action, string? target, object details) => db.AccessAuditEvents.Add(new()
-    { TenantId = TenantId, ActorSubject = Actor, Action = action, TargetSubject = target, Details = JsonSerializer.Serialize(details) });
+    private void Audit(string action, string? target, object details)
+    {
+        db.AccessAuditEvents.Add(new() { TenantId = TenantId, ActorSubject = Actor, Action = action, TargetSubject = target, Details = JsonSerializer.Serialize(details) });
+        UserAccounts.Audit(db, Actor, target, action, details, TenantId);
+    }
     private static void CheckVersion(TenantMembership target, long version)
     {
         if (version < 1) throw Error(400, "invalid_version", "A tagság aktuális verzióját add meg.");
@@ -103,7 +108,9 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         return new(result, total, page, pageSize);
     }, ct);
     public Task<MemberSummary> GetAsync(string userId, CancellationToken ct) => Scoped(async () => await Summary(await Member(userId, ct), ct), ct);
-    public Task<TenantAccess> GetAccessAsync(string userId, CancellationToken ct) => Scoped(async () => Access(await Member(userId, ct)), ct);
+    public Task<TenantAccess> GetAccessAsync(string userId, CancellationToken ct) => Scoped(async () =>
+        userId == Actor && await UserAccounts.IsSystemManager(db, Actor, ct)
+            ? Access(TenantDirectory.SystemMembership(Actor, TenantId)) : Access(await Member(userId, ct)), ct);
 
     public Task<TenantAccess> ChangePermissionsAsync(string userId, ChangePermissionsRequest request, CancellationToken ct) => Authorized(Permissions.Manage, async actor =>
     {
@@ -198,6 +205,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         context.Set(request.TenantId, userId, []);
         return await Scoped(async () =>
         {
+            await UserAccounts.LockSystemAccess(db, ct, shared: true);
             await LockTenant(ct);
             var invitation = await db.Invitations.Include(item => item.Permissions).SingleOrDefaultAsync(item => item.Id == request.InvitationId, ct);
             if (invitation is null || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(invitation.TokenHash), Encoding.ASCII.GetBytes(Hash(request.Token))))
@@ -207,7 +215,8 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
                 throw Error(409, "invitation_unavailable", "A meghívót már felhasználták, visszavonták vagy lejárt.");
             var issuer = await db.Memberships.AsNoTracking().Include(item => item.Permissions).SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == invitation.InvitedBy && item.IsActive, ct);
             var grants = invitation.Permissions.Select(item => item.Code).ToArray();
-            if (issuer is null || !Codes(issuer).Contains(Permissions.MembersInvite) || (grants.Length > 0 && !Codes(issuer).Contains(Permissions.Manage)) || grants.Except(Codes(issuer)).Any())
+            if (!await UserAccounts.IsSystemManager(db, invitation.InvitedBy, ct)
+                && (issuer is null || !Codes(issuer).Contains(Permissions.MembersInvite) || (grants.Length > 0 && !Codes(issuer).Contains(Permissions.Manage)) || grants.Except(Codes(issuer)).Any()))
                 throw Error(409, "inviter_access_changed", "A meghívó jogosultságai időközben megváltoztak. Kérj új meghívást.");
             if (await db.Memberships.AnyAsync(item => item.TenantId == TenantId && item.UserSubject == userId, ct))
                 throw Error(409, "already_member", "Már van tagságod ennél a cégnél; a meghívó nem írhatja felül a hozzáférésedet.");

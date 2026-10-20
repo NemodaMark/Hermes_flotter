@@ -150,6 +150,57 @@ namespace Hermes.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hermes.Domain.SystemAuditEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("ActorSubject")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("TargetSubject")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt", "Id");
+
+                    b.ToTable("system_audit_events", (string)null);
+                });
+
+            modelBuilder.Entity("Hermes.Domain.SystemPermissionGrant", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("UserId", "Code");
+
+                    b.ToTable("system_permission_grants", (string)null);
+                });
+
             modelBuilder.Entity("Hermes.Domain.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -330,14 +381,30 @@ namespace Hermes.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<DateTimeOffset?>("PasswordChangeRequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("PasswordChangeRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("PasswordChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("PasswordHash")
                         .HasColumnType("text");
 
                     b.Property<string>("PhoneNumber")
-                        .HasColumnType("text");
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("boolean");
+
+                    b.Property<long>("ProfileVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
@@ -530,6 +597,15 @@ namespace Hermes.Infrastructure.Migrations
                         .WithMany("Permissions")
                         .HasForeignKey("TenantId", "UserSubject")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.SystemPermissionGrant", b =>
+                {
+                    b.HasOne("Hermes.Infrastructure.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

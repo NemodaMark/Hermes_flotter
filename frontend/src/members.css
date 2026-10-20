@@ -32,10 +32,78 @@
   font-size: 14px;
   text-align: left;
 }
-.access-tabs button[aria-selected='true'] {
+.access-tabs button[aria-selected='true'],
+.access-tabs button[aria-pressed='true'] {
   color: var(--primary);
   border-bottom-color: var(--primary);
   font-weight: 500;
+}
+.profile-details {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+}
+.profile-details dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.profile-details > div {
+  display: block;
+  padding: 0;
+  border: 0;
+}
+.profile-details dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.profile-security {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  margin-top: 20px;
+}
+.profile-security h3 {
+  font-size: 15px;
+  margin-top: 20px;
+}
+.profile-security .secondary-button {
+  margin-top: 12px;
+}
+.profile-confirmation {
+  margin-top: 20px;
+  padding: 16px;
+  background: #fff5ef;
+  border: 1px solid #e2c6b8;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.system-search {
+  min-width: 0;
+  max-width: 460px;
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #bdcbd4;
+  border-radius: 4px;
+}
+.system-users-table {
+  min-width: 650px;
+}
+.audit-table {
+  min-width: 760px;
+  table-layout: fixed;
+}
+.system-users-table td,
+.audit-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.audit-table pre {
+  white-space: pre-wrap;
+  font-size: 12px;
+  max-height: 260px;
+  overflow: auto;
+  margin-top: 10px;
 }
 .access-tools {
   padding-bottom: 12px;

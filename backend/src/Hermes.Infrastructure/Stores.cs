@@ -19,6 +19,7 @@ public sealed class TenantDirectory(HermesDbContext db, TenantContext context) :
                 Permissions = Permissions.All.Select(code => new MembershipPermission { TenantId = tenant.Id, UserSubject = subject, Code = code }).ToList()
             });
             db.AccessAuditEvents.Add(new AccessAuditEvent { TenantId = tenant.Id, ActorSubject = subject, Action = "company.created", TargetSubject = subject, Details = System.Text.Json.JsonSerializer.Serialize(new { permissions = Permissions.All }) });
+            UserAccounts.Audit(db, subject, subject, "company.created", new { tenant.Name, permissions = Permissions.All }, tenant.Id);
             await db.SaveChangesAsync(cancellationToken);
             return new TenantSummary(tenant.Id, tenant.Name, Permissions.All);
         }, cancellationToken);
@@ -26,6 +27,8 @@ public sealed class TenantDirectory(HermesDbContext db, TenantContext context) :
 
     public async Task<IReadOnlyList<TenantSummary>> ListForUserAsync(string subject, CancellationToken cancellationToken)
     {
+        if (await UserAccounts.IsSystemManager(db, subject, cancellationToken))
+            return await db.Tenants.AsNoTracking().OrderBy(x => x.Name).Select(x => new TenantSummary(x.Id, x.Name, Permissions.All)).ToArrayAsync(cancellationToken);
         var companies = await (from membership in db.Memberships.AsNoTracking()
                   join tenant in db.Tenants.AsNoTracking() on membership.TenantId equals tenant.Id
                   where membership.UserSubject == subject && membership.IsActive
@@ -43,9 +46,16 @@ public sealed class TenantDirectory(HermesDbContext db, TenantContext context) :
         return result;
     }
 
-    public Task<TenantMembership?> FindMembershipAsync(string subject, Guid tenantId, CancellationToken cancellationToken)
-        => TenantTransaction.RunAsync(db, tenantId, () => db.Memberships.AsNoTracking().Include(x => x.Permissions)
+    public async Task<TenantMembership?> FindMembershipAsync(string subject, Guid tenantId, CancellationToken cancellationToken)
+    {
+        if (await UserAccounts.IsSystemManager(db, subject, cancellationToken)
+            && await db.Tenants.AnyAsync(x => x.Id == tenantId, cancellationToken)) return SystemMembership(subject, tenantId);
+        return await TenantTransaction.RunAsync(db, tenantId, () => db.Memberships.AsNoTracking().Include(x => x.Permissions)
             .IgnoreQueryFilters().SingleOrDefaultAsync(x => x.UserSubject == subject && x.TenantId == tenantId && x.IsActive, cancellationToken), cancellationToken);
+    }
+    internal static TenantMembership SystemMembership(string subject, Guid tenantId)
+        => new() { TenantId = tenantId, UserSubject = subject, Permissions = Permissions.All.Select(code => new MembershipPermission
+            { TenantId = tenantId, UserSubject = subject, Code = code }).ToList() };
 }
 
 public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContext) : IVehicleStore
@@ -64,6 +74,12 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
     public Task<VehicleSummary> CreateAsync(CreateVehicleRequest request, CancellationToken cancellationToken)
         => InTenantTransactionAsync(async () =>
         {
+            await UserAccounts.LockSystemAccess(db, cancellationToken, shared: true);
+            var subject = tenantContext.UserSubject!;
+            if (!await UserAccounts.IsSystemManager(db, subject, cancellationToken)
+                && !await db.Memberships.AsNoTracking().AnyAsync(x => x.TenantId == tenantContext.TenantId
+                    && x.UserSubject == subject && x.IsActive && x.Permissions.Any(p => p.Code == Permissions.VehiclesCreate), cancellationToken))
+                throw UserAccounts.Error(403, "permission_denied", "Ehhez a művelethez nincs jogosultságod.");
             var vehicle = new Vehicle
             {
                 TenantId = tenantContext.TenantId!.Value,
@@ -72,6 +88,10 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
                 Model = request.Model.Trim()
             };
             db.Vehicles.Add(vehicle);
+            var details = new { vehicle.Id, vehicle.Registration, vehicle.Make, vehicle.Model };
+            UserAccounts.Audit(db, tenantContext.UserSubject!, null, "vehicle.created", details, vehicle.TenantId);
+            db.AccessAuditEvents.Add(new() { TenantId = vehicle.TenantId, ActorSubject = tenantContext.UserSubject!,
+                Action = "vehicle.created", Details = System.Text.Json.JsonSerializer.Serialize(details) });
             await db.SaveChangesAsync(cancellationToken);
             return new VehicleSummary(vehicle.Id, vehicle.Registration, vehicle.Make, vehicle.Model, vehicle.Status.ToString());
         }, cancellationToken);

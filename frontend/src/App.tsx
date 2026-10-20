@@ -20,6 +20,8 @@ import { api, ApiError, resetCsrfToken, vehicleKey } from './api'
 import type { NewVehicle, Session, Tenant, Vehicle } from './api'
 import { AuthScreen, CompanyDialog, CompanyForm } from './AccountForms'
 import { MembersPage } from './MembersPage'
+import { SystemPage } from './SystemPage'
+import { PasswordChangeScreen } from './PasswordChangeScreen'
 import { InvitationScreen } from './InvitationScreen'
 import { clearInvitation, readInvitation } from './invitationLink'
 import { permissionNames } from './permissions'
@@ -112,7 +114,8 @@ function VehicleForm({
             Mégse
           </button>
           <button className="primary-button" disabled={pending}>
-            {pending ? <LoaderCircle size={17} className="spinning" /> : <Check size={17} />}Mentés
+            {pending ? <LoaderCircle size={17} className="spinning" /> : <Check size={17} />}
+            Mentés
           </button>
         </div>
       </form>
@@ -173,7 +176,8 @@ function FleetWorkspace({
 }) {
   const queryClient = useQueryClient()
   const [tenantId, setTenantId] = useState<string | null>(initialTenantId)
-  const [view, setView] = useState<'fleet' | 'organization' | 'members'>('fleet')
+  const [view, setView] = useState<'fleet' | 'organization' | 'members' | 'system'>('fleet')
+  const canManageSystem = user.systemPermissions?.includes('system.manage') ?? false
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [formOpen, setFormOpen] = useState(false)
@@ -240,7 +244,13 @@ function FleetWorkspace({
       ['members.read', 'members.invite', 'members.update', 'permissions.manage'].includes(code),
     ) ?? false
   const viewTitle =
-    view === 'fleet' ? 'Járművek' : view === 'members' ? 'Felhasználók' : 'Cégadatok'
+    view === 'fleet'
+      ? 'Járművek'
+      : view === 'members'
+        ? 'Felhasználók'
+        : view === 'system'
+          ? 'Rendszerkezelés'
+          : 'Cégadatok'
 
   function changeTenant(value: string) {
     setTenantId(value)
@@ -314,6 +324,17 @@ function FleetWorkspace({
           )}
         </div>
         <nav aria-label="Fő navigáció">
+          {canManageSystem && (
+            <button
+              className={view === 'system' ? 'nav-item active' : 'nav-item'}
+              aria-current={view === 'system' ? 'page' : undefined}
+              onClick={() => setView('system')}
+            >
+              <Users size={19} />
+              Rendszerkezelés
+              <ArrowRight size={16} />
+            </button>
+          )}
           <button
             className={view === 'fleet' ? 'nav-item active' : 'nav-item'}
             aria-current={view === 'fleet' ? 'page' : undefined}
@@ -395,16 +416,24 @@ function FleetWorkspace({
             <div>
               <p className="eyebrow">{tenant?.name ?? 'HERMES'}</p>
               <h1>
-                {!tenant ? 'Saját munkaterület' : view === 'fleet' ? 'Járműállomány' : viewTitle}
+                {view === 'system'
+                  ? viewTitle
+                  : !tenant
+                    ? 'Saját munkaterület'
+                    : view === 'fleet'
+                      ? 'Járműállomány'
+                      : viewTitle}
               </h1>
               <p className="page-description">
-                {!tenant
-                  ? 'Hozd létre a cégedet a flottakezelés megkezdéséhez.'
-                  : view === 'fleet'
-                    ? 'A kiválasztott cég járművei, egy helyen.'
-                    : view === 'members'
-                      ? 'Céges tagok, meghívások és hozzáférések.'
-                      : 'Az aktuális munkaterület és hozzáférésed.'}
+                {view === 'system'
+                  ? 'Összes felhasználó és rendszerszintű módosítási napló.'
+                  : !tenant
+                    ? 'Hozd létre a cégedet a flottakezelés megkezdéséhez.'
+                    : view === 'fleet'
+                      ? 'A kiválasztott cég járművei, egy helyen.'
+                      : view === 'members'
+                        ? 'Céges tagok, meghívások és hozzáférések.'
+                        : 'Az aktuális munkaterület és hozzáférésed.'}
               </p>
             </div>
             {view === 'fleet' && canCreate && (
@@ -420,7 +449,13 @@ function FleetWorkspace({
               </button>
             )}
           </div>
-          {tenants.isError ? (
+          {view === 'system' ? (
+            canManageSystem ? (
+              <SystemPage user={user} />
+            ) : (
+              <p className="notice">Nincs rendszerszintű kezelési jogod.</p>
+            )
+          ) : tenants.isError ? (
             <div className="notice error" role="alert">
               <CircleHelp size={22} />
               <div>
@@ -541,7 +576,8 @@ function FleetWorkspace({
                 </div>
               )}
               <div className="table-footer">
-                {visibleVehicles.length} megjelenített jármű<span>Céges hozzáférés</span>
+                {visibleVehicles.length} megjelenített jármű
+                <span>Céges hozzáférés</span>
               </div>
             </section>
           )}
@@ -589,8 +625,12 @@ export default function App() {
   useEffect(() => {
     if (session.data === null) {
       resetCsrfToken()
-      void queryClient.cancelQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
-      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+      void queryClient.cancelQueries({
+        predicate: (query) => query.queryKey[0] !== 'session',
+      })
+      queryClient.removeQueries({
+        predicate: (query) => query.queryKey[0] !== 'session',
+      })
       queryClient.getMutationCache().clear()
     }
   }, [queryClient, session.data])
@@ -604,11 +644,27 @@ export default function App() {
       ) {
         resetCsrfToken()
         queryClient.setQueryData(['session'], null)
-        void queryClient.cancelQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
-        queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+        void queryClient.cancelQueries({
+          predicate: (query) => query.queryKey[0] !== 'session',
+        })
+        queryClient.removeQueries({
+          predicate: (query) => query.queryKey[0] !== 'session',
+        })
+        queryClient.getMutationCache().clear()
+      } else if (error instanceof ApiError && error.code === 'password_change_required') {
+        queryClient.setQueryData<Session | null>(['session'], (previous) =>
+          previous ? { ...previous, passwordChangeRequired: true } : previous,
+        )
+        void queryClient.cancelQueries({
+          predicate: (query) => query.queryKey[0] !== 'session',
+        })
+        queryClient.removeQueries({
+          predicate: (query) => query.queryKey[0] !== 'session',
+        })
         queryClient.getMutationCache().clear()
       } else if (error instanceof ApiError && error.status === 403) {
         void queryClient.invalidateQueries({ queryKey: ['tenants'] })
+        void queryClient.invalidateQueries({ queryKey: ['session'] })
       }
     }
     const unsubscribeQueries = queryClient.getQueryCache().subscribe((event) => {
@@ -621,7 +677,8 @@ export default function App() {
         if (
           event.query.queryKey[0] === 'tenants' &&
           event.query.state.error instanceof ApiError &&
-          event.query.state.error.status === 403
+          event.query.state.error.status === 403 &&
+          event.query.state.error.code !== 'password_change_required'
         )
           return
         handleError(event.query.state.error)
@@ -641,7 +698,9 @@ export default function App() {
     resetCsrfToken()
     await queryClient.cancelQueries()
     queryClient.setQueryData(['session'], user)
-    queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+    queryClient.removeQueries({
+      predicate: (query) => query.queryKey[0] !== 'session',
+    })
     queryClient.getMutationCache().clear()
     setLogoutError(null)
   }
@@ -680,7 +739,15 @@ export default function App() {
       </main>
     )
   return session.data ? (
-    invitation ? (
+    session.data.passwordChangeRequired ? (
+      <PasswordChangeScreen
+        user={session.data}
+        onChanged={changeSession}
+        onLogout={() => void logout()}
+        loggingOut={loggingOut}
+        logoutError={logoutError}
+      />
+    ) : invitation ? (
       <InvitationScreen
         request={invitation.request}
         user={session.data}
@@ -688,7 +755,9 @@ export default function App() {
           clearInvitation()
           setInvitation(null)
           setAcceptedTenantId(tenantId)
-          void queryClient.invalidateQueries({ queryKey: ['tenants', session.data!.id] })
+          void queryClient.invalidateQueries({
+            queryKey: ['tenants', session.data!.id],
+          })
         }}
         onDismiss={() => {
           clearInvitation()

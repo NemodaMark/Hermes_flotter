@@ -4,6 +4,10 @@ A React + TypeScript + Vite kliens jelenlegi kiinduló állapota. A frontend mos
 
 ## Az alapban működő felületek
 
+A `system.manage` joggal rendelkező felhasználó a **Rendszerkezelés** menüben az összes fiókot és a központi módosítási naplót eléri. A **Profil megnyitása** gomb a céges taglistában is megjelenik számára. A profil név/e-mail/telefonszám adatai szerkeszthetők, az állandó ID látható; a jelszócsere elrendelése és a teljes rendszerszintű jog átadása/visszavonása külön megerősítést kér. A régi verzióval történő mentés hibájánál a profil kifejezetten újratölthető. A céges jogosultságkezelés önmagában nem ad hozzáférést ezekhez a műveletekhez.
+
+Előírt jelszócsere esetén belépés után a **Kötelező jelszócsere** képernyő jelenik meg a munkaterület és a meghívóelfogadás előtt. Csak sikeres, jelenlegi jelszóval igazolt csere után lehet továbblépni; kijelentkezni közben is lehet. A backend ugyanezt a korlátozást minden üzleti API-n ellenőrzi. A globális jog első, naplózott beállítását és az API-k részleteit a [projekt leírása](../README.md#rendszerszintű-felhasználókezelés) tartalmazza.
+
 - Regisztráció, bejelentkezés és kijelentkezés a valódi API-val.
 - Első cég létrehozása, további cégek felvétele és cégváltás.
 - Céges járműlista, kliensoldali keresés és állapotszűrés, járműfelvétel.

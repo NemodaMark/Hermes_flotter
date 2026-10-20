@@ -155,6 +155,39 @@ A listavégpontok `page` (1–10000) és `pageSize` (1–100, alapból 25) param
 
 ## API
 
+### Rendszerszintű felhasználókezelés
+
+A külön, közvetlenül felhasználónként kiosztott `system.manage` jog minden céghez, minden jelenlegi céges művelethez és a globális profilokhoz hozzáférést ad, céges tagság létrehozása nélkül. A céges `permissions.manage`, a regisztráció és a céglétrehozás nem ad globális jogot. A globális jog továbbadható; az utolsó kezelő joga nem vonható vissza. A rendszerszintű hozzáférés felülírja a céges felfüggesztést is; megszüntetéséhez a globális jogot kell visszavonni.
+
+Az első kezelőt az adatbázis üzemeltetője állíthatja be meglévő felhasználói ID-val, mentés után, leállított API mellett. A projekt gyökeréből:
+
+```powershell
+./scripts/dev-backend.ps1 -BootstrapSystemAdminUserId '<meglévő-felhasználói-ID>' -DatabasePort 55432
+```
+
+A parancs migrációs adatbázis-hozzáférést igényel, migrál és kilép; a `-Migrate` kapcsolóval külön futtasd. Naplózza a `bootstrap:database-operator` kezdeményezőt, és megtagadja a műveletet, ha már van rendszerszintű kezelő. Ezután a **Rendszerkezelés → Összes felhasználó → Profil megnyitása** felületen adható tovább a jog. Céges tagoknál is megjelenik a **Profil megnyitása** gomb a globális kezelőnek.
+
+A név, belépési e-mail és telefonszám szerkeszthető. Az ID, a hash-ek és a belső Identity-mezők nem írhatók felül a profil kérésével. E-mail-változáskor a belépési név is frissül, a megerősítés törlődik és minden régi munkamenet érvénytelenné válik. A profil és jelszó módosítása adatbázis-sorzárat használ; az adminműveletek aktuális `version` értéket kérnek, elavult verzióra `409` érkezik. A globális jog módosítása és a jogosult írások közös tranzakciós zárral védekeznek a párhuzamos visszavonás ellen.
+
+Az új fiókok ID-ja `Guid.CreateVersion7().ToString()`: RFC 9562 szerinti UUIDv7, az ASP.NET Identity alapértelmezett szöveges kulcsaként tárolva. Egyedi, állandó, idő szerint rendezhető azonosító; név/e-mail-változáskor változatlan. Nem titok és nem jogosultság. A korábbi azonosítókat a migráció megőrzi.
+
+A kötelező jelszócsere elrendelése érvényteleníti a meglévő munkameneteket. A következő, jelenlegi jelszóval történő belépés `passwordChangeRequired: true` korlátozott munkamenetet ad. Ekkor csak CSRF-token, munkamenet-lekérdezés, kijelentkezés és jelszócsere engedélyezett; minden üzleti API `403 / password_change_required` hibát ad. Az új jelszó 12–128 karakter, eltér a régitől és megerősítést igényel. Hibás jelenlegi jelszó növeli a zárolási számlálót, sikertelen csere nem oldja fel a korlátozást. Sikeres csere csak az aktuális munkamenetet frissíti; minden más belépés érvénytelen lesz. Kérj friss CSRF-tokent. Elfelejtett jelszó visszaállítása és automatikus e-mail-küldés továbbra sincs.
+
+A központi napló profilváltozás, jelszócsere/elrendelés, globális jogmódosítás, céglétrehozás, járműfelvétel és céges hozzáférés-módosítás esetén az adatváltozással közös tranzakcióban készül. Tartalma: módosító/érintett ID, UTC időpont, cég (ha van), művelet és releváns előtte/utána adatok. Jelszó, hash, biztonsági bélyeg és meghívási token nem kerül bele. A `system_audit_events` táblát PostgreSQL-trigger védi a runtime adatbázis-felhasználó általi frissítéstől és törléstől. A globális napló csak `system.manage` joggal olvasható. Frissítés előtt készíts mentést; régebbi verzióra visszaállításhoz a mentést és a megfelelő korábbi buildet használd.
+
+| Művelet | Végpont |
+|---|---|
+| Saját jelszó cseréje | `POST /api/v1/auth/change-password` |
+| Globális lista/profil (`system.manage`) | `GET /api/v1/system/users`, `GET /api/v1/system/users/{id}` |
+| Profilszerkesztés (`system.manage`) | `PUT /api/v1/system/users/{id}` |
+| Kötelező jelszócsere (`system.manage`) | `POST /api/v1/system/users/{id}/require-password-change` |
+| Globális jog kiosztása/visszavonása (`system.manage`) | `PUT /api/v1/system/users/{id}/system-access` |
+| Központi módosítási napló (`system.manage`) | `GET /api/v1/system/audit-events` |
+
+A globális listák `page` paraméterrel, 25 elem/oldal mérettel lapozhatók. A felhasználólista legfeljebb 100 karakteres `search` paramétert fogad: név, e-mail, pontos ID. Profilszerkesztés: `{ displayName, email, phoneNumber, version }`; jelszócsere-elrendelés: `{ version }`; globális jog: `{ enabled, version }`; saját jelszócsere: `{ currentPassword, newPassword, confirmPassword }`. A módosítások CSRF-védettek, a jelszóműveletek sebességkorlátozottak.
+
+### Céges és fiókvégpontok
+
 | Művelet | Végpont |
 |---|---|
 | CSRF-token kérése | `GET /api/v1/auth/csrf` |

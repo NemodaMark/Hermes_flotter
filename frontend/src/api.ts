@@ -1,4 +1,31 @@
-export type Session = { id: string; displayName: string; email: string }
+export type Session = {
+  id: string
+  displayName: string
+  email: string
+  passwordChangeRequired?: boolean
+  systemPermissions?: string[]
+}
+export type UserProfile = {
+  id: string
+  displayName: string
+  email: string
+  phoneNumber: string | null
+  version: number
+  passwordChangeRequired: boolean
+  passwordChangeRequestedAt: string | null
+  passwordChangedAt: string | null
+  systemPermissions: string[]
+}
+export type EditUserProfile = Pick<UserProfile, 'displayName' | 'email' | 'phoneNumber' | 'version'>
+export type SystemAudit = {
+  id: string
+  actorSubject: string
+  targetSubject: string | null
+  tenantId: string | null
+  action: string
+  details: string
+  createdAt: string
+}
 export type Tenant = { id: string; name: string; permissions: string[] }
 export type Vehicle = {
   id: string
@@ -8,9 +35,18 @@ export type Vehicle = {
   status: string
 }
 export type NewVehicle = { registration: string; make: string; model: string }
-export type RegisterInput = { displayName: string; email: string; password: string }
+export type RegisterInput = {
+  displayName: string
+  email: string
+  password: string
+}
 export type Permission = { code: string; name: string }
-export type Page<T> = { items: T[]; total: number; page: number; pageSize: number }
+export type Page<T> = {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+}
 export type MemberAccess = {
   tenantId: string
   userId: string
@@ -33,8 +69,15 @@ export type Invitation = {
   acceptedAt: string | null
   revokedAt: string | null
 }
-export type InvitationAcceptance = { tenantId: string; invitationId: string; token: string }
-export type CreatedInvitation = { invitation: Invitation; acceptance: InvitationAcceptance }
+export type InvitationAcceptance = {
+  tenantId: string
+  invitationId: string
+  token: string
+}
+export type CreatedInvitation = {
+  invitation: Invitation
+  acceptance: InvitationAcceptance
+}
 export const vehicleKey = (userId: string, tenantId?: string) =>
   ['vehicles', userId, tenantId] as const
 
@@ -67,7 +110,12 @@ async function getCsrfToken() {
 
 async function request<T>(
   path: string,
-  options: { tenantId?: string; body?: unknown; method?: string; signal?: AbortSignal } = {},
+  options: {
+    tenantId?: string
+    body?: unknown
+    method?: string
+    signal?: AbortSignal
+  } = {},
 ): Promise<T> {
   const method = options.method ?? (options.body !== undefined ? 'POST' : 'GET')
   const headers = new Headers({ Accept: 'application/json' })
@@ -139,6 +187,39 @@ export const api = {
   register: (input: RegisterInput) => authenticate('/api/v1/auth/register', input),
   login: (email: string, password: string) =>
     authenticate('/api/v1/auth/login', { email, password }),
+  changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
+    authenticate('/api/v1/auth/change-password', {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    }),
+  systemUsers: (page: number, search: string, signal?: AbortSignal) =>
+    request<Page<UserProfile>>(
+      `/api/v1/system/users?${new URLSearchParams({ page: String(page), search })}`,
+      { signal },
+    ),
+  userProfile: (id: string, signal?: AbortSignal) =>
+    request<UserProfile>(`/api/v1/system/users/${encodeURIComponent(id)}`, {
+      signal,
+    }),
+  editUser: (id: string, body: EditUserProfile) =>
+    request<UserProfile>(`/api/v1/system/users/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body,
+    }),
+  forcePasswordChange: (id: string, version: number) =>
+    request<UserProfile>(`/api/v1/system/users/${encodeURIComponent(id)}/require-password-change`, {
+      body: { version },
+    }),
+  systemAccess: (id: string, enabled: boolean, version: number) =>
+    request<UserProfile>(`/api/v1/system/users/${encodeURIComponent(id)}/system-access`, {
+      method: 'PUT',
+      body: { enabled, version },
+    }),
+  systemAudit: (page: number, signal?: AbortSignal) =>
+    request<Page<SystemAudit>>(`/api/v1/system/audit-events?page=${page}`, {
+      signal,
+    }),
   logout: async () => {
     await request<void>('/api/v1/auth/logout', { method: 'POST' })
     resetCsrfToken()
@@ -168,9 +249,15 @@ export const api = {
       body: { isActive, version },
     }),
   invitations: (tenantId: string, page: number, signal?: AbortSignal) =>
-    request<Page<Invitation>>(`/api/v1/invitations?page=${page}&pageSize=25`, { tenantId, signal }),
+    request<Page<Invitation>>(`/api/v1/invitations?page=${page}&pageSize=25`, {
+      tenantId,
+      signal,
+    }),
   invite: (tenantId: string, email: string, permissions: string[]) =>
-    request<CreatedInvitation>('/api/v1/invitations', { tenantId, body: { email, permissions } }),
+    request<CreatedInvitation>('/api/v1/invitations', {
+      tenantId,
+      body: { email, permissions },
+    }),
   revokeInvitation: (tenantId: string, invitationId: string) =>
     request<void>(`/api/v1/invitations/${encodeURIComponent(invitationId)}`, {
       tenantId,

@@ -17,6 +17,8 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
     public DbSet<TenantInvitation> Invitations => Set<TenantInvitation>();
     public DbSet<InvitationPermission> InvitationPermissions => Set<InvitationPermission>();
     public DbSet<AccessAuditEvent> AccessAuditEvents => Set<AccessAuditEvent>();
+    public DbSet<SystemPermissionGrant> SystemPermissionGrants => Set<SystemPermissionGrant>();
+    public DbSet<SystemAuditEvent> SystemAuditEvents => Set<SystemAuditEvent>();
     private Guid? CurrentTenantId => tenantContext.TenantId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -26,6 +28,8 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
         {
             entity.ToTable("identity_users");
             entity.Property(x => x.DisplayName).HasMaxLength(120);
+            entity.Property(x => x.PhoneNumber).HasMaxLength(40);
+            entity.Property(x => x.ProfileVersion).HasDefaultValue(1L).IsConcurrencyToken();
             entity.HasIndex(x => x.NormalizedEmail).HasDatabaseName("EmailIndex").IsUnique();
         });
         modelBuilder.Entity<IdentityRole>().ToTable("identity_roles");
@@ -34,6 +38,24 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
         modelBuilder.Entity<IdentityUserToken<string>>().ToTable("identity_user_tokens");
         modelBuilder.Entity<IdentityUserRole<string>>().ToTable("identity_user_roles");
         modelBuilder.Entity<IdentityRoleClaim<string>>().ToTable("identity_role_claims");
+
+        modelBuilder.Entity<SystemPermissionGrant>(entity =>
+        {
+            entity.ToTable("system_permission_grants");
+            entity.HasKey(x => new { x.UserId, x.Code });
+            entity.Property(x => x.Code).HasMaxLength(80);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<SystemAuditEvent>(entity =>
+        {
+            entity.ToTable("system_audit_events");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ActorSubject).HasMaxLength(256);
+            entity.Property(x => x.TargetSubject).HasMaxLength(256);
+            entity.Property(x => x.Action).HasMaxLength(80);
+            entity.Property(x => x.Details).HasColumnType("jsonb");
+            entity.HasIndex(x => new { x.CreatedAt, x.Id });
+        });
 
         modelBuilder.Entity<Tenant>(entity =>
         {
