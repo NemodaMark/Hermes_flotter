@@ -146,6 +146,7 @@ app.MapGroupEndpoints();
 app.MapSystemEndpoints();
 app.MapOrganizationEndpoints();
 app.MapFleetManagementEndpoints();
+app.MapDocumentEndpoints();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 // Build metadata contains no account, tenant or database credentials.

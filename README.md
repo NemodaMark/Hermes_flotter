@@ -307,9 +307,26 @@ Minden végpont céges fejlécet és aktív céges hozzáférést igényel. A j�
 
 A részletes mentés törzse `{ registration, make, model, status, version, data: VehicleSpecification }`; a telephely és kilométerállás külön művelet. A lízing szerződésszámot, partnert, futamidőt, díjat, pénznemet, gyakoriságot, kilométerkeretet és `Active | Closed | Cancelled` állapotot tartalmaz. Aktív szerződéshez `Leased | Rented` tulajdonlás és aktív lízingbeadó szükséges; két aktív szerződés időszaka a határnapokat is beleértve nem fedheti egymást. A szerviz dátumot, partnert, történeti km-t, munkaleírást, munkalapszámot, költséget és következő határidőt tartalmaz; jövőbeli elvégzett munkát nem lehet rögzíteni. A történeti szervizadat nem módosítja automatikusan az aktuális kilométerállást vagy az adatlapi határidőt.
 
-A szerződés- és munkalapdokumentumokhoz http(s) webcím menthető, feltöltő/tároló még nincs. Az összegek legfeljebb két tizedesjegyesek, a pénznem listából választható. Új bejegyzésnél `version: 0`, módosításnál a saját aktuális verzió kell. Archiválás: `{ isArchived, reason, version }`; szerviz érvénytelenítése: `{ reason, version }`. A járműhöz tartozó bejegyzések mentése a jármű verzióját is növeli. Elavult mentés `409`, nem látható céges/telephelyi erőforrás `404`, hiányzó jog `403`. A friss jogosultságellenőrzés, mentés és előtte–utána naplózás közös tranzakcióban történik. Minden előzménylista 25-ös lapokban, `page` paraméterrel olvasható.
+A szerződés- és munkalapdokumentumokhoz http(s) webcím és védett fájlfeltöltés is használható (lásd lent). Az összegek legfeljebb két tizedesjegyesek, a pénznem listából választható. Új bejegyzésnél `version: 0`, módosításnál a saját aktuális verzió kell. Archiválás: `{ isArchived, reason, version }`; szerviz érvénytelenítése: `{ reason, version }`. A járműhöz tartozó bejegyzések mentése a jármű verzióját is növeli. Elavult mentés `409`, nem látható céges/telephelyi erőforrás `404`, hiányzó jog `403`. A friss jogosultságellenőrzés, mentés és előtte–utána naplózás közös tranzakcióban történik. Minden előzménylista 25-ös lapokban, `page` paraméterrel olvasható.
 
 Az új profil-, rendszám-, partner-, lízing- és szerviztáblák PostgreSQL `FORCE ROW LEVEL SECURITY` védelmet kapnak, összetett cég/jármű/partner idegen kulcsokkal. A migráció a meglévő járműveket cégenként olvassa, UUID-jukat és verziójukat nem változtatja meg, kezdeti rendszámelőzményt készít. A rendszámelőzmény és a módosítási naplók adatbázisszinten hozzáfűzhetők. A történeti adatokat eldobó visszamigrálás tiltott; visszaállításhoz mentés és a hozzá tartozó alkalmazásverzió kell.
+
+### Járműdokumentumok feltöltése
+
+A **Járművek → Adatlap → Lízing / Szerviz → Dokumentumok** ablak a mentett szerződéshez vagy szervizbejegyzéshez csatol fájlokat; új bejegyzés mentése után automatikusan megnyílik. A webcímek továbbra is használhatók. Támogatott: PDF, JPG/JPEG, PNG, makrómentes DOCX és XLSX. A szerver a kiterjesztést és a fájl tartalmi jellemzőit is ellenőrzi, a beküldött MIME-típusra nem hagyatkozik. Fájlonként 10 MiB, kérésenként 12 MiB a korlát; bejegyzésenként legfeljebb 20 aktív, 100 összes tárolt fájl és 100 MiB összes adat engedélyezett. A visszavont fájl is beleszámít a tárolási keretbe.
+
+| Művelet | Végpont az `/api/v1/vehicles/{vehicleId}` alatt | Jog |
+|---|---|---|
+| Lista | `GET /leases/{parentId}/documents` vagy `/services/{parentId}/documents` | megfelelő `vehicles.leasing.read` / `vehicles.service.read` |
+| Feltöltés | `POST` ugyanott, multipart `file` és `version` mezővel | megfelelő `vehicles.leasing.manage` / `vehicles.service.manage` |
+| Letöltés | `GET …/documents/{id}/content` | megfelelő megtekintési jog |
+| Visszavonás / visszaállítás | `PATCH …/documents/{id}/status` | megfelelő kezelési jog |
+
+Minden kérés sütis hitelesítést és `X-Tenant-Id` fejlécet, minden módosítás friss `X-CSRF-TOKEN` fejlécet igényel. A multipart `version` a szerződés vagy szervizbejegyzés aktuális verziója. Az állapotváltás törzse `{ isWithdrawn, reason, version, parentVersion }`: a dokumentum és a szülő bejegyzés verziójával. A lista `{ items, parentVersion, vehicleVersion, totalBytes }`, a módosítás `{ document, parentVersion, vehicleVersion }` választ ad. Sikeres feltöltés és állapotváltás a szülő és a jármű verzióját is növeli; elavult verzió `409` választ eredményez.
+
+A fájl eredeti tartalma és metaadatai változatlanok; hibás csatolmány indoklással visszavonható és visszaállítható. Visszavont fájl nem tölthető le. Archivált jármű vagy érvénytelenített szerviz dokumentumai olvashatók, de nem módosíthatók. A fájlhozzáférés a megfelelő lízing-/szervizjog saját telephelykorlátját követi, beleértve a közvetlen letöltést is. Feltöltés előtt és mentéskor ismét friss jogosultságellenőrzés történik; a többé nem elérhető erőforrás `404`. Nincs nyilvános fájl-URL.
+
+A metaadatok a `vehicle_documents`, a tartalom a `vehicle_document_contents` PostgreSQL-táblában (`bytea`) tárolódik, így a szokásos teljes adatbázis-mentés a csatolmányokat is tartalmazza. Mindkét táblát kényszerített céges RLS és összetett idegen kulcsok védik; az eredeti fájl átírását és törlését adatbázistriggerek tiltják. A feltöltés és indokolt állapotváltás a tartalommal közös tranzakcióban naplózódik, a fájl bájtjai nem kerülnek a naplóba. A `VehicleDocuments` migráció csak új táblákat és védelmeket hoz létre, a meglévő üzleti sorokat nem írja át.
 
 ### Céges és fiókvégpontok
 

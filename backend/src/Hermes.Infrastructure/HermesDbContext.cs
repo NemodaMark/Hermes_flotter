@@ -39,6 +39,8 @@ public sealed partial class HermesDbContext(DbContextOptions<HermesDbContext> op
     public DbSet<Partner> Partners => Set<Partner>();
     public DbSet<VehicleLease> VehicleLeases => Set<VehicleLease>();
     public DbSet<VehicleService> VehicleServices => Set<VehicleService>();
+    public DbSet<VehicleDocument> VehicleDocuments => Set<VehicleDocument>();
+    public DbSet<VehicleDocumentContent> VehicleDocumentContents => Set<VehicleDocumentContent>();
     private Guid? CurrentTenantId => tenantContext.TenantId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -46,6 +48,7 @@ public sealed partial class HermesDbContext(DbContextOptions<HermesDbContext> op
         base.OnModelCreating(modelBuilder);
         ConfigureOrganizations(modelBuilder);
         ConfigureVehicleManagement(modelBuilder);
+        ConfigureDocuments(modelBuilder);
         modelBuilder.Entity<ApplicationUser>(entity =>
         {
             entity.ToTable("identity_users", table => table.HasCheckConstraint("CK_identity_users_username_key", UserNames.KeyConstraint));

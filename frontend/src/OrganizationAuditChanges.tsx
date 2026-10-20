@@ -2,6 +2,8 @@ import { categories, fuels, transmissions, ownerships, frequencies, leaseStatuse
 
 const enumLabels: Record<string, string> = { ...categories, ...fuels, ...transmissions, ...ownerships, ...frequencies, ...leaseStatuses, ...vehicleStatuses, Suspended: 'Felfüggesztett' }
 const labels: Record<string, string> = {
+  filename: 'Fájlnév', bytelength: 'Fájlméret (bájt)', uploadedby: 'Feltöltő', uploadedat: 'Feltöltés időpontja',
+  iswithdrawn: 'Visszavont', statuschangedby: 'Állapotmódosító',
   name: 'Név',
   legalname: 'Hivatalos cégnév',
   taxnumber: 'Adószám',

@@ -12,6 +12,12 @@ public sealed class CsrfProtectionMiddleware(RequestDelegate next)
             if (!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method)
                 && !HttpMethods.IsOptions(context.Request.Method))
             {
+                // Uploads use the SPA's CSRF header. Never parse a potentially large multipart body to look for a token.
+                if (context.Request.HasFormContentType && string.IsNullOrEmpty(context.Request.Headers["X-CSRF-TOKEN"]))
+                {
+                    await Results.Problem(statusCode: 400, title: "A biztonsági ellenőrzéshez hiányzik a CSRF fejléc.").ExecuteAsync(context);
+                    return;
+                }
                 try { await antiforgery.ValidateRequestAsync(context); }
                 catch (AntiforgeryValidationException)
                 {

@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { PartnerForm, PartnersPage } from './PartnersPage'
 import { VehicleDataForm, VehiclePage } from './VehiclePage'
-import { LeaseDialog, ServiceDialog } from './VehicleContracts'
+import { LeaseDialog, ServiceDialog, VehicleContracts } from './VehicleContracts'
+import { documentApi } from './documentApi'
 import { fleetApi, moneyText } from './fleetApi'
 import type { Lease, VehicleRecord } from './fleetApi'
 
@@ -97,4 +98,20 @@ it('records a historical service reading independently from the current odometer
   await userEvent.type(screen.getByLabelText('Elvégzett munka'), 'Olajcsere')
   await userEvent.click(screen.getByRole('button', { name: 'Mentés' }))
   await waitFor(() => expect(save).toHaveBeenCalledWith('company', 'car', null, expect.objectContaining({ partnerId: 'garage', performedOn: '2025-06-01', kilometers: 10000, description: 'Olajcsere' })))
+})
+it('opens file upload for the actual saved service record immediately after creation', async () => {
+  vi.spyOn(fleetApi, 'partnerOptions').mockResolvedValue([{ id: 'garage', name: 'Műhely' }])
+  vi.spyOn(fleetApi, 'services').mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 25 })
+  vi.spyOn(fleetApi, 'saveService').mockResolvedValue({ id: 'saved-service', partnerName: 'Műhely', data: { workOrderNumber: 'JOB-1', version: 1 } } as never)
+  const documents = vi.spyOn(documentApi, 'list').mockResolvedValue({ items: [], parentVersion: 1, vehicleVersion: 10, totalBytes: 0 })
+  mount(<VehicleContracts tenant={{ id: 'company', name: 'Cég', permissions: [] }} car={{ ...record.vehicle, permissions: ['vehicles.service.read', 'vehicles.service.manage'] }} kind="services" onChanged={async () => {}} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Új szervizbejegyzés' }))
+  await screen.findByRole('option', { name: 'Műhely' })
+  await userEvent.selectOptions(screen.getByLabelText('Szervizpartner'), 'garage')
+  fireEvent.change(screen.getByLabelText('Szerviz dátuma'), { target: { value: '2026-10-01' } })
+  await userEvent.type(screen.getByLabelText('Elvégzett munka'), 'Olajcsere')
+  await userEvent.click(screen.getByRole('button', { name: 'Mentés' }))
+  expect(await screen.findByRole('heading', { name: 'Szervizdokumentumok' })).toBeInTheDocument()
+  expect(screen.getByLabelText('Fájl kiválasztása')).toBeInTheDocument()
+  await waitFor(() => expect(documents).toHaveBeenCalledWith('company', 'car', 'services', 'saved-service', expect.any(AbortSignal)))
 })

@@ -18,6 +18,8 @@ A jármű belső UUID-azonosítója változatlan marad; a felületen a rendszám
 
 A lízingszerződések és szervizbejegyzések külön, verziózott előzmények. Aktív lízing csak lízingelt vagy bérelt járműhöz tartozhat, a jármű aktív szerződéseinek időszakai nem fedhetik egymást. Aktív szerződésben használt lízingbeadó, illetve alapértelmezett szervizként használt partner nem archiválható és érintett kategóriája nem vonható vissza. A történeti hivatkozásokat archiválás után is őrizd meg. Szerviz érvényteleníthető indoklással, törléssel nem tüntethető el. A szerviznél feljegyzett történeti kilométer és következő határidő nem írja át automatikusan a jármű aktuális kilométerállását vagy határidejét. Archivált jármű csak indokolt visszaállítás után módosítható, beleértve a régebbi API-végpontokat és az áthelyezést is.
 
+A járműdokumentumok a lízing- vagy szervizbejegyzéshez tartoznak; ugyanannak a műveleti jognak a telephelykorlátját ellenőrizd a listánál, feltöltésnél, letöltésnél és visszaállításnál. A fájl tartalma és eredeti metaadatai változatlanok; indokolt visszavonással kezeld a hibás csatolmányt. A PostgreSQL-ben tárolt tartalom, metaadat, szülő/jármű verzióváltás és audit atomikusan mentődjön. Feltöltés közben ne tarts céges zárolást, mentés előtt frissen ellenőrizd újra a hozzáférést. Archivált járműhöz és érvénytelenített szervizhez ne engedj dokumentummódosítást.
+
 ## Git-munkarend
 
 A felhasználó állandó kérése: minden befejezett, fájlmódosítással járó feladat végén commitold és pushold a változtatásokat a GitHubra, külön megerősítés nélkül.

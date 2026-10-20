@@ -67,6 +67,6 @@ A teljes HTTP-s regisztrációs és céges folyamatot a [smoke teszt](../scripts
 
 ## További backendmunka
 
-A következő bővítés lehet a szerveroldali flottakeresés és lapozás, a sofőrök és hozzárendeléseik, a szerviztervezés, dokumentumfeltöltés és a teljes költségmodul. A szerződésekhez és munkalapokhoz jelenleg http(s) dokumentumhivatkozás menthető. Minden új céges művelethez tartozzon külön jog, szerveroldali validáció és cégek közötti hozzáférést kizáró teszt.
+A következő bővítés lehet a szerveroldali flottakeresés és lapozás, a sofőrök és hozzárendeléseik, a szerviztervezés és a teljes költségmodul. A szerződésekhez és munkalapokhoz védett fájlfeltöltés és http(s) dokumentumhivatkozás is használható; a végpontok és tárolási korlátok a projekt README dokumentumfeltöltési részében találhatók. Minden új céges művelethez tartozzon külön jog, szerveroldali validáció és cégek közötti hozzáférést kizáró teszt.
 
 Az alap jelenleg nem tartalmaz e-mail-megerősítést, jelszó-visszaállítást, e-mail-küldő integrációt, előfizetés-kezelést. A meghívási token egyszer kerül vissza a létrehozó API-válaszban; a frontend ebből kézzel továbbítható csatlakozási hivatkozást készít. A [webes felhasználókezelő](../frontend/README.md#felhasználók-kezelése) ugyanezeket a végpontokat használja. A jogkatalógust, az API-végpontokat, a használati példákat és a régi szerepköröket átalakító migráció szabályait a [projekt README-je](../README.md#céges-felhasználók-és-jogok) tartalmazza.

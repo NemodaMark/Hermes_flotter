@@ -4,7 +4,7 @@ A React + TypeScript + Vite kliens jelenlegi kiinduló állapota. A frontend mos
 
 ## Az alapban működő felületek
 
-A **Járművek → Adatlap** a rendszámmal azonosítja az autót, szerkeszti a műszaki, tulajdonlási és határidőadatokat, külön fülön kezeli a telephelyet, lízingszerződéseket és szervizbejegyzéseket. A rendszám- és kilométerelőzmények, valamint a módosítási napló lapozhatók. Az archivált jármű visszaállítás után szerkeszthető. A szerződés- és munkalapdokumentumokhoz webcím adható meg.
+A **Járművek → Adatlap** a rendszámmal azonosítja az autót, szerkeszti a műszaki, tulajdonlási és határidőadatokat, külön fülön kezeli a telephelyet, lízingszerződéseket és szervizbejegyzéseket. A rendszám- és kilométerelőzmények, valamint a módosítási napló lapozhatók. Az archivált jármű visszaállítás után szerkeszthető. A Lízing és Szerviz fülön a mentett bejegyzés **Dokumentumok** gombjával fájl tölthető fel és le. Új bejegyzés mentése után a dokumentumablak automatikusan megnyílik. Webcím továbbra is megadható. PDF, JPG, PNG, DOCX és XLSX támogatott, fájlonként legfeljebb 10 MB. A visszavonás és visszaállítás indoklással történik, az előzmény megmarad. A listához és letöltéshez megtekintési, a feltöltéshez és állapotváltáshoz kezelési jog kell, a jármű telephelykorlátjával.
 
 A **Partnerek** menüben cégenként vehetők fel lízingbeadók és szervizek, akár mindkét kategóriával és több kapcsolattartóval. A kereső, kategóriaszűrő, archiváltak kapcsolója és lapozás a backend listáját használja. A partnernév a jármű lízing- vagy szervizadatainál választható ki. A történeti szerviz-kilométer és következő határidő nem változtatja meg automatikusan az aktuális járműadatot.
 

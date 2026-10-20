@@ -173,12 +173,14 @@ export async function request<T>(
     body?: unknown
     method?: string
     signal?: AbortSignal
+    responseType?: 'json' | 'blob'
   } = {},
 ): Promise<T> {
   const method = options.method ?? (options.body !== undefined ? 'POST' : 'GET')
   const headers = new Headers({ Accept: 'application/json' })
   if (options.tenantId) headers.set('X-Tenant-Id', options.tenantId)
-  if (options.body !== undefined) headers.set('Content-Type', 'application/json')
+  const multipart = options.body instanceof FormData
+  if (options.body !== undefined && !multipart) headers.set('Content-Type', 'application/json')
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method))
     headers.set('X-CSRF-TOKEN', await getCsrfToken())
   let response: Response
@@ -186,7 +188,7 @@ export async function request<T>(
     response = await fetch(path, {
       method,
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: multipart ? options.body as FormData : options.body !== undefined ? JSON.stringify(options.body) : undefined,
       signal: options.signal,
       credentials: 'same-origin',
     })
@@ -221,7 +223,7 @@ export async function request<T>(
             : validationMessage || problem?.title || 'A kérés nem sikerült. Próbáld újra.'
     throw new ApiError(response.status, message, problem?.code)
   }
-  return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>)
+  return response.status === 204 ? (undefined as T) : options.responseType === 'blob' ? (response.blob() as Promise<T>) : (response.json() as Promise<T>)
 }
 
 async function authenticate(path: string, body: unknown) {
