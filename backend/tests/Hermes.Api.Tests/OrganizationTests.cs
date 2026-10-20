@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -213,12 +214,18 @@ public sealed class OrganizationTests(FleetFixture fixture) : IClassFixture<Flee
         await using (var command = new NpgsqlCommand("SELECT pg_backend_pid()", connection, tx)) blocker = (int)(await command.ExecuteScalarAsync())!;
         await using (var command = new NpgsqlCommand("SELECT * FROM tenants WHERE \"Id\"=@id FOR UPDATE", connection, tx)) { command.Parameters.AddWithValue("id", owner.CompanyId); await command.ExecuteNonQueryAsync(); }
         var write = owner.Client.PostAsJsonAsync("/api/v1/vehicles", new CreateVehicleRequest("WAIT-001", "Ford", "Focus"));
+        // Each observation must use a fresh statistics snapshot, outside the transaction holding the lock.
+        // Otherwise pg_stat_activity can miss an application connection opened after its first snapshot.
+        await using var observer = new NpgsqlConnection(fixture.MigrationConnection);
+        await observer.OpenAsync();
+        await using var query = new NpgsqlCommand("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND @blocker=ANY(pg_blocking_pids(pid)))", observer);
+        query.Parameters.AddWithValue("blocker", blocker);
         var waiting = false;
-        for (var attempt = 0; attempt < 150; attempt++)
+        var elapsed = Stopwatch.StartNew();
+        while (elapsed.Elapsed < TimeSpan.FromSeconds(20))
         {
-            await using var query = new NpgsqlCommand("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND @blocker=ANY(pg_blocking_pids(pid)))", connection, tx);
-            query.Parameters.AddWithValue("blocker", blocker);
             if ((bool)(await query.ExecuteScalarAsync())!) { waiting = true; break; }
+            if (write.IsCompleted) break;
             await Task.Delay(20);
         }
         Assert.True(waiting, "The vehicle write must have passed middleware and reached the company lock.");
