@@ -51,7 +51,7 @@ public sealed class PermissionMigrationTests(FleetFixture fixture) : IClassFixtu
             Assert.Empty(await db.Database.GetPendingMigrationsAsync());
             Assert.Equal("existing-password-hash", (await db.Users.AsNoTracking().SingleAsync()).PasswordHash);
             Assert.False((await db.Users.AsNoTracking().SingleAsync()).PasswordChangeRequired);
-            Assert.Equal(3, (await db.Users.AsNoTracking().SingleAsync()).ProfileVersion);
+            Assert.Equal(4, (await db.Users.AsNoTracking().SingleAsync()).ProfileVersion);
             Assert.Empty(await db.SystemPermissionGrants.ToArrayAsync());
             var scoped = new TenantContext();
             scoped.Set(tenant, "old", Permissions.All);
@@ -64,7 +64,7 @@ public sealed class PermissionMigrationTests(FleetFixture fixture) : IClassFixtu
                 Assert.True(Assert.Single(members["old"].Groups).Group.IsAdmin);
                 Assert.Equal(new[] { Permissions.VehiclesCreate, Permissions.VehiclesRead }, members["legacy-manager"].Permissions.Select(item => item.Code).Order());
                 Assert.Equal(Permissions.VehiclesRead, Assert.Single(members["legacy-viewer"].Permissions).Code);
-                Assert.All(members.Values, member => { Assert.True(member.IsActive); Assert.Equal(member.UserSubject == "old" ? 3 : 1, member.Version); });
+                Assert.All(members.Values, member => { Assert.True(member.IsActive); Assert.Equal(member.UserSubject == "old" ? 4 : 1, member.Version); });
                 Assert.All(members.Values, member => Assert.True(member.HasDirectAccess));
                 Assert.Equal("OLD-001", (await upgraded.Vehicles.SingleAsync()).Registration);
                 Assert.Equal(3, await upgraded.AccessAuditEvents.CountAsync(item => item.Action == "permissions.migrated"));

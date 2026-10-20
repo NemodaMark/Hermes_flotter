@@ -33,14 +33,17 @@ public static class TestFleetData
             db.Memberships.Add(Membership("anna", tenantId == DunaId ? Permissions.All : [Permissions.VehiclesRead, Permissions.VehiclesCreate]));
             if (tenantId == DunaId) db.Memberships.Add(Membership("bela", [Permissions.VehiclesRead]));
         }
+        var admin = await db.PermissionGroups.SingleAsync(x => x.IsAdmin, cancellationToken);
+        if (!await db.GroupCompanies.AnyAsync(x => x.GroupId == admin.Id && x.TenantId == tenantId, cancellationToken))
+            db.GroupCompanies.Add(new() { GroupId = admin.Id, TenantId = tenantId });
         if (!await db.Vehicles.AnyAsync(cancellationToken))
         {
             db.Vehicles.AddRange(tenantId == DunaId
                 ? [new Vehicle { TenantId = tenantId, Registration = "AA-BB-123", Make = "Škoda", Model = "Octavia" },
                    new Vehicle { TenantId = tenantId, Registration = "HER-204", Make = "Ford", Model = "Transit", Status = VehicleStatus.Maintenance }]
                 : [new Vehicle { TenantId = tenantId, Registration = "PAN-310", Make = "Volkswagen", Model = "Caddy" }]);
-            await db.SaveChangesAsync(cancellationToken);
         }
+        await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 }

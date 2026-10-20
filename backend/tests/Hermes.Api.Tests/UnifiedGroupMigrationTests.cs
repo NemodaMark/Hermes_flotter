@@ -68,7 +68,7 @@ public sealed class UnifiedGroupMigrationTests(FleetFixture fixture) : IClassFix
             Assert.Equal(2, groups.Count(x => x.Name == "Same name"));
             Assert.All(groups.Where(x => x.Name == "Same name"), x => Assert.Single(x.Companies));
             Assert.Equal(Permissions.All.Order(), Assert.Single(groups, x => x.IsAdmin).EffectivePermissions.Order());
-            Assert.Equal(2, (await db.Users.SingleAsync()).ProfileVersion);
+            Assert.Equal(3, (await db.Users.SingleAsync()).ProfileVersion);
             foreach (var id in new[] { TestFleetData.DunaId, TestFleetData.PannonId })
             {
                 var context = new TenantContext(); context.Set(id, "alice", []);
@@ -81,7 +81,7 @@ public sealed class UnifiedGroupMigrationTests(FleetFixture fixture) : IClassFix
                     {
                         Assert.False(members["alice"].IsActive);
                         Assert.True(members["alice"].HasDirectAccess);
-                        Assert.Equal(9, members["alice"].Version);
+                        Assert.Equal(10, members["alice"].Version);
                         Assert.Equal([Permissions.MembersRead], members["orphan"].EffectivePermissions);
                         Assert.Equal(3, await scoped.AccessAuditEvents.CountAsync(x => x.Action == "group.unified" || x.Action == "group.created"));
                     }

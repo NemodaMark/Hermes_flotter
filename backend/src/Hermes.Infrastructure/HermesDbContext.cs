@@ -25,6 +25,7 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
     public DbSet<GroupPermission> GroupPermissions => Set<GroupPermission>();
     public DbSet<GroupCompany> GroupCompanies => Set<GroupCompany>();
     public DbSet<GroupUser> GroupUsers => Set<GroupUser>();
+    public DbSet<GroupUserCompany> GroupUserCompanies => Set<GroupUserCompany>();
     public DbSet<MembershipGroup> MembershipGroups => Set<MembershipGroup>();
     private Guid? CurrentTenantId => tenantContext.TenantId;
 
@@ -125,6 +126,7 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
             entity.Property(x => x.Version).IsConcurrencyToken();
             entity.Ignore(x => x.EffectivePermissions);
             entity.HasIndex(x => x.NormalizedName);
+            entity.HasIndex(x => x.IsAdmin).IsUnique().HasFilter("\"IsAdmin\"");
             // CreatedBy is historical provenance, including migrated actors without an identity account.
         });
         modelBuilder.Entity<GroupPermission>(entity =>
@@ -150,6 +152,14 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
             entity.HasOne<PermissionGroup>().WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
             // Preserve legacy subjects. New assignments require a real account in GroupManagement.
         });
+        modelBuilder.Entity<GroupUserCompany>(entity =>
+        {
+            entity.ToTable("group_user_companies");
+            entity.HasKey(x => new { x.GroupId, x.UserId, x.TenantId });
+            entity.Property(x => x.UserId).HasMaxLength(256);
+            entity.HasOne<GroupUser>().WithMany().HasForeignKey(x => new { x.GroupId, x.UserId }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<GroupCompany>().WithMany().HasForeignKey(x => new { x.GroupId, x.TenantId }).OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<MembershipGroup>(entity =>
         {
             entity.ToTable("company_access_memberships");
@@ -159,6 +169,7 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
             entity.HasOne(x => x.Group).WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<GroupCompany>().WithMany().HasForeignKey(x => new { x.GroupId, x.TenantId }).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<GroupUser>().WithMany().HasForeignKey(x => new { x.GroupId, UserId = x.UserSubject }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<GroupUserCompany>().WithMany().HasForeignKey(x => new { x.GroupId, UserId = x.UserSubject, x.TenantId }).OnDelete(DeleteBehavior.Restrict);
             entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
         });
         modelBuilder.Entity<OdometerReading>(entity =>

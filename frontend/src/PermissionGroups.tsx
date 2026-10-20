@@ -91,9 +91,15 @@ export function PermissionGroups({ user }: { user: Session }) {
                             Védett admin · automatikusan bővülő jogkör
                           </span>
                         )}
-                        <span className="member-email">Létrehozó: {group.createdBy}</span>
+                        {!group.isAdmin && (
+                          <span className="member-email">Létrehozó: {group.createdBy}</span>
+                        )}
                       </td>
-                      <td>{group.companies.map((c) => c.name).join(', ')}</td>
+                      <td>
+                        {group.isAdmin
+                          ? 'Felhasználónként kijelölhető cégek'
+                          : group.companies.map((c) => c.name).join(', ')}
+                      </td>
                       <td>
                         <span className="member-grants">
                           {group.allPermissions
@@ -104,7 +110,7 @@ export function PermissionGroups({ user }: { user: Session }) {
                       </td>
                       <td>{group.memberCount}</td>
                       <td>
-                        {group.canEdit ? (
+                        {group.canEdit && !group.isAdmin ? (
                           <div className="member-actions">
                             <button
                               className="secondary-button"
@@ -123,6 +129,8 @@ export function PermissionGroups({ user }: { user: Session }) {
                               </button>
                             )}
                           </div>
+                        ) : group.isAdmin ? (
+                          'Felhasználónál kiosztható'
                         ) : (
                           'Megtekintés'
                         )}
@@ -136,8 +144,8 @@ export function PermissionGroups({ user }: { user: Session }) {
             <p className="notice">Nincs megjeleníthető jogosultságcsoport.</p>
           )}
           <p className="notice">
-            A felhasználó sorában a Csoportok gombbal osztható ki. Új cég hozzáadása a meglévő
-            csoporttagokra is érvényes.
+            A felhasználó sorában a Csoportok gombbal osztható ki. Az admin egyetlen közös csoport;
+            a hozzá tartozó cégeket felhasználónként választhatod ki.
           </p>
           {(dialog?.kind === 'create' || dialog?.kind === 'edit') && (
             <GroupEditor
@@ -433,8 +441,17 @@ function AssignmentFields({
   onClose: () => void
 }) {
   const [ids, setIds] = useState(access.groupIds)
+  const [adminCompanies, setAdminCompanies] = useState(access.adminCompanyIds ?? [])
+  const admin = groups.find((group) => group.isAdmin)
+  const needsAdminCompany = !!admin && ids.includes(admin.id) && adminCompanies.length === 0
   const save = useMutation({
-    mutationFn: () => api.assignGroups(access.userId, ids, access.version),
+    mutationFn: () =>
+      api.assignGroups(
+        access.userId,
+        ids,
+        access.version,
+        admin && ids.includes(admin.id) ? adminCompanies : [],
+      ),
   })
   return (
     <form
@@ -454,24 +471,54 @@ function AssignmentFields({
       <fieldset className="permission-fields" disabled={save.isPending}>
         <legend>Jogosultságcsoporttagságok</legend>
         {groups.map((group) => (
-          <label className="permission-option" key={group.id}>
-            <input
-              type="checkbox"
-              checked={ids.includes(group.id)}
-              onChange={(e) =>
-                setIds(e.target.checked ? [...ids, group.id] : ids.filter((id) => id !== group.id))
-              }
-            />
-            <span>
-              {group.name}
-              <small>Cégek: {group.companies.map((x) => x.name).join(', ')}</small>
-              <small>
-                {group.allPermissions
-                  ? 'Minden jelenlegi és későbbi céges jog'
-                  : group.permissions.map(permissionLabel).join(', ') || 'Nincs kiosztott jog'}
-              </small>
-            </span>
-          </label>
+          <div key={group.id}>
+            <label className="permission-option">
+              <input
+                type="checkbox"
+                checked={ids.includes(group.id)}
+                onChange={(e) =>
+                  setIds(
+                    e.target.checked ? [...ids, group.id] : ids.filter((id) => id !== group.id),
+                  )
+                }
+              />
+              <span>
+                {group.name}
+                {!group.isAdmin && (
+                  <small>Cégek: {group.companies.map((x) => x.name).join(', ')}</small>
+                )}
+                <small>
+                  {group.allPermissions
+                    ? 'Minden jelenlegi és későbbi céges jog'
+                    : group.permissions.map(permissionLabel).join(', ') || 'Nincs kiosztott jog'}
+                </small>
+              </span>
+            </label>
+            {group.isAdmin && ids.includes(group.id) && (
+              <fieldset className="permission-fields company-options">
+                <legend>Adminjog ezeknél a cégeknél</legend>
+                {group.companies.map((company) => (
+                  <label className="permission-option" key={company.id}>
+                    <input
+                      type="checkbox"
+                      checked={adminCompanies.includes(company.id)}
+                      onChange={(e) =>
+                        setAdminCompanies(
+                          e.target.checked
+                            ? [...adminCompanies, company.id]
+                            : adminCompanies.filter((id) => id !== company.id),
+                        )
+                      }
+                    />
+                    <span>{company.name}</span>
+                  </label>
+                ))}
+                {needsAdminCompany && (
+                  <p className="field-hint">Válassz legalább egy céget az adminjoghoz.</p>
+                )}
+              </fieldset>
+            )}
+          </div>
         ))}
       </fieldset>
       {!groups.length && (
@@ -484,8 +531,8 @@ function AssignmentFields({
         <p className="field-hint">Más, általad nem kezelhető csoporttagságok megmaradnak.</p>
       )}
       <p className="field-hint">
-        A kijelölés minden felsorolt cégre érvényes. A korábban felfüggesztett céges hozzáférés
-        felfüggesztve marad.
+        Az adminjog csak a külön kijelölt cégeknél érvényes. Más csoportok a mellettük felsorolt
+        cégekhez adnak hozzáférést. A felfüggesztett céges hozzáférés felfüggesztve marad.
       </p>
       {save.isError && (
         <p className="form-error" role="alert">
@@ -501,7 +548,10 @@ function AssignmentFields({
         >
           Mégse
         </button>
-        <button className="primary-button" disabled={save.isPending || !groups.length}>
+        <button
+          className="primary-button"
+          disabled={save.isPending || !groups.length || needsAdminCompany}
+        >
           Tagság mentése
         </button>
       </div>

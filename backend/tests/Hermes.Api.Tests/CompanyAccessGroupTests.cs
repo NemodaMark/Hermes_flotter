@@ -22,7 +22,10 @@ public sealed partial class PermissionManagementTests
     private static async Task<HttpResponseMessage> CompanyAssign(Account actor, string userId, params Guid[] ids)
     {
         var state = (await actor.Client.GetFromJsonAsync<GroupUserSummary>($"/api/v1/permission-groups/users/{userId}"))!;
-        return await actor.Client.PutAsJsonAsync($"/api/v1/permission-groups/users/{userId}", new AssignGroupsRequest(ids, state.Version));
+        var groups = (await actor.Client.GetFromJsonAsync<PermissionGroupSummary[]>("/api/v1/permission-groups"))!;
+        var selectedAdmin = groups.Any(x => x.IsAdmin && ids.Contains(x.Id));
+        var companies = selectedAdmin ? new[] { Guid.Parse(actor.Client.DefaultRequestHeaders.GetValues("X-Tenant-Id").Single()) } : Array.Empty<Guid>();
+        return await actor.Client.PutAsJsonAsync($"/api/v1/permission-groups/users/{userId}", new AssignGroupsRequest(ids, state.Version, companies));
     }
     [Fact]
     public async Task Cross_company_group_adds_memberships_and_revokes_only_its_own_access()

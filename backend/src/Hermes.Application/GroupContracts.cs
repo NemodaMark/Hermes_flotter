@@ -6,8 +6,11 @@ public sealed record PermissionGroupSummary(Guid Id, string Name, string Created
     string[] Permissions, GroupCompanyTarget[] Companies, int MemberCount, bool CanEdit, bool CanAssign);
 public sealed record CreateGroupRequest(string Name, string[] Permissions, Guid[] CompanyIds, bool AllPermissions = false);
 public sealed record UpdateGroupRequest(string Name, string[] Permissions, Guid[] CompanyIds, long Version, bool AllPermissions = false);
-public sealed record GroupUserSummary(string UserId, long Version, Guid[] GroupIds, bool HasOtherGroups);
-public sealed record AssignGroupsRequest(Guid[] GroupIds, long Version);
+public sealed record GroupUserSummary(string UserId, long Version, Guid[] GroupIds, bool HasOtherGroups)
+{
+    public Guid[] AdminCompanyIds { get; init; } = [];
+}
+public sealed record AssignGroupsRequest(Guid[] GroupIds, long Version, Guid[]? AdminCompanyIds = null);
 
 public interface IGroupManagement
 {

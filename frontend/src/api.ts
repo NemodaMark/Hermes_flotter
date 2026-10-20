@@ -59,6 +59,7 @@ export type GroupUser = {
   version: number
   groupIds: string[]
   hasOtherGroups: boolean
+  adminCompanyIds: string[]
 }
 export type Vehicle = {
   id: string
@@ -225,10 +226,10 @@ export const api = {
     request<GroupUser>(`/api/v1/permission-groups/users/${encodeURIComponent(id)}`, {
       signal,
     }),
-  assignGroups: (id: string, groupIds: string[], version: number) =>
+  assignGroups: (id: string, groupIds: string[], version: number, adminCompanyIds: string[] = []) =>
     request<GroupUser>(`/api/v1/permission-groups/users/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      body: { groupIds, version },
+      body: { groupIds, version, adminCompanyIds },
     }),
   updateVehicle: (tenantId: string, vehicle: Vehicle, input: NewVehicle) =>
     request<Vehicle>(`/api/v1/vehicles/${vehicle.id}`, {

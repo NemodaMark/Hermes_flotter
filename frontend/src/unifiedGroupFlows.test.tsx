@@ -47,6 +47,7 @@ const access: GroupUser = {
   version: 8,
   groupIds: [group.id],
   hasOtherGroups: true,
+  adminCompanyIds: [],
 }
 const close = vi.fn()
 function mount(element: React.ReactNode) {
@@ -172,7 +173,7 @@ it('assigns only editable user groups and preserves the unmanaged-assignment not
   expect(screen.queryByLabelText(/Nem kiosztható/)).not.toBeInTheDocument()
   await userEvent.click(screen.getByLabelText(/Közös olvasók/))
   await userEvent.click(screen.getByRole('button', { name: 'Tagság mentése' }))
-  await waitFor(() => expect(save).toHaveBeenCalledWith('bela', [], 8))
+  await waitFor(() => expect(save).toHaveBeenCalledWith('bela', [], 8, []))
 })
 
 it('reloads the current user version after an assignment conflict', async () => {
@@ -187,7 +188,7 @@ it('reloads the current user version after an assignment conflict', async () => 
   await userEvent.click(screen.getByRole('button', { name: 'Csoporttagságok újratöltése' }))
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   await userEvent.click(screen.getByRole('button', { name: 'Tagság mentése' }))
-  await waitFor(() => expect(save).toHaveBeenLastCalledWith('bela', [group.id], 9))
+  await waitFor(() => expect(save).toHaveBeenLastCalledWith('bela', [group.id], 9, []))
 })
 
 it('offers one group tab for groups with either one or multiple companies', async () => {
@@ -204,35 +205,71 @@ it('offers one group tab for groups with either one or multiple companies', asyn
   expect(screen.queryByRole('tab', { name: /Többcéges/ })).not.toBeInTheDocument()
 })
 
-it('edits company selection on the protected admin while keeping its name and rights fixed', async () => {
-  vi.mocked(api.groups).mockResolvedValue([
-    {
-      ...group,
-      name: 'admin',
-      isAdmin: true,
-      allPermissions: true,
-      permissions: codes,
-      companies: [companies[0]],
-    },
-  ])
-  const update = vi.spyOn(api, 'updateGroup').mockResolvedValue(group)
-  mount(<PermissionGroups user={user} />)
-  await userEvent.click(
-    await screen.findByRole('button', { name: 'Jogosultságcsoport szerkesztése: admin' }),
-  )
-  const dialog = within(screen.getByRole('dialog'))
-  expect(dialog.getByLabelText('Csoport neve')).toBeDisabled()
-  expect(dialog.queryByLabelText('Pannon')).not.toBeInTheDocument()
-  expect(dialog.getByLabelText(/Minden jelenlegi és későbbi/)).toBeChecked()
-  expect(dialog.getByLabelText(/Minden jelenlegi és későbbi/)).toBeDisabled()
-  expect(
-    screen.queryByRole('button', { name: 'Jogosultságcsoport törlése: admin' }),
-  ).not.toBeInTheDocument()
-  await userEvent.click(dialog.getByRole('button', { name: 'Jogosultságcsoport mentése' }))
-  await waitFor(() =>
-    expect(update).toHaveBeenCalledWith(
-      group.id,
-      expect.objectContaining({ name: 'admin', allPermissions: true, companyIds: ['a'] }),
-    ),
-  )
+it('shows one protected admin definition and selects its companies when assigning a user', async () => {
+  const admin = {
+    ...group,
+    id: 'admin',
+    name: 'admin',
+    isAdmin: true,
+    allPermissions: true,
+    permissions: codes,
+    canEdit: false,
+    companies: [companies[0], { ...companies[1], canGrantAll: true }],
+  }
+  vi.mocked(api.groups).mockResolvedValue([admin])
+  const first = mount(<PermissionGroups user={user} />)
+  expect(await screen.findByText('Felhasználónként kijelölhető cégek')).toBeVisible()
+  expect(screen.queryByRole('button', { name: /szerkesztése: admin/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /törlése: admin/ })).not.toBeInTheDocument()
+  first.unmount()
+  vi.mocked(api.groupUser).mockResolvedValue({
+    ...access,
+    groupIds: ['admin'],
+    adminCompanyIds: ['a'],
+  })
+  const save = vi.spyOn(api, 'assignGroups').mockResolvedValue(access)
+  mount(<GroupAssignmentDialog user={user} userId="bela" onClose={close} />)
+  const field = within(await screen.findByRole('group', { name: 'Adminjog ezeknél a cégeknél' }))
+  expect(field.getByLabelText('Duna')).toBeChecked()
+  expect(field.getByLabelText('Pannon')).not.toBeChecked()
+  await userEvent.click(field.getByLabelText('Duna'))
+  expect(screen.getByRole('button', { name: 'Tagság mentése' })).toBeDisabled()
+  await userEvent.click(field.getByLabelText('Pannon'))
+  await userEvent.click(screen.getByRole('button', { name: 'Tagság mentése' }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith('bela', ['admin'], 8, ['b']))
+})
+
+it('keeps the admin scope when reloading an assignment conflict', async () => {
+  const admin = {
+    ...group,
+    id: 'admin',
+    name: 'admin',
+    isAdmin: true,
+    allPermissions: true,
+    canEdit: false,
+  }
+  vi.mocked(api.groups).mockResolvedValue([admin])
+  vi.mocked(api.groupUser).mockResolvedValue({
+    ...access,
+    groupIds: ['admin'],
+    adminCompanyIds: ['a'],
+  })
+  const save = vi
+    .spyOn(api, 'assignGroups')
+    .mockRejectedValueOnce(new ApiError(409, 'Frissítsd az adatokat.', 'stale_group'))
+    .mockResolvedValue(access)
+  mount(<GroupAssignmentDialog user={user} userId="bela" onClose={close} />)
+  await userEvent.click(await screen.findByRole('button', { name: 'Tagság mentése' }))
+  expect(await screen.findByRole('alert')).toBeVisible()
+  vi.mocked(api.groupUser).mockResolvedValue({
+    ...access,
+    version: 9,
+    groupIds: ['admin'],
+    adminCompanyIds: ['b'],
+  })
+  await userEvent.click(screen.getByRole('button', { name: 'Csoporttagságok újratöltése' }))
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  expect(screen.getByLabelText('Pannon')).toBeChecked()
+  expect(screen.getByLabelText('Duna')).not.toBeChecked()
+  expect(save).toHaveBeenCalledTimes(1)
 })

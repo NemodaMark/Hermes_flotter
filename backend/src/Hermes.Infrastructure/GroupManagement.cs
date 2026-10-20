@@ -69,34 +69,43 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
         if (expected < 1) throw UserAccounts.Error(400, "invalid_version", "Add meg az aktuális verziót.");
         if (actual != expected) throw UserAccounts.Error(409, "stale_group", "Az adatok időközben megváltoztak. Töltsd be újra őket.");
     }
-    // Names are unique for an exact company selection; existing company-specific admin groups remain distinct.
+    // Custom group names are unique for an exact company selection. The protected admin is shared.
     private async Task Unique(string name, Guid[] companies, Guid? except, CancellationToken ct)
     {
         if (await db.PermissionGroups.AnyAsync(x => x.NormalizedName == name.ToUpperInvariant() && x.Id != except
             && x.Companies.Count == companies.Length && x.Companies.All(c => companies.Contains(c.TenantId)), ct))
             throw UserAccounts.Error(409, "group_name_exists", "Ezeknél a cégeknél már létezik ilyen nevű csoport.");
     }
-    private static ManagementException ProtectedAdmin() => UserAccounts.Error(409, "protected_admin_group", "Az admin csoport neve és automatikus jogköre védett, és nem törölhető. A cégek módosíthatók.");
+    private static ManagementException ProtectedAdmin() => UserAccounts.Error(409, "protected_admin_group", "Az admin közös rendszercsoport, nem módosítható és nem törölhető. A cégeket a felhasználó csoporttagságánál válaszd ki.");
     private static State Snapshot(PermissionGroup group) => new(group.Name, group.AllPermissions, group.EffectivePermissions.Order(StringComparer.Ordinal).ToArray(), group.Companies.Select(x => x.TenantId).Order().ToArray());
     private async Task<PermissionGroup> Group(Guid id, GroupCompanyOption[] choices, CancellationToken ct)
     {
         var visible = choices.Select(x => x.Id).ToArray();
         return await db.PermissionGroups.Include(x => x.Permissions).Include(x => x.Companies).AsSplitQuery()
-            .SingleOrDefaultAsync(x => x.Id == id && x.Companies.Any() && x.Companies.All(c => visible.Contains(c.TenantId)), ct)
+            .SingleOrDefaultAsync(x => x.Id == id && (x.IsAdmin || (x.Companies.Any() && x.Companies.All(c => visible.Contains(c.TenantId)))) && visible.Length > 0, ct)
             ?? throw UserAccounts.Error(404, "group_not_found", "A jogosultságcsoport nem található, vagy nem minden cégéhez férsz hozzá.");
     }
     private async Task<PermissionGroupSummary[]> List(GroupCompanyOption[] choices, CancellationToken ct)
     {
         var visible = choices.Select(x => x.Id).ToArray();
         var groups = await db.PermissionGroups.AsNoTracking().Include(x => x.Permissions).Include(x => x.Companies).AsSplitQuery()
-            .Where(x => x.Companies.Any() && x.Companies.All(c => visible.Contains(c.TenantId))).OrderBy(x => x.Name).ThenBy(x => x.Id).ToArrayAsync(ct);
+            .Where(x => visible.Length > 0 && (x.IsAdmin || (x.Companies.Any() && x.Companies.All(c => visible.Contains(c.TenantId))))).OrderBy(x => x.Name).ThenBy(x => x.Id).ToArrayAsync(ct);
         var ids = groups.Select(x => x.Id).ToArray();
         var counts = await db.GroupUsers.Where(x => ids.Contains(x.GroupId)).GroupBy(x => x.GroupId)
             .Select(x => new { Id = x.Key, Count = x.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count, ct);
+        var admin = groups.SingleOrDefault(x => x.IsAdmin);
+        if (admin is not null)
+            counts[admin.Id] = await db.GroupUserCompanies.Where(x => x.GroupId == admin.Id && visible.Contains(x.TenantId)).Select(x => x.UserId).Distinct().CountAsync(ct);
         return groups.Select(x => Summary(x, choices, counts.GetValueOrDefault(x.Id))).ToArray();
     }
     private static PermissionGroupSummary Summary(PermissionGroup group, GroupCompanyOption[] choices, int count)
     {
+        if (group.IsAdmin)
+        {
+            var assignable = choices.Where(x => x.CanAssign && x.CanGrantAll).ToArray();
+            return new(group.Id, group.Name, group.CreatedBy, group.Version, true, true, Permissions.All,
+                (assignable.Length > 0 ? assignable : choices).Select(x => new GroupCompanyTarget(x.Id, x.Name)).ToArray(), count, false, assignable.Length > 0);
+        }
         var state = Snapshot(group);
         return new(group.Id, group.Name, group.CreatedBy, group.Version, group.AllPermissions, group.IsAdmin, state.Permissions,
             state.CompanyIds.Select(id => new GroupCompanyTarget(id, choices.Single(x => x.Id == id).Name)).ToArray(), count,
@@ -117,24 +126,26 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
             }, ct)) result.Add(id);
         return result;
     }
-    private async Task Sync(string actor, Guid groupId, State? before, State? after, string[] oldUsers, string[] newUsers, HashSet<Guid> protectedCompanies, string action, CancellationToken ct)
+    private async Task Sync(string actor, Guid groupId, State? before, State? after, string[] oldUsers, string[] newUsers, HashSet<Guid> protectedCompanies, string action, CancellationToken ct, string? subject = null)
     {
         var companies = (before?.CompanyIds ?? []).Concat(after?.CompanyIds ?? []).Distinct().Order().ToArray();
         foreach (var company in companies)
             await InCompany(company, actor, async scoped =>
             {
                 var desired = after?.CompanyIds.Contains(company) == true ? newUsers : [];
-                var rows = await scoped.MembershipGroups.Where(x => x.GroupId == groupId).ToArrayAsync(ct);
+                var rows = await scoped.MembershipGroups.Where(x => x.GroupId == groupId && (subject == null || x.UserSubject == subject)).ToArrayAsync(ct);
+                var scopes = await scoped.GroupUserCompanies.Where(x => x.GroupId == groupId && x.TenantId == company && (subject == null || x.UserId == subject)).ToArrayAsync(ct);
                 var affected = rows.Select(x => x.UserSubject).Concat(desired).Distinct().ToArray();
                 var memberships = await scoped.Memberships.Where(x => x.TenantId == company && affected.Contains(x.UserSubject)).ToDictionaryAsync(x => x.UserSubject, ct);
-                foreach (var subject in desired)
+                foreach (var userSubject in desired)
                 {
-                    if (!memberships.ContainsKey(subject))
+                    if (!memberships.ContainsKey(userSubject))
                     {
-                        var member = new TenantMembership { TenantId = company, UserSubject = subject, HasDirectAccess = false, JoinedAt = DateTimeOffset.UtcNow };
-                        scoped.Memberships.Add(member); memberships.Add(subject, member);
+                        var member = new TenantMembership { TenantId = company, UserSubject = userSubject, HasDirectAccess = false, JoinedAt = DateTimeOffset.UtcNow };
+                        scoped.Memberships.Add(member); memberships.Add(userSubject, member);
                     }
-                    if (!rows.Any(x => x.UserSubject == subject)) scoped.MembershipGroups.Add(new() { TenantId = company, UserSubject = subject, GroupId = groupId });
+                    if (!rows.Any(x => x.UserSubject == userSubject)) scoped.MembershipGroups.Add(new() { TenantId = company, UserSubject = userSubject, GroupId = groupId });
+                    if (!scopes.Any(x => x.UserId == userSubject)) scoped.GroupUserCompanies.Add(new() { GroupId = groupId, UserId = userSubject, TenantId = company });
                 }
                 scoped.MembershipGroups.RemoveRange(rows.Where(x => !desired.Contains(x.UserSubject)));
                 foreach (var member in memberships.Values) member.Version++;
@@ -144,6 +155,8 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
                     groupId, before = before is null ? null : new { before.Name, before.AllPermissions, before.Permissions, applies = before.CompanyIds.Contains(company) },
                     after = after is null ? null : new { after.Name, after.AllPermissions, after.Permissions, applies = after.CompanyIds.Contains(company) }, affectedUsers = affected
                 }) });
+                await scoped.SaveChangesAsync(ct);
+                scoped.GroupUserCompanies.RemoveRange(scopes.Where(x => !desired.Contains(x.UserId)));
                 await scoped.SaveChangesAsync(ct);
                 if (protectedCompanies.Contains(company))
                 {
@@ -174,6 +187,7 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
     public Task<PermissionGroupSummary> UpdateAsync(string actor, Guid id, UpdateGroupRequest request, CancellationToken ct) => Run(true, async () =>
     {
         var choices = await Choices(actor, ct); var group = await Group(id, choices, ct); Version(group.Version, request.Version);
+        if (group.IsAdmin) throw ProtectedAdmin();
         var before = Snapshot(group); var ids = Companies(request.CompanyIds); var name = Name(request.Name); var codes = AccessRules.Validate(request.Permissions);
         if (request.AllPermissions && codes.Length > 0) throw UserAccounts.Error(400, "invalid_permissions", "Automatikus teljes jogkörnél ne adj meg külön joglistát.");
         var users = await db.GroupUsers.Where(x => x.GroupId == id).Select(x => x.UserId).ToArrayAsync(ct);
@@ -212,8 +226,14 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
     {
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId, ct) ?? throw UserAccounts.Error(404, "user_not_found", "A felhasználó nem található.");
         var ids = await db.GroupUsers.Where(x => x.UserId == userId).Select(x => x.GroupId).ToArrayAsync(ct);
-        var manageable = available.Where(x => x.CanAssign).Select(x => x.Id).ToArray();
-        return new(userId, user.ProfileVersion, ids.Intersect(manageable).Order().ToArray(), ids.Except(manageable).Any());
+        var admin = available.SingleOrDefault(x => x.IsAdmin);
+        var manageable = available.Where(x => x.CanAssign && !x.IsAdmin).Select(x => x.Id).ToArray();
+        var allowed = admin?.CanAssign == true ? admin.Companies.Select(x => x.Id).ToArray() : [];
+        var adminScopes = await db.GroupUserCompanies.Where(x => x.UserId == userId && db.PermissionGroups.Any(g => g.Id == x.GroupId && g.IsAdmin)).Select(x => x.TenantId).ToArrayAsync(ct);
+        var visibleAdmin = adminScopes.Intersect(allowed).Order().ToArray();
+        var visibleIds = ids.Intersect(manageable).Concat(visibleAdmin.Length > 0 ? new[] { admin!.Id } : []).Order().ToArray();
+        var customHidden = await db.GroupUsers.AnyAsync(x => x.UserId == userId && !manageable.Contains(x.GroupId) && db.PermissionGroups.Any(g => g.Id == x.GroupId && !g.IsAdmin), ct);
+        return new(userId, user.ProfileVersion, visibleIds, customHidden || adminScopes.Except(allowed).Any()) { AdminCompanyIds = visibleAdmin };
     }
     public Task<GroupUserSummary> UserAsync(string actor, string userId, CancellationToken ct) => Run(false, async () =>
     {
@@ -227,24 +247,46 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
             throw UserAccounts.Error(400, "invalid_groups", "Legfeljebb 100 különböző csoport adható meg.");
         var available = await List(choices, ct); var assignable = available.Where(x => x.CanAssign).Select(x => x.Id).ToArray();
         if (request.GroupIds.Except(assignable).Any()) throw Denied();
+        var admin = await db.PermissionGroups.SingleAsync(x => x.IsAdmin, ct);
+        var selectedAdmin = request.GroupIds.Contains(admin.Id);
+        var desiredAdmin = request.AdminCompanyIds ?? [];
+        if (desiredAdmin.Length > 100 || desiredAdmin.Distinct().Count() != desiredAdmin.Length || desiredAdmin.Contains(Guid.Empty)
+            || selectedAdmin != (desiredAdmin.Length > 0))
+            throw UserAccounts.Error(400, "invalid_admin_companies", "Admin tagságnál válassz legalább egy céget; admin tagság nélkül ne adj meg admin cégeket.");
+        var allowedAdmin = choices.Where(x => x.CanAssign && x.CanGrantAll).Select(x => x.Id).ToArray();
+        if (desiredAdmin.Except(allowedAdmin).Any()) throw Denied();
         var user = await accounts.LockUser(userId, ct); Version(user.ProfileVersion, request.Version);
         var current = await db.GroupUsers.Where(x => x.UserId == userId).ToArrayAsync(ct);
-        var remove = current.Where(x => assignable.Contains(x.GroupId) && !request.GroupIds.Contains(x.GroupId)).ToArray();
-        var add = request.GroupIds.Except(current.Select(x => x.GroupId)).ToArray();
-        if (current.Length - remove.Length + add.Length > 100 && add.Length > remove.Length) throw UserAccounts.Error(400, "too_many_groups", "Egy felhasználó legfeljebb 100 jogosultságcsoport tagja lehet.");
+        var beforeAdmin = await db.GroupUserCompanies.Where(x => x.GroupId == admin.Id && x.UserId == userId).Select(x => x.TenantId).ToArrayAsync(ct);
+        var afterAdmin = beforeAdmin.Except(allowedAdmin).Concat(desiredAdmin).Distinct().Order().ToArray();
+        var remove = current.Where(x => x.GroupId != admin.Id && assignable.Contains(x.GroupId) && !request.GroupIds.Contains(x.GroupId)).ToArray();
+        var add = request.GroupIds.Where(x => x != admin.Id).Except(current.Select(x => x.GroupId)).ToArray();
+        var total = current.Count(x => x.GroupId != admin.Id) - remove.Length + add.Length + (afterAdmin.Length > 0 ? 1 : 0);
+        if (total > 100 && total > current.Length) throw UserAccounts.Error(400, "too_many_groups", "Egy felhasználó legfeljebb 100 jogosultságcsoport tagja lehet.");
         var changedIds = remove.Select(x => x.GroupId).Concat(add).Order().ToArray();
         var changed = new List<(PermissionGroup Group, string[] BeforeUsers)>();
         foreach (var id in changedIds) changed.Add((await Group(id, choices, ct), await db.GroupUsers.Where(x => x.GroupId == id).Select(x => x.UserId).ToArrayAsync(ct)));
-        var managers = await Managers(actor, changed.SelectMany(x => x.Group.Companies.Select(c => c.TenantId)).Distinct().ToArray(), ct);
+        var adminChanged = !beforeAdmin.Order().SequenceEqual(afterAdmin);
+        var touchedAdmin = adminChanged ? beforeAdmin.Except(afterAdmin).Concat(afterAdmin.Except(beforeAdmin)).ToArray() : [];
+        var managers = await Managers(actor, changed.SelectMany(x => x.Group.Companies.Select(c => c.TenantId)).Concat(touchedAdmin).Distinct().ToArray(), ct);
         foreach (var id in add) db.GroupUsers.Add(new() { GroupId = id, UserId = userId });
+        if (afterAdmin.Length > 0 && !current.Any(x => x.GroupId == admin.Id)) db.GroupUsers.Add(new() { GroupId = admin.Id, UserId = userId });
         user.ProfileVersion++; await db.SaveChangesAsync(ct);
         foreach (var (group, beforeUsers) in changed)
         {
             var afterUsers = add.Contains(group.Id) ? beforeUsers.Append(userId).ToArray() : beforeUsers.Where(x => x != userId).ToArray();
             await Sync(actor, group.Id, Snapshot(group), Snapshot(group), beforeUsers, afterUsers, [], "group.members_changed", ct);
         }
-        db.GroupUsers.RemoveRange(remove); await db.SaveChangesAsync(ct);
-        // Validate after all changed groups: replacing one manager bundle with another must be atomic.
+        if (adminChanged)
+        {
+            var before = new State(admin.Name, true, Permissions.All, touchedAdmin.Intersect(beforeAdmin).ToArray());
+            var after = new State(admin.Name, true, Permissions.All, touchedAdmin.Intersect(afterAdmin).ToArray());
+            await Sync(actor, admin.Id, before, after, [userId], [userId], [], "group.admin_companies_changed", ct, subject: userId);
+        }
+        db.GroupUsers.RemoveRange(remove);
+        if (afterAdmin.Length == 0) db.GroupUsers.RemoveRange(current.Where(x => x.GroupId == admin.Id));
+        await db.SaveChangesAsync(ct);
+        // Validate the final combined effect, including custom-group/admin scope swaps.
         foreach (var company in managers)
             await InCompany(company, actor, async scoped =>
             {
@@ -252,7 +294,12 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
                 if (!members.Any(x => x.HasCompanyAccess && x.EffectivePermissions.Contains(Permissions.Manage))) throw AccessRules.LastManager();
                 return true;
             }, ct);
-        UserAccounts.Audit(db, actor, userId, "user.groups_changed", new { before = current.Select(x => x.GroupId).ToArray(), after = current.Select(x => x.GroupId).Except(remove.Select(x => x.GroupId)).Concat(add).Order().ToArray(), version = user.ProfileVersion });
+        UserAccounts.Audit(db, actor, userId, "user.groups_changed", new
+        {
+            before = current.Select(x => x.GroupId).ToArray(),
+            after = current.Select(x => x.GroupId).Except(remove.Select(x => x.GroupId)).Where(x => x != admin.Id).Concat(add).Concat(afterAdmin.Length > 0 ? new[] { admin.Id } : []).Order().ToArray(),
+            previousAdminCompanyIds = beforeAdmin, adminCompanyIds = afterAdmin, version = user.ProfileVersion
+        });
         await db.SaveChangesAsync(ct);
         return await User(userId, available, ct);
     }, ct);

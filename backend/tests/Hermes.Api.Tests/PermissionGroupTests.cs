@@ -63,7 +63,7 @@ public sealed partial class PermissionManagementTests
         Assert.Equal(Permissions.All.Order(), (await member.Client.GetFromJsonAsync<TenantAccess>("/api/v1/tenant/access"))!.Permissions.Order());
         Assert.Equal(HttpStatusCode.Forbidden, (await member.Client.GetAsync("/api/v1/system/users")).StatusCode);
         var other = await Company(owner); Select(member, other.Id);
-        Assert.DoesNotContain((await member.Client.GetFromJsonAsync<PermissionGroupSummary[]>("/api/v1/permission-groups"))!, x => x.Companies.Any(c => c.Id == other.Id));
+        Assert.DoesNotContain((await member.Client.GetFromJsonAsync<PermissionGroupSummary[]>("/api/v1/permission-groups"))!, x => !x.IsAdmin && x.Companies.Any(c => c.Id == other.Id));
         var context = new TenantContext(); context.Set(tenant.Id, owner.User.Id, Permissions.All);
         await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, context);
         await TenantTransaction.RunAsync(db, tenant.Id, async () =>
@@ -245,21 +245,25 @@ public sealed partial class PermissionManagementTests
     }
 
     [Fact]
-    public async Task Protected_admin_uses_the_same_company_selection_but_retains_automatic_rights()
+    public async Task One_shared_admin_assigns_only_the_explicit_companies_for_each_user()
     {
-        using var owner = await Register(); using var member = await Register();
+        using var owner = await Register(); using var member = await Register(); using var another = await Register();
         var first = await Company(owner); var second = await Company(owner);
-        var admin = Assert.Single((await owner.Client.GetFromJsonAsync<PermissionGroupSummary[]>("/api/v1/permission-groups"))!,
-            x => x.IsAdmin && x.Companies.Single().Id == first.Id);
-        Assert.Equal(HttpStatusCode.OK, (await CompanyAssign(owner, member.User.Id, admin.Id)).StatusCode);
-        var response = await owner.Client.PutAsJsonAsync($"/api/v1/permission-groups/{admin.Id}",
-            new UpdateGroupRequest(admin.Name, [], [first.Id, second.Id], admin.Version, AllPermissions: true));
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var updated = (await response.Content.ReadFromJsonAsync<PermissionGroupSummary>())!;
-        Assert.True(updated.IsAdmin); Assert.Equal(2, updated.Companies.Length);
+        var admin = Assert.Single((await owner.Client.GetFromJsonAsync<PermissionGroupSummary[]>("/api/v1/permission-groups"))!, x => x.IsAdmin);
+        var state = (await owner.Client.GetFromJsonAsync<GroupUserSummary>($"/api/v1/permission-groups/users/{member.User.Id}"))!;
+        Assert.Equal(HttpStatusCode.OK, (await owner.Client.PutAsJsonAsync($"/api/v1/permission-groups/users/{member.User.Id}",
+            new AssignGroupsRequest([admin.Id], state.Version, [first.Id]))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await CompanyAssign(owner, another.User.Id, admin.Id)).StatusCode); // selected workspace: second
+        Assert.Equal(first.Id, Assert.Single((await member.Client.GetFromJsonAsync<TenantSummary[]>("/api/v1/tenants"))!).Id);
+        Assert.Equal(second.Id, Assert.Single((await another.Client.GetFromJsonAsync<TenantSummary[]>("/api/v1/tenants"))!).Id);
+        var current = (await owner.Client.GetFromJsonAsync<GroupUserSummary>($"/api/v1/permission-groups/users/{member.User.Id}"))!;
+        Assert.Equal([first.Id], current.AdminCompanyIds);
+        Assert.Equal(HttpStatusCode.OK, (await owner.Client.PutAsJsonAsync($"/api/v1/permission-groups/users/{member.User.Id}",
+            new AssignGroupsRequest([admin.Id], current.Version, [first.Id, second.Id]))).StatusCode);
         Assert.All((await member.Client.GetFromJsonAsync<TenantSummary[]>("/api/v1/tenants"))!, x => Assert.Equal(Permissions.All.Order(), x.Permissions.Order()));
         await AssertCode(await owner.Client.PutAsJsonAsync($"/api/v1/permission-groups/{admin.Id}",
-            new UpdateGroupRequest(admin.Name, [], [first.Id], updated.Version, AllPermissions: false)), HttpStatusCode.Conflict, "protected_admin_group");
+            new UpdateGroupRequest(admin.Name, [], [first.Id, second.Id], admin.Version, true)), HttpStatusCode.Conflict, "protected_admin_group");
+        Assert.Equal(admin.Id, Assert.Single((await owner.Client.GetFromJsonAsync<PermissionGroupSummary[]>("/api/v1/permission-groups"))!, x => x.IsAdmin).Id);
     }
 
     [Fact]
@@ -269,7 +273,7 @@ public sealed partial class PermissionManagementTests
         await Company(owner);
         var state = (await owner.Client.GetFromJsonAsync<GroupUserSummary>($"/api/v1/permission-groups/users/{owner.User.Id}"))!;
         await Company(owner);
-        await AssertCode(await owner.Client.PutAsJsonAsync($"/api/v1/permission-groups/users/{owner.User.Id}", new AssignGroupsRequest(state.GroupIds, state.Version)),
+        await AssertCode(await owner.Client.PutAsJsonAsync($"/api/v1/permission-groups/users/{owner.User.Id}", new AssignGroupsRequest(state.GroupIds, state.Version, state.AdminCompanyIds)),
             HttpStatusCode.Conflict, "stale_group");
     }
 

@@ -16,10 +16,11 @@ public sealed class TenantDirectory(HermesDbContext db, TenantContext context) :
             var creator = await db.Users.SingleAsync(x => x.Id == subject, cancellationToken);
             creator.ProfileVersion++; // Creating a company also creates a group assignment.
             db.Tenants.Add(tenant);
-            var admin = new PermissionGroup { CreatedBy = subject, Name = "admin", NormalizedName = "ADMIN", IsAdmin = true, AllPermissions = true };
-            admin.Companies.Add( new GroupCompany { TenantId = tenant.Id, GroupId = admin.Id });
-            db.PermissionGroups.Add(admin);
-            db.GroupUsers.Add(new GroupUser { GroupId = admin.Id, UserId = subject });
+            var admin = await db.PermissionGroups.SingleAsync(x => x.IsAdmin, cancellationToken);
+            db.GroupCompanies.Add(new GroupCompany { TenantId = tenant.Id, GroupId = admin.Id });
+            if (!await db.GroupUsers.AnyAsync(x => x.GroupId == admin.Id && x.UserId == subject, cancellationToken))
+                db.GroupUsers.Add(new GroupUser { GroupId = admin.Id, UserId = subject });
+            db.GroupUserCompanies.Add(new GroupUserCompany { GroupId = admin.Id, UserId = subject, TenantId = tenant.Id });
             db.Memberships.Add(new TenantMembership
             {
                 TenantId = tenant.Id, UserSubject = subject, JoinedAt = DateTimeOffset.UtcNow,

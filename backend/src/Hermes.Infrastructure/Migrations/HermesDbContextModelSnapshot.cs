@@ -103,6 +103,25 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("company_access_users", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Domain.GroupUserCompany", b =>
+                {
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("GroupId", "UserId", "TenantId");
+
+                    b.HasIndex("GroupId", "TenantId");
+
+                    b.ToTable("group_user_companies", (string)null);
+                });
+
             modelBuilder.Entity("Hermes.Domain.InvitationPermission", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -138,7 +157,7 @@ namespace Hermes.Infrastructure.Migrations
 
                     b.HasIndex("GroupId", "TenantId");
 
-                    b.HasIndex("GroupId", "UserSubject");
+                    b.HasIndex("GroupId", "UserSubject", "TenantId");
 
                     b.ToTable("company_access_memberships", (string)null);
                 });
@@ -292,6 +311,10 @@ namespace Hermes.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsAdmin")
+                        .IsUnique()
+                        .HasFilter("\"IsAdmin\"");
 
                     b.HasIndex("NormalizedName");
 
@@ -797,6 +820,21 @@ namespace Hermes.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Hermes.Domain.GroupUserCompany", b =>
+                {
+                    b.HasOne("Hermes.Domain.GroupCompany", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hermes.Domain.GroupUser", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Hermes.Domain.InvitationPermission", b =>
                 {
                     b.HasOne("Hermes.Domain.PermissionDefinition", null)
@@ -836,6 +874,12 @@ namespace Hermes.Infrastructure.Migrations
                         .WithMany("Groups")
                         .HasForeignKey("TenantId", "UserSubject")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hermes.Domain.GroupUserCompany", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId", "UserSubject", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Group");
