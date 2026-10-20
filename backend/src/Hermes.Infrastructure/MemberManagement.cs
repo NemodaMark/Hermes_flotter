@@ -137,9 +137,9 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         CheckVersion(target, request.Version);
         if (!target.IsActive && active && !new ResourceAccess(actor).Covers(target))
             throw Error(403, "delegation_denied", "Csak a saját jogosultságaid és telephely-hozzáféréseid körén belül állíthatsz vissza hozzáférést.");
-        if (!target.IsActive && active && target.HasAdminAuthority && !actor.HasAdminAuthority
+        if (!target.IsActive && active && target.Groups.Any(x => x.Group.AllPermissions) && !actor.HasAdminAuthority
             && !await UserAccounts.IsSystemManager(db, Actor, ct))
-            throw Error(403, "admin_delegation_denied", "Az admin hozzáférést céges admin vagy rendszergazda állíthatja vissza.");
+            throw Error(403, "admin_delegation_denied", "Az admin és az automatikusan bővülő jogkör visszaállításához céges admin vagy rendszergazda szükséges.");
         await ProtectLastManager(target, active, Codes(target), ct);
         var before = target.IsActive;
         target.IsActive = active;

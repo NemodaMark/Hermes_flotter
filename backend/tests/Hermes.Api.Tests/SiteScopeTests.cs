@@ -216,6 +216,11 @@ public sealed partial class PermissionManagementTests
         Assert.Equal(HttpStatusCode.Forbidden, (await CompanyAssign(manager, target.User.Id, admin.Id)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await Grants(manager, manager.User.Id, Permissions.VehiclesRead)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await manager.Client.PostAsJsonAsync("/api/v1/permission-groups", new CreateGroupRequest("Másik admin", [], [company.Id], true))).StatusCode);
+        await CompanyAssign(owner, target.User.Id, group.Id);
+        var membership = await Access(owner, target.User.Id);
+        await ScopeOk<TenantAccess>(await owner.Client.PatchAsJsonAsync($"/api/v1/members/{target.User.Id}/status", new ChangeMemberStatusRequest(false, membership.Version)));
+        membership = await Access(owner, target.User.Id);
+        Assert.Equal(HttpStatusCode.Forbidden, (await manager.Client.PatchAsJsonAsync($"/api/v1/members/{target.User.Id}/status", new ChangeMemberStatusRequest(true, membership.Version))).StatusCode);
     }
 
     [Fact]
