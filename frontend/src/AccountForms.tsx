@@ -6,8 +6,10 @@ import type { Session } from './api'
 
 export function AuthScreen({
   onAuthenticated,
+  invitationPending = false,
 }: {
   onAuthenticated: (user: Session) => Promise<void>
+  invitationPending?: boolean
 }) {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [pending, setPending] = useState(false)
@@ -49,6 +51,12 @@ export function AuthScreen({
           HERMES<small>Flottakezelés</small>
         </span>
       </header>
+      {invitationPending && (
+        <p className="invitation-context">
+          Céges meghívó elfogadásához lépj be vagy regisztrálj a meghívott e-mail-címmel. Belépés
+          után itt folytathatod a csatlakozást.
+        </p>
+      )}
       <section className="account-panel" aria-labelledby="account-title">
         <div className="account-tabs" aria-label="Fiókműveletek">
           <button

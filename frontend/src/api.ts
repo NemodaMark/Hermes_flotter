@@ -9,14 +9,42 @@ export type Vehicle = {
 }
 export type NewVehicle = { registration: string; make: string; model: string }
 export type RegisterInput = { displayName: string; email: string; password: string }
+export type Permission = { code: string; name: string }
+export type Page<T> = { items: T[]; total: number; page: number; pageSize: number }
+export type MemberAccess = {
+  tenantId: string
+  userId: string
+  isActive: boolean
+  version: number
+  permissions: string[]
+}
+export type Member = Omit<MemberAccess, 'tenantId'> & {
+  displayName: string | null
+  email: string | null
+  joinedAt: string | null
+  disabledAt: string | null
+}
+export type Invitation = {
+  id: string
+  email: string
+  permissions: string[]
+  createdAt: string
+  expiresAt: string
+  acceptedAt: string | null
+  revokedAt: string | null
+}
+export type InvitationAcceptance = { tenantId: string; invitationId: string; token: string }
+export type CreatedInvitation = { invitation: Invitation; acceptance: InvitationAcceptance }
 export const vehicleKey = (userId: string, tenantId?: string) =>
   ['vehicles', userId, tenantId] as const
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  code?: string
+  constructor(status: number, message: string, code?: string) {
     super(message)
     this.status = status
+    this.code = code
   }
 }
 
@@ -70,6 +98,7 @@ async function request<T>(
     const problem = (await response.json().catch(() => null)) as {
       title?: string
       errors?: Record<string, string[]>
+      code?: string
     } | null
     const validationMessage = problem?.errors
       ? Object.values(problem.errors).flat().join(' ')
@@ -82,9 +111,9 @@ async function request<T>(
           ? (path.endsWith('/login') ? problem?.title : undefined) ||
             'A folytatáshoz bejelentkezés szükséges.'
           : response.status === 403
-            ? 'Ehhez a művelethez nincs jogosultságod.'
+            ? problem?.title || 'Ehhez a művelethez nincs jogosultságod.'
             : validationMessage || problem?.title || 'A kérés nem sikerült. Próbáld újra.'
-    throw new ApiError(response.status, message)
+    throw new ApiError(response.status, message, problem?.code)
   }
   return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>)
 }
@@ -116,6 +145,39 @@ export const api = {
   },
   tenants: (signal?: AbortSignal) => request<Tenant[]>('/api/v1/tenants', { signal }),
   createTenant: (name: string) => request<Tenant>('/api/v1/tenants', { body: { name } }),
+  permissions: (signal?: AbortSignal) => request<Permission[]>('/api/v1/permissions', { signal }),
+  members: (tenantId: string, page: number, search: string, signal?: AbortSignal) =>
+    request<Page<Member>>(
+      `/api/v1/members?${new URLSearchParams({ page: String(page), pageSize: '25', search })}`,
+      { tenantId, signal },
+    ),
+  memberAccess: (tenantId: string, userId: string) =>
+    request<MemberAccess>(`/api/v1/members/${encodeURIComponent(userId)}/permissions`, {
+      tenantId,
+    }),
+  changePermissions: (tenantId: string, userId: string, permissions: string[], version: number) =>
+    request<MemberAccess>(`/api/v1/members/${encodeURIComponent(userId)}/permissions`, {
+      tenantId,
+      method: 'PUT',
+      body: { permissions, version },
+    }),
+  changeMemberStatus: (tenantId: string, userId: string, isActive: boolean, version: number) =>
+    request<MemberAccess>(`/api/v1/members/${encodeURIComponent(userId)}/status`, {
+      tenantId,
+      method: 'PATCH',
+      body: { isActive, version },
+    }),
+  invitations: (tenantId: string, page: number, signal?: AbortSignal) =>
+    request<Page<Invitation>>(`/api/v1/invitations?page=${page}&pageSize=25`, { tenantId, signal }),
+  invite: (tenantId: string, email: string, permissions: string[]) =>
+    request<CreatedInvitation>('/api/v1/invitations', { tenantId, body: { email, permissions } }),
+  revokeInvitation: (tenantId: string, invitationId: string) =>
+    request<void>(`/api/v1/invitations/${encodeURIComponent(invitationId)}`, {
+      tenantId,
+      method: 'DELETE',
+    }),
+  acceptInvitation: (body: InvitationAcceptance) =>
+    request<MemberAccess>('/api/v1/invitations/accept', { body }),
   vehicles: (tenantId: string, signal?: AbortSignal) =>
     request<Vehicle[]>('/api/v1/vehicles', { tenantId, signal }),
   createVehicle: (tenantId: string, body: NewVehicle) =>

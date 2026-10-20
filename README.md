@@ -11,6 +11,7 @@ Több céget kiszolgáló flottakezelő SaaS: React + TypeScript frontend, ASP.N
 - Cégenként elkülönített járműlista, keresés, állapotszűrés és járműfelvétel.
 - Cégenként és felhasználónként kiosztható műveleti jogok, fix szerepkörök nélkül.
 - Céges felhasználólista, meghívások, hozzáférések felfüggesztése és jogosultsági eseménynapló az API-ban.
+- Egyszerű Felhasználók oldal céges meghívással, jogkiosztással, felfüggesztéssel/visszaállítással és meghívóelfogadással.
 - Migrációk, Docker Compose és GitHub Actions, valódi PostgreSQL-es integrációs tesztekkel.
 
 ## Indítás Dockerrel
@@ -97,7 +98,7 @@ Minden módosító API-kéréshez CSRF-token kell. A kliens először lekéri a 
 
 Éles környezetben a sütik kizárólag HTTPS-en használhatók. A Docker Compose helyi fejlesztésre `Development` környezetet állít be. Éles kiadásnál HTTPS-t, tartós és megfelelően védett Data Protection-kulcstárat, valamint a megbízható fordított proxyhoz illeszkedő továbbított fejléc- és kéréskorlátozás-beállításokat kell használni. Több API-példánynak közös kulcstár kell.
 
-Az e-mail-megerősítés, jelszó-visszaállítás, kétlépcsős hitelesítés, a meghívások webes felülete és az e-mail-küldő integráció még külön fejlesztési lépés. A regisztráció jelenleg közvetlenül beléptet. A meghívó API működik; a tokent jelenleg külön kell eljuttatni a címzettnek.
+Az e-mail-megerősítés, jelszó-visszaállítás, kétlépcsős hitelesítés és az e-mail-küldő integráció még külön fejlesztési lépés. A regisztráció jelenleg közvetlenül beléptet. A Felhasználók oldalon készített meghívási hivatkozást külön kell eljuttatni a címzettnek.
 
 ## Többcéges működés
 
@@ -146,7 +147,9 @@ A `version` a tagság legutóbb lekért verziója. Sikeres módosításkor nő; 
 
 Meghívás: `POST /api/v1/invitations`, törzs: `{ "email": "tag@example.com", "permissions": ["vehicles.read"] }`. Nem üres joglistához a `members.invite` mellett `permissions.manage` is szükséges. A válasz `acceptance` objektumát csak ekkor lehet megkapni, benne a `tenantId`, `invitationId`, `token` adatokkal. Ezeket bizalmasan kell átadni a címzettnek. A címzett a megfelelő e-mail-című fiókjával bejelentkezve ezt az objektumot küldi a `POST /api/v1/invitations/accept` végpontra; ehhez nem kell céges fejléc.
 
-A meghívó 7 napig érvényes és egyszer használható. Elfogadáskor a meghívó küldőjének aktuális jogait is újra ellenőrzi a rendszer; lejárt, visszavont, felhasznált vagy időközben jogosulatlanná vált meghívás nem hoz létre tagságot. Meglévő vagy felfüggesztett tagság nem írható felül meghívással. A listázás és az eseménynapló nem ad vissza meghívási tokent vagy hash-t. Automatikus e-mail-küldés és webes tagkezelő oldal jelenleg nincs; a kezelési műveletek az API-ban érhetők el.
+A meghívó 7 napig érvényes és egyszer használható. Elfogadáskor a meghívó küldőjének aktuális jogait is újra ellenőrzi a rendszer; lejárt, visszavont, felhasznált vagy időközben jogosulatlanná vált meghívás nem hoz létre tagságot. Meglévő vagy felfüggesztett tagság nem írható felül meghívással. A listázás és az eseménynapló nem ad vissza meghívási tokent vagy hash-t.
+
+A webes felületen válassz céget, majd nyisd meg a **Felhasználók** menüt. Itt kereshetsz a tagok között, jogokat szerkeszthetsz, megerősítés után felfüggeszthetsz/visszaállíthatsz hozzáférést, valamint létrehozhatsz és visszavonhatsz meghívókat. A vezérlők a saját jogaidhoz igazodnak. Automatikus e-mail-küldés nincs: a létrehozáskor egyszer látható hivatkozást kézzel kell továbbítani. A címzett belépés vagy regisztráció után kifejezetten elfogadja a meghívót, és a felület a megfelelő céget választja ki. A token a hivatkozás fragmentjében marad, elfogadás/bezárás után pedig törlődik a címsorból. A részletes felületi működést a [frontend leírása](frontend/README.md) tartalmazza.
 
 A listavégpontok `page` (1–10000) és `pageSize` (1–100, alapból 25) paramétert, a taglista `search` paramétert is elfogad; válaszuk `{ "items": [], "total": 0, "page": 1, "pageSize": 25 }`. A hozzáférések változásai ugyanabban a tranzakcióban kerülnek az eseménynaplóba, mint az adatváltozás.
 

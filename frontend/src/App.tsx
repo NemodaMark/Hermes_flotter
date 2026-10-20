@@ -13,23 +13,19 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Users,
   X,
 } from 'lucide-react'
 import { api, ApiError, resetCsrfToken, vehicleKey } from './api'
 import type { NewVehicle, Session, Tenant, Vehicle } from './api'
 import { AuthScreen, CompanyDialog, CompanyForm } from './AccountForms'
+import { MembersPage } from './MembersPage'
+import { InvitationScreen } from './InvitationScreen'
+import { clearInvitation, readInvitation } from './invitationLink'
+import { permissionNames } from './permissions'
 import './App.css'
 import './accounts.css'
 
-const permissionNames: Record<string, string> = {
-  'vehicles.read': 'Járművek megtekintése',
-  'vehicles.create': 'Jármű felvétele',
-  'members.read': 'Felhasználók megtekintése',
-  'members.invite': 'Meghívások kezelése',
-  'members.update': 'Céges hozzáférések kezelése',
-  'permissions.manage': 'Jogosultságok kiosztása',
-  'audit.read': 'Változásnapló megtekintése',
-}
 const statuses: Record<string, string> = {
   Active: 'Aktív',
   Maintenance: 'Szervizben',
@@ -167,15 +163,17 @@ function FleetWorkspace({
   onLogout,
   loggingOut,
   logoutError,
+  initialTenantId,
 }: {
   user: Session
   onLogout: () => void
   loggingOut: boolean
   logoutError: string | null
+  initialTenantId: string | null
 }) {
   const queryClient = useQueryClient()
-  const [tenantId, setTenantId] = useState<string | null>(null)
-  const [view, setView] = useState<'fleet' | 'organization'>('fleet')
+  const [tenantId, setTenantId] = useState<string | null>(initialTenantId)
+  const [view, setView] = useState<'fleet' | 'organization' | 'members'>('fleet')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [formOpen, setFormOpen] = useState(false)
@@ -237,6 +235,12 @@ function FleetWorkspace({
       (status === 'all' || vehicle.status === status),
   )
   const canCreate = tenant?.permissions.includes('vehicles.create') ?? false
+  const canManageMembers =
+    tenant?.permissions.some((code) =>
+      ['members.read', 'members.invite', 'members.update', 'permissions.manage'].includes(code),
+    ) ?? false
+  const viewTitle =
+    view === 'fleet' ? 'Járművek' : view === 'members' ? 'Felhasználók' : 'Cégadatok'
 
   function changeTenant(value: string) {
     setTenantId(value)
@@ -279,6 +283,7 @@ function FleetWorkspace({
             <Building2 size={17} />
             <select
               id="company"
+              aria-label="Munkaterület"
               value={tenant?.id ?? ''}
               disabled={
                 !tenants.data?.length || create.isPending || createCompany.isPending || loggingOut
@@ -318,6 +323,17 @@ function FleetWorkspace({
             Járművek
             <ArrowRight size={16} />
           </button>
+          {canManageMembers && (
+            <button
+              className={view === 'members' ? 'nav-item active' : 'nav-item'}
+              aria-current={view === 'members' ? 'page' : undefined}
+              onClick={() => setView('members')}
+            >
+              <Users size={19} />
+              Felhasználók
+              <ArrowRight size={16} />
+            </button>
+          )}
           <button
             className={view === 'organization' ? 'nav-item active' : 'nav-item'}
             aria-current={view === 'organization' ? 'page' : undefined}
@@ -358,8 +374,7 @@ function FleetWorkspace({
       <main>
         <header className="topbar">
           <span>
-            Munkaterület <span className="breadcrumb-separator">/</span>{' '}
-            {view === 'fleet' ? 'Járművek' : 'Cégadatok'}
+            Munkaterület <span className="breadcrumb-separator">/</span> {viewTitle}
           </span>
           <button
             className="logout-button"
@@ -380,14 +395,16 @@ function FleetWorkspace({
             <div>
               <p className="eyebrow">{tenant?.name ?? 'HERMES'}</p>
               <h1>
-                {!tenant ? 'Saját munkaterület' : view === 'fleet' ? 'Járműállomány' : 'Cégadatok'}
+                {!tenant ? 'Saját munkaterület' : view === 'fleet' ? 'Járműállomány' : viewTitle}
               </h1>
               <p className="page-description">
                 {!tenant
                   ? 'Hozd létre a cégedet a flottakezelés megkezdéséhez.'
                   : view === 'fleet'
                     ? 'A kiválasztott cég járművei, egy helyen.'
-                    : 'Az aktuális munkaterület és hozzáférésed.'}
+                    : view === 'members'
+                      ? 'Céges tagok, meghívások és hozzáférések.'
+                      : 'Az aktuális munkaterület és hozzáférésed.'}
               </p>
             </div>
             {view === 'fleet' && canCreate && (
@@ -430,6 +447,8 @@ function FleetWorkspace({
                 error={companyError}
               />
             </section>
+          ) : view === 'members' ? (
+            <MembersPage key={tenant.id} user={user} tenant={tenant} />
           ) : view === 'organization' ? (
             <section className="organization-panel" aria-label="Munkaterület adatai">
               <dl>
@@ -552,6 +571,13 @@ export default function App() {
   const queryClient = useQueryClient()
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
+  const [invitation, setInvitation] = useState(readInvitation)
+  const [acceptedTenantId, setAcceptedTenantId] = useState<string | null>(null)
+  useEffect(() => {
+    const read = () => setInvitation(readInvitation())
+    window.addEventListener('hashchange', read)
+    return () => window.removeEventListener('hashchange', read)
+  }, [])
   const session = useQuery({
     queryKey: ['session'],
     queryFn: ({ signal }) => api.session(signal),
@@ -565,32 +591,58 @@ export default function App() {
       resetCsrfToken()
       void queryClient.cancelQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
       queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+      queryClient.getMutationCache().clear()
     }
   }, [queryClient, session.data])
 
-  useEffect(
-    () =>
-      queryClient.getQueryCache().subscribe((event) => {
+  useEffect(() => {
+    const handleError = (error: unknown) => {
+      if (
+        error instanceof ApiError &&
+        error.status === 401 &&
+        queryClient.getQueryData(['session']) !== null
+      ) {
+        resetCsrfToken()
+        queryClient.setQueryData(['session'], null)
+        void queryClient.cancelQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+        queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+        queryClient.getMutationCache().clear()
+      } else if (error instanceof ApiError && error.status === 403) {
+        void queryClient.invalidateQueries({ queryKey: ['tenants'] })
+      }
+    }
+    const unsubscribeQueries = queryClient.getQueryCache().subscribe((event) => {
+      if (
+        event.type === 'updated' &&
+        event.action.type === 'error' &&
+        event.query.queryKey[0] !== 'session' &&
+        event.query.state.status === 'error'
+      ) {
         if (
-          event.type === 'updated' &&
-          event.query.queryKey[0] !== 'session' &&
+          event.query.queryKey[0] === 'tenants' &&
           event.query.state.error instanceof ApiError &&
-          event.query.state.error.status === 401
-        ) {
-          resetCsrfToken()
-          void queryClient.cancelQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
-          queryClient.setQueryData(['session'], null)
-          queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
-        }
-      }),
-    [queryClient],
-  )
+          event.query.state.error.status === 403
+        )
+          return
+        handleError(event.query.state.error)
+      }
+    })
+    const unsubscribeMutations = queryClient.getMutationCache().subscribe((event) => {
+      if (event.type === 'updated' && event.action.type === 'error')
+        handleError(event.mutation.state.error)
+    })
+    return () => {
+      unsubscribeQueries()
+      unsubscribeMutations()
+    }
+  }, [queryClient])
 
   async function changeSession(user: Session | null) {
     resetCsrfToken()
     await queryClient.cancelQueries()
     queryClient.setQueryData(['session'], user)
     queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+    queryClient.getMutationCache().clear()
     setLogoutError(null)
   }
   async function logout() {
@@ -628,14 +680,35 @@ export default function App() {
       </main>
     )
   return session.data ? (
-    <FleetWorkspace
-      key={session.data.id}
-      user={session.data}
-      onLogout={() => void logout()}
-      loggingOut={loggingOut}
-      logoutError={logoutError}
-    />
+    invitation ? (
+      <InvitationScreen
+        request={invitation.request}
+        user={session.data}
+        onAccepted={(tenantId) => {
+          clearInvitation()
+          setInvitation(null)
+          setAcceptedTenantId(tenantId)
+          void queryClient.invalidateQueries({ queryKey: ['tenants', session.data!.id] })
+        }}
+        onDismiss={() => {
+          clearInvitation()
+          setInvitation(null)
+        }}
+        onLogout={() => void logout()}
+        loggingOut={loggingOut}
+        logoutError={logoutError}
+      />
+    ) : (
+      <FleetWorkspace
+        key={`${session.data.id}:${acceptedTenantId ?? ''}`}
+        user={session.data}
+        onLogout={() => void logout()}
+        loggingOut={loggingOut}
+        logoutError={logoutError}
+        initialTenantId={acceptedTenantId}
+      />
+    )
   ) : (
-    <AuthScreen onAuthenticated={changeSession} />
+    <AuthScreen onAuthenticated={changeSession} invitationPending={!!invitation} />
   )
 }

@@ -1,0 +1,277 @@
+.access-panel {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.access-toolbar,
+.access-tools,
+.access-search,
+.member-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.access-toolbar {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 16px 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+.access-tabs {
+  display: flex;
+  gap: 20px;
+}
+.access-tabs button {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 16px 0;
+  margin-bottom: -1px;
+  font-size: 14px;
+  text-align: left;
+}
+.access-tabs button[aria-selected='true'] {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 500;
+}
+.access-tools {
+  padding-bottom: 12px;
+}
+.access-search {
+  padding: 20px;
+}
+.access-search .search-field {
+  flex: 1;
+  max-width: 460px;
+}
+.members-table {
+  min-width: 760px;
+  table-layout: fixed;
+}
+.members-table th:first-child {
+  width: 25%;
+}
+.members-table th:nth-child(2) {
+  width: 18%;
+}
+.members-table th:nth-child(3) {
+  width: 30%;
+}
+.members-table th:nth-child(4) {
+  width: 27%;
+}
+.members-table td,
+.invitations-table td {
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.members-table strong,
+.invitations-table strong {
+  font-weight: 500;
+}
+.member-email,
+.member-grants {
+  display: block;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.member-email {
+  margin-top: 4px;
+}
+.self-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.member-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.member-actions .secondary-button {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.danger-text {
+  color: #983e2c;
+}
+.danger-button {
+  border: 1px solid #983e2c;
+  background: #983e2c;
+  color: #fff;
+  min-height: 41px;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.danger-button:hover {
+  background: #803323;
+}
+.access-pagination {
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.access-pagination > div {
+  display: flex;
+  gap: 8px;
+}
+.access-pagination .secondary-button {
+  padding: 6px 10px;
+  min-height: 33px;
+  font-size: 12px;
+}
+.invitations-table {
+  min-width: 620px;
+}
+.invitations-table td:first-child {
+  width: 40%;
+}
+.access-dialog {
+  width: min(550px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  box-shadow: 0 2px 8px #162d3a14;
+}
+.access-dialog .dialog-heading {
+  align-items: flex-start;
+  gap: 16px;
+}
+.access-dialog .dialog-heading h2 {
+  font-size: 22px;
+}
+.access-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.access-description + .access-description {
+  margin-top: 12px;
+}
+.access-description strong {
+  color: #1d303b;
+  font-weight: 500;
+}
+.permission-fields {
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: 12px 0 0;
+  margin: 24px 0 0;
+  min-width: 0;
+}
+.permission-fields legend {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 8px 0 0;
+}
+.access-dialog label.permission-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 10px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.permission-option input {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin: 2px 0 0;
+  accent-color: var(--primary);
+}
+.permission-option small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.access-success {
+  color: var(--primary);
+  font-size: 13px;
+  margin-top: 12px;
+}
+.access-lookup {
+  padding: 20px;
+  margin-top: 20px;
+}
+.access-lookup h2 {
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+.access-lookup label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.access-lookup input {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px;
+  margin: 0 12px 12px 0;
+  max-width: 100%;
+}
+.invitation-acceptance {
+  max-width: 500px;
+}
+.invitation-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+.invitation-context {
+  margin: 20px auto;
+  max-width: 440px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--primary);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+}
+@media (max-width: 700px) {
+  .sidebar nav {
+    flex-wrap: wrap;
+  }
+  .access-toolbar {
+    padding-inline: 16px;
+    gap: 8px;
+  }
+  .access-tools {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .access-tabs {
+    gap: 16px;
+  }
+  .access-tabs button {
+    font-size: 13px;
+    padding-top: 8px;
+  }
+  .access-search {
+    padding: 16px;
+  }
+  .access-dialog {
+    padding: 22px 18px;
+  }
+  .access-dialog .dialog-heading h2 {
+    font-size: 21px;
+  }
+  .access-dialog .dialog-actions {
+    flex-wrap: wrap;
+  }
+  .access-dialog .dialog-actions button {
+    flex: 1;
+  }
+}
