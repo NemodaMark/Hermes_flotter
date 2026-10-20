@@ -233,6 +233,8 @@ Profilszerkesztés: `{ displayName, email, phoneNumber, version }`; jelszócsere
 
 A **Cégek és telephelyek** oldalon kereshető, állapot szerint szűrhető céglista található. A megnyitott cégnél külön fülön szerkeszthetők a törzsadatok és kapcsolattartók, kezelhetők a telephelyek és jármű-hozzárendelések, illetve olvasható a változásnapló. A listában alapból az aktív cégek szerepelnek; az archivált és felfüggesztett cégek szűréssel érhetők el. A normál flottamunkaterület csak az aktív cégeket tartalmazza.
 
+A cégűrlapon az időzóna és a pénznem legördülő listából választható, a korábban mentett egyéb értékek is megmaradnak. Az adószámmezők nem jelennek meg az űrlapon; a korábban tárolt adatok megőrződnek. A napló módosítója a korábbi azonosítókból is feloldott felhasználónév; az eredeti azonosító a részletekben elérhető, a napló tárolt sorának átírása nélkül.
+
 | Művelet | Jogosultság | Végpont |
 |---|---|---|
 | Hozzáférhető céglista, állapottól függetlenül | Saját céges műveleti jogok alapján szűrve | `GET /api/v1/companies?page=1&search=&status=Active` |

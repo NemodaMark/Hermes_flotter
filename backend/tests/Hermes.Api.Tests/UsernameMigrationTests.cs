@@ -131,6 +131,12 @@ public sealed class UsernameMigrationTests(FleetFixture fixture) : IClassFixture
             var tenantAudit = Assert.Single((await current.GetFromJsonAsync<PageResult<AuditSummary>>("/api/v1/audit-events"))!.Items, x => x.Id == tenantAuditId);
             Assert.Equal("shared.2", tenantAudit.ActorSubject);
             Assert.Equal(firstId, tenantAudit.OriginalActorSubject);
+            var companyAudit = Assert.Single((await current.GetFromJsonAsync<PageResult<AuditSummary>>("/api/v1/company/audit-events"))!.Items, x => x.Action == "company.created");
+            Assert.Equal("shared.2", companyAudit.ActorSubject);
+            Assert.Equal("shared.2", companyAudit.TargetSubject);
+            Assert.Equal(firstId, companyAudit.OriginalActorSubject);
+            Assert.Equal(firstId, companyAudit.OriginalTargetSubject);
+            Assert.Equal("{}", companyAudit.Details);
             using var futureUser = factory.CreateClient();
             await FleetFixture.RefreshCsrfAsync(futureUser);
             var registration = await futureUser.PostAsJsonAsync("/api/v1/auth/register", new { userName = "future.user", displayName = "Meghívott", email = "future@example.test", password = FleetFixture.Password });
@@ -156,6 +162,13 @@ public sealed class UsernameMigrationTests(FleetFixture fixture) : IClassFixture
                 Assert.Equal(firstId, original.ActorSubject);
                 Assert.Equal(secondId, original.TargetSubject);
                 Assert.Equal(originalDetails, original.Details);
+                var companyContext = new TenantContext(); companyContext.Set(company.Id, "shared.2", Permissions.All);
+                await using var companyDb = FleetFixture.CreateContext(runtime.ConnectionString, companyContext);
+                var originalCompanyAudit = await TenantTransaction.RunAsync(companyDb, company.Id,
+                    () => companyDb.AccessAuditEvents.SingleAsync(x => x.Id == companyAudit.Id), default);
+                Assert.Equal(firstId, originalCompanyAudit.ActorSubject);
+                Assert.Equal(firstId, originalCompanyAudit.TargetSubject);
+                Assert.Equal("{}", originalCompanyAudit.Details);
                 Assert.Empty(await db.Vehicles.ToArrayAsync());
                 Assert.Empty(await db.MembershipPermissions.ToArrayAsync());
             }

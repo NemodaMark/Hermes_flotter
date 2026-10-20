@@ -85,6 +85,7 @@ export type OrganizationAudit = {
   id: string
   action: string
   actorSubject: string
+  originalActorSubject?: string | null
   details: string
   createdAt: string
 }

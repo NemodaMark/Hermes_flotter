@@ -36,9 +36,9 @@ const profile: CompanyDetails = {
   data: {
     name: 'Duna',
     legalName: 'Duna Kft.',
-    taxNumber: '',
+    taxNumber: '12345678-2-42',
     registrationNumber: '',
-    euVatNumber: '',
+    euVatNumber: 'HU12345678',
     address: blankAddress(),
     email: '',
     phone: '',
@@ -236,6 +236,7 @@ function mount(allowed = permissions) {
               id: 'audit',
               action: 'company.updated',
               actorSubject: user.id,
+              originalActorSubject: '01a1580f-94ed-7de0-9719-2d6624422110',
               createdAt: metadata.createdAt,
               details: '{"before":{"Name":"Régi cég"},"after":{"Name":"Duna"}}',
             },
@@ -286,17 +287,36 @@ it('saves company fields with the selected company, revision and CSRF token', as
   const name = await screen.findByRole('textbox', { name: 'Hivatalos cégnév' })
   await userEvent.clear(name)
   await userEvent.type(name, 'Duna Fuvarozó Kft.')
-  await userEvent.type(screen.getByRole('textbox', { name: 'Adószám' }), '12345678-2-42')
+  expect(screen.queryByRole('textbox', { name: 'Adószám' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('textbox', { name: 'Közösségi adószám' })).not.toBeInTheDocument()
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Időzóna' }), 'Europe/Vienna')
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Pénznem' }), 'EUR')
   await userEvent.click(screen.getByRole('button', { name: 'Cégadatok mentése' }))
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PUT')?.body).toMatchObject({
       legalName: 'Duna Fuvarozó Kft.',
       taxNumber: '12345678-2-42',
+      euVatNumber: 'HU12345678',
+      timeZone: 'Europe/Vienna',
+      currency: 'EUR',
       version: 1,
     }),
   )
   expect(calls.find((c) => c.method === 'PUT')).toMatchObject({ tenant: 'duna', csrf: 'org-csrf' })
   expect(await screen.findByRole('status')).toHaveTextContent('mentve és naplózva')
+})
+it('preserves saved settings outside the dropdown catalog when another company field changes', async () => {
+  const { state, calls } = mount()
+  state.profile.data.timeZone = 'Central Europe Standard Time'
+  state.profile.data.currency = 'XTS'
+  await openCompany()
+  expect(await screen.findByRole('combobox', { name: 'Időzóna' })).toHaveValue('Central Europe Standard Time')
+  expect(screen.getByRole('combobox', { name: 'Pénznem' })).toHaveValue('XTS')
+  await userEvent.type(screen.getByRole('textbox', { name: 'Hivatalos cégnév' }), ' új')
+  await userEvent.click(screen.getByRole('button', { name: 'Cégadatok mentése' }))
+  await waitFor(() => expect(calls.find((c) => c.method === 'PUT')?.body).toMatchObject({
+    timeZone: 'Central Europe Standard Time', currency: 'XTS', taxNumber: '12345678-2-42',
+  }))
 })
 it('keeps unsaved values after a conflict until the user reloads the current revision', async () => {
   const { state } = mount()
@@ -428,7 +448,9 @@ it('shows who changed company data and exposes the recorded before and after val
   await openCompany()
   await userEvent.click(await screen.findByRole('tab', { name: 'Módosítási napló' }))
   expect(await screen.findByText('Cégadatok módosítása')).toBeInTheDocument()
+  expect(screen.getByRole('cell', { name: user.id })).toBeInTheDocument()
   await userEvent.click(screen.getByText('Részletek'))
+  expect(screen.getByText('Korábbi naplóazonosító: 01a1580f-94ed-7de0-9719-2d6624422110')).toBeVisible()
   expect(screen.getByText('Régi cég')).toBeInTheDocument()
   expect(screen.getByRole('columnheader', { name: 'Előtte' })).toBeInTheDocument()
   expect(screen.getByRole('columnheader', { name: 'Utána' })).toBeInTheDocument()

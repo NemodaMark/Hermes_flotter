@@ -389,6 +389,12 @@ function CompanyWorkspace({
             )}
           </>
         )}
+        {tab === 'sites' && (
+          <p className="notice">
+            A cég fizikai helyszínei, például irodák, raktárak vagy garázsok.
+            A járműveket a Járművek telephelyei fülön rendelheted hozzájuk.
+          </p>
+        )}
         {(tab === 'contacts' || tab === 'sites') && (
           <div className="org-section-tools">
             <label className="org-checkbox">
@@ -546,7 +552,7 @@ function CompanyWorkspace({
               </div>
               {sites.data?.length === 0 && (
                 <p className="notice">
-                  Még nincs telephely. A járművek telephely nélkül is megmaradnak.
+                  Ennél a cégnél még nincs telephely rögzítve.
                 </p>
               )}
             </>
@@ -620,6 +626,11 @@ function CompanyWorkspace({
                           <details>
                             <summary>Részletek</summary>
                             <OrganizationAuditChanges details={entry.details} />
+                            {entry.originalActorSubject && (
+                              <p className="org-metadata">
+                                Korábbi naplóazonosító: {entry.originalActorSubject}
+                              </p>
+                            )}
                           </details>
                         </td>
                       </tr>

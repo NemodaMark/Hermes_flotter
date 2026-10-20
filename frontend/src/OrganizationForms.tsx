@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { AccessDialog } from './AccessDialog'
 import { blankAddress, companyStatusName, organizationApi } from './organizationApi'
+import { currencies, currencyLabel, timeZones, timeZoneLabel, withCurrentValue } from './companyOptions'
 import type {
   Address,
   CompanyDetails,
@@ -149,9 +150,7 @@ export function CompanyForm({
         <div className="org-form-grid">
           {text('name', 'Megjelenített cégnév', 160, 'text', true)}
           {text('legalName', 'Hivatalos cégnév')}
-          {text('taxNumber', 'Adószám', 40)}
           {text('registrationNumber', 'Cégjegyzékszám', 40)}
-          {text('euVatNumber', 'Közösségi adószám', 40)}
         </div>
       </fieldset>
       <fieldset>
@@ -176,14 +175,47 @@ export function CompanyForm({
       <fieldset>
         <legend>Alapbeállítások</legend>
         <div className="org-form-grid">
-          {text('timeZone', 'Időzóna', 80, 'text', true)}
-          {text('currency', 'Pénznem', 3, 'text', true)}
+          <label className="org-field">
+            <span>Időzóna</span>
+            <select
+              value={data.timeZone}
+              required
+              disabled={!editable || save.isPending}
+              onChange={(e) => {
+                setSaved(false)
+                setData({ ...data, timeZone: e.target.value })
+              }}
+            >
+              {withCurrentValue(timeZones, data.timeZone).map((zone) => (
+                <option key={zone} value={zone}>{timeZoneLabel(zone)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="org-field">
+            <span>Pénznem</span>
+            <select
+              value={data.currency}
+              required
+              disabled={!editable || save.isPending}
+              onChange={(e) => {
+                setSaved(false)
+                setData({ ...data, currency: e.target.value })
+              }}
+            >
+              {withCurrentValue(currencies, data.currency).map((code) => (
+                <option key={code} value={code}>{currencyLabel(code)}</option>
+              ))}
+            </select>
+          </label>
           <label className="org-field">
             <span>Távolságegység</span>
             <select
               value={data.distanceUnit}
               disabled={!editable || save.isPending}
-              onChange={(e) => setData({ ...data, distanceUnit: e.target.value })}
+              onChange={(e) => {
+                setSaved(false)
+                setData({ ...data, distanceUnit: e.target.value })
+              }}
             >
               <option value="km">Kilométer (km)</option>
               <option value="mi">Mérföld (mi)</option>

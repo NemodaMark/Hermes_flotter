@@ -214,6 +214,13 @@ public sealed class OrganizationManagement(HermesDbContext db, TenantContext con
         var total = await query.CountAsync(ct);
         var rows = await query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip((page - 1) * 25).Take(25)
             .Select(x => new AuditSummary(x.Id, x.ActorSubject, x.Action, x.TargetSubject, x.Details, x.CreatedAt)).ToArrayAsync(ct);
-        return new PageResult<AuditSummary>(rows, total, page, 25);
+        var names = await IdentityHistory.Resolve(db, rows.SelectMany(x => new[] { x.ActorSubject, x.TargetSubject }), ct);
+        return new PageResult<AuditSummary>(rows.Select(x => x with
+        {
+            ActorSubject = IdentityHistory.Subject(names, x.ActorSubject),
+            TargetSubject = x.TargetSubject is null ? null : IdentityHistory.Subject(names, x.TargetSubject),
+            OriginalActorSubject = names.TryGetValue(x.ActorSubject, out var actor) && actor != x.ActorSubject ? x.ActorSubject : null,
+            OriginalTargetSubject = x.TargetSubject is { } target && names.TryGetValue(target, out var name) && name != target ? target : null
+        }).ToArray(), total, page, 25);
     }, ct);
 }
