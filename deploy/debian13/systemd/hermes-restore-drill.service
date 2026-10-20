@@ -1,0 +1,15 @@
+[Unit]
+Description=Verify encrypted HERMES backup and restore in isolated containers
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HERMES_CONFIG_FILE=@CONFIG@
+WorkingDirectory=@ROOT@
+ExecStart=/usr/bin/bash @ROOT@/deploy/debian13/hermes.sh restore-drill latest
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

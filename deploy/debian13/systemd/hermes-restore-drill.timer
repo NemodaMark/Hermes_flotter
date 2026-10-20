@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly HERMES repository integrity and restore drill
+
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00 UTC
+RandomizedDelaySec=15m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

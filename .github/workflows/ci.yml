@@ -9,6 +9,35 @@ permissions:
   contents: read
 
 jobs:
+  debian-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Debian 13 HTTPS, encrypted backup and full recovery
+        env:
+          HERMES_CI_TEMP: ${{ runner.temp }}/hermes-debian13
+        run: |
+          mkdir -p "$HERMES_CI_TEMP"
+          docker run --rm --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
+            -v "$HERMES_CI_TEMP:$HERMES_CI_TEMP" \
+            -w "$GITHUB_WORKSPACE" \
+            -e HERMES_SMOKE_ISOLATED=true -e HERMES_CI_TEMP \
+            debian:13-slim bash -c '
+              set -Eeuo pipefail
+              bash deploy/debian13/install-debian13.sh --no-start
+              apt-get install -y shellcheck nodejs systemd
+              git config --global --add safe.directory "$PWD"
+              shellcheck deploy/debian13/*.sh deploy/debian13/tests/*.sh
+              for unit in deploy/debian13/systemd/*; do
+                sed -e "s|@ROOT@|$PWD|g" -e "s|@CONFIG@|$HERMES_CI_TEMP/config/staging.env|g" "$unit" > "/tmp/$(basename "$unit")"
+              done
+              systemd-analyze verify /tmp/hermes-*.service /tmp/hermes-*.timer
+              bash deploy/debian13/tests/roundtrip.sh
+            '
+
   control-center-core:
     runs-on: ubuntu-latest
     steps:

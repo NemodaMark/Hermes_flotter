@@ -1,0 +1,27 @@
+{
+    email {$HERMES_ACME_EMAIL}
+    admin off
+}
+
+{$HERMES_DOMAIN} {
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+        -Server
+    }
+    request_body {
+        max_size 12582912
+    }
+    @backend path /api/* /health/*
+    handle @backend {
+        reverse_proxy api:8080 {
+            # Exactly one trusted hop, regardless of headers supplied by the browser.
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    handle {
+        reverse_proxy frontend:8080
+    }
+}

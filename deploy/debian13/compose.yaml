@@ -1,0 +1,105 @@
+# Standalone server configuration; do not merge with the development compose.yaml.
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  db:
+    image: ${HERMES_POSTGRES_IMAGE:-postgres:18-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hermes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Generate staging.env with hermes.sh init}
+      HERMES_MIGRATOR_PASSWORD: ${POSTGRES_MIGRATOR_PASSWORD:?Missing migrator password}
+      HERMES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Missing application password}
+    volumes:
+      - ${HERMES_DATA_DIR:?Missing data directory}/postgres:/var/lib/postgresql
+      - ../../infra/postgres:/docker-entrypoint-initdb.d:ro
+    networks: [database]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d hermes"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+    logging: *logging
+
+  migrate:
+    image: ${HERMES_API_IMAGE:?Run hermes.sh deploy}
+    command: [--migrate]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Migrations: "Host=db;Database=hermes;Username=hermes_migrator;Password=${POSTGRES_MIGRATOR_PASSWORD}"
+    networks: [database]
+    profiles: [maintenance]
+    restart: "no"
+    logging: *logging
+
+  api:
+    image: ${HERMES_API_IMAGE:?Run hermes.sh deploy}
+    build:
+      context: ../../backend
+      args: { SOURCE_REVISION: "${HERMES_RELEASE:?Missing release}" }
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+      AllowedHosts: "${HERMES_DOMAIN:?Missing domain};localhost;127.0.0.1"
+      ConnectionStrings__Database: "Host=db;Database=hermes;Username=hermes_app;Password=${POSTGRES_APP_PASSWORD}"
+      DataProtection__KeyPath: /app/keys
+      ReverseProxy__KnownProxies__0: ${HERMES_PROXY_IP:-172.30.90.2}
+    volumes:
+      - ${HERMES_DATA_DIR}/keys:/app/keys
+    networks: [database, edge]
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, dotnet, Hermes.Api.dll, --health-check]
+      interval: 15s
+      timeout: 6s
+      start_period: 30s
+      retries: 5
+    logging: *logging
+
+  frontend:
+    image: ${HERMES_FRONTEND_IMAGE:?Run hermes.sh deploy}
+    build: ../../frontend
+    restart: unless-stopped
+    networks: [edge]
+    healthcheck:
+      test: [CMD, wget, -q, --spider, "http://127.0.0.1:8080/"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+    logging: *logging
+
+  proxy:
+    image: ${HERMES_CADDY_IMAGE:-caddy:2.11.7-alpine}
+    restart: unless-stopped
+    environment:
+      HERMES_DOMAIN: ${HERMES_DOMAIN}
+      HERMES_ACME_EMAIL: ${HERMES_ACME_EMAIL:?Missing certificate contact}
+    ports:
+      - "${HERMES_BIND_ADDRESS:-0.0.0.0}:${HERMES_HTTP_PORT:-80}:80"
+      - "${HERMES_BIND_ADDRESS:-0.0.0.0}:${HERMES_HTTPS_PORT:-443}:443"
+    volumes:
+      - ${HERMES_CADDYFILE:-./Caddyfile}:/etc/caddy/Caddyfile:ro
+      - ${HERMES_DATA_DIR}/caddy-data:/data
+      - ${HERMES_DATA_DIR}/caddy-config:/config
+    networks:
+      edge: { ipv4_address: "${HERMES_PROXY_IP:-172.30.90.2}" }
+    depends_on:
+      api: { condition: service_healthy }
+      frontend: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, caddy, version]
+      interval: 30s
+      timeout: 4s
+      retries: 3
+    logging: *logging
+
+networks:
+  database: { internal: true }
+  edge:
+    ipam:
+      config: [{ subnet: "${HERMES_EDGE_SUBNET:-172.30.90.0/24}" }]

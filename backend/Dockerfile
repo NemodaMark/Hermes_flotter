@@ -1,7 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /source
 COPY . .
-RUN dotnet publish src/Hermes.Api/Hermes.Api.csproj -c Release -o /app --no-self-contained
+ARG SOURCE_REVISION=unknown
+RUN dotnet publish src/Hermes.Api/Hermes.Api.csproj -c Release -o /app --no-self-contained -p:SourceRevisionId=$SOURCE_REVISION -p:BuildDirty=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app

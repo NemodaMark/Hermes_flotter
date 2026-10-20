@@ -1,0 +1,19 @@
+[Unit]
+Description=HERMES staging containers
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=HERMES_CONFIG_FILE=@CONFIG@
+WorkingDirectory=@ROOT@
+ExecStart=/usr/bin/bash @ROOT@/deploy/debian13/hermes.sh start
+ExecStop=/usr/bin/bash @ROOT@/deploy/debian13/hermes.sh stop
+TimeoutStartSec=300
+TimeoutStopSec=120
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,39 @@
+# No published ports, TLS certificates or shared production networks in a restore drill.
+services:
+  db:
+    image: ${HERMES_POSTGRES_IMAGE}
+    environment:
+      POSTGRES_DB: hermes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      HERMES_MIGRATOR_PASSWORD: ${POSTGRES_MIGRATOR_PASSWORD}
+      HERMES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
+    volumes:
+      - ${HERMES_DATA_DIR}/postgres:/var/lib/postgresql
+      - ../../infra/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d hermes"]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+  api:
+    image: ${HERMES_API_IMAGE}
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+      AllowedHosts: "localhost;127.0.0.1"
+      ConnectionStrings__Database: "Host=db;Database=hermes;Username=hermes_app;Password=${POSTGRES_APP_PASSWORD}"
+      DataProtection__KeyPath: /app/keys
+    volumes:
+      - ${HERMES_DATA_DIR}/keys:/app/keys
+    healthcheck:
+      test: [CMD, dotnet, Hermes.Api.dll, --health-check]
+      interval: 3s
+      timeout: 6s
+      retries: 30
+  check:
+    image: ${HERMES_FRONTEND_IMAGE}
+    entrypoint: [wget, -q, -O-, "--header=Host: localhost", "http://api:8080/health/ready"]
+    profiles: [check]
+networks:
+  default: { internal: true }

@@ -10,7 +10,17 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using System.Threading.RateLimiting;
 
+if (args is ["--health-check"])
+{
+    using var probe = new HttpClient { Timeout = TimeSpan.FromSeconds(4) };
+    try { Environment.ExitCode = (await probe.GetAsync("http://127.0.0.1:8080/health/ready")).IsSuccessStatusCode ? 0 : 1; }
+    catch (HttpRequestException) { Environment.ExitCode = 1; }
+    catch (TaskCanceledException) { Environment.ExitCode = 1; }
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.ConfigureHermesProxy(builder.Configuration);
 var migrationMode = args.Contains("--migrate", StringComparer.Ordinal);
 var bootstrapIndex = Array.IndexOf(args, "--bootstrap-system-admin");
 var developmentSetupIndex = Array.IndexOf(args, "--configure-development-admin");
@@ -131,6 +141,7 @@ if (maintenanceMode)
     return;
 }
 
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseRouting();

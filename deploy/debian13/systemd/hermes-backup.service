@@ -1,0 +1,15 @@
+[Unit]
+Description=Encrypted HERMES database, documents, keys and release backup
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HERMES_CONFIG_FILE=@CONFIG@
+WorkingDirectory=@ROOT@
+ExecStart=/usr/bin/bash @ROOT@/deploy/debian13/hermes.sh backup
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
