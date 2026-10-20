@@ -8,6 +8,15 @@ public static class Permissions
     public const string VehiclesCreate = "vehicles.create";
     public const string VehiclesUpdate = "vehicles.update";
     public const string OdometerCreate = "vehicles.odometer.create";
+    public const string VehiclesArchive = "vehicles.archive";
+    public const string LeasingRead = "vehicles.leasing.read";
+    public const string LeasingManage = "vehicles.leasing.manage";
+    public const string ServicesRead = "vehicles.service.read";
+    public const string ServicesManage = "vehicles.service.manage";
+    public const string PartnersRead = "partners.read";
+    public const string PartnersCreate = "partners.create";
+    public const string PartnersUpdate = "partners.update";
+    public const string PartnersArchive = "partners.archive";
     public const string GroupsManage = "permission-groups.manage";
     public const string MembersRead = "members.read";
     public const string MembersInvite = "members.invite";
@@ -26,6 +35,11 @@ public static class Permissions
     {
         new PermissionDescription(VehiclesRead, "Járművek megtekintése"), new(VehiclesCreate, "Jármű felvétele"),
         new(VehiclesUpdate, "Járműadatok szerkesztése"), new(OdometerCreate, "Kilométerállás rögzítése"),
+        new(VehiclesArchive, "Jármű archiválása és visszaállítása"),
+        new(LeasingRead, "Jármű lízingszerződéseinek megtekintése"), new(LeasingManage, "Jármű lízingszerződéseinek kezelése"),
+        new(ServicesRead, "Jármű szervizelőzményeinek megtekintése"), new(ServicesManage, "Jármű szervizbejegyzéseinek kezelése"),
+        new(PartnersRead, "Partnerek és kapcsolattartók megtekintése"), new(PartnersCreate, "Partner felvétele"),
+        new(PartnersUpdate, "Partneradatok szerkesztése"), new(PartnersArchive, "Partner archiválása és visszaállítása"),
         new(GroupsManage, "Jogosultságcsoportok kezelése"),
         new(MembersRead, "Céges felhasználók megtekintése"), new(MembersInvite, "Meghívások kezelése"),
         new(MembersUpdate, "Céges hozzáférések felfüggesztése és visszaállítása"),

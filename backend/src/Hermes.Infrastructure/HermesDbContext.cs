@@ -34,12 +34,18 @@ public sealed partial class HermesDbContext(DbContextOptions<HermesDbContext> op
     public DbSet<CompanyContact> CompanyContacts => Set<CompanyContact>();
     public DbSet<Site> Sites => Set<Site>();
     public DbSet<VehicleSiteAssignment> VehicleSiteAssignments => Set<VehicleSiteAssignment>();
+    public DbSet<VehicleProfile> VehicleProfiles => Set<VehicleProfile>();
+    public DbSet<VehicleRegistration> VehicleRegistrations => Set<VehicleRegistration>();
+    public DbSet<Partner> Partners => Set<Partner>();
+    public DbSet<VehicleLease> VehicleLeases => Set<VehicleLease>();
+    public DbSet<VehicleService> VehicleServices => Set<VehicleService>();
     private Guid? CurrentTenantId => tenantContext.TenantId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         ConfigureOrganizations(modelBuilder);
+        ConfigureVehicleManagement(modelBuilder);
         modelBuilder.Entity<ApplicationUser>(entity =>
         {
             entity.ToTable("identity_users", table => table.HasCheckConstraint("CK_identity_users_username_key", UserNames.KeyConstraint));

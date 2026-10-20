@@ -1,6 +1,6 @@
 namespace Hermes.Domain;
 
-public enum VehicleStatus { Active, Maintenance, Inactive }
+public enum VehicleStatus { Active, Maintenance, Inactive, Archived }
 
 public sealed class Tenant
 {
@@ -37,7 +37,7 @@ public sealed class Vehicle : ITenantEntity
     public required string Model { get; set; }
     public long Version { get; set; } = 1;
     public long? OdometerKm { get; set; }
-    public VehicleStatus Status { get; init; } = VehicleStatus.Active;
+    public VehicleStatus Status { get; set; } = VehicleStatus.Active;
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
 }
 

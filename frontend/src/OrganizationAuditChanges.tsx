@@ -29,6 +29,18 @@ const labels: Record<string, string> = {
   make: 'Gyártó',
   model: 'Modell',
   sitename: 'Telephely',
+  registrationcountry: 'Rendszám országkódja', vin: 'Alvázszám', fleetnumber: 'Flottaazonosító', category: 'Járműkategória',
+  year: 'Gyártási év', firstregistration: 'Első forgalomba helyezés', color: 'Szín', fueltype: 'Üzemanyag / hajtás',
+  powerkw: 'Teljesítmény (kW)', enginecapacitycc: 'Hengerűrtartalom (cm³)', transmission: 'Váltó', seats: 'Ülések',
+  grossweightkg: 'Össztömeg (kg)', payloadkg: 'Teherbírás (kg)', cargovolumem3: 'Raktér (m³)', batterykwh: 'Akkumulátor (kWh)',
+  ownership: 'Tulajdonlás', fleetentrydate: 'Flottába kerülés', fleetexitdate: 'Flottából kilépés',
+  inspectionduedate: 'Műszaki vizsga lejárata', insuranceduedate: 'Biztosítás lejárata', nextservicedate: 'Következő szerviz dátuma', nextservicekm: 'Következő szerviz (km)',
+  preferredservicepartnername: 'Szervizpartner', notes: 'Megjegyzés', odometerkm: 'Kilométerállás',
+  islessor: 'Lízingbeadó', isservice: 'Szerviz', contacts: 'Kapcsolattartók', partnername: 'Partner', contractnumber: 'Szerződésszám',
+  startdate: 'Szerződés kezdete', enddate: 'Szerződés vége', paymentamount: 'Lízingdíj', billingfrequency: 'Fizetési gyakoriság',
+  annualkmlimit: 'Éves km-keret', totalkmlimit: 'Teljes km-keret', documenturl: 'Dokumentum webcíme',
+  performedon: 'Szerviz dátuma', kilometers: 'Kilométerállás', description: 'Elvégzett munka', workordernumber: 'Munkalapszám',
+  cost: 'Költség', isvoided: 'Érvénytelenített', voidreason: 'Érvénytelenítés indoka',
 }
 function flatten(value: unknown, prefix = '', result: Record<string, unknown> = {}) {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -42,12 +54,13 @@ function flatten(value: unknown, prefix = '', result: Record<string, unknown> = 
         result,
       )
     }
-  } else if (prefix && !Array.isArray(value)) result[prefix] = value
+  } else if (prefix) result[prefix] = value
   return result
 }
 function display(value: unknown, key: string) {
   if (value === null || value === undefined || value === '') return '–'
   if (typeof value === 'boolean') return value ? 'Igen' : 'Nem'
+  if (Array.isArray(value)) return value.map(x => x && typeof x === 'object' ? Object.entries(x).filter(([, v]) => v).map(([k, v]) => `${labels[k.toLowerCase()] ?? k}: ${v}`).join('; ') : String(x)).join(' | ') || '–'
   if (['Active', 'Suspended', 'Archived'].includes(String(value)))
     return (
       { Active: 'Aktív', Suspended: 'Felfüggesztett', Archived: 'Archivált' } as Record<

@@ -99,7 +99,12 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
             join a in db.VehicleSiteAssignments on v.Id equals a.VehicleId into assignments from a in assignments.DefaultIfEmpty()
             join s in db.Sites on a.SiteId equals s.Id into sites from s in sites.DefaultIfEmpty()
             orderby v.Registration select new { Vehicle = v, SiteId = (Guid?)a.SiteId, SiteName = s.Name }).ToArrayAsync(ct);
-        return rows.Select(x => Summary(x.Vehicle, access, x.SiteId, x.SiteName)).ToArray();
+        var ids = rows.Select(x => x.Vehicle.Id).ToArray();
+        var registrations = await db.VehicleRegistrations.AsNoTracking().Where(x => ids.Contains(x.VehicleId))
+            .Select(x => new { x.VehicleId, x.Registration }).Distinct().ToArrayAsync(ct);
+        var previous = registrations.ToLookup(x => x.VehicleId, x => x.Registration);
+        return rows.Select(x => Summary(x.Vehicle, access, x.SiteId, x.SiteName) with
+            { PreviousRegistrations = previous[x.Vehicle.Id].Where(p => p != x.Vehicle.Registration).ToArray() }).ToArray();
     }, ct);
     private Task<T> Authorized<T>(string permission, Func<ResourceAccess, Task<T>> action, CancellationToken ct) => TenantTransaction.RunAsync(db, TenantId, async () =>
     {
@@ -125,6 +130,7 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
             ?? throw UserAccounts.Error(404, "vehicle_not_found", "A jármű nem található ennél a cégnél.");
         if (version < 1) throw UserAccounts.Error(400, "invalid_version", "Add meg a jármű aktuális verzióját.");
         if (vehicle.Version != version) throw UserAccounts.Error(409, "stale_vehicle", "A jármű időközben megváltozott. Töltsd be újra az adatait.");
+        if (vehicle.Status == VehicleStatus.Archived) throw UserAccounts.Error(409, "vehicle_archived", "Előbb állítsd vissza az archivált járművet.");
         return vehicle;
     }
     public Task<VehicleSummary> CreateAsync(CreateVehicleRequest request, CancellationToken ct) => Authorized(Permissions.VehiclesCreate, async access =>
@@ -133,8 +139,10 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
             throw UserAccounts.Error(403, "site_access_denied", "Járművet csak engedélyezett telephelyre vehetsz fel.");
         if (request.SiteId is { } siteId && !await db.Sites.AnyAsync(x => x.Id == siteId && !x.IsArchived, ct))
             throw UserAccounts.Error(400, "invalid_site", "Válassz aktív telephelyet ennél a cégnél.");
-        var vehicle = new Vehicle { TenantId = TenantId, Registration = request.Registration.Trim().Replace(" ", "").ToUpperInvariant(), Make = request.Make.Trim(), Model = request.Model.Trim() };
+        var vehicle = new Vehicle { TenantId = TenantId, Registration = FleetManagement.NormalizeRegistration(request.Registration), Make = request.Make.Trim(), Model = request.Model.Trim() };
         db.Vehicles.Add(vehicle);
+        db.VehicleProfiles.Add(new() { TenantId = TenantId, VehicleId = vehicle.Id });
+        db.VehicleRegistrations.Add(new() { TenantId = TenantId, VehicleId = vehicle.Id, Registration = vehicle.Registration, CountryCode = "HU", RecordedBy = tenantContext.UserSubject! });
         if (request.SiteId is { } site) db.VehicleSiteAssignments.Add(new() { TenantId = TenantId, VehicleId = vehicle.Id, SiteId = site });
         Audit("vehicle.created", new { vehicle.Id, vehicle.Registration, vehicle.Make, vehicle.Model, request.SiteId });
         await db.SaveChangesAsync(ct);
@@ -144,7 +152,13 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
     {
         var vehicle = await Vehicle(id, request.Version, access, Permissions.VehiclesUpdate, ct);
         var before = await Summary(vehicle, access, ct);
-        vehicle.Registration = request.Registration.Trim().Replace(" ", "").ToUpperInvariant();
+        var registration = FleetManagement.NormalizeRegistration(request.Registration);
+        if (registration != vehicle.Registration)
+        {
+            var country = await db.VehicleProfiles.Where(x => x.VehicleId == id).Select(x => x.RegistrationCountry).SingleOrDefaultAsync(ct) ?? "HU";
+            db.VehicleRegistrations.Add(new() { TenantId = TenantId, VehicleId = id, Registration = registration, CountryCode = country, RecordedBy = tenantContext.UserSubject! });
+        }
+        vehicle.Registration = registration;
         vehicle.Make = request.Make.Trim();
         vehicle.Model = request.Model.Trim();
         vehicle.Version++;

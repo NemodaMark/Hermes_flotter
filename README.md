@@ -279,6 +279,38 @@ Inaktív cégnél a normál jármű-, tagság- és jogosultsági műveletek leá
 
 Minden létrehozás, szerkesztés, állapotváltozás és jármű-hozzárendelés a céges és a központi naplóba kerül, a módosítóval és az előtte–utána adatokkal. Mindkét napló adatbázisszinten tiltja a meglévő sorok átírását és törlését. Nincs fizikai cégtörlési végpont; visszaállításhoz az állapotkezelést használd.
 
+### Járműadatlap, partnerek, lízing és szerviz
+
+A jármű UUID-ja változatlan. A felület a rendszámot jeleníti meg; annak változása hozzáfűzött rendszámelőzményt készít, a régi rendszámra is kereshető a flotta. A jelenlegi rendszám, opcionális VIN és flottaazonosító cégen belül egyedi. A régi járművek az eredeti adatokkal maradnak meg, az új kategória- és tulajdonlási mező ismeretlen értékkel indul. A VIN 17 karakteres, I/O/Q nélküli azonosító; a többi műszaki és dátummező opcionális.
+
+Az **Adatlap** gyártót, modellt, kategóriát, évjáratot, első forgalomba helyezést, színt, hajtást, kW-t, hengerűrtartalmat, váltót, ülésszámot, tömegadatokat, rakteret, akkumulátort, tulajdonlást, belépési/kilépési dátumot, műszaki/biztosítási/szervizhatáridőket és alapértelmezett szervizpartnert kezel. Az archiválás indokolt külön művelet; a visszaállítás inaktív állapotba történik. Archivált jármű törzsadata, kilométerállása, telephelye, lízingje és szervizbejegyzése nem módosítható. Az előzmények olvashatók maradnak.
+
+A **Partnerek** a kiválasztott céghez tartoznak. Egy partner lízingbeadó és szerviz is lehet, strukturált címmel, e-maillel, telefonnal, weboldallal, megjegyzéssel és legfeljebb 20 kapcsolattartóval. A lista név/település szerint kereshető (ékezetes kis-/nagybetűkkel is), kategória és archivált állapot alapján szűrhető, 25-ös lapokban. A partnerállapothoz indoklás szükséges. Archiválás vagy kategóriaelvétel tiltott, ha aktív lízing vagy alapértelmezett szervizkapcsolat sérülne; a történeti hivatkozások megmaradnak.
+
+| Művelet | Jog | Végpont (`/api/v1` után) |
+|---|---|---|
+| Részletes adatlap olvasása / mentése | `vehicles.read` / `vehicles.update` | `GET` / `PUT /vehicles/{id}/details` |
+| Archiválás / visszaállítás | `vehicles.archive` | `PATCH /vehicles/{id}/status` |
+| Rendszám- és kilométerelőzmények | `vehicles.read` | `GET /vehicles/{id}/registrations`, `GET /vehicles/{id}/odometer` |
+| Áthelyezés céltelephelyei | `vehicles.read` + `sites.vehicles.assign` | `GET /vehicles/{id}/site-options` |
+| Partnerlista / adatlap | `partners.read` | `GET /partners`, `GET /partners/{id}` |
+| Partner létrehozása / módosítása | `partners.create` / `partners.update` | `POST /partners`, `PUT /partners/{id}` |
+| Partner archiválása / visszaállítása | `partners.archive` | `PATCH /partners/{id}/status` |
+| Lízingelőzmények | `vehicles.leasing.read` | `GET /vehicles/{id}/leases` |
+| Szerződés létrehozása / módosítása | `vehicles.leasing.manage` | `POST /vehicles/{id}/leases`, `PUT /vehicles/{id}/leases/{leaseId}` |
+| Szervizelőzmények | `vehicles.service.read` | `GET /vehicles/{id}/services?includeVoided=false` |
+| Szerviz létrehozása / módosítása | `vehicles.service.manage` | `POST /vehicles/{id}/services`, `PUT /vehicles/{id}/services/{serviceId}` |
+| Szerviz érvénytelenítése | `vehicles.service.manage` | `POST /vehicles/{id}/services/{serviceId}/void` |
+| Módosítási naplók | `audit.read` (+ partnernél `partners.read`) | `GET /vehicles/{id}/audit-events`, `GET /partners/{id}/audit-events` |
+
+Minden végpont céges fejlécet és aktív céges hozzáférést igényel. A járműves jogok a saját forráscsoportjuk telephelyeit követik az új lízing- és szervizjogoknál is; a partnerjogok cégszintűek. A `GET /vehicles/{id}/partner-options?purpose=leasing|service|preferred-service` csak a megfelelő kezelési joggal (`vehicles.leasing.manage`, `vehicles.service.manage`, illetve `vehicles.update`) ad minimális `{ id, name }` listát. Ez partnerolvasási jog nélkül is használható, kizárólag engedélyezett járműhöz, kapcsolattartási adatok nélkül. A sima járműolvasás nem ad pénzügyi vagy szervizjogot. A közös admin az új műveleti jogokkal automatikusan bővül.
+
+A részletes mentés törzse `{ registration, make, model, status, version, data: VehicleSpecification }`; a telephely és kilométerállás külön művelet. A lízing szerződésszámot, partnert, futamidőt, díjat, pénznemet, gyakoriságot, kilométerkeretet és `Active | Closed | Cancelled` állapotot tartalmaz. Aktív szerződéshez `Leased | Rented` tulajdonlás és aktív lízingbeadó szükséges; két aktív szerződés időszaka a határnapokat is beleértve nem fedheti egymást. A szerviz dátumot, partnert, történeti km-t, munkaleírást, munkalapszámot, költséget és következő határidőt tartalmaz; jövőbeli elvégzett munkát nem lehet rögzíteni. A történeti szervizadat nem módosítja automatikusan az aktuális kilométerállást vagy az adatlapi határidőt.
+
+A szerződés- és munkalapdokumentumokhoz http(s) webcím menthető, feltöltő/tároló még nincs. Az összegek legfeljebb két tizedesjegyesek, a pénznem listából választható. Új bejegyzésnél `version: 0`, módosításnál a saját aktuális verzió kell. Archiválás: `{ isArchived, reason, version }`; szerviz érvénytelenítése: `{ reason, version }`. A járműhöz tartozó bejegyzések mentése a jármű verzióját is növeli. Elavult mentés `409`, nem látható céges/telephelyi erőforrás `404`, hiányzó jog `403`. A friss jogosultságellenőrzés, mentés és előtte–utána naplózás közös tranzakcióban történik. Minden előzménylista 25-ös lapokban, `page` paraméterrel olvasható.
+
+Az új profil-, rendszám-, partner-, lízing- és szerviztáblák PostgreSQL `FORCE ROW LEVEL SECURITY` védelmet kapnak, összetett cég/jármű/partner idegen kulcsokkal. A migráció a meglévő járműveket cégenként olvassa, UUID-jukat és verziójukat nem változtatja meg, kezdeti rendszámelőzményt készít. A rendszámelőzmény és a módosítási naplók adatbázisszinten hozzáfűzhetők. A történeti adatokat eldobó visszamigrálás tiltott; visszaállításhoz mentés és a hozzá tartozó alkalmazásverzió kell.
+
 ### Céges és fiókvégpontok
 
 | Művelet | Végpont |

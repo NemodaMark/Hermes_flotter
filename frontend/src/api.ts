@@ -86,6 +86,7 @@ export type Vehicle = {
   siteId?: string | null
   siteName?: string | null
   permissions?: string[]
+  previousRegistrations?: string[]
 }
 export type NewVehicle = { registration: string; make: string; model: string; siteId?: string | null }
 export type VehicleCreationOptions = { canCreateUnassigned: boolean; sites: { id: string; name: string; code: string }[] }

@@ -16,6 +16,8 @@ Az ASP.NET Core 10 + Entity Framework Core + PostgreSQL 18 backend jelenlegi kii
 - Kötelező jelszócsere szerveroldali korlátozással, a régi munkamenetek érvénytelenítésével és a sikeres csere utáni feloldással.
 - Központi, a runtime adatbázisszerepkörrel utólag nem módosítható/törölhető napló: módosító, érintett, időpont és a releváns régi/új értékek, jelszó nélkül.
 - Céges járművek listázása, egyedi lekérése és felvétele, cégenként egyedi rendszámmal.
+- Részletes járműadatlap, stabil UUID, rendszámelőzmények, műszaki és flottahasználati adatok, határidők, archiválás és visszaállítás.
+- Céges partnernyilvántartás több kategóriával és kapcsolattartóval; külön lízingszerződés- és szervizelőzmények, műveleti jogokkal és változásnaplóval.
 - Aktív tagság és műveleti jog ellenőrzése, EF Core tenantszűrés és PostgreSQL FORCE ROW LEVEL SECURITY a járműveken és az új céges hozzáférési táblákon.
 - Külön migrációs és alkalmazás-adatbázisszerepkör, készenléti végpont és PostgreSQL-es integrációs tesztek.
 
@@ -65,6 +67,6 @@ A teljes HTTP-s regisztrációs és céges folyamatot a [smoke teszt](../scripts
 
 ## További backendmunka
 
-A járműkezelés következő bővítése lehet az adatok és állapot módosítása, archiválás, valamint szerveroldali keresés és lapozás. Ezt követhetik a sofőrök, a jármű-hozzárendelések, a karbantartások és a költségek. Minden új céges művelethez tartozzon külön jog, szerveroldali validáció és cégek közötti hozzáférést kizáró teszt.
+A következő bővítés lehet a szerveroldali flottakeresés és lapozás, a sofőrök és hozzárendeléseik, a szerviztervezés, dokumentumfeltöltés és a teljes költségmodul. A szerződésekhez és munkalapokhoz jelenleg http(s) dokumentumhivatkozás menthető. Minden új céges művelethez tartozzon külön jog, szerveroldali validáció és cégek közötti hozzáférést kizáró teszt.
 
-Az alap jelenleg nem tartalmaz e-mail-megerősítést, jelszó-visszaállítást, e-mail-küldő integrációt, előfizetést vagy a fenti új üzleti modulokat. A meghívási token egyszer kerül vissza a létrehozó API-válaszban; a frontend ebből kézzel továbbítható csatlakozási hivatkozást készít. A [webes felhasználókezelő](../frontend/README.md#felhasználók-kezelése) ugyanezeket a végpontokat használja. A jogkatalógust, az API-végpontokat, a használati példákat és a régi szerepköröket átalakító migráció szabályait a [projekt README-je](../README.md#céges-felhasználók-és-jogok) tartalmazza.
+Az alap jelenleg nem tartalmaz e-mail-megerősítést, jelszó-visszaállítást, e-mail-küldő integrációt, előfizetés-kezelést. A meghívási token egyszer kerül vissza a létrehozó API-válaszban; a frontend ebből kézzel továbbítható csatlakozási hivatkozást készít. A [webes felhasználókezelő](../frontend/README.md#felhasználók-kezelése) ugyanezeket a végpontokat használja. A jogkatalógust, az API-végpontokat, a használati példákat és a régi szerepköröket átalakító migráció szabályait a [projekt README-je](../README.md#céges-felhasználók-és-jogok) tartalmazza.

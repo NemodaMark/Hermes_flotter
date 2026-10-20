@@ -214,6 +214,7 @@ public sealed class OrganizationManagement(HermesDbContext db, TenantContext con
             .Where(x => assignableVehicles.Contains(x.Id))
             .SingleOrDefaultAsync(x => x.Id == vehicleId, ct) ?? throw Error(404, "vehicle_not_found", "A jármű nem található ennél a cégnél.");
         OrganizationValidation.Revision(vehicle.Version, input.Version);
+        if (vehicle.Status == VehicleStatus.Archived) throw Error(409, "vehicle_archived", "Előbb állítsd vissza az archivált járművet.");
         if (!access.Allows(Permissions.SitesAssignVehicles, input.SiteId) || !access.Allows(Permissions.VehiclesRead, input.SiteId))
             throw Error(403, "site_access_denied", "A jármű csak számodra engedélyezett telephelyre helyezhető át.");
         var target = input.SiteId is { } id ? await Site(id, ct) : null;

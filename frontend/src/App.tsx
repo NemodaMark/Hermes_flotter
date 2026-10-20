@@ -21,6 +21,8 @@ import type { NewVehicle, Session, Tenant, Vehicle } from './api'
 import { VehicleActions } from './VehicleActions'
 import { AuthScreen, CompanyDialog, CompanyForm } from './AccountForms'
 import { CompaniesPage } from './CompaniesPage'
+import { PartnersPage } from './PartnersPage'
+import { VehiclePage } from './VehiclePage'
 import { MembersPage } from './MembersPage'
 import { SystemPage } from './SystemPage'
 import { PasswordChangeScreen } from './PasswordChangeScreen'
@@ -33,6 +35,7 @@ const statuses: Record<string, string> = {
   Active: 'Aktív',
   Maintenance: 'Szervizben',
   Inactive: 'Inaktív',
+  Archived: 'Archivált',
 }
 
 function VehicleForm({
@@ -142,10 +145,12 @@ function FleetTable({
   vehicles,
   user,
   tenant,
+  onOpen,
 }: {
   vehicles: Vehicle[]
   user: Session
   tenant: Tenant
+  onOpen: (id: string) => void
 }) {
   return (
     <div className="table-scroll">
@@ -181,7 +186,9 @@ function FleetTable({
               </td>
               <td>{vehicle.odometerKm?.toLocaleString('hu-HU') ?? '—'}</td>
               <td>
-                <VehicleActions user={user} tenant={tenant} vehicle={vehicle} />
+                <div className="member-actions"><button className="secondary-button" aria-label={`Jármű adatlapja: ${vehicle.registration}`} onClick={() => onOpen(vehicle.id)}>Adatlap</button>
+                  <VehicleActions user={user} tenant={tenant} vehicle={vehicle} />
+                </div>
               </td>
             </tr>
           ))}
@@ -206,7 +213,8 @@ function FleetWorkspace({
 }) {
   const queryClient = useQueryClient()
   const [tenantId, setTenantId] = useState<string | null>(initialTenantId)
-  const [view, setView] = useState<'fleet' | 'organization' | 'members' | 'system'>('fleet')
+  const [view, setView] = useState<'fleet' | 'organization' | 'members' | 'system' | 'partners'>('fleet')
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   const canManageSystem = user.systemPermissions?.includes('system.manage') ?? false
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
@@ -264,7 +272,7 @@ function FleetWorkspace({
   const allVehicles = vehicles.data ?? []
   const visibleVehicles = allVehicles.filter(
     (vehicle) =>
-      `${vehicle.registration} ${vehicle.make} ${vehicle.model}`
+      `${vehicle.registration} ${vehicle.make} ${vehicle.model} ${(vehicle.previousRegistrations ?? []).join(' ')}`
         .toLocaleLowerCase('hu')
         .includes(search.toLocaleLowerCase('hu')) &&
       (status === 'all' || vehicle.status === status),
@@ -285,6 +293,8 @@ function FleetWorkspace({
   const viewTitle =
     view === 'fleet'
       ? 'Járművek'
+      : view === 'partners'
+        ? 'Partnerek'
       : view === 'members'
         ? 'Felhasználók'
         : view === 'system'
@@ -293,6 +303,7 @@ function FleetWorkspace({
 
   function changeTenant(value: string) {
     setTenantId(value)
+    setSelectedVehicleId(null)
     setSearch('')
     setStatus('all')
     setFormOpen(false)
@@ -383,6 +394,11 @@ function FleetWorkspace({
             Járművek
             <ArrowRight size={16} />
           </button>
+          {tenant?.permissions.some(code => code.startsWith('partners.')) && <button
+            className={view === 'partners' ? 'nav-item active' : 'nav-item'}
+            aria-current={view === 'partners' ? 'page' : undefined}
+            onClick={() => setView('partners')}
+          ><Building2 size={19} />Partnerek<ArrowRight size={16} /></button>}
           {canManageMembers && (
             <button
               className={view === 'members' ? 'nav-item active' : 'nav-item'}
@@ -478,10 +494,10 @@ function FleetWorkspace({
                           ? canManageSystem
                             ? 'Összes felhasználó, céges hozzáférések és meghívások.'
                             : 'Céges tagok, meghívások és hozzáférések.'
-                          : 'Cégtörzs, kapcsolattartók, telephelyek és változásnapló.'}
+                          : view === 'partners' ? 'Lízingbeadók, szervizek és kapcsolattartók.' : 'Cégtörzs, kapcsolattartók, telephelyek és változásnapló.'}
               </p>
             </div>
-            {view === 'fleet' && canCreate && (
+            {view === 'fleet' && !selectedVehicleId && canCreate && (
               <button
                 className="primary-button"
                 onClick={() => {
@@ -540,8 +556,12 @@ function FleetWorkspace({
             </section>
           ) : view === 'members' ? (
             <MembersPage key={tenant.id} user={user} tenant={tenant} />
+          ) : view === 'partners' ? (
+            <PartnersPage key={tenant.id} tenant={tenant} />
           ) : !tenant.permissions.includes('vehicles.read') ? (
             <p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p>
+          ) : selectedVehicleId ? (
+            <VehiclePage key={`${tenant.id}:${selectedVehicleId}`} user={user} tenant={tenant} id={selectedVehicleId} onBack={() => setSelectedVehicleId(null)} />
           ) : (
             <section className="fleet-panel" aria-label="Járműlista">
               <div className="fleet-summary">
@@ -603,7 +623,7 @@ function FleetWorkspace({
                   <p>Járművek betöltése…</p>
                 </div>
               ) : visibleVehicles.length ? (
-                <FleetTable vehicles={visibleVehicles} user={user} tenant={tenant!} />
+                <FleetTable vehicles={visibleVehicles} user={user} tenant={tenant!} onOpen={setSelectedVehicleId} />
               ) : (
                 <div className="empty-state">
                   <CarFront size={34} />

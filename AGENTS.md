@@ -12,6 +12,12 @@ A csoportoknál cégenként teljes céges vagy kijelölt telephelyekre korlátoz
 
 A felhasználó kérése alapján a felhasználó belső elsődleges kulcsa maga az egyedi, kanonikus felhasználónév (`Id = UserName`), a teljes névtől és e-mailtől függetlenül. Ne vezess vissza külön UUID-alapú felhasználói kulcsot. A régi azonosítók csak a naplózási előzmények és névfoglalás miatt maradnak meg.
 
+## Járművek és partnerek
+
+A jármű belső UUID-azonosítója változatlan marad; a felületen a rendszám az elsődleges azonosító. Rendszám- vagy országváltáskor hozzáfűzött, adatbázisszinten nem átírható rendszámelőzmény készüljön. A korábbi rendszám alapján is kereshető maradjon az autó. A partneradatok cégszintűek; a lízing- és szervizadatok a jármű saját, jogonként ellenőrzött telephelykorlátját követik. A jármű olvasási vagy szerkesztési joga önmagában nem ad lízing-, szerviz- vagy partnerkezelési jogot. A partnerkiválasztás ezek saját műveleti jogával minimális név/ID listát adhat vissza, kapcsolattartási adatok nélkül.
+
+A lízingszerződések és szervizbejegyzések külön, verziózott előzmények. Aktív lízing csak lízingelt vagy bérelt járműhöz tartozhat, a jármű aktív szerződéseinek időszakai nem fedhetik egymást. Aktív szerződésben használt lízingbeadó, illetve alapértelmezett szervizként használt partner nem archiválható és érintett kategóriája nem vonható vissza. A történeti hivatkozásokat archiválás után is őrizd meg. Szerviz érvényteleníthető indoklással, törléssel nem tüntethető el. A szerviznél feljegyzett történeti kilométer és következő határidő nem írja át automatikusan a jármű aktuális kilométerállását vagy határidejét. Archivált jármű csak indokolt visszaállítás után módosítható, beleértve a régebbi API-végpontokat és az áthelyezést is.
+
 ## Git-munkarend
 
 A felhasználó állandó kérése: minden befejezett, fájlmódosítással járó feladat végén commitold és pushold a változtatásokat a GitHubra, külön megerősítés nélkül.

@@ -17,7 +17,7 @@ export function VehicleActions({
   const [mode, setMode] = useState<'edit' | 'odometer' | null>(null)
   return (
     <div className="member-actions">
-      {(vehicle.permissions ?? tenant.permissions).includes('vehicles.update') && (
+      {vehicle.status !== 'Archived' && (vehicle.permissions ?? tenant.permissions).includes('vehicles.update') && (
         <button
           className="secondary-button"
           aria-label={`Jármű szerkesztése: ${vehicle.registration}`}
@@ -26,7 +26,7 @@ export function VehicleActions({
           Szerkesztés
         </button>
       )}
-      {(vehicle.permissions ?? tenant.permissions).includes('vehicles.odometer.create') && (
+      {vehicle.status !== 'Archived' && (vehicle.permissions ?? tenant.permissions).includes('vehicles.odometer.create') && (
         <button
           className="secondary-button"
           aria-label={`Kilométerállás: ${vehicle.registration}`}
@@ -44,6 +44,7 @@ export function VehicleActions({
           onClose={() => setMode(null)}
           onChanged={async () => {
             await client.invalidateQueries({ queryKey: vehicleKey(user.id, tenant.id) })
+            await client.invalidateQueries({ queryKey: ['fleet-management', tenant.id, vehicle.id] })
           }}
         />
       )}

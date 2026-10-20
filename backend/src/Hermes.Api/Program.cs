@@ -38,6 +38,7 @@ if (!maintenanceMode)
     builder.Services.AddScoped<UserAccounts>();
     builder.Services.AddScoped<SystemUserDirectory>();
     builder.Services.AddScoped<OrganizationManagement>();
+    builder.Services.AddScoped<FleetManagement>();
     builder.Services.AddScoped<IMemberManagement, MemberManagement>();
     builder.Services.AddScoped<IGroupManagement, GroupManagement>();
     builder.Services.AddIdentityCore<ApplicationUser>(options =>
@@ -144,6 +145,7 @@ app.MapMemberEndpoints();
 app.MapGroupEndpoints();
 app.MapSystemEndpoints();
 app.MapOrganizationEndpoints();
+app.MapFleetManagementEndpoints();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 // Build metadata contains no account, tenant or database credentials.

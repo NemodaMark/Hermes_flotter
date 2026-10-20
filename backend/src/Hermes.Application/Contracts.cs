@@ -26,6 +26,7 @@ public sealed record VehicleSummary(Guid Id, string Registration, string Make, s
     public Guid? SiteId { get; init; }
     public string? SiteName { get; init; }
     public string[] Permissions { get; init; } = [];
+    public string[] PreviousRegistrations { get; init; } = [];
 }
 public sealed record CreateVehicleRequest(string Registration, string Make, string Model, Guid? SiteId = null);
 public sealed record VehicleSiteOption(Guid Id, string Name, string Code);

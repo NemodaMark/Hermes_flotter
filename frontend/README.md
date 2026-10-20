@@ -4,6 +4,12 @@ A React + TypeScript + Vite kliens jelenlegi kiinduló állapota. A frontend mos
 
 ## Az alapban működő felületek
 
+A **Járművek → Adatlap** a rendszámmal azonosítja az autót, szerkeszti a műszaki, tulajdonlási és határidőadatokat, külön fülön kezeli a telephelyet, lízingszerződéseket és szervizbejegyzéseket. A rendszám- és kilométerelőzmények, valamint a módosítási napló lapozhatók. Az archivált jármű visszaállítás után szerkeszthető. A szerződés- és munkalapdokumentumokhoz webcím adható meg.
+
+A **Partnerek** menüben cégenként vehetők fel lízingbeadók és szervizek, akár mindkét kategóriával és több kapcsolattartóval. A kereső, kategóriaszűrő, archiváltak kapcsolója és lapozás a backend listáját használja. A partnernév a jármű lízing- vagy szervizadatainál választható ki. A történeti szerviz-kilométer és következő határidő nem változtatja meg automatikusan az aktuális járműadatot.
+
+A lízing- és szervizműveletek a járműhöz visszaadott saját műveleti jogokat követik. A partnerjogok külön, cégszinten oszthatók ki; a hiányzó listajog mellett a felvételi jog használható. Az elavult mentés szerverhibáját a felület megőrzi a szerkesztett adatokkal, az adatlap frissítési gombbal tölthető újra.
+
 A `system.manage` joggal rendelkező felhasználó a **Rendszerkezelés** menüben az összes fiókot és a központi módosítási naplót eléri. A **Profil megnyitása** gomb a céges taglistában is megjelenik számára. A profil név/e-mail/telefonszám adatai szerkeszthetők, az állandó ID látható; a jelszócsere elrendelése és a teljes rendszerszintű jog átadása/visszavonása külön megerősítést kér. A régi verzióval történő mentés hibájánál a profil kifejezetten újratölthető. A céges jogosultságkezelés önmagában nem ad hozzáférést ezekhez a műveletekhez.
 
 Előírt jelszócsere esetén belépés után a **Kötelező jelszócsere** képernyő jelenik meg a munkaterület és a meghívóelfogadás előtt. Csak sikeres, jelenlegi jelszóval igazolt csere után lehet továbblépni; kijelentkezni közben is lehet. A backend ugyanezt a korlátozást minden üzleti API-n ellenőrzi. A globális jog első, naplózott beállítását és az API-k részleteit a [projekt leírása](../README.md#rendszerszintű-felhasználókezelés) tartalmazza.
