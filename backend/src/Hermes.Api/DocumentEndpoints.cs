@@ -13,30 +13,32 @@ public static class DocumentEndpoints
         var vehicles = app.MapGroup("/api/v1/vehicles/{vehicleId:guid}").RequireAuthorization().WithMetadata(new TenantRequired());
         Map(vehicles.MapGroup("/leases/{parentId:guid}/documents"), true);
         Map(vehicles.MapGroup("/services/{parentId:guid}/documents"), false);
+        Map(vehicles.MapGroup("/documents"), false, vehicle: true);
     }
-    private static void Map(RouteGroupBuilder routes, bool lease)
+    private static void Map(RouteGroupBuilder routes, bool lease, bool vehicle = false)
     {
-        var read = lease ? Permissions.LeasingRead : Permissions.ServicesRead;
-        var write = lease ? Permissions.LeasingManage : Permissions.ServicesManage;
-        routes.MapGet("/", async (Guid vehicleId, Guid parentId, FleetManagement service, CancellationToken ct)
-            => Results.Ok(await service.ListDocuments(vehicleId, parentId, lease, ct))).RequireAuthorization(read);
+        var read = vehicle ? Permissions.DocumentsRead : lease ? Permissions.LeasingRead : Permissions.ServicesRead;
+        var write = vehicle ? Permissions.DocumentsManage : lease ? Permissions.LeasingManage : Permissions.ServicesManage;
+        Guid Parent(Guid vehicleId, HttpContext http) => vehicle ? vehicleId : Guid.Parse(http.Request.RouteValues["parentId"]!.ToString()!);
+        routes.MapGet("/", async (Guid vehicleId, HttpContext http, FleetManagement service, CancellationToken ct)
+            => Results.Ok(await service.ListDocuments(vehicleId, Parent(vehicleId, http), lease, ct, vehicle))).RequireAuthorization(read);
         // Explicitly parse multipart only after checking the actual vehicle and parent record.
-        routes.MapPost("/", async (Guid vehicleId, Guid parentId, HttpRequest request, FleetManagement service, CancellationToken ct)
-            => Results.Ok(await service.UploadDocument(vehicleId, parentId, lease, () => ReadUpload(request, ct), ct)))
+        routes.MapPost("/", async (Guid vehicleId, HttpContext http, FleetManagement service, CancellationToken ct)
+            => Results.Ok(await service.UploadDocument(vehicleId, Parent(vehicleId, http), lease, () => ReadUpload(http.Request, ct, vehicle), ct, vehicle)))
             .RequireAuthorization(write).RequireRateLimiting("accounts");
-        routes.MapGet("/{id:guid}/content", async (Guid vehicleId, Guid parentId, Guid id, HttpContext http, FleetManagement service, CancellationToken ct) =>
+        routes.MapGet("/{id:guid}/content", async (Guid vehicleId, Guid id, HttpContext http, FleetManagement service, CancellationToken ct) =>
         {
-            var file = await service.DownloadDocument(vehicleId, parentId, lease, id, ct);
+            var file = await service.DownloadDocument(vehicleId, Parent(vehicleId, http), lease, id, ct, vehicle);
             http.Response.Headers.CacheControl = "private, no-store";
             http.Response.Headers.Pragma = "no-cache";
             http.Response.Headers["X-Content-Type-Options"] = "nosniff";
             http.Response.Headers.ContentSecurityPolicy = "default-src 'none'; sandbox";
             return Results.File(file.Bytes, file.ContentType, fileDownloadName: file.FileName);
         }).RequireAuthorization(read);
-        routes.MapPatch("/{id:guid}/status", async (Guid vehicleId, Guid parentId, Guid id, DocumentStatusInput input, FleetManagement service, CancellationToken ct)
-            => Results.Ok(await service.DocumentStatus(vehicleId, parentId, lease, id, input, ct))).RequireAuthorization(write);
+        routes.MapPatch("/{id:guid}/status", async (Guid vehicleId, Guid id, HttpContext http, DocumentStatusInput input, FleetManagement service, CancellationToken ct)
+            => Results.Ok(await service.DocumentStatus(vehicleId, Parent(vehicleId, http), lease, id, input, ct, vehicle))).RequireAuthorization(write);
     }
-    private static async Task<DocumentUpload> ReadUpload(HttpRequest request, CancellationToken ct)
+    private static async Task<DocumentUpload> ReadUpload(HttpRequest request, CancellationToken ct, bool vehicle)
     {
         if (request.ContentType?.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) != true)
             throw UserAccounts.Error(400, "upload_form", "Multipart fájlfeltöltés szükséges.");
@@ -61,7 +63,8 @@ public static class DocumentEndpoints
             if (e.StatusCode == 413) throw TooLarge();
             throw UserAccounts.Error(400, "upload_form", "Hibás vagy hiányos fájlfeltöltés.");
         }
-        if (form.Files.Count != 1 || form.Files[0].Name != "file" || form.Count != 1 || form["version"].Count != 1
+        if (form.Files.Count != 1 || form.Files[0].Name != "file" || form.Count != (vehicle ? 2 : 1) || form["version"].Count != 1
+            || vehicle && form["category"].Count != 1
             || !long.TryParse(form["version"], NumberStyles.None, CultureInfo.InvariantCulture, out var version) || version < 1)
             throw UserAccounts.Error(400, "upload_form", "Egy fájlt és a bejegyzés aktuális verzióját küldd el.");
         var file = form.Files[0];
@@ -74,7 +77,7 @@ public static class DocumentEndpoints
             if (output.Length + length > DocumentLimits.FileBytes) throw TooLarge();
             await output.WriteAsync(buffer.AsMemory(0, length), ct);
         }
-        return new DocumentUpload(file.FileName, output.ToArray(), version);
+        return new DocumentUpload(file.FileName, output.ToArray(), version, vehicle ? form["category"].ToString() : null);
     }
     private static ManagementException TooLarge() => UserAccounts.Error(413, "document_size", "A fájl mérete 1 bájt és 10 MB közötti lehet.");
 }

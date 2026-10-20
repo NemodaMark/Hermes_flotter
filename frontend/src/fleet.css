@@ -18,6 +18,12 @@
 .fleet-record .member-actions { flex-wrap: wrap; }
 .status-archived { background: #edf1f4; color: #526674; }
 .document-upload { padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.vehicle-documents { padding: 20px; }
+.vehicle-documents > .access-description { margin-bottom: 20px; }
+.document-upload > .org-field { margin-bottom: 12px; }
+.document-tools { flex-wrap: wrap; }
+.document-tools .org-field { min-width: 200px; }
+.document-category { margin: 6px 0; color: var(--teal, #176c63); font-size: 13px; }
 .document-upload .primary-button { margin-top: 12px; }
 .document-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 16px 0; }
 .access-dialog .document-tools .org-checkbox { display: flex; align-items: center; gap: 8px; margin: 0; }

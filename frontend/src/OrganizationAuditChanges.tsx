@@ -1,6 +1,7 @@
 import { categories, fuels, transmissions, ownerships, frequencies, leaseStatuses, vehicleStatuses } from './fleetApi'
+import { documentCategories } from './documentApi'
 
-const enumLabels: Record<string, string> = { ...categories, ...fuels, ...transmissions, ...ownerships, ...frequencies, ...leaseStatuses, ...vehicleStatuses, Suspended: 'Felfüggesztett' }
+const enumLabels: Record<string, string> = { ...categories, ...documentCategories, ...fuels, ...transmissions, ...ownerships, ...frequencies, ...leaseStatuses, ...vehicleStatuses, Suspended: 'Felfüggesztett' }
 const labels: Record<string, string> = {
   filename: 'Fájlnév', bytelength: 'Fájlméret (bájt)', uploadedby: 'Feltöltő', uploadedat: 'Feltöltés időpontja',
   iswithdrawn: 'Visszavont', statuschangedby: 'Állapotmódosító',
@@ -100,7 +101,7 @@ export function OrganizationAuditChanges({ details }: { details: string }) {
       <tbody>
         {fields.map((key) => (
           <tr key={key}>
-            <td>{labels[key.split('.').at(-1)!]}</td>
+            <td>{key.endsWith('document.category') ? 'Dokumentumtípus' : labels[key.split('.').at(-1)!]}</td>
             <td>{display(before[key], key)}</td>
             <td>{display(after[key], key)}</td>
           </tr>

@@ -13,6 +13,8 @@ public static class Permissions
     public const string LeasingManage = "vehicles.leasing.manage";
     public const string ServicesRead = "vehicles.service.read";
     public const string ServicesManage = "vehicles.service.manage";
+    public const string DocumentsRead = "vehicles.documents.read";
+    public const string DocumentsManage = "vehicles.documents.manage";
     public const string PartnersRead = "partners.read";
     public const string PartnersCreate = "partners.create";
     public const string PartnersUpdate = "partners.update";
@@ -38,6 +40,7 @@ public static class Permissions
         new(VehiclesArchive, "Jármű archiválása és visszaállítása"),
         new(LeasingRead, "Jármű lízingszerződéseinek megtekintése"), new(LeasingManage, "Jármű lízingszerződéseinek kezelése"),
         new(ServicesRead, "Jármű szervizelőzményeinek megtekintése"), new(ServicesManage, "Jármű szervizbejegyzéseinek kezelése"),
+        new(DocumentsRead, "Járműokmányok megtekintése"), new(DocumentsManage, "Járműokmányok kezelése"),
         new(PartnersRead, "Partnerek és kapcsolattartók megtekintése"), new(PartnersCreate, "Partner felvétele"),
         new(PartnersUpdate, "Partneradatok szerkesztése"), new(PartnersArchive, "Partner archiválása és visszaállítása"),
         new(GroupsManage, "Jogosultságcsoportok kezelése"),

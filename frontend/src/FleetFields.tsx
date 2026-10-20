@@ -46,6 +46,7 @@ export function ReasonDialog({ title, onClose, onSave }: { title: string; onClos
   </form></AccessDialog>
 }
 const actionLabels: Record<string, string> = {
+  'vehicle.document_uploaded': 'Járműokmány feltöltése', 'vehicle.document_status_changed': 'Járműokmány visszavonása / visszaállítása',
   'vehicle.lease_document_uploaded': 'Lízingszerződés fájljának feltöltése', 'vehicle.service_document_uploaded': 'Szervizdokumentum feltöltése',
   'vehicle.lease_document_status_changed': 'Lízingdokumentum visszavonása / visszaállítása', 'vehicle.service_document_status_changed': 'Szervizdokumentum visszavonása / visszaállítása',
   'vehicle.created': 'Jármű felvétele', 'vehicle.updated': 'Járműadatok módosítása', 'vehicle.details_updated': 'Járműadatlap módosítása',

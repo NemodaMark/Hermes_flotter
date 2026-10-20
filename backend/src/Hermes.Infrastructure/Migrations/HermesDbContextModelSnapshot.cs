@@ -546,6 +546,16 @@ namespace Hermes.Infrastructure.Migrations
                         },
                         new
                         {
+                            Code = "vehicles.documents.read",
+                            Name = "Járműokmányok megtekintése"
+                        },
+                        new
+                        {
+                            Code = "vehicles.documents.manage",
+                            Name = "Járműokmányok kezelése"
+                        },
+                        new
+                        {
                             Code = "partners.read",
                             Name = "Partnerek és kapcsolattartók megtekintése"
                         },
@@ -1013,6 +1023,10 @@ namespace Hermes.Infrastructure.Migrations
                     b.Property<int>("ByteLength")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Category")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1056,6 +1070,9 @@ namespace Hermes.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<Guid?>("VehicleId")
+                        .HasColumnType("uuid");
+
                     b.Property<long>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
@@ -1066,9 +1083,13 @@ namespace Hermes.Infrastructure.Migrations
 
                     b.HasIndex("TenantId", "ServiceId", "UploadedAt", "Id");
 
+                    b.HasIndex("TenantId", "VehicleId", "UploadedAt", "Id");
+
                     b.ToTable("vehicle_documents", null, t =>
                         {
-                            t.HasCheckConstraint("CK_vehicle_document_parent", "(\"LeaseId\" IS NOT NULL) <> (\"ServiceId\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_vehicle_document_category", "(\"VehicleId\" IS NULL AND \"Category\" IS NULL) OR (\"VehicleId\" IS NOT NULL AND \"Category\" IS NOT NULL AND \"Category\" IN ('Registration','Insurance','Inspection'))");
+
+                            t.HasCheckConstraint("CK_vehicle_document_parent", "((\"LeaseId\" IS NOT NULL)::int + (\"ServiceId\" IS NOT NULL)::int + (\"VehicleId\" IS NOT NULL)::int) = 1");
 
                             t.HasCheckConstraint("CK_vehicle_document_size", "\"ByteLength\" BETWEEN 1 AND 10485760");
                         });
@@ -1965,6 +1986,11 @@ namespace Hermes.Infrastructure.Migrations
                     b.HasOne("Hermes.Domain.VehicleService", null)
                         .WithMany()
                         .HasForeignKey("TenantId", "ServiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hermes.Domain.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "VehicleId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 

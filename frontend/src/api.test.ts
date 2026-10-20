@@ -21,6 +21,12 @@ describe('authenticated API requests', () => {
     expect(options.body).toBeInstanceOf(FormData)
     expect((options.body as FormData).get('version')).toBe('7')
     expect((options.body as FormData).get('file')).toBe(file)
+    expect((options.body as FormData).has('category')).toBe(false)
+    await documentApi.upload('company', 'car', 'vehicle', 'car', file, 9, 'Registration')
+    const [directPath, directOptions] = (fetch.mock.calls as unknown as [string, RequestInit][])[2]
+    expect(directPath).toBe('/api/v1/vehicles/car/documents')
+    expect((directOptions.body as FormData).get('category')).toBe('Registration')
+    expect((directOptions.body as FormData).get('version')).toBe('9')
   })
   it('receives binary content through the authenticated client and preserves forbidden errors', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(new Response('%PDF-1.7', { headers: { 'Content-Type': 'application/pdf' } }))

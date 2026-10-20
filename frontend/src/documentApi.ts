@@ -1,21 +1,24 @@
 import { request } from './api'
 
-export type DocumentKind = 'leases' | 'services'
+export type DocumentKind = 'leases' | 'services' | 'vehicle'
+export const documentCategories: Record<string, string> = { Registration: 'Forgalmi engedély', Insurance: 'Biztosítás', Inspection: 'Műszaki vizsga' }
 export type VehicleDocument = {
   id: string; fileName: string; contentType: string; byteLength: number; sha256: string
   uploadedBy: string; uploadedAt: string; version: number; isWithdrawn: boolean
   statusReason: string | null; statusChangedBy: string | null; statusChangedAt: string | null
+  category?: string | null
 }
 export type DocumentCollection = { items: VehicleDocument[]; parentVersion: number; vehicleVersion: number; totalBytes: number }
 export type DocumentChange = { document: VehicleDocument; parentVersion: number; vehicleVersion: number }
-const path = (vehicleId: string, kind: DocumentKind, parentId: string) => `/api/v1/vehicles/${vehicleId}/${kind}/${parentId}/documents`
+const path = (vehicleId: string, kind: DocumentKind, parentId: string) => kind === 'vehicle' ? `/api/v1/vehicles/${vehicleId}/documents` : `/api/v1/vehicles/${vehicleId}/${kind}/${parentId}/documents`
 export const documentApi = {
   list: (tenantId: string, car: string, kind: DocumentKind, parent: string, signal?: AbortSignal) =>
     request<DocumentCollection>(path(car, kind, parent), { tenantId, signal }),
-  upload: (tenantId: string, car: string, kind: DocumentKind, parent: string, file: File, version: number) => {
+  upload: (tenantId: string, car: string, kind: DocumentKind, parent: string, file: File, version: number, category?: string) => {
     const body = new FormData()
     body.set('file', file)
     body.set('version', String(version))
+    if (kind === 'vehicle' && category) body.set('category', category)
     return request<DocumentChange>(path(car, kind, parent), { tenantId, body })
   },
   status: (tenantId: string, car: string, kind: DocumentKind, parent: string, file: VehicleDocument, isWithdrawn: boolean, reason: string, parentVersion: number) =>

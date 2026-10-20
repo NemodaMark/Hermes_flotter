@@ -4,17 +4,17 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { VehicleDocuments } from './VehicleDocuments'
 import { documentApi, saveDownload } from './documentApi'
-import type { DocumentCollection, VehicleDocument } from './documentApi'
+import type { DocumentCollection, DocumentKind, VehicleDocument } from './documentApi'
 
 vi.mock('./documentApi', async importOriginal => ({ ...await importOriginal<typeof import('./documentApi')>(), saveDownload: vi.fn() }))
 const pdf = vi.hoisted(() => ({ destroy: vi.fn(async () => {}), cancel: vi.fn(), render: vi.fn(), getPage: vi.fn(), getDocument: vi.fn() }))
 vi.mock('pdfjs-dist', () => ({ GlobalWorkerOptions: {}, version: 'test', getDocument: pdf.getDocument }))
 const doc: VehicleDocument = { id: 'doc', fileName: 'szerzodes.pdf', contentType: 'application/pdf', byteLength: 128, sha256: 'hash', uploadedBy: 'operator', uploadedAt: '2026-10-20T10:00:00Z', version: 1, isWithdrawn: false, statusReason: null, statusChangedBy: null, statusChangedAt: null }
 const collection = (items = [doc], parentVersion = 7): DocumentCollection => ({ items, parentVersion, vehicleVersion: 9, totalBytes: 128 })
-function mount(canRead = true, canManage = true, isVoided = false) {
+function mount(canRead = true, canManage = true, isVoided = false, kind: DocumentKind = 'leases') {
   const changed = vi.fn(async () => {})
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-    <VehicleDocuments tenantId="company" vehicleId="car" registration="ABC-123" kind="leases" target={{ id: 'lease', name: 'LEASE-01', version: 7, isVoided }} canRead={canRead} canManage={canManage} onChanged={changed} onClose={vi.fn()} />
+    <VehicleDocuments tenantId="company" vehicleId="car" registration="ABC-123" kind={kind} embedded={kind === 'vehicle'} target={{ id: kind === 'vehicle' ? 'car' : 'lease', name: 'LEASE-01', version: 7, isVoided }} canRead={canRead} canManage={canManage} onChanged={changed} onClose={vi.fn()} />
   </QueryClientProvider>)
   return changed
 }
@@ -188,4 +188,41 @@ it('shows a useful error for password-protected PDF files and keeps download ava
   await userEvent.click(await screen.findByRole('button', { name: `Megtekintés: ${doc.fileName}` }))
   expect(await screen.findByRole('alert')).toHaveTextContent('jelszóval védett')
   expect(screen.getByRole('button', { name: 'Letöltés' })).toBeInTheDocument()
+})
+it('uploads a selected vehicle document category inline using the vehicle version', async () => {
+  vi.mocked(documentApi.list).mockResolvedValue(collection([]))
+  const upload = vi.spyOn(documentApi, 'upload').mockResolvedValue({ document: { ...doc, category: 'Insurance' }, parentVersion: 8, vehicleVersion: 8 })
+  mount(true, true, false, 'vehicle')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.getByRole('region', { name: 'Járműokmányok' })).toBeInTheDocument()
+  await screen.findByText('Még nincs megjeleníthető dokumentum.')
+  await userEvent.selectOptions(screen.getByLabelText('Dokumentumtípus'), 'Insurance')
+  const file = new File(['%PDF-1.7'], 'biztositas.pdf')
+  await userEvent.upload(screen.getByLabelText('Fájl kiválasztása'), file)
+  await userEvent.click(screen.getByRole('button', { name: 'Feltöltés' }))
+  await waitFor(() => expect(upload).toHaveBeenCalledWith('company', 'car', 'vehicle', 'car', file, 7, 'Insurance'))
+})
+it('filters vehicle documents by category and keeps withdrawn history behind the existing switch', async () => {
+  vi.mocked(documentApi.list).mockResolvedValue(collection([{ ...doc, fileName: 'forgalmi.pdf', category: 'Registration' }, { ...doc, id: 'policy', fileName: 'biztositas.pdf', category: 'Insurance' }, { ...doc, id: 'old', fileName: 'regi.pdf', category: 'Insurance', isWithdrawn: true }]))
+  mount(true, false, false, 'vehicle')
+  await screen.findByText('forgalmi.pdf')
+  await userEvent.selectOptions(screen.getByLabelText('Szűrés dokumentumtípus szerint'), 'Insurance')
+  expect(screen.queryByText('forgalmi.pdf')).not.toBeInTheDocument()
+  expect(screen.getByText('biztositas.pdf')).toBeInTheDocument()
+  expect(screen.queryByText('regi.pdf')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByLabelText('Visszavontak is'))
+  expect(screen.getByText('regi.pdf')).toBeInTheDocument()
+})
+it('opens the same protected image preview from an inline vehicle document without a contract', async () => {
+  const image = { ...doc, fileName: 'muszaki.png', contentType: 'image/png', category: 'Inspection' }
+  vi.mocked(documentApi.list).mockResolvedValue(collection([image]))
+  const content = vi.spyOn(documentApi, 'content').mockResolvedValue(new Blob(['image'], { type: 'image/png' }))
+  mount(true, false, false, 'vehicle')
+  await userEvent.click(await screen.findByRole('button', { name: `Megtekintés: ${image.fileName}` }))
+  expect(await screen.findByRole('img', { name: image.fileName })).toBeInTheDocument()
+  expect(screen.getByRole('dialog')).toHaveAccessibleName('Dokumentum előnézete')
+  expect(content).toHaveBeenCalledWith('company', 'car', 'vehicle', 'car', doc.id, expect.any(AbortSignal))
+  await userEvent.click(screen.getByRole('button', { name: 'Vissza a dokumentumokhoz' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-image')
 })
