@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LoaderCircle, Plus, RefreshCw, Search } from 'lucide-react'
+import { LoaderCircle, Plus, RefreshCw } from 'lucide-react'
 import { api } from './api'
 import type { Invitation, Member, Session, Tenant } from './api'
 import { AccessDialog } from './AccessDialog'
 import { InvitationDialog, PermissionsDialog, StatusDialog } from './MemberDialogs'
 import { permissionLabel } from './permissions'
-import { SystemPage } from './SystemPage'
-import { UserProfileDialog } from './UserProfileDialog'
+import { PeopleList } from './PeopleList'
+import { UserProfilePage } from './UserProfilePage'
 import './members.css'
 import { PermissionGroups, GroupAssignmentDialog } from './PermissionGroups'
 
@@ -55,7 +55,7 @@ function Pagination({
   )
 }
 
-export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant }) {
+export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant: Tenant; onProfile?: (id: string) => void }) {
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000)
@@ -63,33 +63,14 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
   }, [])
   const queryClient = useQueryClient()
   const [profileId, setProfileId] = useState<string | null>(null)
-  const canSeeAll = user.systemPermissions?.includes('system.manage') ?? false
   const canRead = tenant.permissions.includes('members.read')
   const canInvite = tenant.permissions.includes('members.invite')
   const canManage = tenant.permissions.includes('permissions.manage')
   const canGroups = canRead || canManage || tenant.permissions.includes('permission-groups.manage')
   const canUpdate = tenant.permissions.includes('members.update')
-  const [tab, setTab] = useState<'all' | 'members' | 'invitations' | 'groups'>(
-    canSeeAll
-      ? 'all'
-      : canRead
-        ? 'members'
-        : canInvite
-          ? 'invitations'
-          : canGroups
-            ? 'groups'
-            : 'members',
-  )
-  const activeTab =
-    (tab === 'all' && !canSeeAll) ||
-    (tab === 'invitations' && !canInvite) ||
-    (tab === 'groups' && !canGroups)
-      ? 'members'
-      : tab
-  const [page, setPage] = useState(1)
+  const [tab, setTab] = useState<'members' | 'invitations' | 'groups'>('members')
+  const activeTab = tab === 'invitations' && !canInvite || tab === 'groups' && !canGroups ? 'members' : tab
   const [invitePage, setInvitePage] = useState(1)
-  const [search, setSearch] = useState('')
-  const [draftSearch, setDraftSearch] = useState('')
   const [dialog, setDialog] = useState<
     | { kind: 'permissions' | 'status' | 'groups'; member: Member }
     | { kind: 'invite' }
@@ -104,12 +85,6 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
   })
   const memberKey = ['members', user.id, tenant.id]
   const invitationKey = ['invitations', user.id, tenant.id]
-  const members = useQuery({
-    queryKey: [...memberKey, page, search],
-    queryFn: ({ signal }) => api.members(tenant.id, page, search, signal),
-    enabled: canRead && activeTab === 'members',
-    retry: false,
-  })
   const invitations = useQuery({
     queryKey: [...invitationKey, invitePage],
     queryFn: ({ signal }) => api.invitations(tenant.id, invitePage, signal),
@@ -120,6 +95,7 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
     await queryClient.invalidateQueries({ queryKey: ['tenants', user.id] })
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['system-users', user.id] }),
+      queryClient.invalidateQueries({ queryKey: ['people-list', user.id] }),
       queryClient.invalidateQueries({ queryKey: memberKey }),
       queryClient.invalidateQueries({ queryKey: invitationKey }),
       queryClient.invalidateQueries({ queryKey: ['permission-groups', user.id, tenant.id] }),
@@ -151,9 +127,7 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
       /* The mutation error is rendered below. */
     }
   }
-  const permitted = canSeeAll || canRead || canInvite || canManage || canUpdate || canGroups
-  if (!permitted)
-    return <p className="notice">Nincs jogosultságod a céges felhasználók kezeléséhez.</p>
+  if (profileId) return <UserProfilePage id={profileId} actor={user} tenant={tenant} onBack={() => setProfileId(null)} />
   return (
     <div className="members-page">
       <section className="access-panel" aria-label="Céges hozzáférések">
@@ -166,11 +140,10 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
               if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
               event.preventDefault()
               const tabs = [
-                ...(canSeeAll ? ['all'] : []),
                 'members',
                 ...(canInvite ? ['invitations'] : []),
                 ...(canGroups ? ['groups'] : []),
-              ] as Array<'all' | 'members' | 'invitations' | 'groups'>
+              ] as Array<'members' | 'invitations' | 'groups'>
               const index = tabs.indexOf(activeTab)
               const next =
                 event.key === 'Home'
@@ -184,18 +157,6 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
               event.currentTarget.querySelector<HTMLButtonElement>(`#${next}-tab`)?.focus()
             }}
           >
-            {canSeeAll && (
-              <button
-                id="all-tab"
-                role="tab"
-                aria-selected={activeTab === 'all'}
-                tabIndex={activeTab === 'all' ? 0 : -1}
-                aria-controls="access-panel"
-                onClick={() => setTab('all')}
-              >
-                Összes felhasználó
-              </button>
-            )}
             <button
               id="members-tab"
               role="tab"
@@ -204,7 +165,7 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
               aria-controls="access-panel"
               onClick={() => setTab('members')}
             >
-              Céges felhasználók
+              Felhasználók
             </button>
             {canInvite && (
               <button
@@ -235,7 +196,7 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
             <button
               className="icon-button"
               aria-label="Hozzáférések frissítése"
-              disabled={members.isFetching || invitations.isFetching}
+              disabled={invitations.isFetching}
               onClick={() => void refresh()}
             >
               <RefreshCw size={17} />
@@ -261,166 +222,10 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
           </div>
         )}
         <div id="access-panel" role="tabpanel" aria-labelledby={`${activeTab}-tab`}>
-          {activeTab === 'all' && canSeeAll ? (
-            <SystemPage user={user} usersOnly />
-          ) : activeTab === 'groups' ? (
+          {activeTab === 'groups' ? (
             <PermissionGroups user={user} />
           ) : activeTab === 'members' ? (
-            !canRead ? (
-              <div className="notice">
-                <p>A taglista megtekintéséhez külön hozzáférés szükséges.</p>
-              </div>
-            ) : (
-              <>
-                <form
-                  className="access-search"
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    setSearch(draftSearch.trim())
-                    setPage(1)
-                  }}
-                >
-                  <div className="search-field">
-                    <Search size={18} />
-                    <input
-                      aria-label="Felhasználó keresése"
-                      placeholder="Név vagy e-mail-cím"
-                      value={draftSearch}
-                      maxLength={100}
-                      onChange={(event) => setDraftSearch(event.target.value)}
-                    />
-                  </div>
-                  <button className="secondary-button">Keresés</button>
-                </form>
-                {members.isError ? (
-                  <div className="notice error" role="alert">
-                    <p>{message(members.error)}</p>
-                    <button className="text-button" onClick={() => void members.refetch()}>
-                      Újrapróbálom
-                    </button>
-                  </div>
-                ) : members.isPending ? (
-                  <div className="empty-state">
-                    <LoaderCircle className="spinning" size={24} />
-                    <p>Felhasználók betöltése…</p>
-                  </div>
-                ) : members.data.items.length ? (
-                  <div className="table-scroll">
-                    <table className="members-table">
-                      <thead>
-                        <tr>
-                          <th>Felhasználó</th>
-                          <th>Hozzáférés</th>
-                          <th>Jogosultságok</th>
-                          <th>Műveletek</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {members.data.items.map((member) => (
-                          <tr key={member.userId}>
-                            <td>
-                              <strong>
-                                {member.userId}
-                                {member.userId === user.id && (
-                                  <span className="self-label"> (te)</span>
-                                )}
-                              </strong>
-                              <span className="member-email">
-                                {member.displayName ?? 'Név nélküli felhasználó'}
-                              </span>
-                              <span className="member-email">{member.email ?? member.userId}</span>
-                            </td>
-                            <td>
-                              <span
-                                className={
-                                  member.isActive
-                                    ? 'status status-active'
-                                    : 'status status-inactive'
-                                }
-                              >
-                                {member.isActive ? 'Aktív' : 'Felfüggesztve'}
-                              </span>
-                            </td>
-                            <td>
-                              {!!member.groups?.length && (
-                                <strong className="member-grants">
-                                  Csoportok: {member.groups.map((x) => x.name).join(', ')}
-                                </strong>
-                              )}
-                              <span className="member-grants">
-                                {member.permissions.map(permissionLabel).join(', ') ||
-                                  'Nincs kiosztott jog'}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="member-actions">
-                                {user.systemPermissions?.includes('system.manage') && (
-                                  <button
-                                    className="secondary-button"
-                                    aria-label={`Profil megnyitása: ${member.email ?? member.userId}`}
-                                    onClick={() => setProfileId(member.userId)}
-                                  >
-                                    Profil megnyitása
-                                  </button>
-                                )}
-                                {canManage && (
-                                  <button
-                                    className="secondary-button"
-                                    aria-label={`Jogosultságok: ${member.email ?? member.userId}`}
-                                    disabled={!catalog.isSuccess}
-                                    onClick={() => setDialog({ kind: 'permissions', member })}
-                                  >
-                                    Jogosultságok
-                                  </button>
-                                )}
-                                {canManage && (
-                                  <button
-                                    className="secondary-button"
-                                    aria-label={`Csoportok: ${member.email ?? member.userId}`}
-                                    onClick={() => setDialog({ kind: 'groups', member })}
-                                  >
-                                    Csoportok
-                                  </button>
-                                )}
-                                {canUpdate && (
-                                  <button
-                                    className={
-                                      member.isActive
-                                        ? 'secondary-button danger-text'
-                                        : 'secondary-button'
-                                    }
-                                    aria-label={`${member.isActive ? 'Felfüggesztés' : 'Visszaállítás'}: ${member.email ?? member.userId}`}
-                                    onClick={() => setDialog({ kind: 'status', member })}
-                                  >
-                                    {member.isActive ? 'Felfüggesztés' : 'Visszaállítás'}
-                                  </button>
-                                )}
-                                {!canManage && !canUpdate && (
-                                  <span className="field-hint">Megtekintés</span>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="empty-state">
-                    <h2>Nincs találat</h2>
-                    <p>Próbálj másik nevet vagy e-mail-címet.</p>
-                  </div>
-                )}
-                {members.isSuccess && (
-                  <Pagination
-                    page={page}
-                    total={members.data.total}
-                    onPage={setPage}
-                    pending={members.isFetching}
-                  />
-                )}
-              </>
-            )
+            <PeopleList user={user} tenant={tenant} onProfile={onProfile ?? setProfileId} catalogReady={catalog.isSuccess} onAction={(kind, member) => setDialog({ kind, member })} />
           ) : !canInvite ? (
             <p className="notice">Nincs jogosultságod a meghívások megtekintéséhez.</p>
           ) : invitations.isError ? (
@@ -552,9 +357,6 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
             </p>
           )}
         </section>
-      )}
-      {profileId && user.systemPermissions?.includes('system.manage') && (
-        <UserProfileDialog id={profileId} actor={user} onClose={() => setProfileId(null)} />
       )}
       {dialog?.kind === 'invite' && canInvite && (
         <InvitationDialog

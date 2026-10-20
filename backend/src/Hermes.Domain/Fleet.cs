@@ -39,6 +39,7 @@ public sealed class Vehicle : ITenantEntity
     public long? OdometerKm { get; set; }
     public VehicleStatus Status { get; set; } = VehicleStatus.Active;
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public string? CreatedBy { get; init; }
 }
 
 public sealed class OdometerReading : ITenantEntity

@@ -37,7 +37,11 @@ public sealed class UserAccounts(HermesDbContext db, UserManager<ApplicationUser
     public async Task<UserProfile> Profile(ApplicationUser user, CancellationToken ct)
         => new(user.Id, user.DisplayName, user.Email!, user.PhoneNumber, user.ProfileVersion, user.PasswordChangeRequired,
             user.PasswordChangeRequestedAt, user.PasswordChangedAt,
-            await db.SystemPermissionGrants.Where(x => x.UserId == user.Id).OrderBy(x => x.Code).Select(x => x.Code).ToArrayAsync(ct));
+            await SystemPermissionsFor(user.Id, ct))
+        { AvatarRevision = await db.UserAvatars.Where(x => x.UserId == user.Id).Select(x => x.Sha256).SingleOrDefaultAsync(ct) };
+
+    public Task<string[]> SystemPermissionsFor(string id, CancellationToken ct)
+        => db.SystemPermissionGrants.Where(x => x.UserId == id).OrderBy(x => x.Code).Select(x => x.Code).ToArrayAsync(ct);
 
     public async Task<T> SystemOperation<T>(string actor, Func<Task<T>> action, CancellationToken ct)
     {

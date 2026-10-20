@@ -111,7 +111,7 @@ public static class AccountEndpoints
         => !string.IsNullOrWhiteSpace(email) && email.Trim().Length <= 254 && new EmailAddressAttribute().IsValid(email.Trim());
 
     private static async Task<SessionResponse> ToSession(ApplicationUser user, UserAccounts accounts, CancellationToken ct)
-        => new(user.Id, user.DisplayName, user.Email!, user.PasswordChangeRequired, (await accounts.Profile(user, ct)).SystemPermissions);
+        => new(user.Id, user.DisplayName, user.Email!, user.PasswordChangeRequired, await accounts.SystemPermissionsFor(user.Id, ct));
     private static IResult InvalidLogin() => Results.Problem(statusCode: 401, title: "Hibás felhasználónév, e-mail-cím vagy jelszó. Próbáld újra később, ha többször sikertelenül próbálkoztál.");
     private static IResult DuplicateEmail() => Results.ValidationProblem(new Dictionary<string, string[]> { ["email"] = ["Ezzel az e-mail-címmel már létezik fiók."] });
     private static IResult DuplicateUserName() => Results.ValidationProblem(new Dictionary<string, string[]> { ["userName"] = ["Ez a felhasználónév már foglalt vagy fenntartott."] });

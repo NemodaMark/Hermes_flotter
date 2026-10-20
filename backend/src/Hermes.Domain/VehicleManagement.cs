@@ -9,6 +9,7 @@ public sealed class VehicleProfile : ITenantEntity
     public string? Vin { get; set; }
     public string? FleetNumber { get; set; }
     public string Category { get; set; } = "Unknown";
+    public string BodyType { get; set; } = "Unknown";
     public int? Year { get; set; }
     public DateOnly? FirstRegistration { get; set; }
     public string? Color { get; set; }

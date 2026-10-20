@@ -35,7 +35,9 @@ public sealed class DirectVehicleDocumentMigrationTests(FleetFixture fixture) : 
                     var partner = new Partner { TenantId = company, Name = "Existing partner", CreatedBy = "existing" };
                     var lease = new VehicleLease { TenantId = company, VehicleId = car.Id, PartnerId = partner.Id, ContractNumber = "OLD-LEASE", CreatedBy = "existing" };
                     var service = new VehicleService { TenantId = company, VehicleId = car.Id, PartnerId = partner.Id, Description = "Existing work", CreatedBy = "existing" };
-                    db.AddRange(new Tenant { Id = company, Name = "Existing company" }, car, partner, lease, service); await db.SaveChangesAsync();
+                    db.Add(new Tenant { Id = company, Name = "Existing company" }); await db.SaveChangesAsync();
+                    await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO vehicles (\"TenantId\",\"Id\",\"Registration\",\"Make\",\"Model\",\"Status\",\"CreatedAt\",\"Version\") VALUES ({company},{car.Id},{car.Registration},{car.Make},{car.Model},'Active',{DateTime.UtcNow},{car.Version})");
+                    db.AddRange(partner, lease, service); await db.SaveChangesAsync();
                     foreach (var isLease in new[] { true, false })
                     {
                         var id = Guid.NewGuid(); ids.Add(id); Guid? leaseId = isLease ? lease.Id : null; Guid? serviceId = isLease ? null : service.Id;
@@ -66,7 +68,10 @@ public sealed class DirectVehicleDocumentMigrationTests(FleetFixture fixture) : 
                         Assert.Equal(DateTimeOffset.Parse("2026-10-01T10:00:00Z"), doc.UploadedAt);
                         Assert.Equal(bytes, await db.VehicleDocumentContents.Where(x => x.DocumentId == doc.Id).Select(x => x.Bytes).SingleAsync());
                     }
-                    Assert.Equal(7, (await db.Vehicles.SingleAsync()).Version);
+                    var car = await db.Vehicles.SingleAsync();
+                    Assert.Equal(7, car.Version); Assert.Null(car.CreatedBy);
+                    var option = Assert.Single(await db.VehicleModelOptions.ToArrayAsync());
+                    Assert.Equal(company, option.TenantId); Assert.Equal("Ford", option.Make); Assert.Equal("Transit", option.Model);
                     return true;
                 }, default);
             }

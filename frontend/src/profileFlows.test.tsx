@@ -120,6 +120,8 @@ function mount({
           page: 1,
           pageSize: 25,
         })
+      if (url.pathname === `/api/v1/people/${initial.id}`)
+        return json({ person: state.profile, version: state.profile.version, canEdit: admin, canManageAccount: admin, vehicles: [] })
       if (url.pathname === '/api/v1/system/users')
         return json({ items: [state.profile], total: 1, page: 1, pageSize: 25 })
       if (url.pathname === '/api/v1/system/audit-events')
@@ -195,7 +197,8 @@ async function openProfile() {
     }),
   )
   await screen.findByDisplayValue(initial.displayName)
-  return screen.getByRole('dialog', { name: 'Felhasználói profil' })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  return screen.getByRole('region', { name: 'Felhasználói profil' })
 }
 
 it('requires the password change before the workspace or an invitation can be used', async () => {
@@ -244,7 +247,7 @@ it('switches immediately to the forced change screen on the server restriction r
 it('opens the profile from the company members, shows immutable ID and saves editable fields with the revision', async () => {
   const { calls } = mount()
   const dialog = await openProfile()
-  expect(within(dialog).getByText(initial.id)).toBeInTheDocument()
+  expect(within(dialog).getByText(`@${initial.id}`)).toBeInTheDocument()
   expect(within(dialog).queryByLabelText('Felhasználói ID')).not.toBeInTheDocument()
   await userEvent.clear(within(dialog).getByLabelText('Teljes név'))
   await userEvent.type(within(dialog).getByLabelText('Teljes név'), 'Kiss Eszter Júlia')
@@ -310,7 +313,9 @@ it('hides global profile actions from users with company permissions only', asyn
   mount({ admin: false })
   await userEvent.click(await screen.findByRole('button', { name: 'Felhasználók' }))
   await screen.findByText(initial.displayName)
-  expect(screen.queryByRole('button', { name: /Profil megnyitása/ })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: /Profil megnyitása/ }))
+  await screen.findByRole('region', { name: 'Felhasználói profil' })
+  expect(screen.queryByRole('button', { name: 'Profil mentése' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Rendszerkezelés' })).not.toBeInTheDocument()
   expect(screen.queryByRole('tab', { name: 'Összes felhasználó' })).not.toBeInTheDocument()
 })
@@ -318,16 +323,14 @@ it('hides global profile actions from users with company permissions only', asyn
 it('opens the global directory from Users and filters admins or accounts without company access', async () => {
   const { calls, state } = mount()
   await userEvent.click(await screen.findByRole('button', { name: 'Felhasználók' }))
-  expect(await screen.findByRole('tab', { name: 'Összes felhasználó' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
+  const toggle = await screen.findByRole('switch', { name: 'Összes felhasználó' })
+  expect(toggle).not.toBeChecked()
+  await userEvent.click(toggle)
+  expect(toggle).toBeChecked()
   expect(await screen.findByText('Nincs céges hozzáférés')).toBeInTheDocument()
-  expect(
-    calls.some((c) => new URL(c.path, 'https://hermes.test').pathname === '/api/v1/members'),
-  ).toBe(false)
+  expect(calls.some((c) => new URL(c.path, 'https://hermes.test').pathname === '/api/v1/members')).toBe(true)
   await userEvent.type(
-    screen.getByRole('textbox', { name: 'Felhasználó keresése rendszerszinten' }),
+    screen.getByRole('textbox', { name: 'Felhasználó keresése' }),
     'kiss',
   )
   await userEvent.click(screen.getByRole('button', { name: 'Keresés' }))
@@ -360,16 +363,12 @@ it('opens the global directory from Users and filters admins or accounts without
 
 it('lists system users and shows who changed what in the central journal', async () => {
   mount()
-  await userEvent.click(await screen.findByRole('button', { name: 'Rendszerkezelés' }))
-  expect(
-    await screen.findByRole('button', {
-      name: `Profil megnyitása: ${initial.email}`,
-    }),
-  ).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Módosítási napló' }))
+  await userEvent.click(await screen.findByText('Beállítások'))
+  await userEvent.click(screen.getByRole('button', { name: 'Rendszerkezelés' }))
+  expect(screen.queryByRole('button', { name: /Profil megnyitása/ })).not.toBeInTheDocument()
   expect(await screen.findByText('user.profile_changed')).toBeInTheDocument()
-  expect(screen.getByText('Módosító: anna')).toBeInTheDocument()
-  fireEvent.click(screen.getByText('Részletek'))
+  expect(screen.getByRole('cell', { name: 'anna' })).toBeInTheDocument()
+  fireEvent.click(screen.getByText('Részletek', { selector: 'summary' }))
   await waitFor(() => expect(screen.getByText(/"DisplayName": "Régi"/)).toBeInTheDocument())
 })
 

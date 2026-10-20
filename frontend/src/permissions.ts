@@ -1,4 +1,5 @@
 export const permissionNames: Record<string, string> = {
+  'vehicles.users.assign': 'Jármű felhasználóhoz rendelése',
   'vehicles.documents.read': 'Járműokmányok megtekintése',
   'vehicles.documents.manage': 'Járműokmányok kezelése',
   'vehicles.read': 'Járművek megtekintése',

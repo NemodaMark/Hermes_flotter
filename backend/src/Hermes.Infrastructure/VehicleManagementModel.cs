@@ -25,6 +25,7 @@ public sealed partial class HermesDbContext
             e.Property(x => x.FleetNumber).HasMaxLength(40);
             e.HasIndex(x => new { x.TenantId, x.FleetNumber }).IsUnique().HasFilter("\"FleetNumber\" IS NOT NULL");
             e.Property(x => x.Category).HasMaxLength(32); e.Property(x => x.Color).HasMaxLength(40);
+            e.Property(x => x.BodyType).HasMaxLength(32);
             e.Property(x => x.FuelType).HasMaxLength(32); e.Property(x => x.Transmission).HasMaxLength(32);
             e.Property(x => x.Ownership).HasMaxLength(16);
             e.Property(x => x.PowerKw).HasPrecision(12, 3); e.Property(x => x.BatteryKwh).HasPrecision(12, 3);

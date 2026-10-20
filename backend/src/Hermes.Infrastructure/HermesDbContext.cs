@@ -49,6 +49,7 @@ public sealed partial class HermesDbContext(DbContextOptions<HermesDbContext> op
         ConfigureOrganizations(modelBuilder);
         ConfigureVehicleManagement(modelBuilder);
         ConfigureDocuments(modelBuilder);
+        ConfigurePeopleAndMedia(modelBuilder);
         modelBuilder.Entity<ApplicationUser>(entity =>
         {
             entity.ToTable("identity_users", table => table.HasCheckConstraint("CK_identity_users_username_key", UserNames.KeyConstraint));
@@ -264,6 +265,7 @@ public sealed partial class HermesDbContext(DbContextOptions<HermesDbContext> op
             entity.Property(x => x.Registration).HasMaxLength(16);
             entity.Property(x => x.Make).HasMaxLength(64);
             entity.Property(x => x.Model).HasMaxLength(64);
+            entity.Property(x => x.CreatedBy).HasMaxLength(256);
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
             entity.HasIndex(x => new { x.TenantId, x.Registration }).IsUnique();
             entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);

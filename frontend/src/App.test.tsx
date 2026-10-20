@@ -118,13 +118,14 @@ it('requires an allowed site for vehicle creation with a site-restricted permiss
   await userEvent.type(screen.getByLabelText('Rendszám'), 'NEW-001')
   await userEvent.type(screen.getByLabelText('Gyártó'), 'Ford')
   await userEvent.type(screen.getByLabelText('Modell'), 'Focus')
-  await userEvent.click(screen.getByRole('button', { name: 'Mentés' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Jármű létrehozása' }))
   expect(vi.mocked(fetch).mock.calls.some(([path, options]) => String(path).endsWith('/vehicles') && options?.method === 'POST')).toBe(false)
   await userEvent.selectOptions(site, 'site-a')
-  await userEvent.click(screen.getByRole('button', { name: 'Mentés' }))
-  await waitFor(() => expect(vi.mocked(fetch).mock.calls.find(([path, options]) => String(path).endsWith('/vehicles') && options?.method === 'POST')?.[1]).toMatchObject({
-    body: JSON.stringify({ registration: 'NEW-001', make: 'Ford', model: 'Focus', siteId: 'site-a' }),
-  }))
+  await userEvent.click(screen.getByRole('button', { name: 'Jármű létrehozása' }))
+  await waitFor(() => {
+    const options = vi.mocked(fetch).mock.calls.find(([path, options]) => String(path).endsWith('/vehicles') && options?.method === 'POST')?.[1]
+    expect(JSON.parse(String(options?.body))).toMatchObject({ registration: 'NEW-001', make: 'Ford', model: 'Focus', siteId: 'site-a', data: { bodyType: 'Unknown' } })
+  })
 })
 
 it('logs in and offers company creation to a user without memberships', async () => {

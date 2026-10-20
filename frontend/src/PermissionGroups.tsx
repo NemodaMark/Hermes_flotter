@@ -40,7 +40,7 @@ export function PermissionGroups({ user }: { user: Session }) {
   })
   async function refresh() {
     await Promise.all(
-      ['permission-groups', 'tenants', 'members', 'system-audit', 'vehicles', 'companies', 'organization', 'vehicle-create-options'].map((key) =>
+      ['permission-groups', 'tenants', 'members', 'people-list', 'person-profile', 'system-audit', 'vehicles', 'companies', 'organization', 'vehicle-create-options'].map((key) =>
         client.invalidateQueries({ queryKey: [key] }),
       ),
     )
@@ -452,6 +452,8 @@ export function GroupAssignmentDialog({
         'members',
         'permission-groups',
         'system-users',
+        'people-list',
+        'person-profile',
         'user-profile',
         'system-audit',
         'vehicles',

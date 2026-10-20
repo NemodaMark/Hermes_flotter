@@ -521,6 +521,11 @@ namespace Hermes.Infrastructure.Migrations
                         },
                         new
                         {
+                            Code = "vehicles.users.assign",
+                            Name = "Jármű felhasználóhoz rendelése"
+                        },
+                        new
+                        {
                             Code = "vehicles.archive",
                             Name = "Jármű archiválása és visszaállítása"
                         },
@@ -975,6 +980,10 @@ namespace Hermes.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("Make")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -1201,6 +1210,78 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("vehicle_leases", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Domain.VehicleModelOption", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MakeKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ModelKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Make")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("TenantId", "MakeKey", "ModelKey");
+
+                    b.ToTable("vehicle_model_options", (string)null);
+                });
+
+            modelBuilder.Entity("Hermes.Domain.VehiclePhoto", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("Bytes")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("Slot")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UploadedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "VehicleId", "Slot")
+                        .IsUnique();
+
+                    b.ToTable("vehicle_photos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_vehicle_photo_bytes", "octet_length(\"Bytes\") BETWEEN 1 AND 5242880");
+
+                            t.HasCheckConstraint("CK_vehicle_photo_slot", "\"Slot\" BETWEEN 1 AND 5");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Domain.VehicleProfile", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -1212,6 +1293,11 @@ namespace Hermes.Infrastructure.Migrations
                     b.Property<decimal?>("BatteryKwh")
                         .HasPrecision(12, 3)
                         .HasColumnType("numeric(12,3)");
+
+                    b.Property<string>("BodyType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<decimal?>("CargoVolumeM3")
                         .HasPrecision(12, 3)
@@ -1470,6 +1556,51 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("vehicle_site_assignments", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Domain.VehicleUserAssignment", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AssignedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReleasedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "VehicleId")
+                        .IsUnique()
+                        .HasFilter("\"ReleasedAt\" IS NULL");
+
+                    b.HasIndex("TenantId", "UserId", "ReleasedAt");
+
+                    b.ToTable("vehicle_user_assignments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_vehicle_assignment_dates", "\"ReleasedAt\" IS NULL OR \"ReleasedAt\" >= \"AssignedAt\"");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Infrastructure.AccountLifecycle", b =>
                 {
                     b.Property<string>("UserId")
@@ -1605,6 +1736,32 @@ namespace Hermes.Infrastructure.Migrations
                     b.HasKey("TenantId");
 
                     b.ToTable("archived_tenants", (string)null);
+                });
+
+            modelBuilder.Entity("Hermes.Infrastructure.UserAvatar", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<byte[]>("Bytes")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("user_avatars", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_user_avatar_bytes", "octet_length(\"Bytes\") BETWEEN 1 AND 5242880");
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -2018,6 +2175,24 @@ namespace Hermes.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Hermes.Domain.VehicleModelOption", b =>
+                {
+                    b.HasOne("Hermes.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.VehiclePhoto", b =>
+                {
+                    b.HasOne("Hermes.Domain.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Hermes.Domain.VehicleProfile", b =>
                 {
                     b.HasOne("Hermes.Domain.Partner", null)
@@ -2071,6 +2246,21 @@ namespace Hermes.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Hermes.Domain.VehicleUserAssignment", b =>
+                {
+                    b.HasOne("Hermes.Domain.TenantMembership", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hermes.Domain.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Hermes.Infrastructure.AccountLifecycle", b =>
                 {
                     b.HasOne("Hermes.Infrastructure.ApplicationUser", null)
@@ -2085,6 +2275,15 @@ namespace Hermes.Infrastructure.Migrations
                     b.HasOne("Hermes.Domain.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Infrastructure.UserAvatar", b =>
+                {
+                    b.HasOne("Hermes.Infrastructure.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("Hermes.Infrastructure.UserAvatar", "UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -215,7 +215,7 @@ it('edits direct grants with the correct company, CSRF token and membership vers
     csrf: 'csrf-token',
     body: { permissions: ['vehicles.read', 'vehicles.create'], version: 7 },
   })
-  expect(await screen.findByText('Járművek megtekintése, Jármű felvétele')).toBeInTheDocument()
+  expect(await screen.findByText('2 jogosultság')).toBeInTheDocument()
 })
 
 it('keeps existing grants outside the actors delegation scope locked and unchanged', async () => {
@@ -383,6 +383,7 @@ it('resets private editor state when switching companies', async () => {
   fireEvent.change(screen.getByRole('combobox', { name: 'Munkaterület' }), {
     target: { value: otherTenantId },
   })
+  await userEvent.click(await screen.findByRole('button', { name: 'Felhasználók' }))
   expect(await screen.findByText('Pannon Panni')).toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(screen.queryByText('Teszt Elek')).not.toBeInTheDocument()

@@ -46,6 +46,7 @@ builder.Services.AddScoped<IVehicleStore, VehicleStore>();
 if (!maintenanceMode)
 {
     builder.Services.AddScoped<UserAccounts>();
+    builder.Services.AddScoped<PeopleManagement>();
     builder.Services.AddScoped<SystemUserDirectory>();
     builder.Services.AddScoped<OrganizationManagement>();
     builder.Services.AddScoped<FleetManagement>();
@@ -158,6 +159,7 @@ app.MapSystemEndpoints();
 app.MapOrganizationEndpoints();
 app.MapFleetManagementEndpoints();
 app.MapDocumentEndpoints();
+app.MapPeopleAndMediaEndpoints();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 // Build metadata contains no account, tenant or database credentials.

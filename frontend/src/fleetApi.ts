@@ -3,6 +3,7 @@ import type { Page, Vehicle } from './api'
 import type { Address, Metadata, OrganizationAudit } from './organizationApi'
 
 export type VehicleSpecification = {
+  bodyType?: string
   registrationCountry: string
   vin: string | null
   fleetNumber: string | null

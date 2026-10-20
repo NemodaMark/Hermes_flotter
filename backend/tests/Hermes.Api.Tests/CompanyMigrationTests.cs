@@ -28,8 +28,7 @@ public sealed class CompanyMigrationTests(FleetFixture fixture) : IClassFixture<
             await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO archived_tenants (\"TenantId\",\"ArchivedAt\",\"Reason\") VALUES ({companyId},now(),'Original archive reason')");
             await TenantTransaction.RunAsync(db, companyId, async () =>
             {
-                db.Vehicles.Add(new() { TenantId = companyId, Registration = "KEEP-100", Make = "Ford", Model = "Focus" });
-                return await db.SaveChangesAsync();
+                return await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO vehicles (\"TenantId\",\"Id\",\"Registration\",\"Make\",\"Model\",\"Status\",\"CreatedAt\") VALUES ({companyId},{Guid.NewGuid()},'KEEP-100','Ford','Focus','Active',{DateTime.UtcNow})");
             }, default);
             await db.Database.MigrateAsync();
             var companies = await db.Tenants.IgnoreQueryFilters().ToArrayAsync();

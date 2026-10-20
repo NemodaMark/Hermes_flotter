@@ -28,9 +28,13 @@ public sealed record VehicleSummary(Guid Id, string Registration, string Make, s
     public string[] Permissions { get; init; } = [];
     public string[] PreviousRegistrations { get; init; } = [];
 }
-public sealed record CreateVehicleRequest(string Registration, string Make, string Model, Guid? SiteId = null);
+public sealed record CreateVehicleRequest(string Registration, string Make, string Model, Guid? SiteId = null,
+    VehicleSpecification? Data = null, string Status = "Active", long? OdometerKm = null);
 public sealed record VehicleSiteOption(Guid Id, string Name, string Code);
-public sealed record VehicleCreationOptions(bool CanCreateUnassigned, VehicleSiteOption[] Sites);
+public sealed record VehicleCreationOptions(bool CanCreateUnassigned, VehicleSiteOption[] Sites)
+{
+    public PartnerOption[] ServicePartners { get; init; } = [];
+}
 public sealed record UpdateVehicleRequest(string Registration, string Make, string Model, long Version);
 public sealed record RecordOdometerRequest(long? Kilometers, long Version);
 

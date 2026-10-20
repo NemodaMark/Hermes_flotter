@@ -20,6 +20,12 @@ A lízingszerződések és szervizbejegyzések külön, verziózott előzmények
 
 A járműdokumentum pontosan egy járműhöz, lízingszerződéshez vagy szervizbejegyzéshez tartozik. A közvetlen járműokmányok kategóriája forgalmi engedély, biztosítás vagy műszaki vizsga; külön `vehicles.documents.read/manage` joguk van. Minden dokumentumnál a saját műveleti jognak a telephelykorlátját ellenőrizd a listánál, feltöltésnél, előnézetnél, letöltésnél és visszaállításnál. A fájl tartalma, eredeti metaadatai, kategóriája és szülőhivatkozása változatlanok; indokolt visszavonással kezeld a hibás csatolmányt. A PostgreSQL-ben tárolt tartalom, metaadat, szülő/jármű verzióváltás és audit atomikusan mentődjön. Feltöltés közben ne tarts céges zárolást, mentés előtt frissen ellenőrizd újra a hozzáférést. Archivált járműhöz és érvénytelenített szervizhez ne engedj dokumentummódosítást.
 
+## Profilok és járműképek
+
+A közös aktív cégtagság az alap munkatársprofil olvasására jogosít, fiókbiztonsági adatokra nem. Az összes fiók listája és a mások globális profiljának módosítása `system.manage` jogot igényel. A profilon látható aktuális járművek mindig a megtekintő saját, jogonkénti telephelykorlátját kövessék. A jármű használóhoz rendelése külön `vehicles.users.assign` jog, hozzáfűzött előzménnyel; nem ad automatikusan hozzáférést.
+
+A járműképek opcionálisak, legfeljebb öt kép tölthető fel, a korábbi kép nélküli autók megmaradnak. A JPG/PNG tartalmát a szerver dekódolja és metaadat nélkül újrakódolja; a képbájtok PostgreSQL-ben, a meglévő mentés részeként tárolódnak. A gyártó/modell-javaslatok cégenként tanulnak. A felvitel és szerkesztés közös mezőkészletet használjon.
+
 ## Git-munkarend
 
 A felhasználó állandó kérése: minden befejezett, fájlmódosítással járó feladat végén commitold és pushold a változtatásokat a GitHubra, külön megerősítés nélkül.

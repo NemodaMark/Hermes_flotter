@@ -37,18 +37,18 @@ public sealed partial class FleetManagement(HermesDbContext db, ITenantContext c
         if (db.Entry(profile).State == EntityState.Detached) db.VehicleProfiles.Add(profile);
         profile.UpdatedAt = DateTimeOffset.UtcNow; profile.UpdatedBy = Actor;
     }
-    private static VehicleSpecification Specification(VehicleProfile p) => new()
+    internal static VehicleSpecification Specification(VehicleProfile p) => new()
     {
-        RegistrationCountry = p.RegistrationCountry, Vin = p.Vin, FleetNumber = p.FleetNumber, Category = p.Category, Year = p.Year,
+        RegistrationCountry = p.RegistrationCountry, Vin = p.Vin, FleetNumber = p.FleetNumber, Category = p.Category, BodyType = p.BodyType, Year = p.Year,
         FirstRegistration = p.FirstRegistration, Color = p.Color, FuelType = p.FuelType, PowerKw = p.PowerKw, EngineCapacityCc = p.EngineCapacityCc,
         Transmission = p.Transmission, Seats = p.Seats, GrossWeightKg = p.GrossWeightKg, PayloadKg = p.PayloadKg, CargoVolumeM3 = p.CargoVolumeM3,
         BatteryKwh = p.BatteryKwh, Ownership = p.Ownership, FleetEntryDate = p.FleetEntryDate, FleetExitDate = p.FleetExitDate,
         InspectionDueDate = p.InspectionDueDate, InsuranceDueDate = p.InsuranceDueDate, NextServiceDate = p.NextServiceDate,
         NextServiceKm = p.NextServiceKm, PreferredServicePartnerId = p.PreferredServicePartnerId, Notes = p.Notes
     };
-    private static void Apply(VehicleProfile p, VehicleSpecification x)
+    internal static void Apply(VehicleProfile p, VehicleSpecification x)
     {
-        p.RegistrationCountry = x.RegistrationCountry; p.Vin = x.Vin; p.FleetNumber = x.FleetNumber; p.Category = x.Category; p.Year = x.Year;
+        p.RegistrationCountry = x.RegistrationCountry; p.Vin = x.Vin; p.FleetNumber = x.FleetNumber; p.Category = x.Category; p.BodyType = x.BodyType; p.Year = x.Year;
         p.FirstRegistration = x.FirstRegistration; p.Color = x.Color; p.FuelType = x.FuelType; p.PowerKw = x.PowerKw; p.EngineCapacityCc = x.EngineCapacityCc;
         p.Transmission = x.Transmission; p.Seats = x.Seats; p.GrossWeightKg = x.GrossWeightKg; p.PayloadKg = x.PayloadKg; p.CargoVolumeM3 = x.CargoVolumeM3;
         p.BatteryKwh = x.BatteryKwh; p.Ownership = x.Ownership; p.FleetEntryDate = x.FleetEntryDate; p.FleetExitDate = x.FleetExitDate;
@@ -94,6 +94,7 @@ public sealed partial class FleetManagement(HermesDbContext db, ITenantContext c
             db.VehicleRegistrations.Add(new() { TenantId = TenantId, VehicleId = id, Registration = registration, CountryCode = data.RegistrationCountry, RecordedBy = Actor });
         v.Registration = registration; v.Make = input.Make.Trim(); v.Model = input.Model.Trim(); v.Status = Enum.Parse<VehicleStatus>(input.Status);
         Apply(p, data); Touch(p); v.Version++;
+        await LearnModel(db, TenantId, v.Make, v.Model, ct);
         var after = await Record(v, p, access, ct);
         Audit("vehicle.details_updated", id, before, after, id);
         await db.SaveChangesAsync(ct);

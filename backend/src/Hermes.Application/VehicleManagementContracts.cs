@@ -6,6 +6,7 @@ public sealed record VehicleSpecification
     public string? Vin { get; init; }
     public string? FleetNumber { get; init; }
     public string Category { get; init; } = "Unknown";
+    public string BodyType { get; init; } = "Unknown";
     public int? Year { get; init; }
     public DateOnly? FirstRegistration { get; init; }
     public string? Color { get; init; }

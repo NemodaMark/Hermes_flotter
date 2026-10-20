@@ -85,6 +85,29 @@ A backendindító script a gyökér `.env` fájljából olvassa a helyi adatbáz
 
 A script először a PATH-on lévő .NET 10 SDK-t használja; ezen a gépen a `~/.codex/tools/hermes/dotnet` felhasználói SDK-t is felismeri. A korábban előkészített helyi PostgreSQL a `55432` portot használja. Másik API-címhez a frontend indítása előtt állítsd be az `API_PROXY_TARGET` környezeti változót.
 
+## Teljes profilok, munkatársak és járműképek
+
+A **Felhasználók** egyetlen listája alapból a cég munkatársait mutatja. A `system.manage` jogú kezelő **Összes felhasználó** kapcsolóval látja a céges hozzáférés nélküli fiókokat is. A jogosultságok rövid összegzést kapnak. A rendszerszintű napló és csoportkezelés a csak rendszergazdának látható **Beállítások → Rendszerkezelés** alatt található.
+
+A teljes profiloldal alapadatait és profilképét bármely közös, aktív cégtagsággal rendelkező munkatárs olvashatja; ehhez nem kell felhasználókezelési jog. Más cég és felfüggesztett hozzáférés nem jogosít erre. Saját név, telefonszám és kép módosítható, a globális fiókkezelés külön `system.manage` jog marad. A profilban csak az aktuális céghez tartozó, a megtekintő saját `vehicles.read` telephelykorlátján belüli járművek látszanak. Járműhasználó kijelölése nem ad jármű-hozzáférést.
+
+A jármű felvétele és szerkesztése közös, teljes mezőkészletet használ, karosszériatípussal. A mentett gyártó/modellek cégenként tanuló javaslatok, szabadon beírható új értékkel. Fotó nem kötelező: **0–5 JPG/PNG**, képenként **5 MiB**, legfeljebb 16 megapixel és oldalanként 8192 pixel engedélyezett. A szerver ténylegesen dekódolja és JPEG-ként újrakódolja a képet, eltávolítja a metaadatokat, legfeljebb 2048 pixelre (profilképnél 512-re) méretezi. A fényképek és profilképek PostgreSQL-ben tárolódnak, így a meglévő adatbázismentés részei.
+
+| Végpont | Hozzáférés / működés |
+|---|---|
+| `GET /api/v1/people` | Aktív munkatársak, `X-Tenant-Id`, keresés és lapozás |
+| `GET /api/v1/people/{username}` | Saját, közös céges vagy rendszergazdai profil; csak alapadatok |
+| `PUT /api/v1/people/me` | Saját név/telefon, profilverzióval |
+| `GET/POST/DELETE /api/v1/people/{username}/avatar` | Olvasás a profil szerint; módosítás saját vagy rendszergazdai joggal |
+| `GET /api/v1/vehicles/catalog` | Céges gyártó/modell-javaslatok, felvételi vagy szerkesztési joggal |
+| `GET/POST /api/v1/vehicles/{id}/photos` | Olvasás `vehicles.read`, írás `vehicles.update` telephelykorláttal |
+| `GET/DELETE /api/v1/vehicles/{id}/photos/{photoId}` | Védett JPEG / verziózott törlés |
+| `GET /api/v1/vehicles/{id}/assignee` | Aktuális használó, `vehicles.read` |
+| `GET /api/v1/vehicles/{id}/assignee-options` | Aktív céges munkatársak minimális listája, `vehicles.users.assign` |
+| `PUT /api/v1/vehicles/{id}/assignee` | Használó kijelölése vagy levétele, `vehicles.users.assign` és járműverzió |
+
+A képfeltöltés multipart `file` és `version` mezőket vár; minden módosítás CSRF-védett és naplózott. Kizárólag felvételi jogú felhasználó a saját, legfeljebb 15 perce létrehozott autójához, frissen ellenőrzött felvételi telephelyjoggal töltheti fel a kezdeti képeket. Az ötös korlátot adatbázis-korlát is védi. A használóváltás hozzáfűzött, adatbázisszinten védett előzmény, cégenkénti aktív tagságot igényel. A `20261020213505_PeopleAndVehicleMedia` migráció megőrzi a korábbi járműveket és dokumentumokat, és a meglévő járművekből cégenként feltölti a javaslatlistát. Visszaállításhoz a mentés és a hozzá tartozó alkalmazásverzió szükséges.
+
 ## Fiókok és munkamenetek
 
 A felhasználókat ASP.NET Core Identity tárolja. A jelszó helyett az Identity által előállított, sózott jelszóhash kerül az adatbázisba. Az e-mail-cím normalizált alakja adatbázisszinten is egyedi, így a párhuzamos regisztrációk sem hoznak létre két azonos fiókot.

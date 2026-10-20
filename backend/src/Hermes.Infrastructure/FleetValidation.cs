@@ -56,6 +56,7 @@ internal static partial class FleetValidation
         return x with { RegistrationCountry = country, Vin = vin, FleetNumber = Text(x.FleetNumber, 40, "Flottaazonosító")?.ToUpperInvariant(),
             Color = Text(x.Color, 40, "Szín"), Notes = Text(x.Notes, 4000, "Megjegyzés"),
             Category = Choice(x.Category, "Kategória", "Unknown", "PassengerCar", "Van", "Truck", "Bus", "Motorcycle", "Trailer", "Other"),
+            BodyType = Choice(x.BodyType, "Karosszéria", "Unknown", "Sedan", "Hatchback", "Estate", "Suv", "Coupe", "Convertible", "Minivan", "Van", "Pickup", "ChassisCab", "Box", "Tipper", "Other"),
             FuelType = Choice(x.FuelType, "Üzemanyag", "Unknown", "Petrol", "Diesel", "Hybrid", "PluginHybrid", "Electric", "Lpg", "Cng", "Hydrogen", "Other"),
             Transmission = Choice(x.Transmission, "Váltó", "Unknown", "Manual", "Automatic", "Other"),
             Ownership = Choice(x.Ownership, "Tulajdonlás", "Unknown", "Owned", "Leased", "Rented") };

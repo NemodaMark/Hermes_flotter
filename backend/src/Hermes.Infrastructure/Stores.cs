@@ -117,7 +117,8 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
     {
         var ids = access.Sites(Permissions.VehiclesCreate); var all = access.CompanyWide(Permissions.VehiclesCreate);
         return new VehicleCreationOptions(all, await db.Sites.AsNoTracking().Where(s => !s.IsArchived && (all || ids.Contains(s.Id))).OrderBy(s => s.Name)
-            .Select(s => new VehicleSiteOption(s.Id, s.Name, s.Code)).ToArrayAsync(ct));
+            .Select(s => new VehicleSiteOption(s.Id, s.Name, s.Code)).ToArrayAsync(ct))
+        { ServicePartners = await db.Partners.AsNoTracking().Where(x => x.IsService && !x.IsArchived).OrderBy(x => x.Name).Select(x => new PartnerOption(x.Id, x.Name)).ToArrayAsync(ct) };
     }, ct);
     private void Audit(string action, object details)
     {
@@ -135,16 +136,26 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
     }
     public Task<VehicleSummary> CreateAsync(CreateVehicleRequest request, CancellationToken ct) => Authorized(Permissions.VehiclesCreate, async access =>
     {
+        var data = FleetValidation.Specification(request.Data ?? new());
+        FleetValidation.Choice(request.Status, "Jármű állapota", "Active", "Maintenance", "Inactive");
+        if (request.OdometerKm is < 0 or > 100_000_000) throw FleetValidation.Invalid("A kilométerállás 0–100 000 000 közötti egész szám legyen.");
+        if (data.PreferredServicePartnerId is { } partner && !await db.Partners.AnyAsync(x => x.Id == partner && x.IsService && !x.IsArchived, ct))
+            throw FleetValidation.Invalid("Válassz aktív szervizpartnert ennél a cégnél.");
         if (!access.Allows(Permissions.VehiclesCreate, request.SiteId))
             throw UserAccounts.Error(403, "site_access_denied", "Járművet csak engedélyezett telephelyre vehetsz fel.");
         if (request.SiteId is { } siteId && !await db.Sites.AnyAsync(x => x.Id == siteId && !x.IsArchived, ct))
             throw UserAccounts.Error(400, "invalid_site", "Válassz aktív telephelyet ennél a cégnél.");
-        var vehicle = new Vehicle { TenantId = TenantId, Registration = FleetManagement.NormalizeRegistration(request.Registration), Make = request.Make.Trim(), Model = request.Model.Trim() };
+        var vehicle = new Vehicle { TenantId = TenantId, Registration = FleetManagement.NormalizeRegistration(request.Registration), Make = request.Make.Trim(), Model = request.Model.Trim(),
+            Status = Enum.Parse<VehicleStatus>(request.Status), OdometerKm = request.OdometerKm, CreatedBy = tenantContext.UserSubject };
         db.Vehicles.Add(vehicle);
-        db.VehicleProfiles.Add(new() { TenantId = TenantId, VehicleId = vehicle.Id });
-        db.VehicleRegistrations.Add(new() { TenantId = TenantId, VehicleId = vehicle.Id, Registration = vehicle.Registration, CountryCode = "HU", RecordedBy = tenantContext.UserSubject! });
+        var profile = new VehicleProfile { TenantId = TenantId, VehicleId = vehicle.Id };
+        FleetManagement.Apply(profile, data);
+        db.VehicleProfiles.Add(profile);
+        db.VehicleRegistrations.Add(new() { TenantId = TenantId, VehicleId = vehicle.Id, Registration = vehicle.Registration, CountryCode = data.RegistrationCountry, RecordedBy = tenantContext.UserSubject! });
+        if (request.OdometerKm is { } km) db.OdometerReadings.Add(new() { TenantId = TenantId, VehicleId = vehicle.Id, Kilometers = km, RecordedBy = tenantContext.UserSubject! });
+        await FleetManagement.LearnModel(db, TenantId, vehicle.Make, vehicle.Model, ct);
         if (request.SiteId is { } site) db.VehicleSiteAssignments.Add(new() { TenantId = TenantId, VehicleId = vehicle.Id, SiteId = site });
-        Audit("vehicle.created", new { vehicle.Id, vehicle.Registration, vehicle.Make, vehicle.Model, request.SiteId });
+        Audit("vehicle.created", new { vehicle.Id, vehicle.Registration, vehicle.Make, vehicle.Model, request.SiteId, data, request.Status, request.OdometerKm });
         await db.SaveChangesAsync(ct);
         return await Summary(vehicle, access, ct);
     }, ct);
@@ -161,6 +172,7 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
         vehicle.Registration = registration;
         vehicle.Make = request.Make.Trim();
         vehicle.Model = request.Model.Trim();
+        await FleetManagement.LearnModel(db, TenantId, vehicle.Make, vehicle.Model, ct);
         vehicle.Version++;
         var after = await Summary(vehicle, access, ct);
         Audit("vehicle.updated", new { vehicleId = id, before, after });

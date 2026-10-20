@@ -17,6 +17,9 @@ Az ASP.NET Core 10 + Entity Framework Core + PostgreSQL 18 backend jelenlegi kii
 - Központi, a runtime adatbázisszerepkörrel utólag nem módosítható/törölhető napló: módosító, érintett, időpont és a releváns régi/új értékek, jelszó nélkül.
 - Céges járművek listázása, egyedi lekérése és felvétele, cégenként egyedi rendszámmal.
 - Részletes járműadatlap, stabil UUID, rendszámelőzmények, műszaki és flottahasználati adatok, határidők, archiválás és visszaállítás.
+- Teljes mezőkészlettel történő járműfelvitel, karosszériatípus, cégenként tanuló gyártó/modell-katalógus, opcionális 0–5 védett járműkép.
+- Alap munkatársprofilok közös aktív cégtagsággal, saját profil és profilkép szerkesztése; elkülönített rendszerszintű fiókkezelés.
+- Járműhasználó kijelölése külön `vehicles.users.assign` joggal, telephelykorláttal és nem törölhető használati előzménnyel; profilon csak a megtekintő által olvasható autók látszanak.
 - Céges partnernyilvántartás több kategóriával és kapcsolattartóval; külön lízingszerződés- és szervizelőzmények, műveleti jogokkal és változásnaplóval.
 - Aktív tagság és műveleti jog ellenőrzése, EF Core tenantszűrés és PostgreSQL FORCE ROW LEVEL SECURITY a járműveken és az új céges hozzáférési táblákon.
 - Külön migrációs és alkalmazás-adatbázisszerepkör, készenléti végpont és PostgreSQL-es integrációs tesztek.

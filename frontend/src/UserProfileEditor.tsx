@@ -3,17 +3,14 @@ import type { FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
 import type { Session, UserProfile } from './api'
-import { AccessDialog } from './AccessDialog'
 import './members.css'
 
-export function UserProfileDialog({
+export function UserProfileEditor({
   id,
   actor,
-  onClose,
 }: {
   id: string
   actor: Session
-  onClose: () => void
 }) {
   const client = useQueryClient()
   const query = useQuery({
@@ -39,6 +36,8 @@ export function UserProfileDialog({
       setConfirmation(null)
       await Promise.all([
         client.invalidateQueries({ queryKey: ['system-users'] }),
+        client.invalidateQueries({ queryKey: ['people-list'] }),
+        client.invalidateQueries({ queryKey: ['person-profile'] }),
         client.invalidateQueries({ queryKey: ['members'] }),
         client.invalidateQueries({ queryKey: ['system-audit'] }),
         client.invalidateQueries({ queryKey: ['session'] }),
@@ -55,7 +54,7 @@ export function UserProfileDialog({
     }
   }
   return (
-    <AccessDialog title="Felhasználói profil" pending={mutation.isPending} onClose={onClose}>
+    <section className="profile-editor" aria-label="Fiók kezelése">
       {query.isPending ? (
         <p>Profil betöltése…</p>
       ) : query.isError ? (
@@ -197,7 +196,7 @@ export function UserProfileDialog({
           {notice}
         </p>
       )}
-    </AccessDialog>
+    </section>
   )
 }
 

@@ -5,6 +5,7 @@ public sealed record UserProfile(string Id, string DisplayName, string Email, st
     DateTimeOffset? PasswordChangedAt, string[] SystemPermissions)
 {
     public bool IsAdministrator { get; init; }
+    public string? AvatarRevision { get; init; }
     public UserCompanyAccess[] CompanyAccess { get; init; } = [];
 }
 public sealed record UserCompanyAccess(Guid Id, string Name, bool HasAccess, bool IsAdmin, bool IsSuspended);

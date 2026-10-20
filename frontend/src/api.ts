@@ -6,6 +6,7 @@ export type Session = {
   systemPermissions?: string[]
 }
 export type UserProfile = {
+  avatarRevision?: string | null
   id: string
   displayName: string
   email: string
@@ -88,8 +89,8 @@ export type Vehicle = {
   permissions?: string[]
   previousRegistrations?: string[]
 }
-export type NewVehicle = { registration: string; make: string; model: string; siteId?: string | null }
-export type VehicleCreationOptions = { canCreateUnassigned: boolean; sites: { id: string; name: string; code: string }[] }
+export type NewVehicle = { registration: string; make: string; model: string; siteId?: string | null; data?: import('./fleetApi').VehicleSpecification; status?: string; odometerKm?: number | null }
+export type VehicleCreationOptions = { canCreateUnassigned: boolean; sites: { id: string; name: string; code: string }[]; servicePartners?: { id: string; name: string }[] }
 export type RegisterInput = {
   userName: string
   displayName: string
@@ -113,6 +114,7 @@ export type MemberAccess = {
   permissions: string[]
 }
 export type Member = Omit<MemberAccess, 'tenantId'> & {
+  avatarRevision?: string | null
   displayName: string | null
   email: string | null
   joinedAt: string | null
