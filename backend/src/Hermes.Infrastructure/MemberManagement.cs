@@ -15,8 +15,9 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     private string Actor => context.UserSubject ?? throw new InvalidOperationException("An authenticated actor is required.");
     private static ManagementException Error(int status, string code, string message) => new(status, code, message);
     private static ManagementException Forbidden() => Error(403, "permission_denied", "Ehhez a művelethez nincs jogosultságod.");
-    private static string[] Codes(TenantMembership member) => member.Permissions.Select(item => item.Code).Order(StringComparer.Ordinal).ToArray();
-    private static TenantAccess Access(TenantMembership member) => new(member.TenantId, member.UserSubject, member.IsActive, member.Version, Codes(member));
+    private static string[] Codes(TenantMembership member) => member.EffectivePermissions;
+    private static string[] Direct(TenantMembership member) => member.Permissions.Select(x => x.Code).Order(StringComparer.Ordinal).ToArray();
+    private static TenantAccess Access(TenantMembership member) => AccessRules.Access(member);
 
     private Task<T> Scoped<T>(Func<Task<T>> action, CancellationToken ct) => TenantTransaction.RunAsync(db, TenantId, action, ct);
     private async Task LockTenant(CancellationToken ct)
@@ -27,11 +28,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     }
     private async Task<TenantMembership> ActorWith(string permission, CancellationToken ct)
     {
-        if (await UserAccounts.IsSystemManager(db, Actor, ct)) return TenantDirectory.SystemMembership(Actor, TenantId);
-        var actor = await db.Memberships.AsNoTracking().Include(item => item.Permissions)
-            .SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == Actor && item.IsActive, ct);
-        if (actor is null || !actor.Permissions.Any(item => item.Code == permission)) throw Forbidden();
-        return actor;
+        return await AccessRules.Authorize(db, TenantId, Actor, permission, ct);
     }
     private Task<T> Authorized<T>(string permission, Func<TenantMembership, Task<T>> action, CancellationToken ct) => Scoped(async () =>
     {
@@ -41,7 +38,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         return await action(actor);
     }, ct);
     private async Task<TenantMembership> Member(string userId, CancellationToken ct)
-        => await db.Memberships.Include(item => item.Permissions).SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == userId, ct)
+        => await db.Memberships.WithAccess().SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == userId, ct)
             ?? throw Error(404, "member_not_found", "A céges felhasználó nem található.");
     private void Audit(string action, string? target, object details)
     {
@@ -68,9 +65,8 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     private async Task ProtectLastManager(TenantMembership member, bool active, string[] permissions, CancellationToken ct)
     {
         if (!member.IsActive || !Codes(member).Contains(Permissions.Manage) || (active && permissions.Contains(Permissions.Manage))) return;
-        if (!await db.Memberships.AnyAsync(other => other.TenantId == TenantId && other.UserSubject != member.UserSubject && other.IsActive
-                && other.Permissions.Any(permission => permission.Code == Permissions.Manage), ct))
-            throw Error(409, "last_permission_manager", "Az utolsó aktív jogosultságkezelő hozzáférése nem szüntethető meg. Előbb adj másik aktív tagnak jogosultságkezelési jogot.");
+        var others = await db.Memberships.AsNoTracking().WithAccess().Where(other => other.TenantId == TenantId && other.UserSubject != member.UserSubject && other.IsActive).ToListAsync(ct);
+        if (!others.Any(other => Codes(other).Contains(Permissions.Manage))) throw AccessRules.LastManager();
     }
     private static int Offset(int page, int pageSize)
     {
@@ -80,7 +76,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
     private async Task<MemberSummary> Summary(TenantMembership member, CancellationToken ct)
     {
         var user = await db.Users.AsNoTracking().Where(user => user.Id == member.UserSubject).Select(user => new { user.DisplayName, user.Email }).SingleOrDefaultAsync(ct);
-        return new(member.UserSubject, user?.DisplayName, user?.Email, member.IsActive, member.Version, Codes(member), member.JoinedAt, member.DisabledAt);
+        return new(member.UserSubject, user?.DisplayName, user?.Email, member.IsActive, member.Version, Codes(member), member.JoinedAt, member.DisabledAt) { DirectPermissions = Direct(member), Groups = AccessRules.Groups(member) };
     }
 
     public Task<PageResult<MemberSummary>> ListAsync(int page, int pageSize, string? search, CancellationToken ct) => Scoped<PageResult<MemberSummary>>(async () =>
@@ -95,7 +91,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
                 && (user.NormalizedEmail!.Contains(value) || user.DisplayName.ToUpper().Contains(value) || user.NormalizedUserName!.Contains(value))));
         }
         var total = await query.CountAsync(ct);
-        var members = await query.Include(item => item.Permissions).OrderBy(item => item.UserSubject).Skip(offset).Take(pageSize).ToListAsync(ct);
+        var members = await query.WithAccess().OrderBy(item => item.UserSubject).Skip(offset).Take(pageSize).ToListAsync(ct);
         var userIds = members.Select(member => member.UserSubject).ToArray();
         var users = await db.Users.AsNoTracking().Where(user => userIds.Contains(user.Id))
             .Select(user => new { user.Id, user.DisplayName, user.Email }).ToDictionaryAsync(user => user.Id, ct);
@@ -103,23 +99,27 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         {
             users.TryGetValue(member.UserSubject, out var user);
             return new MemberSummary(member.UserSubject, user?.DisplayName, user?.Email, member.IsActive,
-                member.Version, Codes(member), member.JoinedAt, member.DisabledAt);
+                member.Version, Codes(member), member.JoinedAt, member.DisabledAt) { DirectPermissions = Direct(member), Groups = AccessRules.Groups(member) };
         }).ToArray();
         return new(result, total, page, pageSize);
     }, ct);
     public Task<MemberSummary> GetAsync(string userId, CancellationToken ct) => Scoped(async () => await Summary(await Member(userId, ct), ct), ct);
     public Task<TenantAccess> GetAccessAsync(string userId, CancellationToken ct) => Scoped(async () =>
-        userId == Actor && await UserAccounts.IsSystemManager(db, Actor, ct)
-            ? Access(TenantDirectory.SystemMembership(Actor, TenantId)) : Access(await Member(userId, ct)), ct);
+    {
+        var member = await db.Memberships.WithAccess().SingleOrDefaultAsync(x => x.TenantId == TenantId && x.UserSubject == userId, ct);
+        if (userId == Actor && await UserAccounts.IsSystemManager(db, Actor, ct))
+            return Access(member ?? TenantDirectory.SystemMembership(Actor, TenantId)) with { Permissions = Permissions.All };
+        return Access(member ?? throw Error(404, "member_not_found", "A céges felhasználó nem található."));
+    }, ct);
 
     public Task<TenantAccess> ChangePermissionsAsync(string userId, ChangePermissionsRequest request, CancellationToken ct) => Authorized(Permissions.Manage, async actor =>
     {
         var desired = ValidatePermissions(request.Permissions);
         var target = await Member(userId, ct);
         CheckVersion(target, request.Version);
-        var before = Codes(target);
+        var before = Direct(target);
         MayDelegate(actor, before.Except(desired).Concat(desired.Except(before)));
-        await ProtectLastManager(target, target.IsActive, desired, ct);
+        await ProtectLastManager(target, target.IsActive, desired.Concat(target.Groups.SelectMany(x => x.Group.EffectivePermissions)).Distinct().ToArray(), ct);
         foreach (var removed in target.Permissions.Where(item => !desired.Contains(item.Code)).ToArray())
         { target.Permissions.Remove(removed); db.MembershipPermissions.Remove(removed); }
         foreach (var added in desired.Except(before)) target.Permissions.Add(new() { TenantId = TenantId, UserSubject = userId, Code = added });
@@ -136,6 +136,9 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         var target = await Member(userId, ct);
         CheckVersion(target, request.Version);
         if (!target.IsActive && active) MayDelegate(actor, Codes(target));
+        if (!target.IsActive && active && target.Groups.Any(x => x.Group.IsAdmin) && !actor.Groups.Any(x => x.Group.IsAdmin)
+            && !await UserAccounts.IsSystemManager(db, Actor, ct))
+            throw Error(403, "admin_delegation_denied", "Az admin hozzáférést céges admin vagy rendszergazda állíthatja vissza.");
         await ProtectLastManager(target, active, Codes(target), ct);
         var before = target.IsActive;
         target.IsActive = active;
@@ -213,7 +216,7 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
             if (invitation.NormalizedEmail != normalizedEmail) throw Error(403, "invitation_email_mismatch", "A meghívó másik e-mail-címhez tartozik.");
             if (invitation.AcceptedAt is not null || invitation.RevokedAt is not null || invitation.ExpiresAt <= DateTimeOffset.UtcNow)
                 throw Error(409, "invitation_unavailable", "A meghívót már felhasználták, visszavonták vagy lejárt.");
-            var issuer = await db.Memberships.AsNoTracking().Include(item => item.Permissions).SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == invitation.InvitedBy && item.IsActive, ct);
+            var issuer = await db.Memberships.AsNoTracking().WithAccess().SingleOrDefaultAsync(item => item.TenantId == TenantId && item.UserSubject == invitation.InvitedBy && item.IsActive, ct);
             var grants = invitation.Permissions.Select(item => item.Code).ToArray();
             if (!await UserAccounts.IsSystemManager(db, invitation.InvitedBy, ct)
                 && (issuer is null || !Codes(issuer).Contains(Permissions.MembersInvite) || (grants.Length > 0 && !Codes(issuer).Contains(Permissions.Manage)) || grants.Except(Codes(issuer)).Any()))

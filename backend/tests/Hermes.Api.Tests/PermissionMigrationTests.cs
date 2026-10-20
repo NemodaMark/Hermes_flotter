@@ -58,11 +58,13 @@ public sealed class PermissionMigrationTests(FleetFixture fixture) : IClassFixtu
             await using var upgraded = FleetFixture.CreateContext(migrator.ConnectionString, scoped);
             await TenantTransaction.RunAsync(upgraded, tenant, async () =>
             {
-                var members = await upgraded.Memberships.Include(item => item.Permissions).ToDictionaryAsync(item => item.UserSubject);
-                Assert.Equal(Permissions.All.Order(), members["old"].Permissions.Select(item => item.Code).Order());
+                var members = await upgraded.Memberships.Include(item => item.Permissions).Include(item => item.Groups).ThenInclude(item => item.Group).ThenInclude(item => item.Permissions).ToDictionaryAsync(item => item.UserSubject);
+                Assert.Equal(Permissions.All.Except([Permissions.VehiclesUpdate, Permissions.OdometerCreate]).Order(), members["old"].Permissions.Select(item => item.Code).Order());
+                Assert.Equal(Permissions.All.Order(), members["old"].EffectivePermissions.Order());
+                Assert.True(Assert.Single(members["old"].Groups).Group.IsAdmin);
                 Assert.Equal(new[] { Permissions.VehiclesCreate, Permissions.VehiclesRead }, members["legacy-manager"].Permissions.Select(item => item.Code).Order());
                 Assert.Equal(Permissions.VehiclesRead, Assert.Single(members["legacy-viewer"].Permissions).Code);
-                Assert.All(members.Values, member => { Assert.True(member.IsActive); Assert.Equal(1, member.Version); });
+                Assert.All(members.Values, member => { Assert.True(member.IsActive); Assert.Equal(member.UserSubject == "old" ? 2 : 1, member.Version); });
                 Assert.Equal("OLD-001", (await upgraded.Vehicles.SingleAsync()).Registration);
                 Assert.Equal(3, await upgraded.AccessAuditEvents.CountAsync(item => item.Action == "permissions.migrated"));
                 return true;

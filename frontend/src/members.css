@@ -343,3 +343,26 @@
     flex: 1;
   }
 }
+
+.groups-content .access-description {
+  margin: 0;
+}
+.groups-table {
+  min-width: 720px;
+}
+.groups-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.groups-table td:first-child {
+  min-width: 150px;
+}
+.groups-table td:nth-child(2) {
+  max-width: 540px;
+}
+.groups-table .row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

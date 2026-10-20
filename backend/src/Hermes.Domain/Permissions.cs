@@ -6,6 +6,9 @@ public static class Permissions
 {
     public const string VehiclesRead = "vehicles.read";
     public const string VehiclesCreate = "vehicles.create";
+    public const string VehiclesUpdate = "vehicles.update";
+    public const string OdometerCreate = "vehicles.odometer.create";
+    public const string GroupsManage = "permission-groups.manage";
     public const string MembersRead = "members.read";
     public const string MembersInvite = "members.invite";
     public const string MembersUpdate = "members.update";
@@ -14,6 +17,8 @@ public static class Permissions
     public static readonly IReadOnlyList<PermissionDescription> Catalog = Array.AsReadOnly(new[]
     {
         new PermissionDescription(VehiclesRead, "Járművek megtekintése"), new(VehiclesCreate, "Jármű felvétele"),
+        new(VehiclesUpdate, "Járműadatok szerkesztése"), new(OdometerCreate, "Kilométerállás rögzítése"),
+        new(GroupsManage, "Jogosultságcsoportok kezelése"),
         new(MembersRead, "Céges felhasználók megtekintése"), new(MembersInvite, "Meghívások kezelése"),
         new(MembersUpdate, "Céges hozzáférések felfüggesztése és visszaállítása"),
         new(Manage, "Céges jogosultságok kiosztása"), new(AuditRead, "Jogosultsági eseménynapló megtekintése")

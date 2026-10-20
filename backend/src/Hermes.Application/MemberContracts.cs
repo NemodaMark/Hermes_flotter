@@ -7,7 +7,11 @@ public sealed class ManagementException(int statusCode, string code, string mess
 }
 public sealed record PageResult<T>(T[] Items, int Total, int Page, int PageSize);
 public sealed record MemberSummary(string UserId, string? DisplayName, string? Email, bool IsActive,
-    long Version, string[] Permissions, DateTimeOffset? JoinedAt, DateTimeOffset? DisabledAt);
+    long Version, string[] Permissions, DateTimeOffset? JoinedAt, DateTimeOffset? DisabledAt)
+{
+    public string[] DirectPermissions { get; init; } = [];
+    public AssignedGroup[] Groups { get; init; } = [];
+}
 public sealed record ChangePermissionsRequest(string[] Permissions, long Version);
 public sealed record ChangeMemberStatusRequest(bool? IsActive, long Version);
 public sealed record CreateInvitationRequest(string Email, string[] Permissions);

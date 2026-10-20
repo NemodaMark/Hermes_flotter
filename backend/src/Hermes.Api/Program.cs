@@ -35,6 +35,7 @@ if (!maintenanceMode)
 {
     builder.Services.AddScoped<UserAccounts>();
     builder.Services.AddScoped<IMemberManagement, MemberManagement>();
+    builder.Services.AddScoped<IGroupManagement, GroupManagement>();
     builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
         options.ClaimsIdentity.UserIdClaimType = "sub";
@@ -119,6 +120,7 @@ app.UseRateLimiter();
 app.UseMiddleware<CsrfProtectionMiddleware>();
 app.MapAccountEndpoints();
 app.MapMemberEndpoints();
+app.MapGroupEndpoints();
 app.MapSystemEndpoints();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
@@ -171,6 +173,17 @@ vehicles.MapPost("/", async (CreateVehicleRequest request, IVehicleStore store, 
         return Results.Problem(statusCode: 409, title: "Ez a rendszám már szerepel a cég flottájában.");
     }
 }).RequireAuthorization(Permissions.VehiclesCreate);
+
+vehicles.MapPut("/{id:guid}", async (Guid id, UpdateVehicleRequest request, IVehicleStore store, CancellationToken ct) =>
+{
+    var errors = VehicleValidation.Validate(new(request.Registration, request.Make, request.Model));
+    if (errors.Count > 0) return Results.ValidationProblem(errors);
+    try { return Results.Ok(await store.UpdateAsync(id, request, ct)); }
+    catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+    { return Results.Problem(statusCode: 409, title: "Ez a rendszám már szerepel a cég flottájában."); }
+}).RequireAuthorization(Permissions.VehiclesUpdate);
+vehicles.MapPost("/{id:guid}/odometer", async (Guid id, RecordOdometerRequest request, IVehicleStore store, CancellationToken ct)
+    => Results.Ok(await store.RecordOdometerAsync(id, request, ct))).RequireAuthorization(Permissions.OdometerCreate);
 
 await app.RunAsync();
 

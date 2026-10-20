@@ -63,9 +63,26 @@ public sealed class UsernameMigrationTests(FleetFixture fixture) : IClassFixture
             await FleetFixture.RefreshCsrfAsync(oldClient);
             Assert.Equal(HttpStatusCode.OK, (await oldClient.PostAsJsonAsync("/api/v1/auth/login", new { email = "shared@one.example.test", password = FleetFixture.Password })).StatusCode);
             await FleetFixture.RefreshCsrfAsync(oldClient);
-            var company = (await (await oldClient.PostAsJsonAsync("/api/v1/tenants", new { name = "Meglévő Flotta" })).Content.ReadFromJsonAsync<TenantSummary>())!;
+            // Seed the historical schema directly; today's endpoints depend on later tables.
+            var company = new TenantSummary(Guid.NewGuid(), "Meglévő Flotta", []);
+            var token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
+            var invitationId = Guid.NewGuid();
+            var tokenHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
+            var pending = new CreatedInvitation(new(invitationId, "future@example.test", [Permissions.VehiclesRead], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), null, null), new(company.Id, invitationId, token));
+            var setupContext = new TenantContext(); setupContext.Set(company.Id, firstId, []);
+            await using (var setup = FleetFixture.CreateContext(runtime.ConnectionString, setupContext))
+            {
+                await TenantTransaction.RunAsync(setup, company.Id, async () =>
+                {
+                    await setup.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO tenants (\"Id\",\"Name\",\"TimeZone\") VALUES ({company.Id},{company.Name},{"Europe/Budapest"})");
+                    setup.Memberships.Add(new() { TenantId = company.Id, UserSubject = firstId, Permissions = Permissions.All.Except([Permissions.GroupsManage, Permissions.VehiclesUpdate, Permissions.OdometerCreate]).Select(code => new MembershipPermission { TenantId = company.Id, UserSubject = firstId, Code = code }).ToList() });
+                    setup.Invitations.Add(new() { TenantId = company.Id, Id = invitationId, Email = "future@example.test", NormalizedEmail = "FUTURE@EXAMPLE.TEST", TokenHash = tokenHash, InvitedBy = firstId, ExpiresAt = DateTimeOffset.UtcNow.AddDays(7), Permissions = [new InvitationPermission { TenantId = company.Id, InvitationId = invitationId, Code = Permissions.VehiclesRead }] });
+                    setup.AccessAuditEvents.Add(new() { TenantId = company.Id, ActorSubject = firstId, TargetSubject = firstId, Action = "company.created", Details = "{}" });
+                    await setup.SaveChangesAsync();
+                    return true;
+                }, default);
+            }
             oldClient.DefaultRequestHeaders.Add("X-Tenant-Id", company.Id.ToString());
-            var pending = (await (await oldClient.PostAsJsonAsync("/api/v1/invitations", new { email = "future@example.test", permissions = new[] { Permissions.VehiclesRead } })).Content.ReadFromJsonAsync<CreatedInvitation>())!;
             var auditId = Guid.NewGuid();
             var tenantAuditId = Guid.NewGuid();
             var scoped = new TenantContext();
@@ -78,7 +95,7 @@ public sealed class UsernameMigrationTests(FleetFixture fixture) : IClassFixture
                     db.Memberships.AddRange(new TenantMembership { TenantId = company.Id, UserSubject = secondId, Version = 7,
                         Permissions = [new MembershipPermission { TenantId = company.Id, UserSubject = secondId, Code = Permissions.VehiclesRead }] },
                         new TenantMembership { TenantId = company.Id, UserSubject = "shared" });
-                    db.Vehicles.Add(new() { TenantId = company.Id, Registration = "KEEP-001", Make = "Ford", Model = "Focus" });
+                    await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO vehicles (\"TenantId\",\"Id\",\"Registration\",\"Make\",\"Model\",\"Status\",\"CreatedAt\") VALUES ({company.Id},{Guid.NewGuid()},{"KEEP-001"},{"Ford"},{"Focus"},{"Active"},{DateTime.UtcNow})");
                     db.SystemAuditEvents.Add(new() { Id = auditId, ActorSubject = firstId, TargetSubject = secondId, Action = "before.username_migration", Details = "{\"unchanged\":true}" });
                     db.AccessAuditEvents.Add(new() { TenantId = company.Id, Id = tenantAuditId, ActorSubject = firstId, TargetSubject = secondId, Action = "before.username_migration", Details = "{\"unchanged\":true}" });
                     await db.SaveChangesAsync();

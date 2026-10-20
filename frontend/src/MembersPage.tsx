@@ -8,6 +8,7 @@ import { InvitationDialog, PermissionsDialog, StatusDialog } from './MemberDialo
 import { permissionLabel } from './permissions'
 import { UserProfileDialog } from './UserProfileDialog'
 import './members.css'
+import { PermissionGroups, GroupAssignmentDialog } from './PermissionGroups'
 
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'A művelet nem sikerült.'
@@ -64,17 +65,19 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
   const canRead = tenant.permissions.includes('members.read')
   const canInvite = tenant.permissions.includes('members.invite')
   const canManage = tenant.permissions.includes('permissions.manage')
+  const canGroups = canRead || canManage || tenant.permissions.includes('permission-groups.manage')
   const canUpdate = tenant.permissions.includes('members.update')
-  const [tab, setTab] = useState<'members' | 'invitations'>(
-    canRead || !canInvite ? 'members' : 'invitations',
+  const [tab, setTab] = useState<'members' | 'invitations' | 'groups'>(
+    canRead ? 'members' : canInvite ? 'invitations' : canGroups ? 'groups' : 'members',
   )
-  const activeTab = tab === 'invitations' && !canInvite ? 'members' : tab
+  const activeTab =
+    (tab === 'invitations' && !canInvite) || (tab === 'groups' && !canGroups) ? 'members' : tab
   const [page, setPage] = useState(1)
   const [invitePage, setInvitePage] = useState(1)
   const [search, setSearch] = useState('')
   const [draftSearch, setDraftSearch] = useState('')
   const [dialog, setDialog] = useState<
-    | { kind: 'permissions' | 'status'; member: Member }
+    | { kind: 'permissions' | 'status' | 'groups'; member: Member }
     | { kind: 'invite' }
     | { kind: 'revoke'; invitation: Invitation }
     | null
@@ -104,6 +107,7 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: memberKey }),
       queryClient.invalidateQueries({ queryKey: invitationKey }),
+      queryClient.invalidateQueries({ queryKey: ['permission-groups', user.id, tenant.id] }),
     ])
   }
   const lookupMember = useMutation({
@@ -132,7 +136,7 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
       /* The mutation error is rendered below. */
     }
   }
-  const permitted = canRead || canInvite || canManage || canUpdate
+  const permitted = canRead || canInvite || canManage || canUpdate || canGroups
   if (!permitted)
     return <p className="notice">Nincs jogosultságod a céges felhasználók kezeléséhez.</p>
   return (
@@ -144,17 +148,22 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
             role="tablist"
             aria-label="Felhasználókezelés"
             onKeyDown={(event) => {
-              if (!canInvite || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
-                return
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
               event.preventDefault()
+              const tabs = [
+                'members',
+                ...(canInvite ? ['invitations'] : []),
+                ...(canGroups ? ['groups'] : []),
+              ] as Array<'members' | 'invitations' | 'groups'>
+              const index = tabs.indexOf(activeTab)
               const next =
                 event.key === 'Home'
-                  ? 'members'
+                  ? tabs[0]
                   : event.key === 'End'
-                    ? 'invitations'
-                    : activeTab === 'members'
-                      ? 'invitations'
-                      : 'members'
+                    ? tabs[tabs.length - 1]
+                    : tabs[
+                        (index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length
+                      ]
               setTab(next)
               event.currentTarget.querySelector<HTMLButtonElement>(`#${next}-tab`)?.focus()
             }}
@@ -179,6 +188,18 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
                 onClick={() => setTab('invitations')}
               >
                 Meghívások
+              </button>
+            )}
+            {canGroups && (
+              <button
+                id="groups-tab"
+                role="tab"
+                aria-selected={activeTab === 'groups'}
+                tabIndex={activeTab === 'groups' ? 0 : -1}
+                aria-controls="access-panel"
+                onClick={() => setTab('groups')}
+              >
+                Jogosultságcsoportok
               </button>
             )}
           </div>
@@ -211,12 +232,18 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
             </button>
           </div>
         )}
-        <div
-          id="access-panel"
-          role="tabpanel"
-          aria-labelledby={activeTab === 'members' ? 'members-tab' : 'invitations-tab'}
-        >
-          {activeTab === 'members' ? (
+        <div id="access-panel" role="tabpanel" aria-labelledby={`${activeTab}-tab`}>
+          {activeTab === 'groups' ? (
+            <PermissionGroups
+              user={user}
+              tenant={tenant}
+              catalog={catalog.data ?? []}
+              onChanged={async () => {
+                await queryClient.invalidateQueries({ queryKey: ['tenants', user.id] })
+                await queryClient.invalidateQueries({ queryKey: memberKey })
+              }}
+            />
+          ) : activeTab === 'members' ? (
             !canRead ? (
               <div className="notice">
                 <p>A taglista megtekintéséhez külön hozzáférés szükséges.</p>
@@ -293,6 +320,11 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
                               </span>
                             </td>
                             <td>
+                              {!!member.groups?.length && (
+                                <strong className="member-grants">
+                                  Csoportok: {member.groups.map((x) => x.name).join(', ')}
+                                </strong>
+                              )}
                               <span className="member-grants">
                                 {member.permissions.map(permissionLabel).join(', ') ||
                                   'Nincs kiosztott jog'}
@@ -317,6 +349,15 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
                                     onClick={() => setDialog({ kind: 'permissions', member })}
                                   >
                                     Jogosultságok
+                                  </button>
+                                )}
+                                {canManage && (
+                                  <button
+                                    className="secondary-button"
+                                    aria-label={`Csoportok: ${member.email ?? member.userId}`}
+                                    onClick={() => setDialog({ kind: 'groups', member })}
+                                  >
+                                    Csoportok
                                   </button>
                                 )}
                                 {canUpdate && (
@@ -464,6 +505,25 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
               Jogosultságok betöltése
             </button>
           </form>
+          {lookupMember.data && (
+            <button
+              className="secondary-button"
+              onClick={() =>
+                setDialog({
+                  kind: 'groups',
+                  member: {
+                    ...lookupMember.data,
+                    displayName: null,
+                    email: null,
+                    joinedAt: null,
+                    disabledAt: null,
+                  },
+                })
+              }
+            >
+              Felhasználó csoportjai
+            </button>
+          )}
           {lookupMember.isError && (
             <p className="form-error" role="alert">
               {message(lookupMember.error)}
@@ -487,6 +547,15 @@ export function MembersPage({ user, tenant }: { user: Session; tenant: Tenant })
           tenant={tenant}
           member={dialog.member}
           catalog={catalog.data ?? []}
+          onClose={() => setDialog(null)}
+          onChanged={refresh}
+        />
+      )}
+      {dialog?.kind === 'groups' && canManage && (
+        <GroupAssignmentDialog
+          user={user}
+          tenant={tenant}
+          userId={dialog.member.userId}
           onClose={() => setDialog(null)}
           onChanged={refresh}
         />

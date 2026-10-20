@@ -9,7 +9,7 @@ Több céget kiszolgáló flottakezelő SaaS: React + TypeScript frontend, ASP.N
 - Első cég létrehozása a belépés után, majd további cégek létrehozása és cégváltás.
 - Az új cég és a létrehozó induló jogosultságai egy tranzakcióban készülnek el.
 - Cégenként elkülönített járműlista, keresés, állapotszűrés és járműfelvétel.
-- Cégenként és felhasználónként kiosztható műveleti jogok, fix szerepkörök nélkül.
+- Cégenként kiosztható egyedi műveleti jogok és szerkeszthető jogosultságcsoportok.
 - Céges felhasználólista, meghívások, hozzáférések felfüggesztése és jogosultsági eseménynapló az API-ban.
 - Egyszerű Felhasználók oldal céges meghívással, jogkiosztással, felfüggesztéssel/visszaállítással és meghívóelfogadással.
 - Migrációk, Docker Compose és GitHub Actions, valódi PostgreSQL-es integrációs tesztekkel.
@@ -127,6 +127,9 @@ Frissítéskor a korábbi cég- és járműadatok megmaradnak. A régi fejleszt�
 |---|---|
 | `vehicles.read` | Járműlista és egy jármű megtekintése |
 | `vehicles.create` | Jármű felvétele |
+| `vehicles.update` | Rendszám, gyártó és modell szerkesztése |
+| `vehicles.odometer.create` | Kilométerállás rögzítése, járműszerkesztési jog nélkül is |
+| `permission-groups.manage` | Céges csoportok létrehozása, szerkesztése és törlése |
 | `members.read` | Az adott cég felhasználóinak listázása és megtekintése |
 | `members.invite` | Meghívások létrehozása, listázása és visszavonása |
 | `members.update` | Céges hozzáférés felfüggesztése és visszaállítása |
@@ -137,7 +140,7 @@ A jogok függetlenek: a járműfelvételi jog nem ad automatikusan listázási j
 
 A felhasználókezelés cégtagságot kezel: egy felfüggesztés nem tiltja le a globális fiókot vagy más cégek hozzáféréseit. Visszaállításkor az összes visszaálló jogot ellenőrzi a kezdeményező jogaihoz képest. A taglistában az azonosító, név, e-mail, állapot, verzió, jogok és tagsági időpontok láthatók; jelszóhash, biztonsági token vagy Identity-bélyeg nem kerül a válaszba. A megjelenített név a saját `PUT /auth/profile` végponton módosítható; más tag globális profilját a cég kezelője nem írhatja át.
 
-Egy tag jogainak felülírása: `PUT /api/v1/members/{userId}/permissions`, `X-Tenant-Id` és CSRF-fejléccel:
+Egy tag **egyedi** jogainak felülírása: `PUT /api/v1/members/{userId}/permissions`, `X-Tenant-Id` és CSRF-fejléccel:
 
 ```json
 { "permissions": ["vehicles.read", "vehicles.create"], "version": 1 }
@@ -152,6 +155,26 @@ A meghívó 7 napig érvényes és egyszer használható. Elfogadáskor a meghí
 A webes felületen válassz céget, majd nyisd meg a **Felhasználók** menüt. Itt kereshetsz a tagok között, jogokat szerkeszthetsz, megerősítés után felfüggeszthetsz/visszaállíthatsz hozzáférést, valamint létrehozhatsz és visszavonhatsz meghívókat. A vezérlők a saját jogaidhoz igazodnak. Automatikus e-mail-küldés nincs: a létrehozáskor egyszer látható hivatkozást kézzel kell továbbítani. A címzett belépés vagy regisztráció után kifejezetten elfogadja a meghívót, és a felület a megfelelő céget választja ki. A token a hivatkozás fragmentjében marad, elfogadás/bezárás után pedig törlődik a címsorból. A részletes felületi működést a [frontend leírása](frontend/README.md) tartalmazza.
 
 A listavégpontok `page` (1–10000) és `pageSize` (1–100, alapból 25) paramétert, a taglista `search` paramétert is elfogad; válaszuk `{ "items": [], "total": 0, "page": 1, "pageSize": 25 }`. A hozzáférések változásai ugyanabban a tranzakcióban kerülnek az eseménynaplóba, mint az adatváltozás.
+
+### Jogosultságcsoportok
+
+A **Felhasználók → Jogosultságcsoportok** fülön hozhatók létre a céges jogcsomagok; a felhasználók sorában a **Csoportok** gomb kezeli a hozzárendelést. Több csoport is kiosztható. Az effektív jogok az egyedi és csoportjogok uniója; nincs tiltó jog vagy szinthierarchia. A tagság felfüggesztése minden céges jogot kikapcsol. A meghívás továbbra is egyedi induló jogokat fogad; csoportok az elfogadás után rendelhetők a taghoz.
+
+Minden céghez tartozik egy védett **admin** csoport. Ennek jogai futásidőben a teljes `Permissions.Catalog` katalógusból jönnek, tehát egy új jog automatikusan elérhető lesz minden céges adminnak. A csoport neve és jogai nem szerkeszthetők, a csoport nem törölhető. Új cég létrehozója ezt a csoportot kapja. A céges admin nem kap globális `system.manage` jogot.
+
+Csoportot a `permission-groups.manage`, csoporttagságot a `permissions.manage` jog kezel. Mindkét műveletnél csak a saját effektív jogok delegálhatók. A csoportszerkesztő a meglévő és az új teljes jogcsomag fölött is rendelkezzen; így egy más által létrehozott csoporttal sem emelheti a jogait. A jövőbeli jogokra is kiterjedő admin tagságot kizárólag céges admin vagy rendszergazda oszthatja ki, vonhatja vissza vagy állíthatja vissza felfüggesztés után. Az utolsó aktív jogkezelő védelme a csoportok szerkesztésére, törlésére és visszavonására is érvényes. A műveletek céges és rendszerszintű naplóba kerülnek, az adatváltozással azonos tranzakcióban.
+
+- `GET /api/v1/permission-groups`: lista `members.read`, `permissions.manage` vagy `permission-groups.manage` joggal.
+- `POST /api/v1/permission-groups`: `{ "name": "Km rögzítők", "permissions": ["vehicles.read", "vehicles.odometer.create"] }`.
+- `PUT /api/v1/permission-groups/{id}`: ugyanaz a törzs, továbbá a csoport `version` mezője.
+- `DELETE /api/v1/permission-groups/{id}?version=3`: a hozzárendeléseket is visszavonja.
+- `PUT /api/v1/members/{userId}/groups`: `{ "groupIds": ["csoport-uuid"], "version": 2 }`; a verzió a cégtagságé. Az üres lista minden csoporttagságot megszüntet, az egyedi jogokat megtartja.
+
+A tag- és hozzáférésválasz `permissions` mezője az effektív jogokat, `directPermissions` az egyedi jogokat, `groups` a hozzárendelt csoportokat tartalmazza. A közvetlen jogokat szerkesztő kliens mindig a `directPermissions` mezőből induljon. Csoportnév cégenként egyedi, kis- és nagybetűtől független; legfeljebb 80 karakter. Módosításnál kötelező a verzió; ütközéskor friss lekérés szükséges.
+
+A járműadatok külön `PUT /api/v1/vehicles/{id}` végponton módosíthatók (`registration`, `make`, `model`, `version`). A km-rögzítés külön `POST /api/v1/vehicles/{id}/odometer` végpont (`kilometers`, `version`), amely változtathatatlan előzményt ment, és nem enged csökkenő vagy negatív értéket. Mindkettő a jármű verzióját növeli. Telephelymodul még nincs; ennek saját jogait a modul elkészítésekor kell felvenni és szerveroldalon ellenőrizni.
+
+A csoportmigráció megtartja a korábbi egyedi jogokat. A korábbi `permissions.manage` jog mellé `permission-groups.manage` jár. Automatikus admin csoporttagságot csak az auditnaplóval igazolt cégalapító/korábbi tulajdonos kap, ha aktív és az eredeti hét jog mindegyikével még rendelkezik; más teljes jogú tag nem kap automatikus jövőbeli jogokat. Az átalakítás naplózott. A csoportok, kapcsolataik és km-előzmények tenantkulcsos FK-t és FORCE RLS-t kapnak. A visszaállításhoz adatbázismentés szükséges.
 
 ## API
 
@@ -267,4 +290,4 @@ dotnet ef migrations add MigrationName --project src/Hermes.Infrastructure --sta
 
 A kiszolgáló nem migrál automatikusan: a migrációs parancs `ConnectionStrings__Migrations`, az API `ConnectionStrings__Database` beállítást használ. A következő üzleti modulok a sofőrök, karbantartások, költségek és előfizetések kezelése.
 
-A `20261020002000_TenantPermissions` migráció a korábbi `Owner` tagságokat a jelenlegi 7 jogra, a `FleetManager` tagságokat `vehicles.read` + `vehicles.create`, a `Viewer` tagságokat `vehicles.read` jogra fordítja. Minden átalakításról naplóbejegyzés készül, majd a régi `Role` oszlop megszűnik. A meglévő tagságok aktívak, verziójuk 1; az ismeretlen régi csatlakozási idő `null`. A szemcsés jogok veszteség nélkül nem alakíthatók vissza fix szerepkörökké, ezért a migráció `Down` iránya tiltott. Frissítés előtt készíts adatbázismentést; visszaállításhoz azt és a hozzá tartozó korábbi alkalmazásverziót használd. Migrálás előtt állítsd le a régi API-t, majd az új sémával az új buildet indítsd.
+A `20261020002000_TenantPermissions` migráció a korábbi `Owner` tagságokat az akkori 7 jogra, a `FleetManager` tagságokat `vehicles.read` + `vehicles.create`, a `Viewer` tagságokat `vehicles.read` jogra fordítja. Minden átalakításról naplóbejegyzés készül, majd a régi `Role` oszlop megszűnik. A meglévő tagságok aktívak, verziójuk 1; az ismeretlen régi csatlakozási idő `null`. A szemcsés jogok veszteség nélkül nem alakíthatók vissza fix szerepkörökké, ezért a migráció `Down` iránya tiltott. Frissítés előtt készíts adatbázismentést; visszaállításhoz azt és a hozzá tartozó korábbi alkalmazásverziót használd. Migrálás előtt állítsd le a régi API-t, majd az új sémával az új buildet indítsd.

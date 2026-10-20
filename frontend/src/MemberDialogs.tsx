@@ -12,7 +12,7 @@ const message = (error: unknown) =>
 const date = (value: string) =>
   new Date(value).toLocaleString('hu-HU', { dateStyle: 'short', timeStyle: 'short' })
 
-function PermissionFields({
+export function PermissionFields({
   catalog,
   selected,
   available,
@@ -210,7 +210,7 @@ export function PermissionsDialog({
   onChanged: () => Promise<void>
 }) {
   const [current, setCurrent] = useState<MemberAccess>({ ...member, tenantId: tenant.id })
-  const [selected, setSelected] = useState(member.permissions)
+  const [selected, setSelected] = useState(member.directPermissions ?? member.permissions)
   const mutation = useMutation({
     mutationFn: () => api.changePermissions(tenant.id, member.userId, selected, current.version),
   })
@@ -218,7 +218,7 @@ export function PermissionsDialog({
     mutationFn: () => api.memberAccess(tenant.id, member.userId),
     onSuccess: (access) => {
       setCurrent(access)
-      setSelected(access.permissions)
+      setSelected(access.directPermissions ?? access.permissions)
       mutation.reset()
     },
   })
@@ -252,7 +252,8 @@ export function PermissionsDialog({
           disabled={mutation.isPending || reload.isPending}
         />
         <p className="field-hint">
-          Csak a saját jogaid körén belül módosíthatsz. A változás a következő kérésnél érvényesül.
+          Az itt megadott jogok egyedi jogok; a csoportból kapott jogok külön kezelhetők. Csak a
+          saját jogaid körén belül módosíthatsz. A változás a következő kérésnél érvényesül.
         </p>
         {mutation.isError && (
           <p className="form-error" role="alert">

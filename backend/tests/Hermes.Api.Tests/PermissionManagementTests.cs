@@ -12,7 +12,7 @@ using Xunit;
 
 namespace Hermes.Api.Tests;
 
-public sealed class PermissionManagementTests(FleetFixture fixture) : IClassFixture<FleetFixture>
+public sealed partial class PermissionManagementTests(FleetFixture fixture) : IClassFixture<FleetFixture>
 {
     private sealed record User(string Id, string DisplayName, string Email);
     private sealed record Account(HttpClient Client, User User) : IDisposable
@@ -140,11 +140,11 @@ public sealed class PermissionManagementTests(FleetFixture fixture) : IClassFixt
         using var owner = await Register();
         using var manager = await Register();
         var company = await Company(owner);
-        await AssertCode(await Grants(owner, owner.User.Id), HttpStatusCode.Conflict, "last_permission_manager");
+        await AssertCode(await owner.Client.PutAsJsonAsync($"/api/v1/members/{owner.User.Id}/groups", new ChangeGroupsRequest([], 1)), HttpStatusCode.Conflict, "last_permission_manager");
         await AssertCode(await owner.Client.PatchAsJsonAsync($"/api/v1/members/{owner.User.Id}/status", new { isActive = false, version = 1 }), HttpStatusCode.Conflict, "last_permission_manager");
         await Join(owner, manager, company.Id, Permissions.Manage);
         var responses = await Task.WhenAll(
-            owner.Client.PutAsJsonAsync($"/api/v1/members/{owner.User.Id}/permissions", new { permissions = Permissions.All.Where(code => code != Permissions.Manage).ToArray(), version = 1 }),
+            owner.Client.PutAsJsonAsync($"/api/v1/members/{owner.User.Id}/groups", new ChangeGroupsRequest([], 1)),
             manager.Client.PutAsJsonAsync($"/api/v1/members/{manager.User.Id}/permissions", new { permissions = Array.Empty<string>(), version = 1 }));
         Assert.Single(responses, response => response.StatusCode == HttpStatusCode.OK);
         await AssertCode(Assert.Single(responses, response => response.StatusCode == HttpStatusCode.Conflict), HttpStatusCode.Conflict, "last_permission_manager");
@@ -251,6 +251,8 @@ public sealed class PermissionManagementTests(FleetFixture fixture) : IClassFixt
         // Reissuing after expiry must free the partial unique index before inserting the replacement.
         var stale = await Invite(owner, recipient, Permissions.VehiclesRead);
         Assert.Equal(HttpStatusCode.OK, (await Grants(owner, owner.User.Id, Permissions.All.Where(code => code != Permissions.MembersInvite).ToArray())).StatusCode);
+        var ownerAccess = await Access(owner, owner.User.Id);
+        Assert.Equal(HttpStatusCode.OK, (await owner.Client.PutAsJsonAsync($"/api/v1/members/{owner.User.Id}/groups", new ChangeGroupsRequest([], ownerAccess.Version))).StatusCode);
         await AssertCode(await recipient.Client.PostAsJsonAsync("/api/v1/invitations/accept", stale.Acceptance), HttpStatusCode.Conflict, "inviter_access_changed");
         Assert.Empty((await recipient.Client.GetFromJsonAsync<TenantSummary[]>("/api/v1/tenants"))!);
     }

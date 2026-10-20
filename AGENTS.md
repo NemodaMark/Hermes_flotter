@@ -4,7 +4,7 @@
 
 A felhasználó kérése alapján a backend működése az elsődleges. A következő fejlesztéseknél az üzleti szabályokra, az API-ra, az adatbázisra, a többcéges jogosultságokra és ezek tesztelésére összpontosíts. A frontend egyelőre a működés kipróbálását szolgálja; a látvány finomítása külön kérésre kerüljön előtérbe.
 
-A hozzáférés műveleti jogokon alapul, cégenként és felhasználónként közvetlenül kiosztva. Ne vezess vissza fix felhasználói szinteket vagy szerepköröket. Új céges művelethez add meg a szükséges jogot, a szerveroldali ellenőrzést és a cégek elkülönítését igazoló tesztet.
+A hozzáférés műveleti jogokon alapul, cégenként és felhasználónként közvetlenül vagy szerkeszthető jogosultságcsoportokkal kiosztva. A csoportok jogcsomagok, nem fix felhasználói szintek. A kért védett `admin` csoport minden jelenlegi és jövőbeli céges jogot megkap; ez nem ad rendszerszintű `system.manage` jogot. Új céges művelethez add meg a szükséges jogot, a szerveroldali ellenőrzést és a cégek elkülönítését igazoló tesztet. A csoportokat minden jogosultság-ellenőrzésnél, visszaállításnál és delegálásnál vedd figyelembe; a változásokat naplózd.
 
 A felhasználó kérése alapján a felhasználó belső elsődleges kulcsa maga az egyedi, kanonikus felhasználónév (`Id = UserName`), a teljes névtől és e-mailtől függetlenül. Ne vezess vissza külön UUID-alapú felhasználói kulcsot. A régi azonosítók csak a naplózási előzmények és névfoglalás miatt maradnak meg.
 

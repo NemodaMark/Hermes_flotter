@@ -29,12 +29,20 @@ export type SystemAudit = {
   originalTargetSubject?: string | null
 }
 export type Tenant = { id: string; name: string; permissions: string[] }
+export type AssignedGroup = { id: string; name: string; isAdmin: boolean }
+export type PermissionGroup = AssignedGroup & {
+  version: number
+  permissions: string[]
+  memberCount: number
+}
 export type Vehicle = {
   id: string
   registration: string
   make: string
   model: string
   status: string
+  version?: number
+  odometerKm?: number | null
 }
 export type NewVehicle = { registration: string; make: string; model: string }
 export type RegisterInput = {
@@ -51,6 +59,8 @@ export type Page<T> = {
   pageSize: number
 }
 export type MemberAccess = {
+  directPermissions?: string[]
+  groups?: AssignedGroup[]
   tenantId: string
   userId: string
   isActive: boolean
@@ -176,6 +186,47 @@ async function authenticate(path: string, body: unknown) {
 }
 
 export const api = {
+  groups: (tenantId: string, signal?: AbortSignal) =>
+    request<PermissionGroup[]>('/api/v1/permission-groups', { tenantId, signal }),
+  createGroup: (tenantId: string, name: string, permissions: string[]) =>
+    request<PermissionGroup>('/api/v1/permission-groups', {
+      tenantId,
+      body: { name, permissions },
+    }),
+  updateGroup: (
+    tenantId: string,
+    id: string,
+    name: string,
+    permissions: string[],
+    version: number,
+  ) =>
+    request<PermissionGroup>(`/api/v1/permission-groups/${id}`, {
+      tenantId,
+      method: 'PUT',
+      body: { name, permissions, version },
+    }),
+  deleteGroup: (tenantId: string, id: string, version: number) =>
+    request<void>(`/api/v1/permission-groups/${id}?version=${version}`, {
+      tenantId,
+      method: 'DELETE',
+    }),
+  assignGroups: (tenantId: string, userId: string, groupIds: string[], version: number) =>
+    request<MemberAccess>(`/api/v1/members/${encodeURIComponent(userId)}/groups`, {
+      tenantId,
+      method: 'PUT',
+      body: { groupIds, version },
+    }),
+  updateVehicle: (tenantId: string, vehicle: Vehicle, input: NewVehicle) =>
+    request<Vehicle>(`/api/v1/vehicles/${vehicle.id}`, {
+      tenantId,
+      method: 'PUT',
+      body: { ...input, version: vehicle.version },
+    }),
+  recordOdometer: (tenantId: string, vehicle: Vehicle, kilometers: number) =>
+    request<Vehicle>(`/api/v1/vehicles/${vehicle.id}/odometer`, {
+      tenantId,
+      body: { kilometers, version: vehicle.version },
+    }),
   session: async (signal?: AbortSignal) => {
     try {
       return await request<Session>('/api/v1/auth/session', { signal })
@@ -238,9 +289,10 @@ export const api = {
       `/api/v1/members?${new URLSearchParams({ page: String(page), pageSize: '25', search })}`,
       { tenantId, signal },
     ),
-  memberAccess: (tenantId: string, userId: string) =>
+  memberAccess: (tenantId: string, userId: string, signal?: AbortSignal) =>
     request<MemberAccess>(`/api/v1/members/${encodeURIComponent(userId)}/permissions`, {
       tenantId,
+      signal,
     }),
   changePermissions: (tenantId: string, userId: string, permissions: string[], version: number) =>
     request<MemberAccess>(`/api/v1/members/${encodeURIComponent(userId)}/permissions`, {

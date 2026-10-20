@@ -58,6 +58,25 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("access_audit_events", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Domain.GroupPermission", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("TenantId", "GroupId", "Code");
+
+                    b.HasIndex("Code");
+
+                    b.ToTable("permission_group_permissions", (string)null);
+                });
+
             modelBuilder.Entity("Hermes.Domain.InvitationPermission", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -75,6 +94,25 @@ namespace Hermes.Infrastructure.Migrations
                     b.HasIndex("Code");
 
                     b.ToTable("tenant_invitation_permissions", (string)null);
+                });
+
+            modelBuilder.Entity("Hermes.Domain.MembershipGroup", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserSubject")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("TenantId", "UserSubject", "GroupId");
+
+                    b.HasIndex("TenantId", "GroupId");
+
+                    b.ToTable("tenant_membership_groups", (string)null);
                 });
 
             modelBuilder.Entity("Hermes.Domain.MembershipPermission", b =>
@@ -95,6 +133,35 @@ namespace Hermes.Infrastructure.Migrations
                     b.HasIndex("Code");
 
                     b.ToTable("tenant_membership_permissions", (string)null);
+                });
+
+            modelBuilder.Entity("Hermes.Domain.OdometerReading", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Kilometers")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RecordedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "VehicleId", "RecordedAt");
+
+                    b.ToTable("vehicle_odometer_readings", (string)null);
                 });
 
             modelBuilder.Entity("Hermes.Domain.PermissionDefinition", b =>
@@ -125,6 +192,21 @@ namespace Hermes.Infrastructure.Migrations
                         },
                         new
                         {
+                            Code = "vehicles.update",
+                            Name = "Járműadatok szerkesztése"
+                        },
+                        new
+                        {
+                            Code = "vehicles.odometer.create",
+                            Name = "Kilométerállás rögzítése"
+                        },
+                        new
+                        {
+                            Code = "permission-groups.manage",
+                            Name = "Jogosultságcsoportok kezelése"
+                        },
+                        new
+                        {
                             Code = "members.read",
                             Name = "Céges felhasználók megtekintése"
                         },
@@ -147,6 +229,42 @@ namespace Hermes.Infrastructure.Migrations
                         {
                             Code = "audit.read",
                             Name = "Jogosultsági eseménynapló megtekintése"
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Domain.PermissionGroup", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("permission_groups", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_group_admin_name", "\"IsAdmin\" = (\"NormalizedName\" = 'ADMIN')");
                         });
                 });
 
@@ -348,6 +466,9 @@ namespace Hermes.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<long?>("OdometerKm")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Registration")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -357,6 +478,12 @@ namespace Hermes.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
 
                     b.HasKey("TenantId", "Id");
 
@@ -596,6 +723,21 @@ namespace Hermes.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Hermes.Domain.GroupPermission", b =>
+                {
+                    b.HasOne("Hermes.Domain.PermissionDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("Code")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hermes.Domain.PermissionGroup", null)
+                        .WithMany("Permissions")
+                        .HasForeignKey("TenantId", "GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Hermes.Domain.InvitationPermission", b =>
                 {
                     b.HasOne("Hermes.Domain.PermissionDefinition", null)
@@ -611,6 +753,23 @@ namespace Hermes.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Hermes.Domain.MembershipGroup", b =>
+                {
+                    b.HasOne("Hermes.Domain.PermissionGroup", "Group")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hermes.Domain.TenantMembership", null)
+                        .WithMany("Groups")
+                        .HasForeignKey("TenantId", "UserSubject")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+                });
+
             modelBuilder.Entity("Hermes.Domain.MembershipPermission", b =>
                 {
                     b.HasOne("Hermes.Domain.PermissionDefinition", null)
@@ -623,6 +782,24 @@ namespace Hermes.Infrastructure.Migrations
                         .WithMany("Permissions")
                         .HasForeignKey("TenantId", "UserSubject")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.OdometerReading", b =>
+                {
+                    b.HasOne("Hermes.Domain.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.PermissionGroup", b =>
+                {
+                    b.HasOne("Hermes.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -721,6 +898,11 @@ namespace Hermes.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Hermes.Domain.PermissionGroup", b =>
+                {
+                    b.Navigation("Permissions");
+                });
+
             modelBuilder.Entity("Hermes.Domain.TenantInvitation", b =>
                 {
                     b.Navigation("Permissions");
@@ -728,6 +910,8 @@ namespace Hermes.Infrastructure.Migrations
 
             modelBuilder.Entity("Hermes.Domain.TenantMembership", b =>
                 {
+                    b.Navigation("Groups");
+
                     b.Navigation("Permissions");
                 });
 #pragma warning restore 612, 618

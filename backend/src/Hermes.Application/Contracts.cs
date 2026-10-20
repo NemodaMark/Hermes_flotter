@@ -10,10 +10,20 @@ public interface ITenantContext
 }
 
 public sealed record TenantSummary(Guid Id, string Name, string[] Permissions);
-public sealed record TenantAccess(Guid TenantId, string UserId, bool IsActive, long Version, string[] Permissions);
+public sealed record TenantAccess(Guid TenantId, string UserId, bool IsActive, long Version, string[] Permissions)
+{
+    public string[] DirectPermissions { get; init; } = [];
+    public AssignedGroup[] Groups { get; init; } = [];
+}
 public sealed record CreateTenantRequest(string Name);
-public sealed record VehicleSummary(Guid Id, string Registration, string Make, string Model, string Status);
+public sealed record VehicleSummary(Guid Id, string Registration, string Make, string Model, string Status)
+{
+    public long Version { get; init; } = 1;
+    public long? OdometerKm { get; init; }
+}
 public sealed record CreateVehicleRequest(string Registration, string Make, string Model);
+public sealed record UpdateVehicleRequest(string Registration, string Make, string Model, long Version);
+public sealed record RecordOdometerRequest(long? Kilometers, long Version);
 
 public interface ITenantDirectory
 {
@@ -27,6 +37,8 @@ public interface IVehicleStore
     Task<IReadOnlyList<VehicleSummary>> ListAsync(CancellationToken cancellationToken);
     Task<VehicleSummary?> GetAsync(Guid id, CancellationToken cancellationToken);
     Task<VehicleSummary> CreateAsync(CreateVehicleRequest request, CancellationToken cancellationToken);
+    Task<VehicleSummary> UpdateAsync(Guid id, UpdateVehicleRequest request, CancellationToken ct);
+    Task<VehicleSummary> RecordOdometerAsync(Guid id, RecordOdometerRequest request, CancellationToken ct);
 }
 
 public static class VehicleValidation

@@ -20,6 +20,10 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
     public DbSet<SystemPermissionGrant> SystemPermissionGrants => Set<SystemPermissionGrant>();
     public DbSet<SystemAuditEvent> SystemAuditEvents => Set<SystemAuditEvent>();
     public DbSet<UserIdentityHistory> UserIdentityHistory => Set<UserIdentityHistory>();
+    public DbSet<PermissionGroup> PermissionGroups => Set<PermissionGroup>();
+    public DbSet<GroupPermission> GroupPermissions => Set<GroupPermission>();
+    public DbSet<MembershipGroup> MembershipGroups => Set<MembershipGroup>();
+    public DbSet<OdometerReading> OdometerReadings => Set<OdometerReading>();
     private Guid? CurrentTenantId => tenantContext.TenantId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -78,6 +82,7 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
         modelBuilder.Entity<TenantMembership>(entity =>
         {
             entity.ToTable("tenant_memberships");
+            entity.Ignore(x => x.EffectivePermissions);
             entity.HasKey(x => new { x.TenantId, x.UserSubject });
             entity.Property(x => x.UserSubject).HasMaxLength(256);
             entity.Property(x => x.Version).IsConcurrencyToken();
@@ -103,6 +108,45 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
             entity.Property(x => x.Code).HasMaxLength(80);
             entity.HasOne<TenantMembership>().WithMany(x => x.Permissions).HasForeignKey(x => new { x.TenantId, x.UserSubject }).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<PermissionDefinition>().WithMany().HasForeignKey(x => x.Code).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
+        });
+        modelBuilder.Entity<PermissionGroup>(entity =>
+        {
+            entity.ToTable("permission_groups", table => table.HasCheckConstraint("CK_group_admin_name", "\"IsAdmin\" = (\"NormalizedName\" = 'ADMIN')"));
+            entity.HasKey(x => new { x.TenantId, x.Id });
+            entity.Property(x => x.Name).HasMaxLength(80);
+            entity.Property(x => x.NormalizedName).HasMaxLength(80);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.Ignore(x => x.EffectivePermissions);
+            entity.HasIndex(x => new { x.TenantId, x.NormalizedName }).IsUnique();
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
+        });
+        modelBuilder.Entity<GroupPermission>(entity =>
+        {
+            entity.ToTable("permission_group_permissions");
+            entity.HasKey(x => new { x.TenantId, x.GroupId, x.Code });
+            entity.Property(x => x.Code).HasMaxLength(80);
+            entity.HasOne<PermissionGroup>().WithMany(x => x.Permissions).HasForeignKey(x => new { x.TenantId, x.GroupId }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<PermissionDefinition>().WithMany().HasForeignKey(x => x.Code).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
+        });
+        modelBuilder.Entity<MembershipGroup>(entity =>
+        {
+            entity.ToTable("tenant_membership_groups");
+            entity.HasKey(x => new { x.TenantId, x.UserSubject, x.GroupId });
+            entity.Property(x => x.UserSubject).HasMaxLength(256);
+            entity.HasOne<TenantMembership>().WithMany(x => x.Groups).HasForeignKey(x => new { x.TenantId, x.UserSubject }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Group).WithMany().HasForeignKey(x => new { x.TenantId, x.GroupId }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
+        });
+        modelBuilder.Entity<OdometerReading>(entity =>
+        {
+            entity.ToTable("vehicle_odometer_readings");
+            entity.HasKey(x => new { x.TenantId, x.Id });
+            entity.Property(x => x.RecordedBy).HasMaxLength(256);
+            entity.HasOne<Vehicle>().WithMany().HasForeignKey(x => new { x.TenantId, x.VehicleId }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.TenantId, x.VehicleId, x.RecordedAt });
             entity.HasQueryFilter(x => x.TenantId == CurrentTenantId);
         });
         modelBuilder.Entity<TenantInvitation>(entity =>
@@ -142,6 +186,7 @@ public sealed class HermesDbContext(DbContextOptions<HermesDbContext> options, I
         modelBuilder.Entity<Vehicle>(entity =>
         {
             entity.ToTable("vehicles");
+            entity.Property(x => x.Version).HasDefaultValue(1L).IsConcurrencyToken();
             entity.HasKey(x => new { x.TenantId, x.Id });
             entity.Property(x => x.Registration).HasMaxLength(16);
             entity.Property(x => x.Make).HasMaxLength(64);

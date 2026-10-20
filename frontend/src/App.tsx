@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { api, ApiError, resetCsrfToken, vehicleKey } from './api'
 import type { NewVehicle, Session, Tenant, Vehicle } from './api'
+import { VehicleActions } from './VehicleActions'
 import { AuthScreen, CompanyDialog, CompanyForm } from './AccountForms'
 import { MembersPage } from './MembersPage'
 import { SystemPage } from './SystemPage'
@@ -123,7 +124,15 @@ function VehicleForm({
   )
 }
 
-function FleetTable({ vehicles }: { vehicles: Vehicle[] }) {
+function FleetTable({
+  vehicles,
+  user,
+  tenant,
+}: {
+  vehicles: Vehicle[]
+  user: Session
+  tenant: Tenant
+}) {
   return (
     <div className="table-scroll">
       <table>
@@ -132,11 +141,13 @@ function FleetTable({ vehicles }: { vehicles: Vehicle[] }) {
             <th>Jármű</th>
             <th>Gyártó / modell</th>
             <th>Állapot</th>
+            <th>Km-állás</th>
+            <th>Művelet</th>
           </tr>
         </thead>
         <tbody>
           {vehicles.map((vehicle) => (
-            <tr key={vehicle.id}>
+            <tr key={`${tenant.id}:${vehicle.id}`}>
               <td>
                 <span className="registration">
                   <CarFront size={19} aria-hidden="true" />
@@ -152,6 +163,10 @@ function FleetTable({ vehicles }: { vehicles: Vehicle[] }) {
                   <span />
                   {statuses[vehicle.status] ?? vehicle.status}
                 </span>
+              </td>
+              <td>{vehicle.odometerKm?.toLocaleString('hu-HU') ?? '—'}</td>
+              <td>
+                <VehicleActions user={user} tenant={tenant} vehicle={vehicle} />
               </td>
             </tr>
           ))}
@@ -241,7 +256,13 @@ function FleetWorkspace({
   const canCreate = tenant?.permissions.includes('vehicles.create') ?? false
   const canManageMembers =
     tenant?.permissions.some((code) =>
-      ['members.read', 'members.invite', 'members.update', 'permissions.manage'].includes(code),
+      [
+        'members.read',
+        'members.invite',
+        'members.update',
+        'permissions.manage',
+        'permission-groups.manage',
+      ].includes(code),
     ) ?? false
   const viewTitle =
     view === 'fleet'
@@ -563,7 +584,7 @@ function FleetWorkspace({
                   <p>Járművek betöltése…</p>
                 </div>
               ) : visibleVehicles.length ? (
-                <FleetTable vehicles={visibleVehicles} />
+                <FleetTable vehicles={visibleVehicles} user={user} tenant={tenant!} />
               ) : (
                 <div className="empty-state">
                   <CarFront size={34} />

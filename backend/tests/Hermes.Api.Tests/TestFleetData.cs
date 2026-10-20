@@ -33,6 +33,7 @@ public static class TestFleetData
             db.Memberships.Add(Membership("anna", tenantId == DunaId ? Permissions.All : [Permissions.VehiclesRead, Permissions.VehiclesCreate]));
             if (tenantId == DunaId) db.Memberships.Add(Membership("bela", [Permissions.VehiclesRead]));
         }
+        if (!await db.PermissionGroups.AnyAsync(cancellationToken)) db.PermissionGroups.Add(new() { TenantId = tenantId, Name = "admin", NormalizedName = "ADMIN", IsAdmin = true });
         if (!await db.Vehicles.AnyAsync(cancellationToken))
         {
             db.Vehicles.AddRange(tenantId == DunaId

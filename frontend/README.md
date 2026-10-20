@@ -58,3 +58,11 @@ A felhasználókezelő oldal a `src/MembersPage.tsx`, a szerkesztők a `src/Memb
 A kliens azonos eredetű, sütialapú API-kéréseket használ. A módosító kérések CSRF-tokenjét automatikusan kezeli, a járműkérésekkel `X-Tenant-Id` fejlécet küld. Belépési tokent nem tárol a localStorage-ban.
 
 A backend önálló indításához lásd a [backend README-jét](../backend/README.md), a teljes rendszerhez és a Docker Compose-hoz a [projekt README-jét](../README.md).
+
+## Jogosultságcsoportok és km-rögzítés
+
+A Felhasználók oldalon a Jogosultságcsoportok fül listázza a céges jogcsomagokat. Létrehozáshoz, szerkesztéshez és törléshez `permission-groups.manage` szükséges; felhasználóhoz rendeléshez a sor Csoportok gombja és `permissions.manage` jog kell. Csoportot a meghívás elfogadása után lehet rendelni a taghoz. Több csoport és egyedi jog összeadódhat. Az egyedi jogok szerkesztése a `directPermissions` mezőből indul, nem másolja át a csoportjogokat.
+
+A védett admin csoport minden jelenlegi és jövőbeli céges jogot megkap. Nem szerkeszthető és nem törölhető; tagságát céges admin vagy rendszergazda kezelheti. A csoportból kapott jogok a felhasználói listában láthatók. Csoportszerkesztés minden tagot érint; törlés előtt megjelenik az érintett felhasználók száma. Ütköző verzió esetén friss adatokat kell betölteni.
+
+A járműlistában külön gomb kezeli az adatokat (`vehicles.update`) és a kilométerállást (`vehicles.odometer.create`). A km-rögzítőnek nem kell járműszerkesztési jog. A listához továbbra is `vehicles.read` szükséges. A beviteli ablakok a szerver által visszaadott verziót küldik, és megjelenítik a visszautasítás okát.
