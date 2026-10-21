@@ -13,6 +13,9 @@ import type {
 import { AccessDialog } from './AccessDialog'
 import { PermissionFields } from './MemberDialogs'
 import { permissionLabel } from './permissions'
+import { Search } from 'lucide-react'
+import { ListToolbar } from './ListToolbar'
+import { PermissionDetails } from './PermissionDetails'
 
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'A művelet nem sikerült.'
@@ -23,6 +26,7 @@ const companyScopeLabel = (company: PermissionGroup['companies'][number]) =>
 
 export function PermissionGroups({ user }: { user: Session }) {
   const client = useQueryClient()
+  const [search, setSearch] = useState('')
   const [dialog, setDialog] = useState<
     { kind: 'edit' | 'delete'; group: PermissionGroup } | { kind: 'create' } | null
   >(null)
@@ -45,13 +49,10 @@ export function PermissionGroups({ user }: { user: Session }) {
       ),
     )
   }
+  const groups = (data.data?.groups ?? []).filter(group => `${group.name} ${group.companies.map(company => company.name).join(' ')}`.toLocaleLowerCase('hu').includes(search.toLocaleLowerCase('hu')))
   return (
     <div>
-      <div className="access-toolbar">
-        <p className="access-description">
-          A csoporttagok a kijelölt cégekhez kapnak hozzáférést, a megadott jogokkal.
-        </p>
-        <div className="member-actions">
+      <ListToolbar label="Jogosultságcsoportok keresése és műveletei" actions={<>
           <button className="text-button" onClick={() => void data.refetch()}>
             Csoportlista frissítése
           </button>
@@ -60,8 +61,9 @@ export function PermissionGroups({ user }: { user: Session }) {
               Új jogosultságcsoport
             </button>
           )}
-        </div>
-      </div>
+      </>}>
+        <div className="list-toolbar-form"><div className="search-field"><Search size={18} /><input aria-label="Jogosultságcsoport keresése" placeholder="Csoport vagy cég neve" value={search} onChange={event => setSearch(event.target.value)} maxLength={100} /></div></div>
+      </ListToolbar>
       {data.isPending && (
         <p className="notice" role="status">
           Jogosultságcsoportok betöltése…
@@ -74,9 +76,9 @@ export function PermissionGroups({ user }: { user: Session }) {
       )}
       {data.isSuccess && (
         <>
-          {data.data.groups.length ? (
+          {groups.length ? (
             <div className="table-scroll">
-              <table className="groups-table">
+              <table className="groups-table responsive-list">
                 <thead>
                   <tr>
                     <th>Csoport</th>
@@ -87,9 +89,9 @@ export function PermissionGroups({ user }: { user: Session }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.data.groups.map((group) => (
+                  {groups.map((group) => (
                     <tr key={group.id}>
-                      <td>
+                      <td data-label="Csoport">
                         <strong>{group.name}</strong>
                         {group.isAdmin && (
                           <span className="member-email">
@@ -100,21 +102,20 @@ export function PermissionGroups({ user }: { user: Session }) {
                           <span className="member-email">Létrehozó: {group.createdBy}</span>
                         )}
                       </td>
-                      <td>
+                      <td data-label="Cégek">
                         {group.isAdmin
                           ? 'Felhasználónként kijelölhető cégek'
                           : group.companies.map((c) => <div key={c.id}>{companyScopeLabel(c)}</div>)}
                       </td>
-                      <td>
-                        <span className="member-grants">
+                      <td data-label="Jogosultságok">
+                        <div className="member-grants">
                           {group.allPermissions
                             ? 'Minden jelenlegi és későbbi céges jog'
-                            : group.permissions.map(permissionLabel).join(', ') ||
-                              'Nincs kiosztott jog'}
-                        </span>
+                            : <PermissionDetails codes={group.permissions} />}
+                        </div>
                       </td>
-                      <td>{group.memberCount}</td>
-                      <td>
+                      <td data-label="Tagok">{group.memberCount}</td>
+                      <td data-label="Műveletek">
                         {group.canEdit && !group.isAdmin ? (
                           <div className="member-actions">
                             <button
@@ -148,10 +149,6 @@ export function PermissionGroups({ user }: { user: Session }) {
           ) : (
             <p className="notice">Nincs megjeleníthető jogosultságcsoport.</p>
           )}
-          <p className="notice">
-            A felhasználó sorában a Csoportok gombbal osztható ki. Az admin egyetlen közös csoport;
-            a hozzá tartozó cégeket felhasználónként választhatod ki.
-          </p>
           {(dialog?.kind === 'create' || dialog?.kind === 'edit') && (
             <GroupEditor
               group={dialog.kind === 'edit' ? dialog.group : undefined}

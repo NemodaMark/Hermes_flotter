@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
@@ -47,6 +47,8 @@ function mountApp({
         }
         return json(tenants)
       }
+      if (path.endsWith('/permissions') || path.endsWith('/permission-groups') || path.endsWith('/permission-groups/companies')) return json([])
+      if (/\/(members|people|invitations)(\?|$)/.test(path)) return json({ items: [], total: 0, page: 1, pageSize: 25 })
       if (path.endsWith('/vehicles/create-options')) return json({ canCreateUnassigned, sites: [{ id: 'site-a', name: 'Budapest', code: 'BP' }] })
       if (path.includes('/vehicles')) {
         if (options.method === 'POST') return json({ id: 'created', ...JSON.parse(String(options.body)) }, 201)
@@ -93,6 +95,44 @@ it('offers vehicle creation only with the explicit permission', async () => {
   mountApp({ permissions: ['vehicles.read'] })
   expect(await screen.findByText('DUN-001')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Új jármű' })).not.toBeInTheDocument()
+})
+
+it('puts fleet search, filtering and creation in the same toolbar without duplicate totals', async () => {
+  mountApp()
+  await screen.findByText('DUN-001')
+  const toolbar = screen.getByRole('group', { name: 'Járművek keresése és műveletei' })
+  expect(within(toolbar).getByRole('textbox', { name: 'Jármű keresése' })).toBeInTheDocument()
+  expect(within(toolbar).getByRole('combobox', { name: 'Szűrés állapot szerint' })).toBeInTheDocument()
+  expect(within(toolbar).getByRole('button', { name: 'Új jármű' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Járműlista frissítése' })).not.toBeInTheDocument()
+  expect(screen.queryByText('Céges hozzáférés')).not.toBeInTheDocument()
+})
+
+it('opens users, invitations and groups as independent pages with distinct URLs', async () => {
+  mountApp({ permissions: ['vehicles.read', 'members.read', 'members.invite', 'permission-groups.manage'] })
+  const nav = await screen.findByRole('navigation', { name: 'Fő navigáció' })
+  await userEvent.click(await within(nav).findByRole('button', { name: 'Felhasználók' }))
+  await screen.findByRole('textbox', { name: 'Felhasználó keresése' })
+  expect(window.location.hash).toBe('#/users')
+  expect(screen.queryByRole('tablist', { name: 'Felhasználókezelés' })).not.toBeInTheDocument()
+  await userEvent.click(within(nav).getByRole('button', { name: 'Meghívások' }))
+  await screen.findByText('Még nincs meghívás')
+  expect(window.location.hash).toBe('#/invitations')
+  expect(screen.queryByRole('textbox', { name: 'Felhasználó keresése' })).not.toBeInTheDocument()
+  await userEvent.click(within(nav).getByRole('button', { name: 'Jogosultságcsoportok' }))
+  await screen.findByRole('textbox', { name: 'Jogosultságcsoport keresése' })
+  expect(window.location.hash).toBe('#/permission-groups')
+})
+
+it('restores an invitation page from its URL and denies it without the company permission', async () => {
+  window.history.replaceState(null, '', '/#/invitations')
+  mountApp({ permissions: ['vehicles.read'] })
+  expect(await screen.findByText('Nincs jogosultságod a meghívások megtekintéséhez.')).toBeInTheDocument()
+  const nav = screen.getByRole('navigation', { name: 'Fő navigáció' })
+  expect(within(nav).queryByRole('button', { name: 'Meghívások' })).not.toBeInTheDocument()
+  expect(within(nav).queryByRole('button', { name: 'Jogosultságcsoportok' })).not.toBeInTheDocument()
+  expect(vi.mocked(fetch).mock.calls.some(([path]) => /\/invitations(\?|$)/.test(String(path)))).toBe(false)
+  expect(vi.mocked(fetch).mock.calls.some(([path]) => String(path).includes('/vehicles'))).toBe(false)
 })
 
 it('does not fetch or display vehicles without read permission, even with create permission', async () => {

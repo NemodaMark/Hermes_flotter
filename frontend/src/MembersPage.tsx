@@ -5,11 +5,12 @@ import { api } from './api'
 import type { Invitation, Member, Session, Tenant } from './api'
 import { AccessDialog } from './AccessDialog'
 import { InvitationDialog, PermissionsDialog, StatusDialog } from './MemberDialogs'
-import { permissionLabel } from './permissions'
+import { PermissionDetails } from './PermissionDetails'
 import { PeopleList } from './PeopleList'
 import { UserProfilePage } from './UserProfilePage'
 import './members.css'
-import { PermissionGroups, GroupAssignmentDialog } from './PermissionGroups'
+import { ListToolbar } from './ListToolbar'
+import { GroupAssignmentDialog } from './PermissionGroups'
 
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'A művelet nem sikerült.'
@@ -55,7 +56,7 @@ function Pagination({
   )
 }
 
-export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant: Tenant; onProfile?: (id: string) => void }) {
+export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { user: Session; tenant: Tenant; onProfile?: (id: string) => void; mode?: 'members' | 'invitations' }) {
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000)
@@ -66,10 +67,7 @@ export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant
   const canRead = tenant.permissions.includes('members.read')
   const canInvite = tenant.permissions.includes('members.invite')
   const canManage = tenant.permissions.includes('permissions.manage')
-  const canGroups = canRead || canManage || tenant.permissions.includes('permission-groups.manage')
   const canUpdate = tenant.permissions.includes('members.update')
-  const [tab, setTab] = useState<'members' | 'invitations' | 'groups'>('members')
-  const activeTab = tab === 'invitations' && !canInvite || tab === 'groups' && !canGroups ? 'members' : tab
   const [invitePage, setInvitePage] = useState(1)
   const [dialog, setDialog] = useState<
     | { kind: 'permissions' | 'status' | 'groups'; member: Member }
@@ -81,6 +79,7 @@ export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant
   const catalog = useQuery({
     queryKey: ['permission-catalog', user.id],
     queryFn: ({ signal }) => api.permissions(signal),
+    enabled: canInvite || canManage || canUpdate,
     retry: false,
   })
   const memberKey = ['members', user.id, tenant.id]
@@ -88,7 +87,7 @@ export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant
   const invitations = useQuery({
     queryKey: [...invitationKey, invitePage],
     queryFn: ({ signal }) => api.invitations(tenant.id, invitePage, signal),
-    enabled: canInvite && activeTab === 'invitations',
+    enabled: canInvite && mode === 'invitations',
     retry: false,
   })
   async function refresh() {
@@ -128,91 +127,14 @@ export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant
     }
   }
   if (profileId) return <UserProfilePage id={profileId} actor={user} tenant={tenant} onBack={() => setProfileId(null)} />
+  const actions = <>
+    <button className="icon-button" aria-label={mode === 'invitations' ? 'Meghívások frissítése' : 'Hozzáférések frissítése'} disabled={invitations.isFetching} onClick={() => void refresh()}><RefreshCw size={17} /></button>
+    {canInvite && <button className="primary-button" disabled={canManage && !catalog.isSuccess} onClick={() => setDialog({ kind: 'invite' })}><Plus size={16} />Felhasználó meghívása</button>}
+  </>
   return (
     <div className="members-page">
-      <section className="access-panel" aria-label="Céges hozzáférések">
-        <div className="access-toolbar">
-          <div
-            className="access-tabs"
-            role="tablist"
-            aria-label="Felhasználókezelés"
-            onKeyDown={(event) => {
-              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
-              event.preventDefault()
-              const tabs = [
-                'members',
-                ...(canInvite ? ['invitations'] : []),
-                ...(canGroups ? ['groups'] : []),
-              ] as Array<'members' | 'invitations' | 'groups'>
-              const index = tabs.indexOf(activeTab)
-              const next =
-                event.key === 'Home'
-                  ? tabs[0]
-                  : event.key === 'End'
-                    ? tabs[tabs.length - 1]
-                    : tabs[
-                        (index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length
-                      ]
-              setTab(next)
-              event.currentTarget.querySelector<HTMLButtonElement>(`#${next}-tab`)?.focus()
-            }}
-          >
-            <button
-              id="members-tab"
-              role="tab"
-              aria-selected={activeTab === 'members'}
-              tabIndex={activeTab === 'members' ? 0 : -1}
-              aria-controls="access-panel"
-              onClick={() => setTab('members')}
-            >
-              Felhasználók
-            </button>
-            {canInvite && (
-              <button
-                id="invitations-tab"
-                role="tab"
-                aria-selected={activeTab === 'invitations'}
-                tabIndex={activeTab === 'invitations' ? 0 : -1}
-                aria-controls="access-panel"
-                onClick={() => setTab('invitations')}
-              >
-                Meghívások
-              </button>
-            )}
-            {canGroups && (
-              <button
-                id="groups-tab"
-                role="tab"
-                aria-selected={activeTab === 'groups'}
-                tabIndex={activeTab === 'groups' ? 0 : -1}
-                aria-controls="access-panel"
-                onClick={() => setTab('groups')}
-              >
-                Jogosultságcsoportok
-              </button>
-            )}
-          </div>
-          <div className="access-tools">
-            <button
-              className="icon-button"
-              aria-label="Hozzáférések frissítése"
-              disabled={invitations.isFetching}
-              onClick={() => void refresh()}
-            >
-              <RefreshCw size={17} />
-            </button>
-            {canInvite && (
-              <button
-                className="primary-button"
-                disabled={canManage && !catalog.isSuccess}
-                onClick={() => setDialog({ kind: 'invite' })}
-              >
-                <Plus size={16} />
-                Felhasználó meghívása
-              </button>
-            )}
-          </div>
-        </div>
+      <section className="access-panel" aria-label={mode === 'members' ? 'Céges hozzáférések' : 'Meghívások'}>
+        {mode === 'invitations' && <ListToolbar label="Meghívások műveletei" actions={actions} />}
         {catalog.isError && (
           <div className="notice error" role="alert">
             <p>A jogkatalógus nem tölthető be. {message(catalog.error)}</p>
@@ -221,11 +143,9 @@ export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant
             </button>
           </div>
         )}
-        <div id="access-panel" role="tabpanel" aria-labelledby={`${activeTab}-tab`}>
-          {activeTab === 'groups' ? (
-            <PermissionGroups user={user} />
-          ) : activeTab === 'members' ? (
-            <PeopleList user={user} tenant={tenant} onProfile={onProfile ?? setProfileId} catalogReady={catalog.isSuccess} onAction={(kind, member) => setDialog({ kind, member })} />
+        <div>
+          {mode === 'members' ? (
+            <PeopleList user={user} tenant={tenant} onProfile={onProfile ?? setProfileId} catalogReady={catalog.isSuccess} actions={actions} onAction={(kind, member) => setDialog({ kind, member })} />
           ) : !canInvite ? (
             <p className="notice">Nincs jogosultságod a meghívások megtekintéséhez.</p>
           ) : invitations.isError ? (
@@ -244,7 +164,7 @@ export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant
             <>
               {invitations.data.items.length ? (
                 <div className="table-scroll">
-                  <table className="invitations-table">
+                  <table className="invitations-table responsive-list">
                     <thead>
                       <tr>
                         <th>E-mail-cím</th>
@@ -256,14 +176,11 @@ export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant
                     <tbody>
                       {invitations.data.items.map((invitation) => (
                         <tr key={invitation.id}>
-                          <td>
+                          <td data-label="E-mail-cím">
                             <strong>{invitation.email}</strong>
-                            <span className="member-grants">
-                              {invitation.permissions.map(permissionLabel).join(', ') ||
-                                'Nincs kiosztott jog'}
-                            </span>
+                            <PermissionDetails codes={invitation.permissions} />
                           </td>
-                          <td>
+                          <td data-label="Állapot">
                             {invitation.acceptedAt
                               ? 'Elfogadva'
                               : invitation.revokedAt
@@ -272,8 +189,8 @@ export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant
                                   ? 'Lejárt'
                                   : 'Függőben'}
                           </td>
-                          <td>{date(invitation.expiresAt)}</td>
-                          <td>
+                          <td data-label="Lejárat">{date(invitation.expiresAt)}</td>
+                          <td data-label="Műveletek">
                             {!invitation.acceptedAt && !invitation.revokedAt && (
                               <button
                                 className="secondary-button danger-text"
@@ -308,7 +225,7 @@ export function MembersPage({ user, tenant, onProfile }: { user: Session; tenant
           )}
         </div>
       </section>
-      {!canRead && canManage && (
+      {mode === 'members' && !canRead && canManage && (
         <section className="access-panel access-lookup">
           <h2>Kezelés felhasználóazonosítóval</h2>
           <form

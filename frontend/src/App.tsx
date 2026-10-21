@@ -9,7 +9,9 @@ import {
   LoaderCircle,
   LogOut,
   Plus,
-  RefreshCw,
+  MailPlus,
+  Menu,
+  ShieldCheck,
   Search,
   Users,
 } from 'lucide-react'
@@ -21,6 +23,8 @@ import { CompaniesPage } from './CompaniesPage'
 import { PartnersPage } from './PartnersPage'
 import { VehiclePage } from './VehiclePage'
 import { MembersPage } from './MembersPage'
+import { PermissionGroups } from './PermissionGroups'
+import { ListToolbar } from './ListToolbar'
 import { SystemPage } from './SystemPage'
 import { UserProfilePage } from './UserProfilePage'
 import { PeopleList } from './PeopleList'
@@ -38,10 +42,16 @@ const statuses: Record<string, string> = {
   Archived: 'Archivált',
 }
 
-type WorkspaceView = 'fleet' | 'organization' | 'members' | 'system' | 'partners' | 'profile'
+type WorkspaceView = 'fleet' | 'organization' | 'members' | 'system' | 'partners' | 'profile' | 'invitations' | 'groups'
 function profileFromHash() {
   const match = /^#\/profile\/([^/?#]+)$/.exec(window.location.hash)
   try { return match ? decodeURIComponent(match[1]) : null } catch { return null }
+}
+
+const workspacePaths: Record<Exclude<WorkspaceView, 'profile'>, string> = { fleet: '/vehicles', members: '/users', invitations: '/invitations', groups: '/permission-groups', organization: '/companies', partners: '/partners', system: '/system' }
+function viewFromHash(): WorkspaceView {
+  if (profileFromHash()) return 'profile'
+  return (Object.entries(workspacePaths).find(([, path]) => window.location.hash === `#${path}`)?.[0] as WorkspaceView | undefined) ?? 'fleet'
 }
 
 function FleetTable({
@@ -57,7 +67,7 @@ function FleetTable({
 }) {
   return (
     <div className="table-scroll">
-      <table>
+      <table className="responsive-list">
         <thead>
           <tr>
             <th>Jármű</th>
@@ -70,25 +80,25 @@ function FleetTable({
         <tbody>
           {vehicles.map((vehicle) => (
             <tr key={`${tenant.id}:${vehicle.id}`}>
-              <td>
+              <td data-label="Jármű">
                 <span className="registration">
                   <CarFront size={19} aria-hidden="true" />
                   {vehicle.registration}
                 </span>
                 {vehicle.siteName && <span className="member-email">{vehicle.siteName}</span>}
               </td>
-              <td>
+              <td data-label="Gyártó / modell">
                 <span className="vehicle-make">{vehicle.make}</span>
                 <span className="vehicle-model">{vehicle.model}</span>
               </td>
-              <td>
+              <td data-label="Állapot">
                 <span className={`status status-${vehicle.status.toLowerCase()}`}>
                   <span />
                   {statuses[vehicle.status] ?? vehicle.status}
                 </span>
               </td>
-              <td>{vehicle.odometerKm?.toLocaleString('hu-HU') ?? '—'}</td>
-              <td>
+              <td data-label="Km-állás">{vehicle.odometerKm?.toLocaleString('hu-HU') ?? '—'}</td>
+              <td data-label="Műveletek">
                 <div className="member-actions"><button className="secondary-button" aria-label={`Jármű adatlapja: ${vehicle.registration}`} onClick={() => onOpen(vehicle.id)}>Adatlap</button>
                   <VehicleActions user={user} tenant={tenant} vehicle={vehicle} />
                 </div>
@@ -116,25 +126,29 @@ function FleetWorkspace({
 }) {
   const queryClient = useQueryClient()
   const [tenantId, setTenantId] = useState<string | null>(initialTenantId)
-  const [view, setView] = useState<WorkspaceView>(() => profileFromHash() ? 'profile' : 'fleet')
+  const [view, setView] = useState<WorkspaceView>(viewFromHash)
   const [profileId, setProfileId] = useState<string | null>(profileFromHash)
   const profileReturn = useRef<WorkspaceView>('members')
   const [busy, setBusy] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   useEffect(() => {
     const read = () => {
+      setMobileNavOpen(false)
       const id = profileFromHash(); setProfileId(id)
       if (id) setView(current => { if (current !== 'profile') profileReturn.current = current; return 'profile' })
-      else setView(current => current === 'profile' ? 'members' : current)
+      else setView(viewFromHash())
     }
     window.addEventListener('hashchange', read)
     return () => window.removeEventListener('hashchange', read)
   }, [])
   function changeView(next: WorkspaceView) {
     if (busy) return
-    if (profileFromHash()) window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    setMobileNavOpen(false)
+    if (next === 'profile') return
+    window.location.hash = workspacePaths[next]
     setView(next)
   }
-  function openProfile(id: string) { if (!busy) window.location.hash = `/profile/${encodeURIComponent(id)}` }
+  function openProfile(id: string) { if (!busy) { setMobileNavOpen(false); window.location.hash = `/profile/${encodeURIComponent(id)}` } }
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   const canManageSystem = user.systemPermissions?.includes('system.manage') ?? false
   const [search, setSearch] = useState('')
@@ -153,7 +167,7 @@ function FleetWorkspace({
   const vehicles = useQuery({
     queryKey: vehicleKey(user.id, tenant?.id),
     queryFn: ({ signal }) => api.vehicles(tenant!.id, signal),
-    enabled: !!tenant?.permissions.includes('vehicles.read'),
+    enabled: view === 'fleet' && !!tenant?.permissions.includes('vehicles.read'),
     retry: false,
   })
   const health = useQuery({
@@ -184,8 +198,10 @@ function FleetWorkspace({
   )
   const canCreate = tenant?.permissions.includes('vehicles.create') ?? false
   const canManageMembers = canManageSystem || !!tenant
+  const canInvite = tenant?.permissions.includes('members.invite') ?? false
+  const canReadGroups = canManageSystem || (tenants.data?.some(company => company.permissions.some(code => ['members.read', 'permissions.manage', 'permission-groups.manage'].includes(code))) ?? false)
   const viewTitle =
-    view === 'profile' ? 'Felhasználói adatlap' : view === 'fleet'
+    view === 'invitations' ? 'Meghívások' : view === 'groups' ? 'Jogosultságcsoportok' : view === 'profile' ? 'Felhasználói adatlap' : view === 'fleet'
       ? 'Járművek'
       : view === 'partners'
         ? 'Partnerek'
@@ -197,7 +213,7 @@ function FleetWorkspace({
 
   function changeTenant(value: string) {
     setTenantId(value)
-    changeView('fleet')
+    if (view === 'profile') changeView('members')
     setSelectedVehicleId(null)
     setSearch('')
     setStatus('all')
@@ -257,7 +273,8 @@ function FleetWorkspace({
             </button>
           )}
         </div>
-        <nav aria-label="Fő navigáció">
+        <button className="secondary-button mobile-nav-toggle" aria-label={mobileNavOpen ? 'Menü bezárása' : 'Menü megnyitása'} aria-expanded={mobileNavOpen} aria-controls="main-navigation" disabled={busy} onClick={() => setMobileNavOpen(open => !open)}><Menu size={18} />Menü</button>
+        <nav id="main-navigation" aria-label="Fő navigáció" className={mobileNavOpen ? 'is-open' : undefined}>
           <button
             className={view === 'fleet' ? 'nav-item active' : 'nav-item'}
             aria-current={view === 'fleet' ? 'page' : undefined}
@@ -283,6 +300,8 @@ function FleetWorkspace({
               <ArrowRight size={16} />
             </button>
           )}
+          {canInvite && <button className={view === 'invitations' ? 'nav-item active' : 'nav-item'} aria-current={view === 'invitations' ? 'page' : undefined} onClick={() => changeView('invitations')}><MailPlus size={19} />Meghívások<ArrowRight size={16} /></button>}
+          {canReadGroups && <button className={view === 'groups' ? 'nav-item active' : 'nav-item'} aria-label="Jogosultságcsoportok" aria-current={view === 'groups' ? 'page' : undefined} onClick={() => changeView('groups')}><ShieldCheck size={19} /><span>Jogosultság<wbr />csoportok</span></button>}
           <button
             className={view === 'organization' ? 'nav-item active' : 'nav-item'}
             aria-current={view === 'organization' ? 'page' : undefined}
@@ -335,54 +354,17 @@ function FleetWorkspace({
             {loggingOut ? 'Kilépés…' : 'Kijelentkezés'}
           </button>
         </header>
-        <div className="page-content">
+        <div className="page-content page-content-compact">
           {logoutError && (
             <p className="notice error" role="alert">
               {logoutError}
             </p>
           )}
-          <div className="page-heading">
-            <div>
-              <p className="eyebrow">
-                {view === 'organization' ? 'HERMES' : (tenant?.name ?? 'HERMES')}
-              </p>
-              <h1>
-                {view === 'system' || view === 'organization' || view === 'profile'
-                  ? viewTitle
-                  : !tenant
-                    ? 'Saját munkaterület'
-                    : view === 'fleet'
-                      ? 'Járműállomány'
-                      : viewTitle}
-              </h1>
-              <p className="page-description">
-                {view === 'profile' ? 'Profil és kapcsolattartási adatok.' : view === 'organization'
-                  ? 'Cégtörzs, kapcsolattartók, telephelyek és változásnapló.'
-                  : view === 'system'
-                    ? 'Rendszerszintű módosítási napló és beállítások.'
-                    : !tenant
-                      ? 'Hozd létre a cégedet a flottakezelés megkezdéséhez.'
-                      : view === 'fleet'
-                        ? 'A kiválasztott cég járművei, egy helyen.'
-                        : view === 'members'
-                          ? canManageSystem
-                            ? 'Összes felhasználó, céges hozzáférések és meghívások.'
-                            : 'Céges tagok, meghívások és hozzáférések.'
-                          : view === 'partners' ? 'Lízingbeadók, szervizek és kapcsolattartók.' : 'Cégtörzs, kapcsolattartók, telephelyek és változásnapló.'}
-              </p>
-            </div>
-            {view === 'fleet' && !formOpen && !selectedVehicleId && canCreate && (
-              <button
-                className="primary-button"
-                onClick={() => setFormOpen(true)}
-              >
-                <Plus size={18} />
-                Új jármű
-              </button>
-            )}
-          </div>
+          <h1 className="sr-only">{view === 'fleet' ? 'Járműállomány' : viewTitle}</h1>
           {view === 'profile' && profileId ? (
             tenants.isPending ? <p className="notice">Profil betöltése…</p> : <UserProfilePage key={`${tenant?.id}:${profileId}`} id={profileId} actor={user} tenant={tenant} onBack={() => changeView(profileReturn.current)} onVehicle={id => { changeView('fleet'); setFormOpen(false); setSelectedVehicleId(id) }} />
+          ) : view === 'groups' ? (
+            canReadGroups ? <section className="access-panel" aria-label="Jogosultságcsoportok kezelése"><PermissionGroups user={user} /></section> : tenants.isPending ? <p className="notice">Betöltés…</p> : <p className="notice">Nincs jogosultságod a jogosultságcsoportok megtekintéséhez.</p>
           ) : view === 'organization' ? (
             <CompaniesPage
               user={user}
@@ -394,7 +376,7 @@ function FleetWorkspace({
             />
           ) : view === 'system' ? (
             canManageSystem ? (
-              <SystemPage user={user} onUsers={() => changeView('members')} />
+              <SystemPage user={user} />
             ) : (
               <p className="notice">Nincs rendszerszintű kezelési jogod.</p>
             )
@@ -427,60 +409,25 @@ function FleetWorkspace({
                 error={companyError}
               />
             </section>
-          ) : view === 'members' ? (
-            <MembersPage key={tenant.id} user={user} tenant={tenant} onProfile={openProfile} />
+          ) : view === 'members' || view === 'invitations' ? (
+            <MembersPage key={`${tenant.id}:${view}`} user={user} tenant={tenant} onProfile={openProfile} mode={view} />
           ) : view === 'partners' ? (
             <PartnersPage key={tenant.id} tenant={tenant} />
           ) : formOpen ? (
             <VehicleCreatePage key={tenant.id} user={user} tenant={tenant} onBusyChange={setBusy} onBack={() => setFormOpen(false)} onCreated={car => { setFormOpen(false); setSelectedVehicleId(tenant.permissions.includes('vehicles.read') ? car.id : null) }} />
           ) : !tenant.permissions.includes('vehicles.read') ? (
-            <p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p>
+            <section className="access-panel" aria-label="Járművek"><ListToolbar label="Járművek műveletei" actions={canCreate && <button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</button>} /><p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p></section>
           ) : selectedVehicleId ? (
             <VehiclePage key={`${tenant.id}:${selectedVehicleId}`} user={user} tenant={tenant} id={selectedVehicleId} onBack={() => setSelectedVehicleId(null)} />
           ) : (
             <section className="fleet-panel" aria-label="Járműlista">
-              <div className="fleet-summary">
-                <span>
-                  <strong>{allVehicles.length}</strong> jármű a flottában
-                </span>
-                <span className="summary-detail">
-                  {allVehicles.filter((vehicle) => vehicle.status === 'Active').length} aktív ·{' '}
-                  {allVehicles.filter((vehicle) => vehicle.status === 'Maintenance').length}{' '}
-                  szervizben
-                </span>
-                <button
-                  className="icon-button refresh"
-                  aria-label="Járműlista frissítése"
-                  onClick={() => void vehicles.refetch()}
-                  disabled={vehicles.isFetching}
-                >
-                  <RefreshCw size={17} className={vehicles.isFetching ? 'spinning' : ''} />
-                </button>
-              </div>
-              <div className="table-toolbar">
-                <div className="search-field">
-                  <Search size={18} />
-                  <input
-                    aria-label="Jármű keresése"
-                    placeholder="Rendszám, gyártó vagy modell"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                  />
+              <ListToolbar label="Járművek keresése és műveletei" actions={canCreate && <button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</button>}>
+                <div className="list-toolbar-form">
+                  <span className="list-count" aria-live="polite"><strong>{visibleVehicles.length}{visibleVehicles.length !== allVehicles.length ? ` / ${allVehicles.length}` : ''}</strong> jármű</span>
+                  <div className="search-field"><Search size={18} /><input aria-label="Jármű keresése" placeholder="Rendszám, gyártó vagy modell" value={search} onChange={event => setSearch(event.target.value)} /></div>
+                  <select aria-label="Szűrés állapot szerint" className="status-filter" value={status} onChange={event => setStatus(event.target.value)}><option value="all">Minden állapot</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
                 </div>
-                <select
-                  aria-label="Szűrés állapot szerint"
-                  className="status-filter"
-                  value={status}
-                  onChange={(event) => setStatus(event.target.value)}
-                >
-                  <option value="all">Minden állapot</option>
-                  {Object.entries(statuses).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              </ListToolbar>
               {vehicles.isError ? (
                 <div className="notice error" role="alert">
                   <p>
@@ -510,10 +457,7 @@ function FleetWorkspace({
                   </p>
                 </div>
               )}
-              <div className="table-footer">
-                {visibleVehicles.length} megjelenített jármű
-                <span>Céges hozzáférés</span>
-              </div>
+
             </section>
           )}
         </div>

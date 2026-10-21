@@ -4,6 +4,10 @@ A React + TypeScript + Vite kliens jelenlegi kiinduló állapota. A frontend mos
 
 ## Az alapban működő felületek
 
+A **Felhasználók**, **Meghívások** és **Jogosultságcsoportok** önálló navigációs oldalak: `#/users`, `#/invitations`, `#/permission-groups`. A listaoldalakon a kereső, szűrők és elsődleges műveletek közös `ListToolbar` sort használnak; az ismétlődő címek, leírások és járműösszesítések megszűntek. A kenyérmorzsa és az aktív menüpont jelzi a helyet, az oldalcím képernyőolvasó számára továbbra is elérhető. Cégváltáskor a nyitott rész marad meg, a céges szerkesztőállapot törlődik. A hash útvonalak frissítéskor és a böngésző vissza/előre gombjaival is működnek.
+
+A megadott UX/UI útmutató alapján egységes 4/8/12/16/24 px térközskála, jól látható fókuszjelölés és címkézett vezérlők működnek. Mobilon a navigáció **Menü** gombbal nyitható, az önálló listaoldalak sorai két oszlopba tördelődnek. A hosszabb jogcsomagok részletei billentyűzettel is lenyithatók. Az új nézetek a meglévő IBM Plex Sans / sötétkék–zöld arculatot és a csökkentett mozgás beállítását követik. A járműlista csak a ténylegesen megnyitott flottanézetben kér adatot.
+
 A **Járművek → Adatlap → Használati előzmények** fül megmutatja, hogy korábban és jelenleg ki használta az autót, mettől meddig, ki rendelte hozzá és ki zárta le vagy adta tovább. Az időpontok helyi időben jelennek meg, a nyitott időszak jelzése **Jelenleg is**. A lista 25 soronként lapozható, legújabb elöl; használóváltás után frissül. A nevek mellett az állandó felhasználónév is megmarad, történeti bejegyzést innen nem lehet átírni. Az előzmény olvasása a jármű saját `vehicles.read` telephelyjogát követi, archivált járműnél is.
 
 A **Járművek → Adatlap** a rendszámmal azonosítja az autót, szerkeszti a műszaki, tulajdonlási és határidőadatokat, külön fülön kezeli a telephelyet, lízingszerződéseket és szervizbejegyzéseket. A rendszám- és kilométerelőzmények, valamint a módosítási napló lapozhatók. Az archivált jármű visszaállítás után szerkeszthető. A Lízing és Szerviz fülön a mentett bejegyzés **Dokumentumok** gombjával fájl tölthető fel és le. Új bejegyzés mentése után a dokumentumablak automatikusan megnyílik. Webcím továbbra is megadható. PDF, JPG, PNG, DOCX és XLSX támogatott, fájlonként legfeljebb 10 MB. A visszavonás és visszaállítás indoklással történik, az előzmény megmarad. A listához és letöltéshez megtekintési, a feltöltéshez és állapotváltáshoz kezelési jog kell, a jármű telephelykorlátjával.
@@ -18,7 +22,7 @@ A konténeres Nginx a `.mjs` workerhez JavaScript-, a `.wasm` dekódolóhoz WebA
 
 A lízing- és szervizműveletek a járműhöz visszaadott saját műveleti jogokat követik. A partnerjogok külön, cégszinten oszthatók ki; a hiányzó listajog mellett a felvételi jog használható. Az elavult mentés szerverhibáját a felület megőrzi a szerkesztett adatokkal, az adatlap frissítési gombbal tölthető újra.
 
-A **Beállítások → Rendszerkezelés** összecsukható almenüt kizárólag `system.manage` joggal lehet látni; itt a központi napló és a csoportkezelés érhető el. A felhasználók egyetlen listában szerepelnek: alapból a kiválasztott cég tagjai, rendszergazdának az **Összes felhasználó** kapcsolóval az összes fiók, a céges hozzáférés nélküliek is. A tábla rövid jogösszegzést mutat, a részletek a kezelőgombokkal érhetők el.
+A **Beállítások → Rendszerkezelés** összecsukható almenüt kizárólag `system.manage` joggal lehet látni; itt a központi napló érhető el. A közös csoportkezelés külön **Jogosultságcsoportok** menüpont. A felhasználók egyetlen listában szerepelnek: alapból a kiválasztott cég tagjai, rendszergazdának az **Összes felhasználó** kapcsolóval az összes fiók, a céges hozzáférés nélküliek is. A tábla rövid jogösszegzést mutat, a részletek a kezelőgombokkal érhetők el.
 
 A felhasználó neve vagy **Adatlap** gombja teljes profiloldalt nyit (`#/profile/felhasználónév`). Bármely aktív céges munkatárs megtekintheti a kolléga alapadatait és profilképét; a fiókbiztonsági adatok kezelése továbbra is kizárólag rendszerszintű jog. Saját név, telefonszám és profilkép szerkeszthető. A rendszergazda e-mailt, globális jogot és kötelező jelszócserét is kezelhet; az utóbbiak külön megerősítést kérnek. A profil az aktuális cégben nála lévő, a megtekintő által olvasható járműveket mutatja. A használó a jármű adatlapján, `vehicles.users.assign` műveleti joggal jelölhető ki.
 
@@ -79,16 +83,16 @@ A backend önálló indításához lásd a [backend README-jét](../backend/READ
 
 ## Jogosultságcsoportok és km-rögzítés
 
-A Felhasználók oldalon a Jogosultságcsoportok fül listázza a céges jogcsomagokat. Létrehozáshoz, szerkesztéshez és törléshez `permission-groups.manage` szükséges; felhasználóhoz rendeléshez a sor Csoportok gombja és `permissions.manage` jog kell. Csoportot a meghívás elfogadása után lehet rendelni a taghoz. Több csoport és egyedi jog összeadódhat. Az egyedi jogok szerkesztése a `directPermissions` mezőből indul, nem másolja át a csoportjogokat.
+A **Jogosultságcsoportok** oldal listázza a közös jogcsomagokat, csoport- vagy cégnév szerinti kereséssel. Létrehozáshoz, szerkesztéshez és törléshez `permission-groups.manage` szükséges; felhasználóhoz rendeléshez a sor Csoportok gombja és `permissions.manage` jog kell. Csoportot a meghívás elfogadása után lehet rendelni a taghoz. Több csoport és egyedi jog összeadódhat. Az egyedi jogok szerkesztése a `directPermissions` mezőből indul, nem másolja át a csoportjogokat.
 
 A védett admin csoport minden jelenlegi és jövőbeli céges jogot megkap. Nem szerkeszthető és nem törölhető; tagságát céges admin vagy rendszergazda kezelheti. A csoportból kapott jogok a felhasználói listában láthatók. Csoportszerkesztés minden tagot érint; törlés előtt megjelenik az érintett felhasználók száma. Ütköző verzió esetén friss adatokat kell betölteni.
 
 A járműlistában külön gomb kezeli az adatokat (`vehicles.update`) és a kilométerállást (`vehicles.odometer.create`). A km-rögzítőnek nem kell járműszerkesztési jog. A listához továbbra is `vehicles.read` szükséges. A beviteli ablakok a szerver által visszaadott verziót küldik, és megjelenítik a visszautasítás okát.
 
-## Többcéges csoportok
+## Közös csoportkezelés több céghez
 
-A Felhasználók → Többcéges csoportok fül csoportonként cégeket és jogokat kezel. A cégkezelő csak a saját, megfelelő joggal kezelt cégeit választhatja; a joglista a kiválasztott cégeknél kiosztható jogok metszete. A cégválasztás megváltoztatása törli a már nem kiosztható jogok jelölését. A teljes, későbbi jogokra is kiterjedő hozzáférés külön opció, admin jogosultsághoz kötve.
+Az önálló **Jogosultságcsoportok** oldal minden csoportnál egy vagy több céget és jogcsomagot kezel, külön csoporttípus nélkül. A cégkezelő csak a saját, megfelelő joggal kezelt cégeit választhatja; a joglista a kiválasztott cégeknél kiosztható jogok metszete. A cégválasztás megváltoztatása törli a már nem kiosztható jogok jelölését. A teljes, későbbi jogokra is kiterjedő hozzáférés külön opció, admin jogosultsághoz kötve.
 
 Kiosztás: felhasználó sora → Csoportok. A checkboxoknál látható a céglista és a jogcsomag. Új cég kijelölése meglévő csoporttagokat is hozzáad; cég vagy csoport kivétele csak az onnan kapott hozzáférést szünteti meg, és nem aktivál felfüggesztett tagságot. A nem kezelhető csoporttagságok megmaradnak. Rendszerszintű kezelő az egységes felhasználólista **Összes felhasználó** kapcsolójával megnyitott profilról, cégtagság nélkül is indíthat hozzárendelést.
 
-A helyi csoportszerkesztő kiszűri az `isMultiCompany` jelölésű csoportokat. A többcéges kiosztás a fiók verzióját, a csoportszerkesztés a csoport verzióját küldi. Ütközéskor az újratöltés friss verzióval kezdi újra a szerkesztést.
+A közös csoportkiosztás a fiók verzióját, a csoportszerkesztés a csoport verzióját küldi. Ütközéskor az újratöltés friss verzióval kezdi újra a szerkesztést.

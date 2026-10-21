@@ -257,7 +257,7 @@ it('creates a manual invitation link without putting its secret in the HTTP quer
     body: { email: 'uj@example.test', permissions: ['vehicles.read'] },
   })
   await userEvent.click(within(screen.getByRole('dialog')).getByText('Bezárás', { exact: true }))
-  await userEvent.click(screen.getByRole('tab', { name: 'Meghívások' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Meghívások' }))
   expect(await screen.findByText('uj@example.test')).toBeInTheDocument()
   await userEvent.click(
     screen.getByRole('button', { name: 'Meghívó visszavonása: uj@example.test' }),

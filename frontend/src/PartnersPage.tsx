@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Plus, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Plus, RefreshCw, Search } from 'lucide-react'
 import type { Tenant } from './api'
 import { AddressFields, MetadataLine, TextField } from './OrganizationForms'
 import { blankAddress } from './organizationApi'
@@ -9,6 +9,7 @@ import { fleetApi } from './fleetApi'
 import type { Partner, PartnerInput } from './fleetApi'
 import { FleetAudit, NotesField, QueryMessage, ReasonDialog, SelectField } from './FleetFields'
 import './fleet.css'
+import { ListToolbar } from './ListToolbar'
 
 export function PartnersPage({ tenant }: { tenant: Tenant }) {
   const [page, setPage] = useState(1)
@@ -22,22 +23,23 @@ export function PartnersPage({ tenant }: { tenant: Tenant }) {
     queryFn: ({ signal }) => fleetApi.partners(tenant.id, page, search, kind, archived, signal), enabled: can('partners.read') && selected === null, retry: false })
   if (selected !== null) return <PartnerWorkspace key={selected} tenant={tenant} id={selected === 'new' ? null : selected} onBack={() => setSelected(null)} />
   return <section className="access-panel" aria-label="Partnerek kezelése">
-    <div className="org-toolbar"><div><h2>Lízingbeadók és szervizek</h2><p>{tenant.name}</p></div><div className="member-actions">
+    <ListToolbar label="Partnerek keresése és műveletei" actions={<>
       {can('partners.read') && <button className="icon-button" aria-label="Partnerlista frissítése" onClick={() => void rows.refetch()} disabled={rows.isFetching}><RefreshCw size={17} /></button>}
       {can('partners.create') && <button className="primary-button" onClick={() => setSelected('new')}><Plus size={17} />Új partner</button>}
-    </div></div>
-    {!can('partners.read') ? <p className="notice">Nincs jogosultságod a partnerlista megtekintéséhez.</p> : <>
-      <form className="access-search system-user-search fleet-partner-search" onSubmit={e => { e.preventDefault(); setSearch(draft.trim()); setPage(1) }}>
-        <input className="system-search" aria-label="Partner keresése" placeholder="Partner neve vagy település" value={draft} maxLength={100} onChange={e => setDraft(e.target.value)} />
+    </>}>
+      {can('partners.read') && <form className="list-toolbar-form" onSubmit={e => { e.preventDefault(); setSearch(draft.trim()); setPage(1) }}>
+        <div className="search-field"><Search size={18} /><input aria-label="Partner keresése" placeholder="Partner neve vagy település" value={draft} maxLength={100} onChange={e => setDraft(e.target.value)} /></div>
         <SelectField label="Kategória" value={kind} options={{ all: 'Minden partner', lessor: 'Lízingbeadó', service: 'Szerviz' }} onChange={x => { setKind(x); setPage(1) }} />
         <label className="org-checkbox"><input type="checkbox" checked={archived} onChange={e => { setArchived(e.target.checked); setPage(1) }} />Archiváltak is</label>
         <button className="secondary-button">Keresés</button>
-      </form>
+      </form>}
+    </ListToolbar>
+    {!can('partners.read') ? <p className="notice">Nincs jogosultságod a partnerlista megtekintéséhez.</p> : <>
       <QueryMessage pending={rows.isPending} error={rows.error} retry={() => void rows.refetch()} />
-      {rows.data && <><div className="table-scroll"><table className="org-table"><thead><tr><th>Partner</th><th>Kategória</th><th>Elérhetőség</th><th>Állapot</th><th>Művelet</th></tr></thead><tbody>
-        {rows.data.items.map(p => <tr key={p.id}><td><strong>{p.data.name}</strong><span className="member-email">{p.data.address.city}</span></td><td>{[p.data.isLessor && 'Lízingbeadó', p.data.isService && 'Szerviz'].filter(Boolean).join(' · ')}</td>
-          <td>{p.data.email ?? '–'}<span className="member-email">{p.data.phone}</span></td><td>{p.isArchived ? 'Archivált' : 'Aktív'}</td>
-          <td><button className="secondary-button" aria-label={`Partner megnyitása: ${p.data.name}`} onClick={() => setSelected(p.id)}>Megnyitás</button></td></tr>)}
+      {rows.data && <><div className="table-scroll"><table className="org-table responsive-list"><thead><tr><th>Partner</th><th>Kategória</th><th>Elérhetőség</th><th>Állapot</th><th>Művelet</th></tr></thead><tbody>
+        {rows.data.items.map(p => <tr key={p.id}><td data-label="Partner"><strong>{p.data.name}</strong><span className="member-email">{p.data.address.city}</span></td><td data-label="Kategória">{[p.data.isLessor && 'Lízingbeadó', p.data.isService && 'Szerviz'].filter(Boolean).join(' · ')}</td>
+          <td data-label="Elérhetőség">{p.data.email ?? '–'}<span className="member-email">{p.data.phone}</span></td><td data-label="Állapot">{p.isArchived ? 'Archivált' : 'Aktív'}</td>
+          <td data-label="Műveletek"><button className="secondary-button" aria-label={`Partner megnyitása: ${p.data.name}`} onClick={() => setSelected(p.id)}>Megnyitás</button></td></tr>)}
         {!rows.data.total && <tr><td colSpan={5}>Még nincs ilyen partner. Az Új partner gombbal vehetsz fel lízingbeadót vagy szervizt.</td></tr>}
       </tbody></table></div><PageButtons page={page} total={rows.data.total} pending={rows.isFetching} onPage={setPage} /></>}
     </>}

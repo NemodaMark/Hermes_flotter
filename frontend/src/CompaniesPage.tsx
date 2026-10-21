@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Plus, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Plus, RefreshCw, Search } from 'lucide-react'
 import type { Session } from './api'
 import { AccessDialog } from './AccessDialog'
 import {
@@ -13,6 +13,7 @@ import {
 import { companyStatusName, organizationApi } from './organizationApi'
 import type { CompanyRow, Contact, Site, SiteVehicle } from './organizationApi'
 import './organizations.css'
+import { ListToolbar } from './ListToolbar'
 import { OrganizationAuditChanges } from './OrganizationAuditChanges'
 
 export function PageButtons({
@@ -83,44 +84,24 @@ export function CompaniesPage({
     )
   return (
     <section className="access-panel" aria-label="Cégek kezelése">
-      <div className="org-toolbar">
-        <div>
-          <h2>Cégek</h2>
-          <p>A hozzáférhető cégek és telephelyeik.</p>
-        </div>
-        <div className="member-actions">
-          <button
-            className="icon-button"
-            aria-label="Céglista frissítése"
-            disabled={companies.isFetching}
-            onClick={() => void companies.refetch()}
-          >
-            <RefreshCw size={17} />
-          </button>
-          <button className="primary-button" onClick={onNewCompany}>
-            <Plus size={16} />
-            Új cég
-          </button>
-        </div>
-      </div>
+      <ListToolbar label="Cégek keresése és műveletei" actions={<>
+        <button className="icon-button" aria-label="Céglista frissítése" disabled={companies.isFetching} onClick={() => void companies.refetch()}><RefreshCw size={17} /></button>
+        <button className="primary-button" onClick={onNewCompany}><Plus size={16} />Új cég</button>
+      </>}>
       <form
-        className="access-search system-user-search"
+        className="list-toolbar-form"
         onSubmit={(e) => {
           e.preventDefault()
           setSearch(draft.trim())
           setPage(1)
         }}
       >
-        <input
-          className="system-search"
-          aria-label="Cég keresése"
-          placeholder="Cégnév"
-          value={draft}
-          maxLength={100}
-          onChange={(e) => setDraft(e.target.value)}
-        />
-        <label>
-          Állapot
+        <div className="search-field">
+          <Search size={18} />
+          <input aria-label="Cég keresése" placeholder="Cégnév" value={draft} maxLength={100} onChange={(e) => setDraft(e.target.value)} />
+        </div>
+        <label className="compact-filter">
+          <span className="sr-only">Állapot</span>
           <select
             aria-label="Cégek szűrése állapot szerint"
             value={status}
@@ -137,6 +118,7 @@ export function CompaniesPage({
         </label>
         <button className="secondary-button">Keresés</button>
       </form>
+      </ListToolbar>
       {companies.isError ? (
         <p role="alert" className="notice error">
           {companies.error.message}
@@ -146,7 +128,7 @@ export function CompaniesPage({
       ) : (
         <>
           <div className="table-scroll">
-            <table className="org-table org-company-table">
+            <table className="org-table org-company-table responsive-list">
               <thead>
                 <tr>
                   <th>Cég</th>
@@ -157,16 +139,16 @@ export function CompaniesPage({
               <tbody>
                 {companies.data.items.map((company) => (
                   <tr key={company.id}>
-                    <td>
+                    <td data-label="Cég">
                       <strong>{company.name}</strong>
                       {company.id === initialCompanyId && (
                         <span className="member-email">Kiválasztott munkaterület</span>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Állapot">
                       <CompanyStatus status={company.status} />
                     </td>
-                    <td>
+                    <td data-label="Műveletek">
                       <button
                         className="secondary-button"
                         aria-label={`Cég megnyitása: ${company.name}`}

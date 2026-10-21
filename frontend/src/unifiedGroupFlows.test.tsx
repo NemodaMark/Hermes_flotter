@@ -6,7 +6,6 @@ import { api, ApiError } from './api'
 import type { PermissionGroup, GroupCompanyOption, GroupUser } from './api'
 import { PermissionGroups, GroupAssignmentDialog } from './PermissionGroups'
 import { permissionNames } from './permissions'
-import { MembersPage } from './MembersPage'
 import { VehicleActions } from './VehicleActions'
 
 const user = { id: 'anna', displayName: 'Anna', email: 'anna@example.test' }
@@ -277,17 +276,16 @@ it('reloads the current user version after an assignment conflict', async () => 
   await waitFor(() => expect(save).toHaveBeenLastCalledWith('bela', [group.id], 9, []))
 })
 
-it('offers one group tab for groups with either one or multiple companies', async () => {
+it('offers one standalone group page for groups with either one or multiple companies', async () => {
   vi.spyOn(api, 'members').mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 25 })
   vi.mocked(api.groups).mockResolvedValue([
     group,
     { ...group, id: 'single', name: 'Egy céges csomag', companies: [companies[0]] },
   ])
-  mount(<MembersPage user={user} tenant={companies[0]} />)
-  await userEvent.click(screen.getByRole('tab', { name: 'Jogosultságcsoportok' }))
+  mount(<PermissionGroups user={user} />)
   expect(await screen.findByText('Közös olvasók')).toBeVisible()
   expect(screen.getByText('Egy céges csomag')).toBeVisible()
-  expect(screen.getAllByRole('tab')).toHaveLength(3)
+  expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
   expect(screen.queryByRole('tab', { name: /Többcéges/ })).not.toBeInTheDocument()
 })
 
