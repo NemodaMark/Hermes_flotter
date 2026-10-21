@@ -1,7 +1,9 @@
+import { Select } from './ui/Select'
 import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ArrowUpRight, Building2, Plus, RefreshCw, Search } from 'lucide-react'
+import { ArrowLeft, Building2, Plus, RefreshCw, Search } from 'lucide-react'
+import { ClickableRow, TableFrame } from './ui/Table'
 import { Badge } from './ui/Badge'
 import type { Session } from './api'
 import { AccessDialog } from './AccessDialog'
@@ -104,7 +106,7 @@ export function CompaniesPage({
         </div>
         <label className="compact-filter">
           <span className="sr-only">Állapot</span>
-          <select
+          <Select
             aria-label="Cégek szűrése állapot szerint"
             value={status}
             onChange={(e) => {
@@ -116,7 +118,7 @@ export function CompaniesPage({
             <option value="Suspended">Felfüggesztett cégek</option>
             <option value="Archived">Archivált cégek</option>
             <option value="all">Minden állapot</option>
-          </select>
+          </Select>
         </label>
         <Button className="secondary-button">Keresés</Button>
       </form>
@@ -125,24 +127,21 @@ export function CompaniesPage({
         <p role="alert" className="notice error">
           {companies.error.message}
         </p>
-      ) : companies.isPending ? (
-        <p className="notice">Cégek betöltése…</p>
       ) : (
         <>
-          <div className="table-scroll">
+          <TableFrame hasRows={(companies.data?.items.length ?? 0) > 0}>
             <table className="org-table org-company-table responsive-list">
               <thead>
                 <tr>
                   <th>Cég</th>
                   <th>Állapot</th>
-                  <th>Művelet</th>
                 </tr>
               </thead>
               <tbody>
-                {companies.data.items.map((company) => (
-                  <tr key={company.id}>
+                {companies.data?.items.map((company) => (
+                  <ClickableRow key={company.id} aria-label={`Cég: ${company.name}`} onOpen={() => setSelected(company)}>
                     <td data-label="Cég">
-                      <div className="entity-cell"><span className="entity-icon" aria-hidden="true"><Building2 size={18} /></span><div><strong>{company.name}</strong>
+                      <div className="entity-cell"><span className="entity-icon" aria-hidden="true"><Building2 size={18} /></span><div><Button className="row-title" tabIndex={-1} aria-label={`Cég megnyitása: ${company.name}`} onClick={() => setSelected(company)}>{company.name}</Button>
                       {company.id === initialCompanyId && (
                         <span className="member-email">Kiválasztott munkaterület</span>
                       )}
@@ -151,27 +150,15 @@ export function CompaniesPage({
                     <td data-label="Állapot">
                       <CompanyStatus status={company.status} />
                     </td>
-                    <td data-label="Műveletek">
-                      <Button
-                        className="secondary-button"
-                        aria-label={`Cég megnyitása: ${company.name}`}
-                        onClick={() => setSelected(company)}
-                      >
-                        Megnyitás
-                        <ArrowUpRight size={14} aria-hidden="true" />
-                      </Button>
-                    </td>
-                  </tr>
+                  </ClickableRow>
                 ))}
+                {!companies.data?.items.length && <tr><td colSpan={2} className="table-empty">{companies.isPending ? 'Cégek betöltése…' : 'Nincs találat vagy nincs céges kezelési jogosultságod.'}</td></tr>}
               </tbody>
             </table>
-          </div>
-          {companies.data.total === 0 && (
-            <p className="notice">Nincs találat vagy nincs céges kezelési jogosultságod.</p>
-          )}
+          </TableFrame>
           <PageButtons
             page={page}
-            total={companies.data.total}
+            total={companies.data?.total ?? 0}
             pending={companies.isFetching}
             onPage={setPage}
           />
@@ -342,7 +329,7 @@ function CompanyWorkspace({
             </Button>
           ))}
         </div>
-        {tabs.length > 0 && <label className="org-field organization-picker"><span>Cégadatlap részei</span><select value={tab} onChange={event => { setTab(event.target.value); setNotice('') }}>{tabs.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
+        {tabs.length > 0 && <label className="org-field organization-picker"><span>Cégadatlap részei</span><Select value={tab} onChange={event => { setTab(event.target.value); setNotice('') }}>{tabs.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></label>}
         {notice && (
           <p className="notice success" role="status">
             {notice}
@@ -729,7 +716,7 @@ function VehicleSiteDialog({
       >
         <label className="org-field">
           <span>Telephely</span>
-          <select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
+          <Select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
             {vehicle.canUnassign !== false && <option value="">Nincs hozzárendelve</option>}
             {sites
               .filter((x) => !x.isArchived && (!vehicle.assignableSiteIds || vehicle.assignableSiteIds.includes(x.id)))
@@ -738,7 +725,7 @@ function VehicleSiteDialog({
                   {site.data.name} ({site.data.code})
                 </option>
               ))}
-          </select>
+          </Select>
         </label>
         {save.isError && (
           <p className="notice error" role="alert">

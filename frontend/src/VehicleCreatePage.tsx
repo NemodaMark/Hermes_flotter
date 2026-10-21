@@ -1,3 +1,4 @@
+import { Select } from './ui/Select'
 import { Button } from './ui/Button'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -22,13 +23,14 @@ function LocalPhoto({ file }: { file: File }) {
   }, [file])
   return url ? <img className="vehicle-photo-preview" src={url} alt={file.name} /> : null
 }
-export function VehicleCreatePage({ user, tenant, onBack, onCreated, onBusyChange }: { user: Session; tenant: Tenant; onBack: () => void; onCreated: (car: Vehicle) => void; onBusyChange?: (busy: boolean) => void }) {
+export function VehicleCreatePage({ user, tenant, initialSiteId, onBack, onCreated, onBusyChange }: { user: Session; tenant: Tenant; initialSiteId?: string; onBack: () => void; onCreated: (car: Vehicle) => void; onBusyChange?: (busy: boolean) => void }) {
   const client = useQueryClient()
   const [data, setData] = useState<SaveVehicle>({ registration: '', make: '', model: '', status: 'Active', version: 1, data: emptySpecification })
-  const [site, setSite] = useState(''), [km, setKm] = useState<number | null>(null)
+  const [chosenSite, setSite] = useState<string | null>(null), [km, setKm] = useState<number | null>(null)
   const [files, setFiles] = useState<File[]>([]), [fileError, setFileError] = useState('')
   const [created, setCreated] = useState<Vehicle | null>(null)
   const options = useQuery({ queryKey: ['vehicle-create-options', tenant.id], queryFn: ({ signal }) => api.vehicleCreationOptions(tenant.id, signal), retry: false })
+  const site = chosenSite ?? (options.data?.sites.some(item => item.id === initialSiteId) ? initialSiteId! : '')
   const save = useMutation({ mutationFn: async () => {
     let car = created
     if (!car) { car = await api.createVehicle(tenant.id, { registration: data.registration, make: data.make, model: data.model, siteId: site || null, data: data.data, status: data.status, odometerKm: km }); setCreated(car) }
@@ -47,7 +49,7 @@ export function VehicleCreatePage({ user, tenant, onBack, onCreated, onBusyChang
       <QueryMessage pending={options.isPending} error={options.error} retry={() => void options.refetch()} />
       <form className="org-form" onSubmit={e => { e.preventDefault(); save.mutate() }}>
         <VehicleFields tenantId={tenant.id} data={data} setData={setData} disabled={disabled} serviceOptions={options.data?.servicePartners ?? []} />
-        <fieldset disabled={disabled}><legend>Telephely és kilométerállás</legend><div className="org-form-grid"><label className="org-field"><span>Telephely</span><select aria-label="Telephely" value={site} required={!options.data?.canCreateUnassigned} onChange={e => setSite(e.target.value)}><option value="">{options.data?.canCreateUnassigned ? 'Nincs telephelyhez rendelve' : 'Válassz telephelyet'}</option>{options.data?.sites.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}</select></label><NumberField label="Kezdő kilométerállás" value={km} onChange={setKm} disabled={disabled} /></div></fieldset>
+        <fieldset disabled={disabled}><legend>Telephely és kilométerállás</legend><div className="org-form-grid"><label className="org-field"><span>Telephely</span><Select aria-label="Telephely" value={site} required={!options.data?.canCreateUnassigned} onChange={e => setSite(e.target.value)}><option value="">{options.data?.canCreateUnassigned ? 'Nincs telephelyhez rendelve' : 'Válassz telephelyet'}</option>{options.data?.sites.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}</Select></label><NumberField label="Kezdő kilométerállás" value={km} onChange={setKm} disabled={disabled} /></div></fieldset>
         <fieldset disabled={save.isPending}><legend>Járműképek</legend><p className="field-hint">Nem kötelező · legfeljebb 5 kép · JPG vagy PNG · képenként legfeljebb 5 MB</p>
           <label className="secondary-button photo-file-button"><Camera size={16} />Képek kiválasztása<input aria-label="Járműképek kiválasztása" type="file" multiple accept="image/jpeg,image/png" disabled={!!created} onChange={e => {
             const selected = Array.from(e.target.files ?? [])

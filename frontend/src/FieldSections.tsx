@@ -1,3 +1,4 @@
+import { Select } from './ui/Select'
 import { TabButton } from './ui/TabButton'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { InvalidEvent, ReactNode } from 'react'
@@ -54,9 +55,9 @@ export function FieldSections({ sections, label }: { sections: FieldSection[]; l
         aria-selected={active === section.id} aria-controls={`${id}-${section.id}`} tabIndex={active === section.id ? 0 : -1}
         onClick={() => setActive(section.id)}>{section.label}</TabButton>)}
     </div>
-    <label className="org-field field-picker"><span>Mezőcsoport</span><select value={active} onChange={event => setActive(event.target.value)}>
+    <label className="org-field field-picker"><span>Mezőcsoport</span><Select value={active} onChange={event => setActive(event.target.value)}>
       {sections.map(section => <option key={section.id} value={section.id}>{section.label}</option>)}
-    </select></label>
+    </Select></label>
     <div className="field-panels">
       {sections.map(section => <div key={section.id} role="tabpanel" id={`${id}-${section.id}`} data-field-section={section.id}
         aria-labelledby={`${id}-${section.id}-tab`} hidden={active !== section.id} tabIndex={0}>{section.content}</div>)}

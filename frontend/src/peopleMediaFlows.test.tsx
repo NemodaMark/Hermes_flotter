@@ -1,3 +1,4 @@
+import { chooseOption } from './selectTestUtils'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -24,7 +25,7 @@ async function fill() {
   fireEvent.change(await screen.findByLabelText('Rendszám'), { target: { value: car.registration } })
   fireEvent.change(screen.getByLabelText('Gyártó'), { target: { value: car.make } })
   fireEvent.change(screen.getByLabelText('Modell'), { target: { value: car.model } })
-  await userEvent.selectOptions(screen.getByLabelText('Karosszéria'), 'Estate')
+  await chooseOption(screen.getByLabelText('Karosszéria'), 'Estate')
 }
 
 it('creates with the complete editable fields and no mandatory photograph', async () => {

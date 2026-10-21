@@ -1,3 +1,4 @@
+import { chooseOption } from './selectTestUtils'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -269,7 +270,7 @@ async function openCompany(name = 'Duna') {
 it('filters the company directory and keeps inactive company management reachable', async () => {
   const { calls, onNewCompany } = mount()
   await screen.findByRole('button', { name: 'Cég megnyitása: Duna' })
-  await userEvent.selectOptions(
+  await chooseOption(
     screen.getByRole('combobox', { name: 'Cégek szűrése állapot szerint' }),
     'all',
   )
@@ -290,12 +291,12 @@ it('saves company fields with the selected company, revision and CSRF token', as
   await openCompany()
   const name = await screen.findByRole('textbox', { name: 'Hivatalos cégnév' })
   await userEvent.clear(name)
-  await userEvent.type(name, 'Duna Fuvarozó Kft.')
+  fireEvent.change(name, { target: { value: 'Duna Fuvarozó Kft.' } })
   expect(screen.queryByRole('textbox', { name: 'Adószám' })).not.toBeInTheDocument()
   expect(screen.queryByRole('textbox', { name: 'Közösségi adószám' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('tab', { name: 'Alapbeállítások' }))
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Időzóna' }), 'Europe/Vienna')
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Pénznem' }), 'EUR')
+  await chooseOption(screen.getByRole('combobox', { name: 'Időzóna' }), 'Europe/Vienna')
+  await chooseOption(screen.getByRole('combobox', { name: 'Pénznem' }), 'EUR')
   await userEvent.click(screen.getByRole('button', { name: 'Cégadatok mentése' }))
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PUT')?.body).toMatchObject({
@@ -317,7 +318,7 @@ it('preserves saved settings outside the dropdown catalog when another company f
   await openCompany()
   await userEvent.click(await screen.findByRole('tab', { name: 'Alapbeállítások' }))
   expect(await screen.findByRole('combobox', { name: 'Időzóna' })).toHaveValue('Central Europe Standard Time')
-  expect(screen.getByRole('combobox', { name: 'Pénznem' })).toHaveValue('XTS')
+  expect(screen.getByRole('combobox', { name: 'Pénznem' })).toHaveValue('XTS – Tesztelési pénznemkód')
   await userEvent.click(screen.getByRole('tab', { name: 'Alapadatok' }))
   await userEvent.type(screen.getByRole('textbox', { name: 'Hivatalos cégnév' }), ' új')
   await userEvent.click(screen.getByRole('button', { name: 'Cégadatok mentése' }))
@@ -375,7 +376,7 @@ it('keeps company field groups readable but disabled without company editing per
   const { calls } = mount(['companies.read'])
   await openCompany()
   expect(await screen.findByRole('textbox', { name: 'Hivatalos cégnév' })).toBeDisabled()
-  await userEvent.selectOptions(screen.getByLabelText('Mezőcsoport'), 'address')
+  await chooseOption(screen.getByLabelText('Mezőcsoport'), 'address')
   expect(screen.getByRole('textbox', { name: 'Országkód' })).toBeDisabled()
   expect(screen.queryByRole('button', { name: 'Cégadatok mentése' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Módosítások elvetése' })).not.toBeInTheDocument()
@@ -392,7 +393,7 @@ it('saves all site groups with the existing contact and version without exposing
   await userEvent.click(within(dialog).getByRole('tab', { name: 'Cím' }))
   fireEvent.change(within(dialog).getByRole('textbox', { name: 'Település' }), { target: { value: 'Győr' } })
   await userEvent.click(within(dialog).getByRole('tab', { name: 'Elérhetőségek' }))
-  expect(within(dialog).getByRole('combobox', { name: 'Kapcsolattartó' })).toHaveValue('existing-contact')
+  expect(within(dialog).getByRole('combobox', { name: 'Kapcsolattartó' })).toHaveValue('Meglévő kapcsolattartó')
   fireEvent.change(within(dialog).getByRole('textbox', { name: 'Telephely e-mail-címe' }), { target: { value: 'telephely@example.test' } })
   await userEvent.click(within(dialog).getByRole('button', { name: 'Mentés' }))
   await waitFor(() => expect(calls.find(call => call.method === 'PUT' && call.path.endsWith('/sites/bp'))?.body).toMatchObject({
@@ -465,7 +466,7 @@ it('assigns a vehicle with assignment permission while lacking vehicle or site e
     await screen.findByRole('button', { name: 'Telephely-hozzárendelés: DUN-001' }),
   )
   const dialog = screen.getByRole('dialog', { name: 'Jármű telephelye: DUN-001' })
-  await userEvent.selectOptions(within(dialog).getByRole('combobox', { name: 'Telephely' }), 'bp')
+  await chooseOption(within(dialog).getByRole('combobox', { name: 'Telephely' }), 'bp')
   await userEvent.click(within(dialog).getByRole('button', { name: 'Mentés' }))
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/car/site'))?.body).toEqual({
@@ -496,7 +497,7 @@ it('permits company status management independently of access to its legal profi
   await userEvent.click(await screen.findByRole('button', { name: 'Cég állapotának kezelése' }))
   const dialog = screen.getByRole('dialog', { name: 'Cég állapotának kezelése' })
   expect(within(dialog).getByRole('button', { name: 'Mégse' })).toBeEnabled()
-  await userEvent.selectOptions(
+  await chooseOption(
     within(dialog).getByRole('combobox', { name: 'Új állapot' }),
     'Suspended',
   )

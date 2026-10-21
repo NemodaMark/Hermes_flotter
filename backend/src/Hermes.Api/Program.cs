@@ -193,6 +193,8 @@ api.MapPost("/tenants", async (CreateTenantRequest request, HttpContext context,
 });
 
 var vehicles = api.MapGroup("/vehicles").WithMetadata(new TenantRequired());
+vehicles.MapGet("/site-options", async (IVehicleStore store, CancellationToken ct)
+    => Results.Ok(await store.ReadSiteOptionsAsync(ct))).RequireAuthorization(Permissions.VehiclesRead);
 vehicles.MapGet("/create-options", async (IVehicleStore store, CancellationToken ct)
     => Results.Ok(await store.CreationOptionsAsync(ct))).RequireAuthorization(Permissions.VehiclesCreate);
 vehicles.MapGet("/", async (IVehicleStore store, CancellationToken cancellationToken)

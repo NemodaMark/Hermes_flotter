@@ -113,6 +113,12 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
         var member = await AccessRules.Authorize(db, TenantId, tenantContext.UserSubject!, permission, ct);
         return await action(new ResourceAccess(member));
     }, ct);
+    public Task<VehicleSiteOption[]> ReadSiteOptionsAsync(CancellationToken ct) => Authorized(Permissions.VehiclesRead, async access =>
+    {
+        var ids = access.Sites(Permissions.VehiclesRead); var all = access.CompanyWide(Permissions.VehiclesRead);
+        return await db.Sites.AsNoTracking().Where(s => all || ids.Contains(s.Id)).OrderBy(s => s.Name)
+            .Select(s => new VehicleSiteOption(s.Id, s.Name, s.Code)).ToArrayAsync(ct);
+    }, ct);
     public Task<VehicleCreationOptions> CreationOptionsAsync(CancellationToken ct) => Authorized(Permissions.VehiclesCreate, async access =>
     {
         var ids = access.Sites(Permissions.VehiclesCreate); var all = access.CompanyWide(Permissions.VehiclesCreate);

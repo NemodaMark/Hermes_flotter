@@ -1,3 +1,4 @@
+import { chooseOption } from './selectTestUtils'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -334,7 +335,7 @@ it('opens the global directory from Users and filters admins or accounts without
     'kiss',
   )
   await userEvent.click(screen.getByRole('button', { name: 'Keresés' }))
-  await userEvent.selectOptions(
+  await chooseOption(
     screen.getByRole('combobox', { name: 'Szűrés céges hozzáférés szerint' }),
     'none',
   )
@@ -344,7 +345,7 @@ it('opens the global directory from Users and filters admins or accounts without
     ).toBe(true),
   )
   state.profile = { ...state.profile, isAdministrator: true, systemPermissions: ['system.manage'] }
-  await userEvent.selectOptions(
+  await chooseOption(
     screen.getByRole('combobox', { name: 'Szűrés jogkör szerint' }),
     'admin',
   )

@@ -1,3 +1,4 @@
+import { chooseOption } from './selectTestUtils'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -123,10 +124,10 @@ it('selects sites independently inside each company and requires a nonempty rest
   await userEvent.type(dialog.getByLabelText('Csoport neve'), 'Kijelölt telephelyek')
   await userEvent.click(dialog.getByLabelText('Duna'))
   await userEvent.click(dialog.getByLabelText('Pannon'))
-  await userEvent.selectOptions(dialog.getByRole('combobox', { name: 'Duna: telephely-hozzáférés' }), 'selected')
+  await chooseOption(dialog.getByRole('combobox', { name: 'Duna: telephely-hozzáférés' }), 'selected')
   expect(dialog.getByRole('button', { name: 'Jogosultságcsoport mentése' })).toBeDisabled()
   await userEvent.click(dialog.getByRole('checkbox', { name: 'Duna: Budapest (BP)' }))
-  await userEvent.selectOptions(dialog.getByRole('combobox', { name: 'Pannon: telephely-hozzáférés' }), 'selected')
+  await chooseOption(dialog.getByRole('combobox', { name: 'Pannon: telephely-hozzáférés' }), 'selected')
   await userEvent.click(dialog.getByRole('checkbox', { name: 'Pannon: Győr (GYOR)' }))
   await userEvent.click(dialog.getByLabelText('Járművek megtekintése'))
   await userEvent.click(dialog.getByRole('button', { name: 'Jogosultságcsoport mentése' }))
@@ -146,7 +147,7 @@ it('keeps a restricted site selection when editing only the group name', async (
   mount(<PermissionGroups user={user} />)
   await userEvent.click(await screen.findByRole('button', { name: `Jogosultságcsoport szerkesztése: ${group.name}` }))
   const dialog = within(screen.getByRole('dialog'))
-  expect(dialog.getByRole('combobox', { name: 'Duna: telephely-hozzáférés' })).toHaveValue('selected')
+  expect(dialog.getByRole('combobox', { name: 'Duna: telephely-hozzáférés' })).toHaveValue('Csak kijelölt telephelyek')
   expect(dialog.getByRole('checkbox', { name: 'Duna: Budapest (BP)' })).toBeChecked()
   await userEvent.type(dialog.getByLabelText('Csoport neve'), ' új')
   await userEvent.click(dialog.getByRole('button', { name: 'Jogosultságcsoport mentése' }))
@@ -168,7 +169,7 @@ it('limits a manager permission picker to the sites where that permission may be
   const dialog = within(screen.getByRole('dialog'))
   await userEvent.click(dialog.getByLabelText('Duna'))
   expect(dialog.getByLabelText(/Járművek megtekintése/)).toBeDisabled()
-  await userEvent.selectOptions(dialog.getByRole('combobox', { name: 'Duna: telephely-hozzáférés' }), 'selected')
+  await chooseOption(dialog.getByRole('combobox', { name: 'Duna: telephely-hozzáférés' }), 'selected')
   await userEvent.click(dialog.getByRole('checkbox', { name: 'Duna: Budapest (BP)' }))
   expect(dialog.getByLabelText('Járművek megtekintése')).toBeEnabled()
   await userEvent.click(dialog.getByLabelText('Járművek megtekintése'))

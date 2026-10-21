@@ -90,6 +90,14 @@
 .app-shell table th { padding: 11px 20px; font-size: 12px; color: #516975; background: #f6f9fa; font-weight: 500; }
 .app-shell table td { padding: 17px 20px; font-size: 13px; border-bottom-color: #e9eef0; }
 .app-shell table tbody tr:hover { background: #f7fbfa; }
+.app-shell table.responsive-list tbody tr:nth-child(even) { background: #f0f5f7; }
+.app-shell table.responsive-list tbody tr.clickable-row { cursor: pointer; }
+.app-shell table.responsive-list tbody tr.clickable-row:hover { background: #e3f0eb; }
+.app-shell table.responsive-list tbody tr.clickable-row:focus-visible { outline: 2px solid #278479; outline-offset: -2px; background: #e3f0eb; }
+.row-title { max-width: 100%; padding: 0; border: 0; border-radius: 0; background: none; color: #234956; font: inherit; font-weight: 500; text-align: left; white-space: normal; }
+.clickable-row:hover .row-title { text-decoration: underline; text-underline-offset: 3px; }
+.stable-table td { height: 76px; }
+.stable-table .table-empty { color: #5d707b; font-size: 13px; text-align: center; white-space: normal; }
 .app-shell .table-footer { background: #fbfcfc; padding: 12px 20px; font-size: 12px; border-radius: 0 0 var(--radius-panel) var(--radius-panel); }
 .entity-cell { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .entity-icon { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #d9e6e5; background: #f0f6f5; border-radius: 8px; color: #426b71; flex-shrink: 0; }
@@ -129,18 +137,39 @@ dialog::backdrop { background: #102b3c80; }
   .topbar { padding-inline: 24px; }
   .sidebar .nav-item { padding-inline: 10px; gap: 9px; }
 }
+@media (max-width: 1000px) {
+  .table-scroll > table.responsive-list { display: block; min-width: 0; width: 100%; white-space: normal; }
+  .responsive-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .responsive-list tbody { display: block; }
+  .responsive-list tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--line); padding-block: 4px; }
+  .app-shell .responsive-list tbody td { display: block; min-width: 0; height: auto; border: 0; padding: 10px 16px; overflow-wrap: anywhere; }
+  .responsive-list td::before { content: attr(data-label); display: block; font-size: 12px; color: #526672; margin-bottom: 4px; }
+  .responsive-list td:first-child, .responsive-list td:last-child, .responsive-list td[colspan] { grid-column: 1 / -1; }
+  .responsive-list td:first-child::before, .responsive-list td[data-label="Műveletek"]::before { display: none; }
+  .responsive-list .member-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .app-shell .org-company-table tbody tr { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .app-shell .org-company-table tbody td:first-child { grid-column: 1; }
+  .app-shell .org-company-table tbody td:last-child { grid-column: 2; }
+  .app-shell .org-company-table td:last-child::before { display: none; }
+  .app-shell .org-company-table tbody td[colspan] { grid-column: 1 / -1; }
+}
 @media (max-width: 700px) {
-  .app-shell > .sidebar { padding: 16px; gap: 12px; }
+  .app-shell > .sidebar { padding: 16px; gap: 12px; grid-template-columns: minmax(0, 1fr) auto auto; }
   .sidebar .brand { margin: 0; font-size: 18px; gap: 8px; }
   .sidebar .brand-mark { width: 31px; height: 34px; font-size: 21px; }
-  .sidebar .workspace-selector { margin: 0; }
+  .sidebar .brand { grid-column: 1; grid-row: 1; }
+  .sidebar .workspace-selector { margin: 0; grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .sidebar .workspace-selector .new-company-button { display: none; }
+  .sidebar .workspace-selector:not(:has(.workspace-site)) > .choice { grid-column: 1 / -1; }
   .sidebar .select-wrap { padding: 9px 7px; }
   .sidebar .select-wrap select { font-size: 12px; }
-  .sidebar .profile.profile-button { border: 0; background: transparent; padding: 0; font-size: 12px; }
+  .sidebar .profile.profile-button { border: 0; background: transparent; padding: 5px; font-size: 12px; }
+  .sidebar-bottom .profile > span:last-child { display: none; }
+  .app-shell .sidebar .sidebar-bottom { grid-row: 1; grid-column: 3; width: 40px; }
   .sidebar .profile small { display: none; }
   .sidebar .sidebar-bottom { padding-top: 0; }
-  .sidebar .mobile-nav-toggle { min-height: 36px; padding: 7px 11px; border-radius: 7px; }
-  .sidebar #main-navigation.is-open { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-top: 10px; border-top: 1px solid #34505c; gap: 5px; }
+  .sidebar .mobile-nav-toggle { min-height: 40px; padding: 7px 11px; border-radius: 7px; grid-column: 2; grid-row: 1; }
+  .sidebar #main-navigation.is-open { display: grid; grid-row: 3; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-top: 10px; border-top: 1px solid #34505c; gap: 5px; }
   .sidebar .nav-item { width: 100%; font-size: 12px; padding: 9px 10px; gap: 7px; }
   .sidebar .admin-navigation { grid-column: 1 / -1; margin-top: 6px; padding-top: 8px; }
   .topbar { padding: 12px 16px; min-height: 60px; gap: 8px; }
@@ -152,6 +181,13 @@ dialog::backdrop { background: #102b3c80; }
   .app-shell .list-toolbar { padding: 16px; gap: 10px; }
   .app-shell .table-footer { padding: 12px 16px; gap: 10px; flex-wrap: wrap; }
   .app-shell .responsive-list tbody td { padding: 11px 16px; }
+  .stable-table .responsive-list tbody td { height: auto; }
+  .responsive-list td[data-label="Műveletek"]::before { display: none; }
+  .app-shell .org-company-table tbody tr { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .app-shell .org-company-table tbody td:first-child { grid-column: 1; }
+  .app-shell .org-company-table tbody td:last-child { grid-column: 2; }
+  .app-shell .org-company-table td:last-child::before { display: none; }
+  .app-shell .org-company-table tbody td[colspan] { grid-column: 1 / -1; }
   .app-shell .responsive-list tbody tr { padding-block: 5px; }
   .app-shell .member-actions { gap: 7px; }
   .entity-icon { width: 32px; height: 32px; }

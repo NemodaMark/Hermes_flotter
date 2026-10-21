@@ -380,7 +380,7 @@ it('resets private editor state when switching companies', async () => {
   await openMembers()
   await userEvent.click(screen.getByRole('button', { name: 'Jogosultságok: elek@example.test' }))
   // Programmatic change models a company switch arriving while a request or dialog is open.
-  fireEvent.change(screen.getByRole('combobox', { name: 'Munkaterület' }), {
+  fireEvent.change(screen.getByRole('combobox', { name: 'Munkaterület' }).closest('.choice')!.querySelector('select')!, {
     target: { value: otherTenantId },
   })
   await userEvent.click(await screen.findByRole('button', { name: 'Felhasználók' }))
@@ -418,7 +418,7 @@ it('keeps a pending invitation through login and selects its company only after 
   await screen.findByRole('heading', { name: 'Céges meghívó' })
   expect(state.accepted).toBe(false)
   await userEvent.click(screen.getByRole('button', { name: 'Meghívó elfogadása' }))
-  expect(await screen.findByRole('combobox', { name: 'Munkaterület' })).toHaveValue(tenantId)
+  expect(await screen.findByRole('combobox', { name: 'Munkaterület' })).toHaveValue('Duna')
   expect(window.location.hash).toBe('')
   expect(calls.find((call) => call.path === '/api/v1/invitations/accept')).toMatchObject({
     tenant: null,

@@ -1,3 +1,4 @@
+import { chooseOption } from './selectTestUtils'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -196,7 +197,7 @@ it('uploads a selected vehicle document category inline using the vehicle versio
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(screen.getByRole('region', { name: 'Járműokmányok' })).toBeInTheDocument()
   await screen.findByText('Még nincs megjeleníthető dokumentum.')
-  await userEvent.selectOptions(screen.getByLabelText('Dokumentumtípus'), 'Insurance')
+  await chooseOption(screen.getByLabelText('Dokumentumtípus'), 'Insurance')
   const file = new File(['%PDF-1.7'], 'biztositas.pdf')
   await userEvent.upload(screen.getByLabelText('Fájl kiválasztása'), file)
   await userEvent.click(screen.getByRole('button', { name: 'Feltöltés' }))
@@ -206,7 +207,7 @@ it('filters vehicle documents by category and keeps withdrawn history behind the
   vi.mocked(documentApi.list).mockResolvedValue(collection([{ ...doc, fileName: 'forgalmi.pdf', category: 'Registration' }, { ...doc, id: 'policy', fileName: 'biztositas.pdf', category: 'Insurance' }, { ...doc, id: 'old', fileName: 'regi.pdf', category: 'Insurance', isWithdrawn: true }]))
   mount(true, false, false, 'vehicle')
   await screen.findByText('forgalmi.pdf')
-  await userEvent.selectOptions(screen.getByLabelText('Szűrés dokumentumtípus szerint'), 'Insurance')
+  await chooseOption(screen.getByLabelText('Szűrés dokumentumtípus szerint'), 'Insurance')
   expect(screen.queryByText('forgalmi.pdf')).not.toBeInTheDocument()
   expect(screen.getByText('biztositas.pdf')).toBeInTheDocument()
   expect(screen.queryByText('regi.pdf')).not.toBeInTheDocument()

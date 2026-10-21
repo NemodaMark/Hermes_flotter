@@ -1,4 +1,5 @@
-import { useId, useState } from 'react'
+import { ComboBox } from './ui/Select'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TextField } from './OrganizationForms'
 import { categories, fuels, transmissions, ownerships, vehicleStatuses } from './fleetApi'
@@ -10,10 +11,6 @@ import './vehicle-layout.css'
 
 const bodyTypes: Record<string, string> = { Unknown: 'Nincs megadva', Sedan: 'Szedán', Hatchback: 'Ferdehátú', Estate: 'Kombi', Suv: 'SUV / terepjáró', Coupe: 'Kupé', Convertible: 'Kabrió', Minivan: 'Egyterű', Van: 'Furgon', Pickup: 'Pickup', ChassisCab: 'Alvázas', Box: 'Dobozos', Tipper: 'Billencs', Other: 'Egyéb' }
 const baseMakes = ['Audi', 'BMW', 'Citroën', 'Dacia', 'Fiat', 'Ford', 'Hyundai', 'Kia', 'Mercedes-Benz', 'Nissan', 'Opel', 'Peugeot', 'Renault', 'Škoda', 'Suzuki', 'Toyota', 'Volkswagen', 'Volvo']
-function ComboField({ label, value, options, onChange, disabled }: { label: string; value: string; options: string[]; onChange: (value: string) => void; disabled: boolean }) {
-  const id = useId()
-  return <label className="org-field"><span>{label}</span><input list={id} value={value} required maxLength={64} disabled={disabled} placeholder="Válassz vagy írj be új értéket" onChange={e => onChange(e.target.value)} autoComplete="off" /><datalist id={id}>{options.map(x => <option key={x} value={x} />)}</datalist></label>
-}
 export function VehicleFields({ tenantId, data, setData, disabled, serviceOptions = [], preferredServicePartnerName }: {
   tenantId: string; data: SaveVehicle; setData: (data: SaveVehicle) => void; disabled: boolean; serviceOptions?: PartnerOption[]; preferredServicePartnerName?: string | null
 }) {
@@ -30,8 +27,8 @@ export function VehicleFields({ tenantId, data, setData, disabled, serviceOption
       <TextField label="Rendszám" value={data.registration} onChange={x => setData({ ...data, registration: x })} required maxLength={16} disabled={disabled} />
       <TextField label="Rendszám országkódja" value={spec.registrationCountry} onChange={x => set('registrationCountry', x)} required maxLength={2} disabled={disabled} />
       <TextField label="Alvázszám (VIN)" value={spec.vin} onChange={x => set('vin', x)} maxLength={17} disabled={disabled} />
-      <ComboField label="Gyártó" value={data.make} options={makes} onChange={x => setData({ ...data, make: x })} disabled={disabled} />
-      <ComboField label="Modell" value={data.model} options={models} onChange={x => setData({ ...data, model: x })} disabled={disabled} />
+      <label className="org-field"><span>Gyártó</span><ComboBox label="Gyártó" value={data.make} options={makes} onChange={x => setData({ ...data, make: x })} disabled={disabled} /></label>
+      <label className="org-field"><span>Modell</span><ComboBox label="Modell" value={data.model} options={models} onChange={x => setData({ ...data, model: x })} disabled={disabled} /></label>
       <TextField label="Flottaazonosító" value={spec.fleetNumber} onChange={x => set('fleetNumber', x)} maxLength={40} disabled={disabled} />
       <SelectField label="Karosszéria" value={spec.bodyType ?? 'Unknown'} options={bodyTypes} onChange={x => set('bodyType', x)} disabled={disabled} />
       <SelectField label="Járműkategória" value={spec.category} options={categories} onChange={x => set('category', x)} disabled={disabled} />

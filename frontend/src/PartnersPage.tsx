@@ -12,6 +12,7 @@ import { FleetAudit, NotesField, QueryMessage, ReasonDialog, SelectField } from 
 import './fleet.css'
 import { ListToolbar } from './ListToolbar'
 import { Badge } from './ui/Badge'
+import { ClickableRow, TableFrame } from './ui/Table'
 
 export function PartnersPage({ tenant }: { tenant: Tenant }) {
   const [page, setPage] = useState(1)
@@ -37,13 +38,13 @@ export function PartnersPage({ tenant }: { tenant: Tenant }) {
       </form>}
     </ListToolbar>
     {!can('partners.read') ? <p className="notice">Nincs jogosultságod a partnerlista megtekintéséhez.</p> : <>
-      <QueryMessage pending={rows.isPending} error={rows.error} retry={() => void rows.refetch()} />
-      {rows.data && <><div className="table-scroll"><table className="org-table responsive-list"><thead><tr><th>Partner</th><th>Kategória</th><th>Elérhetőség</th><th>Állapot</th><th>Művelet</th></tr></thead><tbody>
-        {rows.data.items.map(p => <tr key={p.id}><td data-label="Partner"><strong>{p.data.name}</strong><span className="member-email">{p.data.address.city}</span></td><td data-label="Kategória">{[p.data.isLessor && 'Lízingbeadó', p.data.isService && 'Szerviz'].filter(Boolean).join(' · ')}</td>
+      <QueryMessage pending={false} error={rows.error} retry={() => void rows.refetch()} />
+      <TableFrame hasRows={(rows.data?.items.length ?? 0) > 0}><table className="org-table responsive-list"><thead><tr><th>Partner</th><th>Kategória</th><th>Elérhetőség</th><th>Állapot</th></tr></thead><tbody>
+        {rows.data?.items.map(p => <ClickableRow key={p.id} aria-label={`Partner: ${p.data.name}`} onOpen={() => setSelected(p.id)}><td data-label="Partner"><Button className="row-title" tabIndex={-1} aria-label={`Partner megnyitása: ${p.data.name}`} onClick={() => setSelected(p.id)}>{p.data.name}</Button><span className="member-email">{p.data.address.city}</span></td><td data-label="Kategória">{[p.data.isLessor && 'Lízingbeadó', p.data.isService && 'Szerviz'].filter(Boolean).join(' · ')}</td>
           <td data-label="Elérhetőség">{p.data.email ?? '–'}<span className="member-email">{p.data.phone}</span></td><td data-label="Állapot"><Badge tone={p.isArchived ? 'neutral' : 'success'}>{p.isArchived ? 'Archivált' : 'Aktív'}</Badge></td>
-          <td data-label="Műveletek"><Button className="secondary-button" aria-label={`Partner megnyitása: ${p.data.name}`} onClick={() => setSelected(p.id)}>Megnyitás</Button></td></tr>)}
-        {!rows.data.total && <tr><td colSpan={5}>Még nincs ilyen partner. Az Új partner gombbal vehetsz fel lízingbeadót vagy szervizt.</td></tr>}
-      </tbody></table></div><PageButtons page={page} total={rows.data.total} pending={rows.isFetching} onPage={setPage} /></>}
+          </ClickableRow>)}
+        {!rows.data?.items.length && <tr><td colSpan={4} className="table-empty">{rows.isPending ? 'Partnerek betöltése…' : 'Még nincs ilyen partner. Az Új partner gombbal vehetsz fel lízingbeadót vagy szervizt.'}</td></tr>}
+      </tbody></table></TableFrame><PageButtons page={page} total={rows.data?.total ?? 0} pending={rows.isFetching} onPage={setPage} />
     </>}
   </section>
 }

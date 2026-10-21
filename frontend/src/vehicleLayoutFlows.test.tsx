@@ -1,3 +1,4 @@
+import { chooseOption } from './selectTestUtils'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -63,7 +64,7 @@ it('discards edits in every group and disables an unchanged save', async () => {
   mount(<VehicleDataForm tenantId={tenant.id} record={record} editable onSaved={async () => {}} />)
   expect(screen.getByRole('button', { name: 'Járműadatok mentése' })).toBeDisabled()
   await userEvent.type(screen.getByLabelText('Szín'), 'Piros')
-  await userEvent.selectOptions(screen.getByLabelText('Mezőcsoport'), 'technical')
+  await chooseOption(screen.getByLabelText('Mezőcsoport'), 'technical')
   fireEvent.change(screen.getByLabelText('Teljesítmény (kW)'), { target: { value: '150' } })
   await userEvent.click(screen.getByRole('button', { name: 'Járműadatok mentése' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('A mentés nem sikerült.')

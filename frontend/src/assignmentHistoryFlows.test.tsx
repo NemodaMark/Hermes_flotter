@@ -1,3 +1,4 @@
+import { chooseOption } from './selectTestUtils'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -72,8 +73,8 @@ it('refreshes the history after assigning a different user on the actual vehicle
   await userEvent.click(await screen.findByRole('button', { name: 'Használati előzmények' }))
   await within(await screen.findByRole('table')).findByText('Kiss Béla')
   await userEvent.click(screen.getByRole('button', { name: 'Telephely és használó' }))
-  await screen.findByRole('option', { name: 'Tóth Éva (@eva)' })
-  await userEvent.selectOptions(screen.getByLabelText('Jármű használója', { selector: 'select' }), 'eva')
+  await waitFor(() => expect(mediaApi.assigneeOptions).toHaveBeenCalled())
+  await chooseOption(screen.getByRole('combobox', { name: 'Jármű használója' }), 'eva')
   await userEvent.click(screen.getByRole('button', { name: 'Hozzárendelés mentése' }))
   await waitFor(() => expect(assign).toHaveBeenCalledWith('company', 'car', 'eva', 1))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Hozzárendelés mentése' })).toBeDisabled())

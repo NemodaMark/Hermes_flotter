@@ -47,6 +47,7 @@ public interface ITenantDirectory
 
 public interface IVehicleStore
 {
+    Task<VehicleSiteOption[]> ReadSiteOptionsAsync(CancellationToken ct);
     Task<VehicleCreationOptions> CreationOptionsAsync(CancellationToken ct);
     Task<IReadOnlyList<VehicleSummary>> ListAsync(CancellationToken cancellationToken);
     Task<VehicleSummary?> GetAsync(Guid id, CancellationToken cancellationToken);

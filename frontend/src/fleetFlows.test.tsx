@@ -1,3 +1,4 @@
+import { chooseOption } from './selectTestUtils'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -62,9 +63,9 @@ it('saves the detailed vehicle data with the existing immutable vehicle key and 
   await userEvent.click(screen.getByRole('tab', { name: 'Műszaki adatok' }))
   fireEvent.change(screen.getByLabelText('Teljesítmény (kW)'), { target: { value: '110.5' } })
   await userEvent.click(screen.getByRole('tab', { name: 'Üzemeltetés' }))
-  await userEvent.selectOptions(screen.getByLabelText('Tulajdonlás'), 'Leased')
+  await chooseOption(screen.getByLabelText('Tulajdonlás'), 'Leased')
   await userEvent.click(screen.getByRole('tab', { name: 'Határidők és szerviz' }))
-  await userEvent.selectOptions(await screen.findByLabelText('Alapértelmezett szervizpartner'), 'garage')
+  await chooseOption(await screen.findByLabelText('Alapértelmezett szervizpartner'), 'garage')
   await userEvent.click(screen.getByRole('button', { name: 'Járműadatok mentése' }))
   await waitFor(() => expect(onSaved).toHaveBeenCalled())
   expect(save).toHaveBeenCalledWith('company', 'car', expect.objectContaining({ registration: 'NEW-456', version: 9, data: expect.objectContaining({ ownership: 'Leased', powerKw: 110.5, preferredServicePartnerId: 'garage' }) }))
@@ -105,8 +106,8 @@ it('records a historical service reading independently from the current odometer
   vi.spyOn(fleetApi, 'partnerOptions').mockResolvedValue([{ id: 'garage', name: 'Műhely' }])
   const save = vi.spyOn(fleetApi, 'saveService').mockResolvedValue({} as never)
   mount(<ServiceDialog tenantId="company" car={record.vehicle} onClose={vi.fn()} onSaved={async () => {}} />)
-  await screen.findByRole('option', { name: 'Műhely' })
-  await userEvent.selectOptions(screen.getByLabelText('Szervizpartner'), 'garage')
+  await waitFor(() => expect(fleetApi.partnerOptions).toHaveBeenCalled())
+  await chooseOption(screen.getByLabelText('Szervizpartner'), 'garage')
   fireEvent.change(screen.getByLabelText('Szerviz dátuma'), { target: { value: '2025-06-01' } })
   fireEvent.change(screen.getByLabelText('Kilométerállás a szerviznél'), { target: { value: '10000' } })
   await userEvent.type(screen.getByLabelText('Elvégzett munka'), 'Olajcsere')
@@ -120,8 +121,8 @@ it('opens file upload for the actual saved service record immediately after crea
   const documents = vi.spyOn(documentApi, 'list').mockResolvedValue({ items: [], parentVersion: 1, vehicleVersion: 10, totalBytes: 0 })
   mount(<VehicleContracts tenant={{ id: 'company', name: 'Cég', permissions: [] }} car={{ ...record.vehicle, permissions: ['vehicles.service.read', 'vehicles.service.manage'] }} kind="services" onChanged={async () => {}} />)
   await userEvent.click(screen.getByRole('button', { name: 'Új szervizbejegyzés' }))
-  await screen.findByRole('option', { name: 'Műhely' })
-  await userEvent.selectOptions(screen.getByLabelText('Szervizpartner'), 'garage')
+  await waitFor(() => expect(fleetApi.partnerOptions).toHaveBeenCalled())
+  await chooseOption(screen.getByLabelText('Szervizpartner'), 'garage')
   fireEvent.change(screen.getByLabelText('Szerviz dátuma'), { target: { value: '2026-10-01' } })
   await userEvent.type(screen.getByLabelText('Elvégzett munka'), 'Olajcsere')
   await userEvent.click(screen.getByRole('button', { name: 'Mentés' }))

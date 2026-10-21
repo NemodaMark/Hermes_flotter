@@ -1,3 +1,4 @@
+import { Select } from './ui/Select'
 import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
@@ -183,7 +184,7 @@ export function CompanyForm({
         <div className="org-form-grid">
           <label className="org-field">
             <span>Időzóna</span>
-            <select
+            <Select
               value={data.timeZone}
               required
               disabled={!editable || save.isPending}
@@ -195,11 +196,11 @@ export function CompanyForm({
               {withCurrentValue(timeZones, data.timeZone).map((zone) => (
                 <option key={zone} value={zone}>{timeZoneLabel(zone)}</option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="org-field">
             <span>Pénznem</span>
-            <select
+            <Select
               value={data.currency}
               required
               disabled={!editable || save.isPending}
@@ -211,11 +212,11 @@ export function CompanyForm({
               {withCurrentValue(currencies, data.currency).map((code) => (
                 <option key={code} value={code}>{currencyLabel(code)}</option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="org-field">
             <span>Távolságegység</span>
-            <select
+            <Select
               value={data.distanceUnit}
               disabled={!editable || save.isPending}
               onChange={(e) => {
@@ -225,7 +226,7 @@ export function CompanyForm({
             >
               <option value="km">Kilométer (km)</option>
               <option value="mi">Mérföld (mi)</option>
-            </select>
+            </Select>
           </label>
         </div>
       </fieldset>) }
@@ -434,7 +435,7 @@ export function SiteDialog({
           />
           <label className="org-field">
             <span>Kapcsolattartó</span>
-            <select
+            <Select
               value={data.contactId ?? ''}
               onChange={(e) => setData({ ...data, contactId: e.target.value || null })}
             >
@@ -452,7 +453,7 @@ export function SiteDialog({
                   {site?.contactName ?? 'Jelenlegi kapcsolattartó'}
                 </option>
               )}
-            </select>
+            </Select>
           </label>
         </div></fieldset>) }
         ]} />
@@ -520,13 +521,13 @@ export function StatusDialog({
         {currentStatus && (
           <label className="org-field">
             <span>Új állapot</span>
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <Select value={status} onChange={(e) => setStatus(e.target.value)}>
               {['Active', 'Suspended', 'Archived'].map((x) => (
                 <option key={x} value={x}>
                   {companyStatusName(x)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
         <label className="org-field">

@@ -1,3 +1,4 @@
+import { chooseOption } from './selectTestUtils'
 import { expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -50,6 +51,7 @@ function mountApp({
       if (path.endsWith('/permissions') || path.endsWith('/permission-groups') || path.endsWith('/permission-groups/companies')) return json([])
       if (/\/(members|people|invitations)(\?|$)/.test(path)) return json({ items: [], total: 0, page: 1, pageSize: 25 })
       if (path.endsWith('/vehicles/create-options')) return json({ canCreateUnassigned, sites: [{ id: 'site-a', name: 'Budapest', code: 'BP' }] })
+      if (path.endsWith('/vehicles/site-options')) return json([{ id: 'site-a', name: 'Budapest', code: 'BP' }])
       if (path.includes('/vehicles')) {
         if (options.method === 'POST') return json({ id: 'created', ...JSON.parse(String(options.body)) }, 201)
         if (expire) {
@@ -86,7 +88,7 @@ function mountApp({
 it('replaces the visible fleet when a different company is selected', async () => {
   mountApp()
   expect(await screen.findByText('DUN-001')).toBeInTheDocument()
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Munkaterület' }), 'pannon')
+  await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület' }), 'pannon')
   expect(await screen.findByText('PAN-002')).toBeInTheDocument()
   expect(screen.queryByText('DUN-001')).not.toBeInTheDocument()
 })
@@ -95,6 +97,22 @@ it('offers vehicle creation only with the explicit permission', async () => {
   mountApp({ permissions: ['vehicles.read'] })
   expect(await screen.findByText('DUN-001')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Új jármű' })).not.toBeInTheDocument()
+})
+
+it('filters the fleet by an authorized empty site and resets the site when changing company', async () => {
+  mountApp()
+  await screen.findByText('DUN-001')
+  await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület telephelye' }), 'site-a')
+  expect(screen.queryByText('DUN-001')).not.toBeInTheDocument()
+  expect(screen.getByRole('columnheader', { name: 'Jármű' })).toBeInTheDocument()
+  expect(screen.getByText(/Nincs találat/)).toBeInTheDocument()
+  expect(new Headers(vi.mocked(fetch).mock.calls.find(([path]) => String(path).endsWith('/vehicles/site-options'))?.[1]?.headers).get('X-Tenant-Id')).toBe('duna')
+  await userEvent.click(screen.getByRole('button', { name: 'Új jármű' }))
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Telephely' })).toHaveValue('Budapest (BP)'))
+  await userEvent.click(screen.getByRole('button', { name: 'Vissza a járművekhez' }))
+  await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület' }), 'pannon')
+  expect(await screen.findByText('PAN-002')).toBeInTheDocument()
+  expect(screen.getByRole('combobox', { name: 'Munkaterület telephelye' })).toHaveValue('Összes telephely')
 })
 
 it('puts fleet search, filtering and creation in the same toolbar without duplicate totals', async () => {
@@ -116,7 +134,7 @@ it('opens users, invitations and groups as independent pages with distinct URLs'
   expect(window.location.hash).toBe('#/users')
   expect(screen.queryByRole('tablist', { name: 'Felhasználókezelés' })).not.toBeInTheDocument()
   await userEvent.click(within(nav).getByRole('button', { name: 'Meghívások' }))
-  await screen.findByText('Még nincs meghívás')
+  await screen.findByText(/Még nincs meghívás/)
   expect(window.location.hash).toBe('#/invitations')
   expect(screen.queryByRole('textbox', { name: 'Felhasználó keresése' })).not.toBeInTheDocument()
   await userEvent.click(within(nav).getByRole('button', { name: 'Jogosultságcsoportok' }))
@@ -132,7 +150,7 @@ it('restores an invitation page from its URL and denies it without the company p
   expect(within(nav).queryByRole('button', { name: 'Meghívások' })).not.toBeInTheDocument()
   expect(within(nav).queryByRole('button', { name: 'Jogosultságcsoportok' })).not.toBeInTheDocument()
   expect(vi.mocked(fetch).mock.calls.some(([path]) => /\/invitations(\?|$)/.test(String(path)))).toBe(false)
-  expect(vi.mocked(fetch).mock.calls.some(([path]) => String(path).includes('/vehicles'))).toBe(false)
+  expect(vi.mocked(fetch).mock.calls.some(([path]) => String(path).endsWith('/vehicles'))).toBe(false)
 })
 
 it('does not fetch or display vehicles without read permission, even with create permission', async () => {
@@ -160,7 +178,7 @@ it('requires an allowed site for vehicle creation with a site-restricted permiss
   await userEvent.type(screen.getByLabelText('Modell'), 'Focus')
   await userEvent.click(screen.getByRole('button', { name: 'Jármű létrehozása' }))
   expect(vi.mocked(fetch).mock.calls.some(([path, options]) => String(path).endsWith('/vehicles') && options?.method === 'POST')).toBe(false)
-  await userEvent.selectOptions(site, 'site-a')
+  await chooseOption(site, 'site-a')
   await userEvent.click(screen.getByRole('button', { name: 'Jármű létrehozása' }))
   await waitFor(() => {
     const options = vi.mocked(fetch).mock.calls.find(([path, options]) => String(path).endsWith('/vehicles') && options?.method === 'POST')?.[1]
@@ -191,8 +209,8 @@ it('takes a newly registered user through creating their first company', async (
   await screen.findByRole('heading', { name: 'Hozd létre az első cégedet' })
   await userEvent.type(screen.getByLabelText('Cégnév'), 'Saját Flotta Kft.')
   await userEvent.click(screen.getByRole('button', { name: 'Cég létrehozása' }))
-  expect(await screen.findByRole('heading', { name: 'Itt kezdődik a flotta' })).toBeInTheDocument()
-  expect(screen.getByRole('combobox', { name: 'Munkaterület' })).toHaveValue('new-company')
+  expect(await screen.findByText('Még nincs jármű. Az Új jármű gombbal veheted fel az elsőt.')).toBeInTheDocument()
+  expect(screen.getByRole('combobox', { name: 'Munkaterület' })).toHaveValue('Saját Flotta Kft.')
 })
 
 it('clears private data on logout and returns to the login form', async () => {

@@ -1,3 +1,4 @@
+import { Select } from './ui/Select'
 import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -10,9 +11,9 @@ import { currencies, currencyLabel, withCurrentValue } from './companyOptions'
 export function SelectField({ label, value, options, onChange, disabled = false, required = false }: {
   label: string; value: string; options: Record<string, string>; onChange: (value: string) => void; disabled?: boolean; required?: boolean
 }) {
-  return <label className="org-field"><span>{label}</span><select value={value} onChange={e => onChange(e.target.value)} disabled={disabled} required={required}>
+  return <label className="org-field"><span>{label}</span><Select value={value} onChange={e => onChange(e.target.value)} disabled={disabled} required={required}>
     {Object.entries(options).map(([code, name]) => <option key={code} value={code}>{name}</option>)}
-  </select></label>
+  </Select></label>
 }
 export function NumberField({ label, value, onChange, max = 100000000, step = 1, disabled = false }: {
   label: string; value: number | null; onChange: (value: number | null) => void; max?: number; step?: number; disabled?: boolean

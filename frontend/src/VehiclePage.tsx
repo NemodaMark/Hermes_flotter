@@ -1,3 +1,4 @@
+import { Select } from './ui/Select'
 import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -58,7 +59,7 @@ export function VehiclePage({ user, tenant, id, onBack }: { user: Session; tenan
         <VehicleAssignee tenant={tenant} car={car!} onChanged={changed} readOnly />
         <div className="vehicle-detail-navigation">
           <nav aria-label="Járműadatlap részei">{tabs.map(([key, label]) => <Button key={key} aria-current={activeTab === key ? 'page' : undefined} onClick={() => { setTab(key); setMessage('') }}>{label}</Button>)}</nav>
-          <label className="org-field vehicle-detail-picker"><span>Járműadatlap részei</span><select value={activeTab} onChange={event => { setTab(event.target.value); setMessage('') }}>{tabs.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+          <label className="org-field vehicle-detail-picker"><span>Járműadatlap részei</span><Select value={activeTab} onChange={event => { setTab(event.target.value); setMessage('') }}>{tabs.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></label>
         </div>
         {message && <p className="notice" role="status">{message}</p>}
         {car?.status === 'Archived' && <p className="notice">Archivált jármű · {record.data.statusReason}. A visszaállítás után szerkeszthető.</p>}

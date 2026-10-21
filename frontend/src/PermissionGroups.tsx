@@ -1,3 +1,5 @@
+import { Select } from './ui/Select'
+import { TableFrame } from './ui/Table'
 import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -77,8 +79,7 @@ export function PermissionGroups({ user }: { user: Session }) {
       )}
       {data.isSuccess && (
         <>
-          {groups.length ? (
-            <div className="table-scroll">
+            <TableFrame hasRows={groups.length > 0}>
               <table className="groups-table responsive-list">
                 <thead>
                   <tr>
@@ -144,12 +145,10 @@ export function PermissionGroups({ user }: { user: Session }) {
                       </td>
                     </tr>
                   ))}
+                  {!groups.length && <tr><td colSpan={5} className="table-empty">Nincs megjeleníthető jogosultságcsoport.</td></tr>}
                 </tbody>
               </table>
-            </div>
-          ) : (
-            <p className="notice">Nincs megjeleníthető jogosultságcsoport.</p>
-          )}
+            </TableFrame>
           {(dialog?.kind === 'create' || dialog?.kind === 'edit') && (
             <GroupEditor
               group={dialog.kind === 'edit' ? dialog.group : undefined}
@@ -290,14 +289,14 @@ function GroupEditor({
           return (
             <fieldset key={company.id} className="group-site-fields" disabled={save.isPending}>
               <legend>{company.name} · telephely-hozzáférés</legend>
-              <select
+              <Select
                 aria-label={`${company.name}: telephely-hozzáférés`}
                 value={scope.allSites ? 'all' : 'selected'}
                 onChange={(e) => changeScope({ companyId: company.id, allSites: e.target.value === 'all', siteIds: [] })}
               >
                 <option value="all">Teljes cég, telephely nélküli járművekkel</option>
                 <option value="selected">Csak kijelölt telephelyek</option>
-              </select>
+              </Select>
               {!scope.allSites && (
                 <div className="group-site-options">
                   {(company.sites ?? []).map((site) => (

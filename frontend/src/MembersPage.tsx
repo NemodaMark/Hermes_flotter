@@ -1,4 +1,5 @@
 import { Button } from './ui/Button'
+import { TableFrame } from './ui/Table'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LoaderCircle, Plus, RefreshCw } from 'lucide-react'
@@ -163,8 +164,7 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
             </div>
           ) : (
             <>
-              {invitations.data.items.length ? (
-                <div className="table-scroll">
+                <TableFrame hasRows={invitations.data.items.length > 0}>
                   <table className="invitations-table responsive-list">
                     <thead>
                       <tr>
@@ -207,15 +207,10 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
                           </td>
                         </tr>
                       ))}
+                      {!invitations.data.items.length && <tr><td colSpan={4} className="table-empty">Még nincs meghívás. A létrehozott meghívók itt jelennek meg.</td></tr>}
                     </tbody>
                   </table>
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <h2>Még nincs meghívás</h2>
-                  <p>A létrehozott meghívók itt jelennek meg.</p>
-                </div>
-              )}
+                </TableFrame>
               <Pagination
                 page={invitePage}
                 total={invitations.data.total}

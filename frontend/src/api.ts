@@ -327,6 +327,7 @@ export const api = {
     resetCsrfToken()
   },
   tenants: (signal?: AbortSignal) => request<Tenant[]>('/api/v1/tenants', { signal }),
+  vehicleSites: (tenantId: string, signal?: AbortSignal) => request<{ id: string; name: string; code: string }[]>('/api/v1/vehicles/site-options', { tenantId, signal }),
   createTenant: (name: string) => request<Tenant>('/api/v1/tenants', { body: { name } }),
   permissions: (signal?: AbortSignal) => request<Permission[]>('/api/v1/permissions', { signal }),
   members: (tenantId: string, page: number, search: string, signal?: AbortSignal) =>

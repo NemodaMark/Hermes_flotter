@@ -1,3 +1,4 @@
+import { Select } from './ui/Select'
 import { Button } from './ui/Button'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -37,6 +38,7 @@ import { clearInvitation, readInvitation } from './invitationLink'
 import './App.css'
 import './accounts.css'
 import { Badge } from './ui/Badge'
+import { ClickableRow, TableFrame } from './ui/Table'
 
 const statuses: Record<string, string> = {
   Active: 'Aktív',
@@ -62,14 +64,17 @@ function FleetTable({
   user,
   tenant,
   onOpen,
+  message,
 }: {
   vehicles: Vehicle[]
   user: Session
   tenant: Tenant
   onOpen: (id: string) => void
+  message?: string
 }) {
+  const hasActions = tenant.permissions.some(code => ['vehicles.update', 'vehicles.odometer.create'].includes(code))
   return (
-    <div className="table-scroll">
+    <TableFrame hasRows={vehicles.length > 0}>
       <table className="responsive-list">
         <thead>
           <tr>
@@ -77,16 +82,16 @@ function FleetTable({
             <th>Gyártó / modell</th>
             <th>Állapot</th>
             <th>Km-állás</th>
-            <th>Művelet</th>
+            {hasActions && <th>Műveletek</th>}
           </tr>
         </thead>
         <tbody>
           {vehicles.map((vehicle) => (
-            <tr key={`${tenant.id}:${vehicle.id}`}>
+            <ClickableRow key={`${tenant.id}:${vehicle.id}`} onOpen={() => onOpen(vehicle.id)} aria-label={`Jármű: ${vehicle.registration}`}>
               <td data-label="Jármű">
                 <span className="registration">
                   <CarFront size={19} aria-hidden="true" />
-                  {vehicle.registration}
+                  <Button type="button" className="row-title" tabIndex={-1} aria-label={`Jármű adatlapja: ${vehicle.registration}`} onClick={() => onOpen(vehicle.id)}>{vehicle.registration}</Button>
                 </span>
                 {vehicle.siteName && <span className="member-email">{vehicle.siteName}</span>}
               </td>
@@ -100,16 +105,17 @@ function FleetTable({
                 </Badge>
               </td>
               <td data-label="Km-állás">{vehicle.odometerKm?.toLocaleString('hu-HU') ?? '—'}</td>
-              <td data-label="Műveletek">
-                <div className="member-actions"><Button className="secondary-button" aria-label={`Jármű adatlapja: ${vehicle.registration}`} onClick={() => onOpen(vehicle.id)}>Adatlap</Button>
+              {hasActions && <td data-label="Műveletek">
+                <div className="member-actions">
                   <VehicleActions user={user} tenant={tenant} vehicle={vehicle} />
                 </div>
-              </td>
-            </tr>
+              </td>}
+            </ClickableRow>
           ))}
+          {!vehicles.length && <tr><td colSpan={hasActions ? 5 : 4} className="table-empty">{message ?? 'Nincs találat. Próbálj másik keresést vagy szűrőt.'}</td></tr>}
         </tbody>
       </table>
-    </div>
+    </TableFrame>
   )
 }
 
@@ -155,6 +161,7 @@ function FleetWorkspace({
   const canManageSystem = user.systemPermissions?.includes('system.manage') ?? false
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
+  const [siteId, setSiteId] = useState('all')
   const [formOpen, setFormOpen] = useState(false)
   const [companyOpen, setCompanyOpen] = useState(false)
   const [companyError, setCompanyError] = useState<string | null>(null)
@@ -172,6 +179,12 @@ function FleetWorkspace({
     enabled: view === 'fleet' && !!tenant?.permissions.includes('vehicles.read'),
     retry: false,
   })
+  const workspaceSites = useQuery({
+    queryKey: ['workspace-sites', user.id, tenant?.id],
+    queryFn: ({ signal }) => api.vehicleSites(tenant!.id, signal),
+    enabled: !!tenant?.permissions.includes('vehicles.read'), retry: false, refetchInterval: 30_000,
+  })
+  const currentSiteId = workspaceSites.isSuccess && !workspaceSites.data.some(site => site.id === siteId) && siteId !== 'none' ? 'all' : siteId
   const health = useQuery({
     queryKey: ['health'],
     queryFn: ({ signal }) => api.health(signal),
@@ -196,7 +209,8 @@ function FleetWorkspace({
       `${vehicle.registration} ${vehicle.make} ${vehicle.model} ${(vehicle.previousRegistrations ?? []).join(' ')}`
         .toLocaleLowerCase('hu')
         .includes(search.toLocaleLowerCase('hu')) &&
-      (status === 'all' || vehicle.status === status),
+      (status === 'all' || vehicle.status === status) &&
+      (currentSiteId === 'all' || (currentSiteId === 'none' ? !vehicle.siteId : vehicle.siteId === currentSiteId)),
   )
   const canCreate = tenant?.permissions.includes('vehicles.create') ?? false
   const canManageMembers = canManageSystem || !!tenant
@@ -219,6 +233,7 @@ function FleetWorkspace({
     setSelectedVehicleId(null)
     setSearch('')
     setStatus('all')
+    setSiteId('all')
     setFormOpen(false)
   }
   async function saveCompany(name: string) {
@@ -242,9 +257,7 @@ function FleetWorkspace({
         </a>
         <div className="workspace-selector">
           <label htmlFor="company">Munkaterület</label>
-          <div className="select-wrap">
-            <Building2 size={17} />
-            <select
+            <Select
               id="company"
               aria-label="Munkaterület"
               value={tenant?.id ?? ''}
@@ -259,9 +272,16 @@ function FleetWorkspace({
                   {company.name}
                 </option>
               ))}
-            </select>
-            <ChevronDown size={14} />
-          </div>
+            </Select>
+          {tenant?.permissions.includes('vehicles.read') && <label className="workspace-site"><span>Telephely</span>
+            <Select aria-label="Munkaterület telephelye" value={currentSiteId} disabled={busy || loggingOut || workspaceSites.isPending}
+              onChange={event => { setSiteId(event.target.value); setSelectedVehicleId(null); setFormOpen(false) }}>
+              <option value="all">Összes telephely</option>
+              {(tenant.permissionScopes?.find(scope => scope.code === 'vehicles.read')?.allSites ?? true) && <option value="none">Telephely nélkül</option>}
+              {workspaceSites.data?.map(site => <option key={site.id} value={site.id}>{site.name} ({site.code})</option>)}
+            </Select>
+            {workspaceSites.isError && <Button className="new-company-button" onClick={() => void workspaceSites.refetch()}>Telephelyek újratöltése</Button>}
+          </label>}
           {tenant && (
             <Button
               className="new-company-button"
@@ -417,7 +437,7 @@ function FleetWorkspace({
           ) : view === 'partners' ? (
             <PartnersPage key={tenant.id} tenant={tenant} />
           ) : formOpen ? (
-            <VehicleCreatePage key={tenant.id} user={user} tenant={tenant} onBusyChange={setBusy} onBack={() => setFormOpen(false)} onCreated={car => { setFormOpen(false); setSelectedVehicleId(tenant.permissions.includes('vehicles.read') ? car.id : null) }} />
+            <VehicleCreatePage key={tenant.id} user={user} tenant={tenant} initialSiteId={currentSiteId} onBusyChange={setBusy} onBack={() => setFormOpen(false)} onCreated={car => { setFormOpen(false); setSelectedVehicleId(tenant.permissions.includes('vehicles.read') ? car.id : null) }} />
           ) : !tenant.permissions.includes('vehicles.read') ? (
             <section className="access-panel" aria-label="Járművek"><ListToolbar label="Járművek műveletei" actions={canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>} /><p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p></section>
           ) : selectedVehicleId ? (
@@ -428,7 +448,7 @@ function FleetWorkspace({
                 <div className="list-toolbar-form">
                   <span className="list-count" aria-live="polite"><strong>{visibleVehicles.length}{visibleVehicles.length !== allVehicles.length ? ` / ${allVehicles.length}` : ''}</strong> jármű</span>
                   <div className="search-field"><Search size={18} /><input aria-label="Jármű keresése" placeholder="Rendszám, gyártó vagy modell" value={search} onChange={event => setSearch(event.target.value)} /></div>
-                  <select aria-label="Szűrés állapot szerint" className="status-filter" value={status} onChange={event => setStatus(event.target.value)}><option value="all">Minden állapot</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                  <Select aria-label="Szűrés állapot szerint" className="status-filter" value={status} onChange={event => setStatus(event.target.value)}><option value="all">Minden állapot</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
                 </div>
               </ListToolbar>
               {vehicles.isError ? (
@@ -442,23 +462,9 @@ function FleetWorkspace({
                     Újrapróbálom
                   </Button>
                 </div>
-              ) : vehicles.isPending ? (
-                <div className="empty-state">
-                  <LoaderCircle size={25} className="spinning" />
-                  <p>Járművek betöltése…</p>
-                </div>
-              ) : visibleVehicles.length ? (
-                <FleetTable vehicles={visibleVehicles} user={user} tenant={tenant!} onOpen={setSelectedVehicleId} />
               ) : (
-                <div className="empty-state">
-                  <CarFront size={34} />
-                  <h2>{allVehicles.length ? 'Nincs találat' : 'Itt kezdődik a flotta'}</h2>
-                  <p>
-                    {allVehicles.length
-                      ? 'Próbálj másik keresést vagy állapotot.'
-                      : 'Az első jármű hozzáadása után itt jelennek meg az adatok.'}
-                  </p>
-                </div>
+                <FleetTable vehicles={visibleVehicles} user={user} tenant={tenant!} onOpen={setSelectedVehicleId}
+                  message={vehicles.isPending ? 'Járművek betöltése…' : allVehicles.length ? undefined : 'Még nincs jármű. Az Új jármű gombbal veheted fel az elsőt.'} />
               )}
 
             </section>
