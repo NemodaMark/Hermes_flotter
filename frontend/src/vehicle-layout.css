@@ -1,0 +1,58 @@
+.vehicle-detail-panel { overflow: visible; }
+.vehicle-detail-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 16px; padding: 16px 24px; }
+.vehicle-detail-header .vehicle-detail-meta { grid-column: 1 / -1; margin-top: 0; }
+.vehicle-detail-header > .member-actions { grid-column: 2; grid-row: 1; }
+.vehicle-detail-header h2 { margin-bottom: 4px; font-size: 21px; }
+.vehicle-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 8px; font-size: 13px; color: #526672; }
+.vehicle-detail-meta .status { margin: 0; }
+.vehicle-detail-panel .vehicle-current-user { padding: 12px 24px; font-size: 13px; gap: 8px; }
+.vehicle-detail-navigation { border-bottom: 1px solid var(--line); padding: 0 16px; }
+.vehicle-detail-navigation nav { display: flex; flex-wrap: wrap; gap: 0 4px; }
+.vehicle-detail-navigation nav button { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 12px 10px; color: #526672; font-size: 13px; }
+.vehicle-detail-navigation nav button:hover { background: #f3f7f8; color: #1d303b; }
+.vehicle-detail-navigation nav button[aria-current] { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
+.vehicle-detail-picker, .vehicle-field-picker { display: none; }
+.vehicle-data-form { padding: 24px; }
+.vehicle-field-sections { display: grid; gap: 20px; }
+.vehicle-field-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: start; }
+.vehicle-field-tabs button { min-height: 40px; padding: 8px 12px; border: 1px solid #728491; border-radius: 4px; background: white; color: #354f5d; font-size: 13px; text-align: left; }
+.vehicle-field-tabs button:hover { background: #f1f6f5; }
+.vehicle-field-tabs button[aria-selected=true] { border-color: var(--primary); color: var(--primary); background: #e7f2ef; font-weight: 500; }
+.vehicle-field-panels { min-width: 0; container-type: inline-size; container-name: vehicle-fields; }
+.vehicle-field-panels [hidden] { display: none; }
+.vehicle-field-panels fieldset { margin-bottom: 0; }
+.vehicle-field-panels legend { padding-bottom: 16px; }
+.vehicle-field-panels .org-form-grid { gap: 16px; }
+.vehicle-field-panels .org-field input, .vehicle-field-panels .org-field select, .vehicle-field-panels .org-field textarea { border-color: #728491; }
+.vehicle-wide-field { grid-column: 1 / -1; }
+.vehicle-data-form .org-form-footer { margin: 24px -24px -24px; padding: 16px 24px; background: white; position: sticky; bottom: 0; z-index: 1; border-radius: 0 0 4px 4px; }
+.vehicle-data-form .org-form-footer .member-actions { margin-left: auto; }
+.vehicle-draft-status { font-size: 12px; color: #285663; margin-bottom: 4px; }
+.vehicle-data-form [hidden] { display: none; }
+.vehicle-field-panels input, .vehicle-field-panels select, .vehicle-field-panels textarea { scroll-margin-block: 100px; }
+@container vehicle-fields (min-width: 660px) { .vehicle-field-panels .org-form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1250px) {
+  .vehicle-field-sections { grid-template-columns: 170px minmax(0, 1fr); gap: 24px; }
+  .vehicle-field-tabs { flex-direction: column; gap: 4px; align-items: stretch; border-right: 1px solid var(--line); padding-right: 16px; }
+  .vehicle-field-tabs button { border-color: transparent; justify-content: flex-start; }
+  .vehicle-field-tabs button[aria-selected=true] { border-color: #c0d9d3; }
+}
+@media (max-width: 1000px) {
+  .vehicle-data-form .org-form-footer { position: static; }
+  .vehicle-detail-navigation { padding: 12px 24px; }
+  .vehicle-detail-navigation nav, .vehicle-field-tabs { display: none; }
+  .vehicle-detail-picker, .vehicle-field-picker { display: flex; }
+  .vehicle-detail-picker > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .vehicle-detail-picker select, .vehicle-field-picker select { border-color: #728491; }
+}
+@media (max-width: 700px) {
+  .vehicle-detail-header { padding: 16px; }
+  .vehicle-detail-panel .vehicle-current-user { padding: 12px 16px; }
+  .vehicle-detail-navigation { padding: 12px 16px; }
+  .vehicle-data-form { padding: 16px; }
+  .vehicle-field-sections { gap: 16px; }
+  .vehicle-data-form .org-form-footer { margin: 20px -16px -16px; padding: 12px 16px; gap: 12px; }
+  .vehicle-data-form .org-form-footer .member-actions { width: 100%; flex-wrap: wrap; }
+  .vehicle-data-form .org-form-footer .member-actions button { flex: 1 1 auto; }
+  .vehicle-detail-panel .vehicle-assignee form, .vehicle-detail-panel .vehicle-assignee select { width: 100%; min-width: 0; }
+}

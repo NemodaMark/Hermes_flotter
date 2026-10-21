@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { api } from './api'
@@ -21,9 +21,9 @@ beforeEach(() => {
   vi.spyOn(api, 'vehicleCreationOptions').mockResolvedValue({ canCreateUnassigned: true, sites: [], servicePartners: [] })
 })
 async function fill() {
-  await userEvent.type(await screen.findByLabelText('Rendszám'), car.registration)
-  await userEvent.type(screen.getByLabelText('Gyártó'), car.make)
-  await userEvent.type(screen.getByLabelText('Modell'), car.model)
+  fireEvent.change(await screen.findByLabelText('Rendszám'), { target: { value: car.registration } })
+  fireEvent.change(screen.getByLabelText('Gyártó'), { target: { value: car.make } })
+  fireEvent.change(screen.getByLabelText('Modell'), { target: { value: car.model } })
   await userEvent.selectOptions(screen.getByLabelText('Karosszéria'), 'Estate')
 }
 
@@ -34,7 +34,8 @@ it('creates with the complete editable fields and no mandatory photograph', asyn
   mount(<VehicleCreatePage user={user} tenant={tenant} onBack={vi.fn()} onCreated={done} />)
   await fill()
   expect(screen.getByLabelText('Alvázszám (VIN)')).toBeInTheDocument()
-  expect(screen.getByLabelText('Következő szerviz dátuma')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('tab', { name: 'Határidők és szerviz' }))
+  expect(screen.getByLabelText('Következő szerviz dátuma')).toBeVisible()
   await userEvent.click(screen.getByRole('button', { name: 'Jármű létrehozása' }))
   await waitFor(() => expect(done).toHaveBeenCalledOnce())
   expect(created).toHaveBeenCalledWith(tenant.id, expect.objectContaining({ make: car.make, model: car.model, data: expect.objectContaining({ bodyType: 'Estate' }) }))

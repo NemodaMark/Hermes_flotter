@@ -28,6 +28,10 @@ A felhasználó neve vagy **Adatlap** gombja teljes profiloldalt nyit (`#/profil
 
 Az **Új jármű** teljes oldalas felvitel ugyanazt a `VehicleFields` űrlapot használja, mint a szerkesztés, karosszériatípussal és kezdő kilométerrel. A gyártó és modell írható választó; a mentett új értékek cégenként megmaradnak javaslatként. A járműhöz opcionálisan legfeljebb **5 JPG/PNG kép** tölthető fel, képenként **5 MiB** méretig. Megszakadt feltöltésnél csak a megmaradt képek próbálódnak újra, a létrehozott autó nem duplikálódik. A védett képek friss hitelesített lekérésből jelennek meg; váltáskor és bezáráskor az ideiglenes kép-URL felszabadul.
 
+A járműadatlap és az új jármű űrlapja négy választható mezőcsoportot használ: **Alapadatok**, **Műszaki adatok**, **Üzemeltetés**, **Határidők és szerviz**. Egyszerre egy csoport látható; a többi mező értéke megmarad, és a mentés a teljes adatlapot küldi a meglévő verzióval. A hibás, elrejtett mezőt a validáció megnyitja és fókuszálja. A mezőcsoportok nyílbillentyűkkel is válthatók; kisebb képernyőn lenyíló választók helyettesítik a hosszú navigációt. A rács a rendelkezésre álló helyhez igazodik, egy, két vagy három oszloppal.
+
+A **Képek** külön adatlaprész, csak megnyitáskor kéri le a képeket. A használó szerkesztése a **Telephely és használó** alatt érhető el, a jelenlegi használó neve az adatlap fejlécében is látható. A mezőcsoportok és az adatlaprészek közötti váltás megőrzi a járműadatok mentetlen piszkozatát. A módosítások jelzést kapnak, külön elvethetők, változtatás nélküli mentés nem indítható. A jogok és a telephelykorlátok ellenőrzése a jármű saját `permissions` listáját követi.
+
 Előírt jelszócsere esetén belépés után a **Kötelező jelszócsere** képernyő jelenik meg a munkaterület és a meghívóelfogadás előtt. Csak sikeres, jelenlegi jelszóval igazolt csere után lehet továbblépni; kijelentkezni közben is lehet. A backend ugyanezt a korlátozást minden üzleti API-n ellenőrzi. A globális jog első, naplózott beállítását és az API-k részleteit a [projekt leírása](../README.md#rendszerszintű-felhasználókezelés) tartalmazza.
 
 - Regisztráció, bejelentkezés és kijelentkezés a valódi API-val.
