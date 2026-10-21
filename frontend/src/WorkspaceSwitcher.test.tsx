@@ -35,7 +35,7 @@ it('keeps nested choices open, updates the combined location and restores focus 
   expect(trigger).toHaveFocus()
 })
 
-it('dismisses on an outside action without stealing its focus and closes with Done', async () => {
+it('dismisses on an outside action without stealing focus and needs no confirmation button', async () => {
   render(<Fixture />)
   const trigger = screen.getByRole('button', { name: /Munkaterület váltása:/ })
   await userEvent.click(trigger)
@@ -44,7 +44,8 @@ it('dismisses on an outside action without stealing its focus and closes with Do
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(outside).toHaveFocus()
   await userEvent.click(trigger)
-  await userEvent.click(screen.getByRole('button', { name: 'Kész' }))
+  expect(screen.queryByRole('button', { name: 'Kész' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Munkaterület-választó bezárása' }))
   expect(trigger).toHaveFocus()
   expect(trigger).toHaveAttribute('aria-expanded', 'false')
 })

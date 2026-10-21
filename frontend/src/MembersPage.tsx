@@ -2,7 +2,7 @@ import { Button } from './ui/Button'
 import { TableFrame } from './ui/Table'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LoaderCircle, Plus, RefreshCw } from 'lucide-react'
+import { LoaderCircle, Plus } from 'lucide-react'
 import { api } from './api'
 import type { Invitation, Member, Session, Tenant } from './api'
 import { AccessDialog } from './AccessDialog'
@@ -130,7 +130,6 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
   }
   if (profileId) return <UserProfilePage id={profileId} actor={user} tenant={tenant} onBack={() => setProfileId(null)} />
   const actions = <>
-    <Button className="icon-button" aria-label={mode === 'invitations' ? 'Meghívások frissítése' : 'Hozzáférések frissítése'} disabled={invitations.isFetching} onClick={() => void refresh()}><RefreshCw size={17} /></Button>
     {canInvite && <Button className="primary-button" disabled={canManage && !catalog.isSuccess} onClick={() => setDialog({ kind: 'invite' })}><Plus size={16} />Felhasználó meghívása</Button>}
   </>
   return (
@@ -147,7 +146,7 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
         )}
         <div>
           {mode === 'members' ? (
-            <PeopleList user={user} tenant={tenant} onProfile={onProfile ?? setProfileId} catalogReady={catalog.isSuccess} actions={actions} onAction={(kind, member) => setDialog({ kind, member })} />
+            <PeopleList user={user} tenant={tenant} onProfile={onProfile ?? setProfileId} actions={actions} />
           ) : !canInvite ? (
             <p className="notice">Nincs jogosultságod a meghívások megtekintéséhez.</p>
           ) : invitations.isError ? (

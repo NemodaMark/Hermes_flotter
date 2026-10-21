@@ -10,6 +10,7 @@ import { LeaseDialog, ServiceDialog, VehicleContracts } from './VehicleContracts
 import { documentApi } from './documentApi'
 import { fleetApi, moneyText } from './fleetApi'
 import type { Lease, VehicleRecord } from './fleetApi'
+import { api } from './api'
 
 const record: VehicleRecord = {
   vehicle: { id: 'car', registration: 'ABC-123', make: 'Ford', model: 'Transit', status: 'Active', version: 9, odometerKm: 50000, siteId: 'bp', siteName: 'Budapest', permissions: ['vehicles.read'] },
@@ -34,7 +35,7 @@ it('keeps the saved cents visible in leasing and service amounts', () => {
 it('uses the actual vehicle permissions for financial tabs, editing and archival', async () => {
   vi.spyOn(fleetApi, 'vehicle').mockResolvedValue(record)
   const options = vi.spyOn(fleetApi, 'partnerOptions')
-  mount(<VehiclePage user={user} tenant={{ id: 'company', name: 'Cég', permissions: ['vehicles.read', 'vehicles.update', 'vehicles.archive', 'vehicles.leasing.read', 'vehicles.service.manage', 'vehicles.documents.read', 'vehicles.documents.manage'] }} id="car" onBack={vi.fn()} />)
+  mount(<VehiclePage user={user} tenant={{ id: 'company', name: 'Cég', permissions: ['vehicles.read', 'vehicles.update', 'vehicles.odometer.create', 'vehicles.archive', 'vehicles.leasing.read', 'vehicles.service.manage', 'vehicles.documents.read', 'vehicles.documents.manage'] }} id="car" onBack={vi.fn()} />)
   expect(await screen.findByRole('heading', { name: 'ABC-123' })).toBeInTheDocument()
   expect(screen.getByLabelText('Rendszám', { exact: true })).toBeDisabled()
   expect(screen.queryByRole('button', { name: 'Lízing' })).not.toBeInTheDocument()
@@ -42,7 +43,35 @@ it('uses the actual vehicle permissions for financial tabs, editing and archival
   expect(screen.queryByRole('button', { name: 'Dokumentumok' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Archiválás' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Járműadatok mentése' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Kilométerállás: ABC-123' })).not.toBeInTheDocument()
   expect(options).not.toHaveBeenCalled()
+})
+it('records the current odometer from the vehicle profile with its actual permission and version', async () => {
+  const car = { ...record.vehicle, permissions: ['vehicles.read', 'vehicles.odometer.create'] }
+  vi.spyOn(fleetApi, 'vehicle').mockResolvedValue({ ...record, vehicle: car })
+  const save = vi.spyOn(api, 'recordOdometer').mockResolvedValue({ ...car, odometerKm: 51000, version: 10 })
+  mount(<VehiclePage user={user} tenant={{ id: 'company', name: 'Cég', permissions: ['vehicles.read', 'vehicles.odometer.create'] }} id="car" onBack={vi.fn()} />)
+  await userEvent.click(await screen.findByRole('button', { name: 'Kilométerállás: ABC-123' }))
+  fireEvent.change(screen.getByLabelText('Kilométerállás (km)'), { target: { value: '51000' } })
+  await userEvent.click(screen.getByRole('button', { name: 'Mentés' }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith('company', car, 51000))
+})
+it('searches partners while typing, resets the page atomically and uses a switch for archived records', async () => {
+  const list = vi.spyOn(fleetApi, 'partners').mockResolvedValue({ items: [], total: 60, page: 1, pageSize: 25 })
+  mount(<PartnersPage tenant={{ id: 'company', name: 'Cég', permissions: ['partners.read'] }} />)
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Következő oldal' })).toBeEnabled())
+  await userEvent.click(screen.getByRole('button', { name: 'Következő oldal' }))
+  await waitFor(() => expect(list).toHaveBeenLastCalledWith('company', 2, '', 'all', false, expect.any(AbortSignal)))
+  const search = screen.getByRole('textbox', { name: 'Partner keresése' })
+  fireEvent.change(search, { target: { value: 'D' } })
+  fireEvent.change(search, { target: { value: 'Du' } })
+  fireEvent.change(search, { target: { value: 'Duna' } })
+  expect(screen.queryByRole('button', { name: 'Keresés' })).not.toBeInTheDocument()
+  await waitFor(() => expect(list).toHaveBeenLastCalledWith('company', 1, 'Duna', 'all', false, expect.any(AbortSignal)))
+  expect(list.mock.calls.some(([, page, query]) => query && page !== 1)).toBe(false)
+  expect(list.mock.calls.some(([, , query]) => query === 'D' || query === 'Du')).toBe(false)
+  await userEvent.click(screen.getByRole('switch', { name: 'Archiváltak is' }))
+  await waitFor(() => expect(list).toHaveBeenLastCalledWith('company', 1, 'Duna', 'all', true, expect.any(AbortSignal)))
 })
 it('shows the vehicle document tab with the actual document permission without granting upload', async () => {
   vi.spyOn(fleetApi, 'vehicle').mockResolvedValue({ ...record, vehicle: { ...record.vehicle, permissions: ['vehicles.read', 'vehicles.documents.read'] } })

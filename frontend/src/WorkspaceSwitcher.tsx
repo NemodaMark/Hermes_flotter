@@ -28,7 +28,7 @@ export function WorkspaceSwitcher({ company, site, disabled, children }: {
       const viewportWidth = document.documentElement.clientWidth || window.innerWidth
       const rect = trigger.current!.getBoundingClientRect()
       const width = Math.min(360, viewportWidth - 24)
-      const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - element.offsetHeight - 12))
+      const top = Math.max(12, Math.min(rect.bottom, window.innerHeight - element.offsetHeight - 12))
       setPosition({ width, left: Math.max(12, Math.min(rect.left, viewportWidth - width - 12)), top, maxHeight: window.innerHeight - 24 })
     }
     try { element.showPopover?.() } catch { /* Fixed positioning also supports browsers without popovers. */ }
@@ -65,7 +65,6 @@ export function WorkspaceSwitcher({ company, site, disabled, children }: {
         <Button type="button" className="icon-button" aria-label="Munkaterület-választó bezárása" onClick={close}><X size={18} /></Button>
       </div>
       <div className="workspace-panel-fields">{children}</div>
-      <div className="workspace-panel-actions"><Button type="button" variant="default" size="sm" onClick={close}>Kész</Button></div>
     </div>, document.body)}
   </>
 }

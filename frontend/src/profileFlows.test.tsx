@@ -123,6 +123,8 @@ function mount({
         })
       if (url.pathname === `/api/v1/people/${initial.id}`)
         return json({ person: state.profile, version: state.profile.version, canEdit: admin, canManageAccount: admin, vehicles: [] })
+      if (url.pathname === `/api/v1/members/${initial.id}`)
+        return json({ userId: initial.id, displayName: initial.displayName, email: initial.email, isActive: true, version: 1, permissions: [], joinedAt: null, disabledAt: null })
       if (url.pathname === '/api/v1/system/users')
         return json({ items: [state.profile], total: 1, page: 1, pageSize: 25 })
       if (url.pathname === '/api/v1/system/audit-events')
@@ -334,7 +336,7 @@ it('opens the global directory from Users and filters admins or accounts without
     screen.getByRole('textbox', { name: 'Felhasználó keresése' }),
     'kiss',
   )
-  await userEvent.click(screen.getByRole('button', { name: 'Keresés' }))
+  expect(screen.queryByRole('button', { name: 'Keresés' })).not.toBeInTheDocument()
   await chooseOption(
     screen.getByRole('combobox', { name: 'Szűrés céges hozzáférés szerint' }),
     'none',

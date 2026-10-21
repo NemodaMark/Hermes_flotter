@@ -9,16 +9,18 @@ export function VehicleActions({
   user,
   tenant,
   vehicle,
+  allowEditing = true,
 }: {
   user: Session
   tenant: Tenant
   vehicle: Vehicle
+  allowEditing?: boolean
 }) {
   const client = useQueryClient()
   const [mode, setMode] = useState<'edit' | 'odometer' | null>(null)
   return (
     <div className="member-actions">
-      {vehicle.status !== 'Archived' && (vehicle.permissions ?? tenant.permissions).includes('vehicles.update') && (
+      {allowEditing && vehicle.status !== 'Archived' && (vehicle.permissions ?? tenant.permissions).includes('vehicles.update') && (
         <Button
           className="secondary-button"
           aria-label={`Jármű szerkesztése: ${vehicle.registration}`}

@@ -335,6 +335,8 @@ export const api = {
       `/api/v1/members?${new URLSearchParams({ page: String(page), pageSize: '25', search })}`,
       { tenantId, signal },
     ),
+  member: (tenantId: string, userId: string, signal?: AbortSignal) =>
+    request<Member>(`/api/v1/members/${encodeURIComponent(userId)}`, { tenantId, signal }),
   memberAccess: (tenantId: string, userId: string, signal?: AbortSignal) =>
     request<MemberAccess>(`/api/v1/members/${encodeURIComponent(userId)}/permissions`, {
       tenantId,

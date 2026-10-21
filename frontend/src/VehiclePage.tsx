@@ -15,6 +15,7 @@ import { VehicleDocuments } from './VehicleDocuments'
 import { VehiclePhotos, VehicleAssignee } from './VehicleMedia'
 import { VehicleFields } from './VehicleFields'
 import { VehicleAssignmentHistory } from './VehicleAssignmentHistory'
+import { VehicleActions } from './VehicleActions'
 import './fleet.css'
 
 export function VehiclePage({ user, tenant, id, onBack }: { user: Session; tenant: Tenant; id: string; onBack: () => void }) {
@@ -50,6 +51,7 @@ export function VehiclePage({ user, tenant, id, onBack }: { user: Session; tenan
     <section className="access-panel vehicle-detail-panel" aria-label="Járműadatlap">
       <div className="org-toolbar vehicle-detail-header"><div><h2>{car?.registration ?? 'Járműadatlap'}</h2>{car && <p>{car.make} {car.model}</p>}</div>
         <div className="member-actions"><Button className="icon-button" aria-label="Járműadatlap frissítése" disabled={record.isFetching} onClick={() => void changed()}><RefreshCw size={17} /></Button>
+          {car && <VehicleActions user={user} tenant={tenant} vehicle={car} allowEditing={false} />}
           {car && can('vehicles.archive') && <Button className="secondary-button" onClick={() => setArchiveOpen(true)}>{car.status === 'Archived' ? 'Visszaállítás' : 'Archiválás'}</Button>}
         </div>
         {car && <div className="vehicle-detail-meta"><span className={`status status-${car.status.toLowerCase()}`}>{vehicleStatuses[car.status as keyof typeof vehicleStatuses]}</span><span>{car.siteName ?? 'Telephely nélkül'}</span><span>{car.odometerKm == null ? 'Nincs km-adat' : `${car.odometerKm.toLocaleString('hu-HU')} km`}</span></div>}

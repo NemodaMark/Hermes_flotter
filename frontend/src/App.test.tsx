@@ -11,6 +11,7 @@ function mountApp({
   signedIn = true,
   expire = false,
   canCreateUnassigned = true,
+  ownAvatarRevision = null as string | null,
 } = {}) {
   resetCsrfToken()
   const user = { id: 'anna', displayName: 'Kovács Anna', email: 'anna@example.test' }
@@ -27,6 +28,8 @@ function mountApp({
       const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status })
       if (path.endsWith('/csrf')) return json({ requestToken: 'test-token' })
       if (path.endsWith('/session')) return session ? json(session) : json({}, 401)
+      if (path === '/api/v1/people/anna') return json({ person: { ...user, phoneNumber: null, avatarRevision: ownAvatarRevision }, version: 1, canEdit: true, canManageAccount: false, vehicles: [] })
+      if (path === '/api/v1/people/anna/avatar') return new Response('pixels', { headers: { 'Content-Type': 'image/png' } })
       if (path.endsWith('/login') || path.endsWith('/register')) {
         session = user
         return json(user)
@@ -99,6 +102,21 @@ it('offers vehicle creation only with the explicit permission', async () => {
   expect(await screen.findByText('DUN-001')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Új jármű' })).not.toBeInTheDocument()
 })
+it('uses the uploaded profile photo in the sidebar independently of the selected company', async () => {
+  const blobUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:own-photo')
+  const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+  mountApp({ ownAvatarRevision: 'photo-v1' })
+  await waitFor(() => expect(screen.getByRole('img', { name: 'Saját profilkép' })).toHaveAttribute('src', 'blob:own-photo'))
+  await userEvent.click(screen.getByRole('button', { name: /Munkaterület váltása:/ }))
+  await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület' }), 'pannon')
+  await screen.findByText('PAN-002')
+  expect(screen.getByRole('img', { name: 'Saját profilkép' })).toHaveAttribute('src', 'blob:own-photo')
+  const calls = vi.mocked(fetch).mock.calls.filter(([path]) => path === '/api/v1/people/anna/avatar')
+  expect(calls).toHaveLength(1)
+  expect(new Headers(calls[0][1]?.headers).get('X-Tenant-Id')).toBeNull()
+  expect(screen.queryByText('Rendszer elérhető')).not.toBeInTheDocument()
+  blobUrl.mockRestore(); revoke.mockRestore()
+})
 
 it('filters the fleet by an authorized empty site and resets the site when changing company', async () => {
   mountApp()
@@ -107,7 +125,7 @@ it('filters the fleet by an authorized empty site and resets the site when chang
   await userEvent.click(screen.getByRole('button', { name: /Munkaterület váltása: Duna \/ Összes telephely/ }))
   await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület telephelye' }), 'site-a')
   expect(screen.getByRole('button', { name: 'Munkaterület váltása: Duna / Budapest' })).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Kész' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Munkaterület-választó bezárása' }))
   expect(screen.queryByText('DUN-001')).not.toBeInTheDocument()
   expect(screen.getByRole('columnheader', { name: 'Jármű' })).toBeInTheDocument()
   expect(screen.getByText(/Nincs találat/)).toBeInTheDocument()
@@ -128,6 +146,10 @@ it('puts fleet search, filtering and creation in the same toolbar without duplic
   expect(within(toolbar).getByRole('textbox', { name: 'Jármű keresése' })).toBeInTheDocument()
   expect(within(toolbar).getByRole('combobox', { name: 'Szűrés állapot szerint' })).toBeInTheDocument()
   expect(within(toolbar).getByRole('button', { name: 'Új jármű' })).toBeInTheDocument()
+  expect(within(toolbar).queryByText('1 jármű')).not.toBeInTheDocument()
+  expect(screen.getByText('1 jármű')).toBeInTheDocument()
+  expect(screen.getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Jármű', 'Gyártó / modell', 'Km-állás', 'Állapot'])
+  expect(screen.queryByRole('button', { name: /Jármű szerkesztése:/ })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Járműlista frissítése' })).not.toBeInTheDocument()
   expect(screen.queryByText('Céges hozzáférés')).not.toBeInTheDocument()
 })
@@ -139,6 +161,8 @@ it('opens users, invitations and groups as independent pages with distinct URLs'
   await screen.findByRole('textbox', { name: 'Felhasználó keresése' })
   expect(window.location.hash).toBe('#/users')
   expect(screen.queryByRole('tablist', { name: 'Felhasználókezelés' })).not.toBeInTheDocument()
+  expect(within(nav).getByRole('button', { name: 'Meghívások' }).closest('details')).not.toHaveAttribute('open')
+  await userEvent.click(within(nav).getByText('Beállítások'))
   await userEvent.click(within(nav).getByRole('button', { name: 'Meghívások' }))
   await screen.findByText(/Még nincs meghívás/)
   expect(window.location.hash).toBe('#/invitations')

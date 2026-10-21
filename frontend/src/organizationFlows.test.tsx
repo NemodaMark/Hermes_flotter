@@ -275,7 +275,7 @@ it('filters the company directory and keeps inactive company management reachabl
     'all',
   )
   await userEvent.type(screen.getByRole('textbox', { name: 'Cég keresése' }), 'Duna')
-  await userEvent.click(screen.getByRole('button', { name: 'Keresés' }))
+  expect(screen.queryByRole('button', { name: 'Keresés' })).not.toBeInTheDocument()
   await waitFor(() =>
     expect(
       calls.some(

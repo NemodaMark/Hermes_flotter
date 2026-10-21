@@ -174,6 +174,11 @@ function mount({
         return new Response(null, { status: 204 })
       }
       if (url.pathname === '/api/v1/vehicles') return json([])
+      if (url.pathname === '/api/v1/members/elek') return json(members[0])
+      if (url.pathname.startsWith('/api/v1/people/')) {
+        const target = url.pathname.endsWith('/elek') ? members[0] : user
+        return json({ person: { id: 'elek', displayName: target.displayName, email: target.email, phoneNumber: null, avatarRevision: null }, version: 1, canEdit: false, canManageAccount: false, vehicles: [] })
+      }
       if (url.pathname.startsWith('/health')) return json({ status: 'ready' })
       throw new Error(`Unexpected request: ${method} ${path}`)
     }),
@@ -201,10 +206,18 @@ async function openMembers() {
   await userEvent.click(await screen.findByRole('button', { name: 'Felhasználók' }))
   await screen.findByText('Teszt Elek')
 }
+async function openMemberProfile() {
+  await openMembers()
+  expect(screen.queryByRole('columnheader', { name: 'Műveletek' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('columnheader', { name: 'Hozzáférés összegzése' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('row', { name: 'Felhasználó: Teszt Elek' }))
+  await screen.findByRole('heading', { name: 'Céges hozzáférések' })
+  await screen.findByText('1 jogosultság')
+}
 
 it('edits direct grants with the correct company, CSRF token and membership version', async () => {
   const { calls } = mount()
-  await openMembers()
+  await openMemberProfile()
   await userEvent.click(screen.getByRole('button', { name: 'Jogosultságok: elek@example.test' }))
   const dialog = screen.getByRole('dialog')
   await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Jármű felvétele' }))
@@ -224,6 +237,8 @@ it('keeps existing grants outside the actors delegation scope locked and unchang
   })
   setMembers([{ ...initialMember, permissions: ['vehicles.read', 'vehicles.create'] }])
   await openMembers()
+  await userEvent.click(screen.getByRole('row', { name: 'Felhasználó: Teszt Elek' }))
+  await screen.findByText('2 jogosultság')
   await userEvent.click(screen.getByRole('button', { name: 'Jogosultságok: elek@example.test' }))
   const dialog = screen.getByRole('dialog')
   const locked = within(dialog).getByRole('checkbox', { name: /Jármű felvétele/ })
@@ -299,7 +314,7 @@ it('offers read-only member access without any mutation controls', async () => {
     screen.getByRole('textbox', { name: 'Felhasználó keresése' }),
     'elek@example.test',
   )
-  await userEvent.click(screen.getByRole('button', { name: 'Keresés' }))
+  expect(screen.queryByRole('button', { name: 'Keresés' })).not.toBeInTheDocument()
   await waitFor(() =>
     expect(
       calls.some(
@@ -308,10 +323,18 @@ it('offers read-only member access without any mutation controls', async () => {
     ).toBe(true),
   )
 })
+it('keeps permission-only management on the profile without fetching a member-reader endpoint', async () => {
+  const { calls } = mount({ permissions: ['permissions.manage'], hash: '#/profile/elek' })
+  await userEvent.click(await screen.findByRole('button', { name: 'Jogosultságok: elek' }))
+  expect(await screen.findByRole('dialog', { name: 'Jogosultságok módosítása' })).toBeInTheDocument()
+  expect(calls.some(call => call.path === '/api/v1/members/elek/permissions')).toBe(true)
+  expect(calls.some(call => call.path === '/api/v1/members/elek')).toBe(false)
+  expect(screen.queryByRole('button', { name: /Felfüggesztés:/ })).not.toBeInTheDocument()
+})
 
 it('confirms company-local suspension and supports reactivation using the refreshed version', async () => {
   const { calls } = mount()
-  await openMembers()
+  await openMemberProfile()
   await userEvent.click(screen.getByRole('button', { name: 'Felfüggesztés: elek@example.test' }))
   expect(calls.some((call) => call.method === 'PATCH')).toBe(false)
   await userEvent.click(
@@ -340,7 +363,7 @@ it('shows the last-manager protection error without pretending suspension succee
     code: 'last_permission_manager',
     title: 'Az utolsó aktív jogosultságkezelő nem függeszthető fel.',
   }
-  await openMembers()
+  await openMemberProfile()
   await userEvent.click(screen.getByRole('button', { name: 'Felfüggesztés: elek@example.test' }))
   await userEvent.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'Felfüggesztés' }),
@@ -357,7 +380,7 @@ it('reloads stale grants explicitly before retrying with the new version', async
     code: 'stale_membership',
     title: 'A tagság időközben megváltozott.',
   }
-  await openMembers()
+  await openMemberProfile()
   await userEvent.click(screen.getByRole('button', { name: 'Jogosultságok: elek@example.test' }))
   await userEvent.click(screen.getByRole('button', { name: 'Jogosultságok mentése' }))
   await userEvent.click(await screen.findByRole('button', { name: 'Friss adatok betöltése' }))
@@ -377,7 +400,7 @@ it('reloads stale grants explicitly before retrying with the new version', async
 
 it('resets private editor state when the current company changes during an open dialog', async () => {
   const { calls, client } = mount()
-  await openMembers()
+  await openMemberProfile()
   await userEvent.click(screen.getByRole('button', { name: 'Jogosultságok: elek@example.test' }))
   // A background access refresh can remove the current company while an editor is open.
   act(() => client.setQueryData<Tenant[]>(['tenants', user.id], [{ id: otherTenantId, name: 'Pannon', permissions: allPermissions }]))
@@ -392,7 +415,7 @@ it('resets private editor state when the current company changes during an open 
 
 it('clears private data and returns to login if a management mutation finds an expired session', async () => {
   const { state, client } = mount()
-  await openMembers()
+  await openMemberProfile()
   await userEvent.click(screen.getByRole('button', { name: 'Jogosultságok: elek@example.test' }))
   state.expireMutation = true
   await userEvent.click(screen.getByRole('button', { name: 'Jogosultságok mentése' }))

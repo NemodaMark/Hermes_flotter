@@ -19,6 +19,7 @@ import type { CompanyRow, Contact, Site, SiteVehicle } from './organizationApi'
 import './organizations.css'
 import { ListToolbar } from './ListToolbar'
 import { OrganizationAuditChanges } from './OrganizationAuditChanges'
+import { useListSearch } from './useListSearch'
 
 export function PageButtons({
   page,
@@ -65,10 +66,8 @@ export function CompaniesPage({
   onNewCompany: () => void
 }) {
   const [selected, setSelected] = useState<CompanyRow | null>(null)
-  const [page, setPage] = useState(1)
+  const { page, setPage, search, draft, setDraft } = useListSearch()
   const [status, setStatus] = useState('Active')
-  const [draft, setDraft] = useState('')
-  const [search, setSearch] = useState('')
   const companies = useQuery({
     queryKey: ['companies', user.id, page, search, status],
     queryFn: ({ signal }) => organizationApi.companies(page, search, status, signal),
@@ -92,14 +91,7 @@ export function CompaniesPage({
         <Button className="icon-button" aria-label="Céglista frissítése" disabled={companies.isFetching} onClick={() => void companies.refetch()}><RefreshCw size={17} /></Button>
         <Button className="primary-button" onClick={onNewCompany}><Plus size={16} />Új cég</Button>
       </>}>
-      <form
-        className="list-toolbar-form"
-        onSubmit={(e) => {
-          e.preventDefault()
-          setSearch(draft.trim())
-          setPage(1)
-        }}
-      >
+      <div className="list-toolbar-form">
         <div className="search-field">
           <Search size={18} />
           <input aria-label="Cég keresése" placeholder="Cégnév" value={draft} maxLength={100} onChange={(e) => setDraft(e.target.value)} />
@@ -120,8 +112,7 @@ export function CompaniesPage({
             <option value="all">Minden állapot</option>
           </Select>
         </label>
-        <Button className="secondary-button">Keresés</Button>
-      </form>
+      </div>
       </ListToolbar>
       {companies.isError ? (
         <p role="alert" className="notice error">

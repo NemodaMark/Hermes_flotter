@@ -9,6 +9,7 @@ import { initials } from './peopleDisplay'
 import { UserProfileEditor } from './UserProfileEditor'
 import { GroupAssignmentDialog } from './PermissionGroups'
 import { QueryMessage } from './FleetFields'
+import { ProfileCompanyAccess } from './ProfileCompanyAccess'
 import './profiles.css'
 
 export function UserProfilePage({ id, actor, tenant, onBack, onVehicle }: {
@@ -22,6 +23,7 @@ export function UserProfilePage({ id, actor, tenant, onBack, onVehicle }: {
       client.invalidateQueries({ queryKey: ['person-profile'] }), client.invalidateQueries({ queryKey: ['user-profile'] }),
       client.invalidateQueries({ queryKey: ['people-list'] }), client.invalidateQueries({ queryKey: ['members'] }),
       client.invalidateQueries({ queryKey: ['system-users'] }), client.invalidateQueries({ queryKey: ['session'] }),
+      client.invalidateQueries({ queryKey: ['profile-member'] }), client.invalidateQueries({ queryKey: ['tenants'] }),
     ])
   }
   const avatar = useMutation({ mutationFn: (file: File | null) => file ? peopleApi.avatar(id, file, profile.data!.version) : peopleApi.deleteAvatar(id, profile.data!.version), onSuccess: refresh })
@@ -55,8 +57,14 @@ export function UserProfilePage({ id, actor, tenant, onBack, onVehicle }: {
           </form> : <dl className="profile-details"><div><dt>E-mail-cím</dt><dd>{person.email}</dd></div><div><dt>Telefonszám</dt><dd>{person.phoneNumber || 'Nincs megadva'}</dd></div>{tenant && <div><dt>Kiválasztott cég</dt><dd>{tenant.name}</dd></div>}</dl>}
         </section>
       </div>
-      {profile.data.canManageAccount && <section className="access-panel profile-section"><div className="org-section-tools"><h3>Profil és hozzáférések kezelése</h3><Button className="secondary-button" onClick={() => setGroups(true)}>Céges hozzáférések és csoportok</Button></div><UserProfileEditor id={id} actor={actor} /></section>}
     </>}
+    {(actor.systemPermissions?.includes('system.manage') || tenant?.permissions.includes('permissions.manage') || (tenant?.permissions.includes('members.update') && tenant.permissions.includes('members.read'))) && <section className="access-panel profile-section" aria-label="Céges hozzáférések kezelése">
+      <div className="profile-access-heading"><h3>Céges hozzáférések</h3>
+        {(actor.systemPermissions?.includes('system.manage') || tenant?.permissions.includes('permissions.manage')) && <Button className="secondary-button" onClick={() => setGroups(true)}>Céges hozzáférések és csoportok</Button>}
+      </div>
+      {tenant && <ProfileCompanyAccess key={tenant.id} user={actor} tenant={tenant} id={id} onChanged={refresh} />}
+    </section>}
+    {profile.data?.canManageAccount && <section className="access-panel profile-section"><h3>Fiók kezelése</h3><UserProfileEditor id={id} actor={actor} /></section>}
     {groups && <GroupAssignmentDialog user={actor} userId={id} onClose={() => { setGroups(false); void refresh() }} />}
   </section>
 }

@@ -13,5 +13,4 @@
 .workspace-panel-fields { display: grid; gap: 16px; }
 .workspace-panel-fields label > span { display: block; margin-bottom: 6px; font-weight: 500; }
 .workspace-panel-fields .workspace-retry { margin-top: 8px; }
-.workspace-panel-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
 @media (max-width: 700px) { .workspace-caption { display: none; } .workspace-trigger { font-size: 13px; } }

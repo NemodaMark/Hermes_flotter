@@ -13,11 +13,11 @@ import './fleet.css'
 import { ListToolbar } from './ListToolbar'
 import { Badge } from './ui/Badge'
 import { ClickableRow, TableFrame } from './ui/Table'
+import { Toggle } from './ui/Toggle'
+import { useListSearch } from './useListSearch'
 
 export function PartnersPage({ tenant }: { tenant: Tenant }) {
-  const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
-  const [draft, setDraft] = useState('')
+  const { page, setPage, search, draft, setDraft } = useListSearch()
   const [kind, setKind] = useState('all')
   const [archived, setArchived] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
@@ -30,12 +30,11 @@ export function PartnersPage({ tenant }: { tenant: Tenant }) {
       {can('partners.read') && <Button className="icon-button" aria-label="Partnerlista frissítése" onClick={() => void rows.refetch()} disabled={rows.isFetching}><RefreshCw size={17} /></Button>}
       {can('partners.create') && <Button className="primary-button" onClick={() => setSelected('new')}><Plus size={17} />Új partner</Button>}
     </>}>
-      {can('partners.read') && <form className="list-toolbar-form" onSubmit={e => { e.preventDefault(); setSearch(draft.trim()); setPage(1) }}>
+      {can('partners.read') && <div className="list-toolbar-form">
         <div className="search-field"><Search size={18} /><input aria-label="Partner keresése" placeholder="Partner neve vagy település" value={draft} maxLength={100} onChange={e => setDraft(e.target.value)} /></div>
         <SelectField label="Kategória" value={kind} options={{ all: 'Minden partner', lessor: 'Lízingbeadó', service: 'Szerviz' }} onChange={x => { setKind(x); setPage(1) }} />
-        <label className="org-checkbox"><input type="checkbox" checked={archived} onChange={e => { setArchived(e.target.checked); setPage(1) }} />Archiváltak is</label>
-        <Button className="secondary-button">Keresés</Button>
-      </form>}
+        <Toggle checked={archived} onChange={value => { setArchived(value); setPage(1) }}>Archiváltak is</Toggle>
+      </div>}
     </ListToolbar>
     {!can('partners.read') ? <p className="notice">Nincs jogosultságod a partnerlista megtekintéséhez.</p> : <>
       <QueryMessage pending={false} error={rows.error} retry={() => void rows.refetch()} />
