@@ -103,10 +103,13 @@ A jármű felvétele és szerkesztése közös, teljes mezőkészletet használ,
 | `GET/POST /api/v1/vehicles/{id}/photos` | Olvasás `vehicles.read`, írás `vehicles.update` telephelykorláttal |
 | `GET/DELETE /api/v1/vehicles/{id}/photos/{photoId}` | Védett JPEG / verziózott törlés |
 | `GET /api/v1/vehicles/{id}/assignee` | Aktuális használó, `vehicles.read` |
+| `GET /api/v1/vehicles/{id}/assignee-history?page=1` | Használati előzmények, `vehicles.read` a jármű saját telephelykorlátjával, 25 sor/oldal |
 | `GET /api/v1/vehicles/{id}/assignee-options` | Aktív céges munkatársak minimális listája, `vehicles.users.assign` |
 | `PUT /api/v1/vehicles/{id}/assignee` | Használó kijelölése vagy levétele, `vehicles.users.assign` és járműverzió |
 
 A képfeltöltés multipart `file` és `version` mezőket vár; minden módosítás CSRF-védett és naplózott. Kizárólag felvételi jogú felhasználó a saját, legfeljebb 15 perce létrehozott autójához, frissen ellenőrzött felvételi telephelyjoggal töltheti fel a kezdeti képeket. Az ötös korlátot adatbázis-korlát is védi. A használóváltás hozzáfűzött, adatbázisszinten védett előzmény, cégenkénti aktív tagságot igényel. A `20261020213505_PeopleAndVehicleMedia` migráció megőrzi a korábbi járműveket és dokumentumokat, és a meglévő járművekből cégenként feltölti a javaslatlistát. Visszaállításhoz a mentés és a hozzá tartozó alkalmazásverzió szükséges.
+
+A jármű **Használati előzmények** füle a korábban és jelenleg hozzárendelt személy nevét/felhasználónevét, az időszak kezdetét és végét, valamint a hozzárendelő és lezáró személyt mutatja. A legújabb időszak az első; a nyitott időszak **Jelenleg is** jelölést kap. Használóváltáskor a lezárás és az új időszak kezdete ugyanaz az időpont, egyetlen tranzakcióban. A meglévő előzmények nem íródnak át. Felfüggesztett munkatárs vagy archivált jármű előzményei megmaradnak; hiányzó profil esetén az állandó felhasználónév látszik. A lista nem tartalmaz e-mailt, fiókbiztonsági adatot vagy más céges hozzáférést, és nem teszi szerkeszthetővé a történetet. Ehhez a bővítéshez új adatbázismigráció nem szükséges.
 
 ## Fiókok és munkamenetek
 

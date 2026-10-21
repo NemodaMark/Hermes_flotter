@@ -12,6 +12,7 @@ import { VehicleContracts } from './VehicleContracts'
 import { VehicleDocuments } from './VehicleDocuments'
 import { VehiclePhotos, VehicleAssignee } from './VehicleMedia'
 import { VehicleFields } from './VehicleFields'
+import { VehicleAssignmentHistory } from './VehicleAssignmentHistory'
 import './fleet.css'
 
 export function VehiclePage({ user, tenant, id, onBack }: { user: Session; tenant: Tenant; id: string; onBack: () => void }) {
@@ -30,12 +31,13 @@ export function VehiclePage({ user, tenant, id, onBack }: { user: Session; tenan
       client.invalidateQueries({ queryKey: ['organization'] }),
       client.invalidateQueries({ queryKey: ['vehicle-photos', tenant.id, id] }),
       client.invalidateQueries({ queryKey: ['vehicle-assignee', tenant.id, id] }),
+      client.invalidateQueries({ queryKey: ['vehicle-assignee-history', tenant.id, id] }),
       client.invalidateQueries({ queryKey: ['person-profile'] }),
       client.invalidateQueries({ queryKey: ['vehicle-catalog', tenant.id] }),
       client.invalidateQueries({ queryKey: ['system-audit'] }),
     ])
   }
-  const tabs = [['data', 'Adatlap'], ['site', 'Telephely'],
+  const tabs = [['data', 'Adatlap'], ['site', 'Telephely'], ['assignees', 'Használati előzmények'],
     ...(can('vehicles.documents.read') || can('vehicles.documents.manage') ? [['documents', 'Dokumentumok']] : []),
     ...(can('vehicles.leasing.read') || can('vehicles.leasing.manage') ? [['leases', 'Lízing']] : []),
     ...(can('vehicles.service.read') || can('vehicles.service.manage') ? [['services', 'Szerviz']] : []),
@@ -59,6 +61,7 @@ export function VehiclePage({ user, tenant, id, onBack }: { user: Session; tenan
         {(tab === 'leases' || tab === 'services') && <VehicleContracts key={tab} tenant={tenant} car={car!} kind={tab} onChanged={changed} />}
         {tab === 'documents' && (can('vehicles.documents.read') || can('vehicles.documents.manage')) && <VehicleDocuments tenantId={tenant.id} vehicleId={id} registration={car!.registration} kind="vehicle" target={{ id, name: 'Járműokmányok', version: car!.version! }} canRead={can('vehicles.documents.read')} canManage={can('vehicles.documents.manage') && car?.status !== 'Archived'} embedded onChanged={changed} onClose={() => setTab('data')} />}
         {tab === 'history' && <VehicleHistory tenantId={tenant.id} id={id} />}
+        {tab === 'assignees' && <VehicleAssignmentHistory tenantId={tenant.id} id={id} />}
         {tab === 'audit' && can('audit.read') && <FleetAudit tenantId={tenant.id} id={id} vehicle />}
       </>}
     </section>

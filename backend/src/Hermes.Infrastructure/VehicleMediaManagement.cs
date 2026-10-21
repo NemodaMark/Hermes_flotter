@@ -88,6 +88,24 @@ public sealed partial class FleetManagement
         return await db.Users.Where(x => ids.Contains(x.Id) && !db.AccountLifecycles.Any(a => a.UserId == x.Id && a.IsArchived))
             .OrderBy(x => x.DisplayName).Select(x => new PersonSummary(x.Id, x.DisplayName, x.Email!, x.PhoneNumber, null)).ToArrayAsync(ct);
     }, ct);
+    public Task<PageResult<VehicleAssignmentHistory>> AssigneeHistory(Guid id, int page, CancellationToken ct)
+        => Scoped(Permissions.VehiclesRead, async access =>
+        {
+            await Car(id, access, Permissions.VehiclesRead, ct);
+            FleetValidation.Page(page);
+            var query = db.VehicleUserAssignments.AsNoTracking().Where(x => x.VehicleId == id);
+            var total = await query.CountAsync(ct);
+            var rows = await query.OrderByDescending(x => x.AssignedAt).ThenByDescending(x => x.Id)
+                .Skip((page - 1) * 25).Take(25).ToArrayAsync(ct);
+            // Resolve only names for this vehicle's history, without exposing account or membership details.
+            // The stable usernames remain usable if an account has since been removed.
+            var subjects = rows.SelectMany(x => new[] { x.UserId, x.AssignedBy, x.ReleasedBy }).OfType<string>().Distinct().ToArray();
+            var names = await db.Users.AsNoTracking().Where(x => subjects.Contains(x.Id))
+                .Select(x => new { x.Id, x.DisplayName }).ToDictionaryAsync(x => x.Id, x => x.DisplayName, ct);
+            string Name(string subject) => names.GetValueOrDefault(subject, subject);
+            return new PageResult<VehicleAssignmentHistory>(rows.Select(x => new VehicleAssignmentHistory(x.Id, x.UserId, Name(x.UserId),
+                x.AssignedAt, x.ReleasedAt, x.AssignedBy, Name(x.AssignedBy), x.ReleasedBy, x.ReleasedBy is null ? null : Name(x.ReleasedBy))).ToArray(), total, page, 25);
+        }, ct);
     public Task<VehicleAssignee?> AssignUser(Guid id, AssignUserInput input, CancellationToken ct) => Scoped<VehicleAssignee?>(Permissions.VehiclesAssignUsers, async access =>
     {
         var car = await Car(id, access, Permissions.VehiclesAssignUsers, ct, write: true); FleetValidation.Revision(car.Version, input.Version);
@@ -101,8 +119,9 @@ public sealed partial class FleetManagement
         }
         var current = await db.VehicleUserAssignments.SingleOrDefaultAsync(x => x.VehicleId == id && x.ReleasedAt == null, ct);
         if (current?.UserId == input.UserId) return current is null ? null : new(current.UserId, user!.DisplayName, current.AssignedAt);
-        if (current is not null) { current.ReleasedAt = DateTimeOffset.UtcNow; current.ReleasedBy = Actor; await db.SaveChangesAsync(ct); }
-        var next = user is null ? null : new VehicleUserAssignment { TenantId = TenantId, VehicleId = id, UserId = user.Id, AssignedBy = Actor };
+        var changedAt = DateTimeOffset.UtcNow;
+        if (current is not null) { current.ReleasedAt = changedAt; current.ReleasedBy = Actor; await db.SaveChangesAsync(ct); }
+        var next = user is null ? null : new VehicleUserAssignment { TenantId = TenantId, VehicleId = id, UserId = user.Id, AssignedBy = Actor, AssignedAt = changedAt };
         if (next is not null) db.VehicleUserAssignments.Add(next);
         car.Version++;
         Audit("vehicle.user_assigned", id, current?.UserId, user?.Id, id); await db.SaveChangesAsync(ct);

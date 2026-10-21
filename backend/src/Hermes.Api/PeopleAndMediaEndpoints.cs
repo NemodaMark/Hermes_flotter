@@ -40,6 +40,8 @@ public static class PeopleAndMediaEndpoints
             => Results.Ok(await service.DeletePhoto(id, photo, version, ct)));
         cars.MapGet("/{id:guid}/assignee", async (Guid id, FleetManagement service, CancellationToken ct)
             => Results.Ok(new { current = await service.Assignee(id, ct) })).RequireAuthorization(Permissions.VehiclesRead);
+        cars.MapGet("/{id:guid}/assignee-history", async (Guid id, FleetManagement service, CancellationToken ct, int page = 1)
+            => Results.Ok(await service.AssigneeHistory(id, page, ct))).RequireAuthorization(Permissions.VehiclesRead);
         cars.MapGet("/{id:guid}/assignee-options", async (Guid id, FleetManagement service, CancellationToken ct)
             => Results.Ok(await service.AssigneeOptions(id, ct))).RequireAuthorization(Permissions.VehiclesAssignUsers);
         cars.MapPut("/{id:guid}/assignee", async (Guid id, AssignUserInput body, FleetManagement service, CancellationToken ct)

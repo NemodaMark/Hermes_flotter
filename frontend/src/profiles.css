@@ -60,6 +60,10 @@
 .vehicle-assignee { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 16px 24px; border-bottom: 1px solid #d4e0e7; }
 .vehicle-assignee form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .vehicle-assignee select { min-width: 200px; width: auto; }
+.assignment-history-table { min-width: 760px; }
+.assignment-history-table td { vertical-align: top; }
+.assignment-history-table time { display: block; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.assignment-person { display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
 .vehicle-gallery { padding: 20px 24px; border-bottom: 1px solid #d4e0e7; }
 .vehicle-gallery .org-section-tools { padding: 0; }
 @media (max-width: 768px) { .profile-columns { grid-template-columns: 1fr; } .profile-summary, .profile-section { padding: 20px; } .toggle-control { margin-left: 0; } .profile-page { gap: 16px; } }

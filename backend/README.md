@@ -20,6 +20,7 @@ Az ASP.NET Core 10 + Entity Framework Core + PostgreSQL 18 backend jelenlegi kii
 - Teljes mezőkészlettel történő járműfelvitel, karosszériatípus, cégenként tanuló gyártó/modell-katalógus, opcionális 0–5 védett járműkép.
 - Alap munkatársprofilok közös aktív cégtagsággal, saját profil és profilkép szerkesztése; elkülönített rendszerszintű fiókkezelés.
 - Járműhasználó kijelölése külön `vehicles.users.assign` joggal, telephelykorláttal és nem törölhető használati előzménnyel; profilon csak a megtekintő által olvasható autók látszanak.
+- Lapozott használati előzmény a `GET /api/v1/vehicles/{id}/assignee-history?page=1` végponton, `vehicles.read` joggal és a jármű telephelykorlátjával; időszakok, hozzárendelő és lezáró személy, kizárólag név/felhasználónév. Használóváltásnál az előző időszak vége és az új kezdete azonos időpont.
 - Céges partnernyilvántartás több kategóriával és kapcsolattartóval; külön lízingszerződés- és szervizelőzmények, műveleti jogokkal és változásnaplóval.
 - Aktív tagság és műveleti jog ellenőrzése, EF Core tenantszűrés és PostgreSQL FORCE ROW LEVEL SECURITY a járműveken és az új céges hozzáférési táblákon.
 - Külön migrációs és alkalmazás-adatbázisszerepkör, készenléti végpont és PostgreSQL-es integrációs tesztek.
