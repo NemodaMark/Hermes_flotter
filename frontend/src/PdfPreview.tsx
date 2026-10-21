@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
 import type { PDFDocumentProxy, PDFDocumentLoadingTask, RenderTask } from 'pdfjs-dist'
@@ -62,13 +63,13 @@ export function PdfPreview({ blob, name }: { blob: Blob; name: string }) {
   }, [pdf, page, zoom, width, renderKey])
   return <>
     <div className="document-preview-toolbar" aria-label="PDF vezérlők">
-      <button className="icon-button" aria-label="Előző PDF-oldal" disabled={!pdf || page <= 1 || rendering} onClick={() => setPage(x => x - 1)}><ChevronLeft size={18} /></button>
+      <Button className="icon-button" aria-label="Előző PDF-oldal" disabled={!pdf || page <= 1 || rendering} onClick={() => setPage(x => x - 1)}><ChevronLeft size={18} /></Button>
       <output aria-label="PDF-oldal">{page} / {pdf?.numPages ?? '–'}</output>
-      <button className="icon-button" aria-label="Következő PDF-oldal" disabled={!pdf || page >= pdf.numPages || rendering} onClick={() => setPage(x => x + 1)}><ChevronRight size={18} /></button>
-      <button className="icon-button" aria-label="Kicsinyítés" disabled={!pdf || zoom <= 50 || rendering} onClick={() => setZoom(x => x - 25)}><ZoomOut size={18} /></button>
+      <Button className="icon-button" aria-label="Következő PDF-oldal" disabled={!pdf || page >= pdf.numPages || rendering} onClick={() => setPage(x => x + 1)}><ChevronRight size={18} /></Button>
+      <Button className="icon-button" aria-label="Kicsinyítés" disabled={!pdf || zoom <= 50 || rendering} onClick={() => setZoom(x => x - 25)}><ZoomOut size={18} /></Button>
       <output aria-label="Nagyítás">{zoom}%</output>
-      <button className="icon-button" aria-label="Nagyítás" disabled={!pdf || zoom >= 200 || rendering} onClick={() => setZoom(x => x + 25)}><ZoomIn size={18} /></button>
-      <button className="secondary-button" disabled={!pdf || rendering} onClick={() => setZoom(100)}>Szélességhez igazítás</button>
+      <Button className="icon-button" aria-label="Nagyítás" disabled={!pdf || zoom >= 200 || rendering} onClick={() => setZoom(x => x + 25)}><ZoomIn size={18} /></Button>
+      <Button className="secondary-button" disabled={!pdf || rendering} onClick={() => setZoom(100)}>Szélességhez igazítás</Button>
     </div>
     {error ? <p className="form-error" role="alert">{error}</p> : <>
       {(!pdf || rendering) && <p className="field-hint" role="status">PDF-oldal betöltése…</p>}

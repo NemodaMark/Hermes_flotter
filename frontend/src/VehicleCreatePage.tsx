@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Camera, X } from 'lucide-react'
@@ -41,7 +42,7 @@ export function VehicleCreatePage({ user, tenant, onBack, onCreated, onBusyChang
   useEffect(() => { onBusyChange?.(save.isPending); return () => onBusyChange?.(false) }, [onBusyChange, save.isPending])
   const disabled = save.isPending || !!created
   return <div className="vehicle-create-page">
-    <button className="text-button org-back" onClick={() => created ? onCreated(created) : onBack()} disabled={save.isPending}><ArrowLeft size={16} />{created ? 'A létrehozott jármű megnyitása' : 'Vissza a járművekhez'}</button>
+    <Button className="text-button org-back" onClick={() => created ? onCreated(created) : onBack()} disabled={save.isPending}><ArrowLeft size={16} />{created ? 'A létrehozott jármű megnyitása' : 'Vissza a járművekhez'}</Button>
     <section className="access-panel" aria-label="Új jármű adatlapja"><div className="org-toolbar"><h2>Új jármű</h2></div>
       <QueryMessage pending={options.isPending} error={options.error} retry={() => void options.refetch()} />
       <form className="org-form" onSubmit={e => { e.preventDefault(); save.mutate() }}>
@@ -55,12 +56,12 @@ export function VehicleCreatePage({ user, tenant, onBack, onCreated, onBusyChang
             else { setFiles(current => [...current, ...selected]); setFileError('') }
             e.target.value = ''
           }} /></label>
-          <div className="vehicle-photo-grid">{files.map((file, index) => <figure key={`${file.name}:${file.lastModified}:${index}`}><LocalPhoto file={file} /><figcaption>{file.name}<button type="button" className="icon-button" aria-label={`Kép eltávolítása: ${file.name}`} onClick={() => setFiles(current => current.filter((_, i) => i !== index))}><X size={16} /></button></figcaption></figure>)}</div>
+          <div className="vehicle-photo-grid">{files.map((file, index) => <figure key={`${file.name}:${file.lastModified}:${index}`}><LocalPhoto file={file} /><figcaption>{file.name}<Button type="button" className="icon-button" aria-label={`Kép eltávolítása: ${file.name}`} onClick={() => setFiles(current => current.filter((_, i) => i !== index))}><X size={16} /></Button></figcaption></figure>)}</div>
           {fileError && <p className="form-error" role="alert">{fileError}</p>}
         </fieldset>
         {created && save.error && <p className="notice">A jármű már létrejött. A még fel nem töltött képeket újrapróbálhatod; újabb jármű nem készül.</p>}
         {save.error && <p className="form-error" role="alert">{save.error.message}</p>}
-        <div className="dialog-actions"><button type="button" className="secondary-button" onClick={() => created ? onCreated(created) : onBack()} disabled={save.isPending}>{created ? 'Tovább az adatlapra' : 'Mégse'}</button><button className="primary-button" disabled={save.isPending || !options.data}>{save.isPending ? 'Mentés…' : created ? 'Képfeltöltés újrapróbálása' : 'Jármű létrehozása'}</button></div>
+        <div className="dialog-actions"><Button type="button" className="secondary-button" onClick={() => created ? onCreated(created) : onBack()} disabled={save.isPending}>{created ? 'Tovább az adatlapra' : 'Mégse'}</Button><Button className="primary-button" disabled={save.isPending || !options.data}>{save.isPending ? 'Mentés…' : created ? 'Képfeltöltés újrapróbálása' : 'Jármű létrehozása'}</Button></div>
       </form>
     </section>
   </div>

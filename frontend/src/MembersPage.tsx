@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LoaderCircle, Plus, RefreshCw } from 'lucide-react'
@@ -37,20 +38,20 @@ function Pagination({
         {total} találat · {page}. oldal
       </span>
       <div>
-        <button
+        <Button
           className="secondary-button"
           onClick={() => onPage(page - 1)}
           disabled={page === 1 || pending}
         >
           Előző oldal
-        </button>
-        <button
+        </Button>
+        <Button
           className="secondary-button"
           onClick={() => onPage(page + 1)}
           disabled={page * 25 >= total || pending}
         >
           Következő oldal
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -128,8 +129,8 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
   }
   if (profileId) return <UserProfilePage id={profileId} actor={user} tenant={tenant} onBack={() => setProfileId(null)} />
   const actions = <>
-    <button className="icon-button" aria-label={mode === 'invitations' ? 'Meghívások frissítése' : 'Hozzáférések frissítése'} disabled={invitations.isFetching} onClick={() => void refresh()}><RefreshCw size={17} /></button>
-    {canInvite && <button className="primary-button" disabled={canManage && !catalog.isSuccess} onClick={() => setDialog({ kind: 'invite' })}><Plus size={16} />Felhasználó meghívása</button>}
+    <Button className="icon-button" aria-label={mode === 'invitations' ? 'Meghívások frissítése' : 'Hozzáférések frissítése'} disabled={invitations.isFetching} onClick={() => void refresh()}><RefreshCw size={17} /></Button>
+    {canInvite && <Button className="primary-button" disabled={canManage && !catalog.isSuccess} onClick={() => setDialog({ kind: 'invite' })}><Plus size={16} />Felhasználó meghívása</Button>}
   </>
   return (
     <div className="members-page">
@@ -138,9 +139,9 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
         {catalog.isError && (
           <div className="notice error" role="alert">
             <p>A jogkatalógus nem tölthető be. {message(catalog.error)}</p>
-            <button className="text-button" onClick={() => void catalog.refetch()}>
+            <Button className="text-button" onClick={() => void catalog.refetch()}>
               Újrapróbálom
-            </button>
+            </Button>
           </div>
         )}
         <div>
@@ -151,9 +152,9 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
           ) : invitations.isError ? (
             <div className="notice error" role="alert">
               <p>{message(invitations.error)}</p>
-              <button className="text-button" onClick={() => void invitations.refetch()}>
+              <Button className="text-button" onClick={() => void invitations.refetch()}>
                 Újrapróbálom
-              </button>
+              </Button>
             </div>
           ) : invitations.isPending ? (
             <div className="empty-state">
@@ -192,7 +193,7 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
                           <td data-label="Lejárat">{date(invitation.expiresAt)}</td>
                           <td data-label="Műveletek">
                             {!invitation.acceptedAt && !invitation.revokedAt && (
-                              <button
+                              <Button
                                 className="secondary-button danger-text"
                                 aria-label={`Meghívó visszavonása: ${invitation.email}`}
                                 onClick={() => {
@@ -201,7 +202,7 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
                                 }}
                               >
                                 Visszavonás
-                              </button>
+                              </Button>
                             )}
                           </td>
                         </tr>
@@ -242,15 +243,15 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
               onChange={(event) => setLookup(event.target.value)}
               maxLength={256}
             />
-            <button
+            <Button
               className="secondary-button"
               disabled={lookupMember.isPending || !catalog.isSuccess}
             >
               Jogosultságok betöltése
-            </button>
+            </Button>
           </form>
           {lookupMember.data && (
-            <button
+            <Button
               className="secondary-button"
               onClick={() =>
                 setDialog({
@@ -266,7 +267,7 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
               }
             >
               Felhasználó csoportjai
-            </button>
+            </Button>
           )}
           {lookupMember.isError && (
             <p className="form-error" role="alert">
@@ -323,20 +324,20 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
             </p>
           )}
           <div className="dialog-actions">
-            <button
+            <Button
               className="secondary-button"
               disabled={revoke.isPending}
               onClick={() => setDialog(null)}
             >
               Mégse
-            </button>
-            <button
+            </Button>
+            <Button
               className="danger-button"
               disabled={revoke.isPending}
               onClick={() => void confirmRevoke(dialog.invitation.id)}
             >
               Meghívó visszavonása
-            </button>
+            </Button>
           </div>
         </AccessDialog>
       )}

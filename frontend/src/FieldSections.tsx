@@ -1,3 +1,4 @@
+import { TabButton } from './ui/TabButton'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { InvalidEvent, ReactNode } from 'react'
 
@@ -49,9 +50,9 @@ export function FieldSections({ sections, label }: { sections: FieldSection[]; l
       setActive(next.id)
       root.current?.querySelector<HTMLButtonElement>(`[data-section-tab="${next.id}"]`)?.focus()
     }}>
-      {sections.map(section => <button key={section.id} type="button" role="tab" id={`${id}-${section.id}-tab`} data-section-tab={section.id}
+      {sections.map(section => <TabButton key={section.id} type="button" role="tab" id={`${id}-${section.id}-tab`} data-section-tab={section.id}
         aria-selected={active === section.id} aria-controls={`${id}-${section.id}`} tabIndex={active === section.id ? 0 : -1}
-        onClick={() => setActive(section.id)}>{section.label}</button>)}
+        onClick={() => setActive(section.id)}>{section.label}</TabButton>)}
     </div>
     <label className="org-field field-picker"><span>Mezőcsoport</span><select value={active} onChange={event => setActive(event.target.value)}>
       {sections.map(section => <option key={section.id} value={section.id}>{section.label}</option>)}

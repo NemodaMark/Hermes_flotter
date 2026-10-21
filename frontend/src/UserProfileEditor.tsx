@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -105,7 +106,7 @@ export function UserProfileEditor({
               A jelszó nem olvasható és nem írható át itt. A felhasználó a jelenlegi jelszavával lép
               be, majd kötelezően újat választ. A meglévő munkamenetei megszűnnek.
             </p>
-            <button
+            <Button
               type="button"
               className="secondary-button"
               disabled={mutation.isPending}
@@ -115,7 +116,7 @@ export function UserProfileEditor({
               }}
             >
               Kötelező jelszócsere elrendelése
-            </button>
+            </Button>
             <h3>Rendszerszintű jogosultság</h3>
             <p className="field-hint">
               {query.data.systemPermissions.includes('system.manage')
@@ -123,7 +124,7 @@ export function UserProfileEditor({
                 : 'Nincs rendszerszintű kezelési joga.'}{' '}
               Ez a jog minden céghez és profilhoz hozzáférést ad, és továbbadható.
             </p>
-            <button
+            <Button
               type="button"
               className="secondary-button"
               disabled={mutation.isPending}
@@ -137,7 +138,7 @@ export function UserProfileEditor({
               {query.data.systemPermissions.includes('system.manage')
                 ? 'Rendszerszintű jog visszavonása'
                 : 'Rendszerszintű jog megadása'}
-            </button>
+            </Button>
           </div>
           {confirmation && (
             <div className="profile-confirmation" role="group" aria-label="Művelet megerősítése">
@@ -149,14 +150,14 @@ export function UserProfileEditor({
                     : 'Visszavonod a felhasználó rendszerszintű hozzáférését?'}
               </p>
               <div className="dialog-actions">
-                <button
+                <Button
                   className="secondary-button"
                   disabled={mutation.isPending}
                   onClick={() => setConfirmation(null)}
                 >
                   Mégse
-                </button>
-                <button
+                </Button>
+                <Button
                   className="danger-button"
                   disabled={mutation.isPending}
                   onClick={() =>
@@ -167,7 +168,7 @@ export function UserProfileEditor({
                   }
                 >
                   Megerősítem
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -179,7 +180,7 @@ export function UserProfileEditor({
         </p>
       )}
       {(query.isError || mutation.isError) && (
-        <button
+        <Button
           className="text-button"
           disabled={mutation.isPending}
           onClick={() => {
@@ -189,7 +190,7 @@ export function UserProfileEditor({
           }}
         >
           Profil újratöltése
-        </button>
+        </Button>
       )}
       {notice && (
         <p className="field-hint" role="status">
@@ -255,9 +256,9 @@ function ProfileForm({
         disabled={pending}
       />
       <div className="dialog-actions">
-        <button className="primary-button" disabled={pending}>
+        <Button className="primary-button" disabled={pending}>
           {pending ? 'Mentés…' : 'Profil mentése'}
-        </button>
+        </Button>
       </div>
     </form>
   )

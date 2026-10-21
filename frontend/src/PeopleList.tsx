@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -11,6 +12,7 @@ import { QueryMessage } from './FleetFields'
 import { PageButtons } from './CompaniesPage'
 import { ListToolbar } from './ListToolbar'
 import './profiles.css'
+import { Badge } from './ui/Badge'
 
 type Row = { id: string; name: string; email: string; avatar?: string | null; active: boolean | null; summary: string; companies: string; member?: Member }
 export function PeopleList({ user, tenant, onProfile, onAction, catalogReady = true, actions }: {
@@ -50,7 +52,7 @@ export function PeopleList({ user, tenant, onProfile, onAction, catalogReady = t
     <ListToolbar label="Felhasználók keresése és műveletei" actions={actions}>
     <form className="list-toolbar-form" onSubmit={e => { e.preventDefault(); setSearch(draft.trim()); setPage(1) }}>
       <div className="search-field"><Search size={18} /><input aria-label="Felhasználó keresése" placeholder="Felhasználónév, név vagy e-mail" value={draft} maxLength={100} onChange={e => setDraft(e.target.value)} /></div>
-      <button className="secondary-button">Keresés</button>
+      <Button className="secondary-button">Keresés</Button>
       {admin && <label className="toggle-control"><input type="checkbox" role="switch" checked={all} onChange={e => { setShowAll(e.target.checked); setPage(1) }} disabled={!tenant} /><span className="toggle-track" />Összes felhasználó</label>}
       {all && <><label className="compact-filter">Jogkör<select aria-label="Szűrés jogkör szerint" value={role} onChange={e => { setRole(e.target.value); setPage(1) }}><option value="all">Minden jogkör</option><option value="admin">Adminok</option><option value="member">Nem adminok</option></select></label><label className="compact-filter">Hozzáférés<select aria-label="Szűrés céges hozzáférés szerint" value={access} onChange={e => { setAccess(e.target.value); setPage(1) }}><option value="all">Minden fiók</option><option value="with">Van céges hozzáférése</option><option value="none">Nincs céges hozzáférése</option></select></label></>}
     </form>
@@ -58,12 +60,12 @@ export function PeopleList({ user, tenant, onProfile, onAction, catalogReady = t
     <QueryMessage pending={rows.isPending} error={rows.error} retry={() => void rows.refetch()} />
     {rows.data && <><div className="table-scroll"><table className="people-table responsive-list"><thead><tr><th>Felhasználó</th><th>{all ? 'Céges hozzáférés' : 'Állapot'}</th><th>Hozzáférés összegzése</th><th>Műveletek</th></tr></thead><tbody>
       {rows.data.items.map((row: Row) => <tr key={row.id}>
-        <td><div className="person-cell"><ProtectedImage path={peopleApi.avatarPath(row.id)} tenantId={tenant?.id} revision={row.avatar} alt={`${row.name} profilképe`} className="person-avatar" fallback={initials(row.name)} /><div><button className="person-name text-button" onClick={() => onProfile(row.id)}>{row.name}{row.id === user.id ? ' (te)' : ''}</button><span className="member-email">@{row.id} · {row.email}</span></div></div></td>
-        <td data-label={all ? 'Céges hozzáférés' : 'Állapot'}>{all ? <span className="people-company-summary">{row.companies}</span> : <span className={`status ${row.active ? 'status-active' : 'status-inactive'}`}>{row.active ? 'Aktív' : 'Felfüggesztve'}</span>}</td>
+        <td><div className="person-cell"><ProtectedImage path={peopleApi.avatarPath(row.id)} tenantId={tenant?.id} revision={row.avatar} alt={`${row.name} profilképe`} className="person-avatar" fallback={initials(row.name)} /><div><Button className="person-name text-button" onClick={() => onProfile(row.id)}>{row.name}{row.id === user.id ? ' (te)' : ''}</Button><span className="member-email">@{row.id} · {row.email}</span></div></div></td>
+        <td data-label={all ? 'Céges hozzáférés' : 'Állapot'}>{all ? <span className="people-company-summary">{row.companies}</span> : <Badge tone={row.active ? 'success' : 'neutral'}>{row.active ? 'Aktív' : 'Felfüggesztve'}</Badge>}</td>
         <td data-label="Hozzáférés"><span className="permission-summary">{row.summary}</span></td>
-        <td data-label="Műveletek"><div className="member-actions"><button className="secondary-button" aria-label={`Profil megnyitása: ${row.email || row.id}`} onClick={() => onProfile(row.id)}>Adatlap</button>
-          {row.member && onAction && tenant?.permissions.includes('permissions.manage') && <><button className="secondary-button" disabled={!catalogReady} aria-label={`Jogosultságok: ${row.email || row.id}`} onClick={() => onAction('permissions', row.member!)}>Jogosultságok</button><button className="secondary-button" aria-label={`Csoportok: ${row.email || row.id}`} onClick={() => onAction('groups', row.member!)}>Csoportok</button></>}
-          {row.member && onAction && tenant?.permissions.includes('members.update') && <button className="secondary-button" aria-label={`${row.active ? 'Felfüggesztés' : 'Visszaállítás'}: ${row.email || row.id}`} onClick={() => onAction('status', row.member!)}>{row.active ? 'Felfüggesztés' : 'Visszaállítás'}</button>}
+        <td data-label="Műveletek"><div className="member-actions"><Button className="secondary-button" aria-label={`Profil megnyitása: ${row.email || row.id}`} onClick={() => onProfile(row.id)}>Adatlap</Button>
+          {row.member && onAction && tenant?.permissions.includes('permissions.manage') && <><Button className="secondary-button" disabled={!catalogReady} aria-label={`Jogosultságok: ${row.email || row.id}`} onClick={() => onAction('permissions', row.member!)}>Jogosultságok</Button><Button className="secondary-button" aria-label={`Csoportok: ${row.email || row.id}`} onClick={() => onAction('groups', row.member!)}>Csoportok</Button></>}
+          {row.member && onAction && tenant?.permissions.includes('members.update') && <Button className="secondary-button" aria-label={`${row.active ? 'Felfüggesztés' : 'Visszaállítás'}: ${row.email || row.id}`} onClick={() => onAction('status', row.member!)}>{row.active ? 'Felfüggesztés' : 'Visszaállítás'}</Button>}
         </div></td>
       </tr>)}
       {!rows.data.items.length && <tr><td colSpan={4}>Nincs találat. Próbálj másik nevet vagy e-mail-címet.</td></tr>}

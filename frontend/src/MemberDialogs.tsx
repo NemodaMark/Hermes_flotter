@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useMutation } from '@tanstack/react-query'
@@ -130,13 +131,13 @@ export function InvitationDialog({
             </p>
           )}
           <div className="dialog-actions">
-            <button className="secondary-button" onClick={onClose}>
+            <Button className="secondary-button" onClick={onClose}>
               Bezárás
-            </button>
-            <button className="primary-button" onClick={() => void copy()}>
+            </Button>
+            <Button className="primary-button" onClick={() => void copy()}>
               <Copy size={16} />
               Hivatkozás másolása
-            </button>
+            </Button>
           </div>
         </>
       ) : (
@@ -176,22 +177,22 @@ export function InvitationDialog({
             </p>
           )}
           <div className="dialog-actions">
-            <button
+            <Button
               type="button"
               className="secondary-button"
               disabled={mutation.isPending}
               onClick={onClose}
             >
               Mégse
-            </button>
-            <button className="primary-button" disabled={mutation.isPending}>
+            </Button>
+            <Button className="primary-button" disabled={mutation.isPending}>
               {mutation.isPending ? (
                 <LoaderCircle size={16} className="spinning" />
               ) : (
                 <Plus size={16} />
               )}
               Meghívó létrehozása
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -264,14 +265,14 @@ export function PermissionsDialog({
           </p>
         )}
         {mutation.error instanceof ApiError && mutation.error.code === 'stale_membership' && (
-          <button
+          <Button
             className="text-button"
             type="button"
             disabled={reload.isPending}
             onClick={() => reload.mutate()}
           >
             Friss adatok betöltése
-          </button>
+          </Button>
         )}
         {reload.isError && (
           <p className="form-error" role="alert">
@@ -279,22 +280,22 @@ export function PermissionsDialog({
           </p>
         )}
         <div className="dialog-actions">
-          <button
+          <Button
             type="button"
             className="secondary-button"
             disabled={mutation.isPending || reload.isPending}
             onClick={onClose}
           >
             Mégse
-          </button>
-          <button className="primary-button" disabled={mutation.isPending || reload.isPending}>
+          </Button>
+          <Button className="primary-button" disabled={mutation.isPending || reload.isPending}>
             {mutation.isPending ? (
               <LoaderCircle size={16} className="spinning" />
             ) : (
               <Check size={16} />
             )}
             Jogosultságok mentése
-          </button>
+          </Button>
         </div>
       </form>
     </AccessDialog>
@@ -347,7 +348,7 @@ export function StatusDialog({
         </p>
       )}
       {mutation.error instanceof ApiError && mutation.error.code === 'stale_membership' && (
-        <button
+        <Button
           className="text-button"
           disabled={mutation.isPending}
           onClick={() => {
@@ -356,20 +357,20 @@ export function StatusDialog({
           }}
         >
           Lista frissítése
-        </button>
+        </Button>
       )}
       <div className="dialog-actions">
-        <button className="secondary-button" disabled={mutation.isPending} onClick={onClose}>
+        <Button className="secondary-button" disabled={mutation.isPending} onClick={onClose}>
           Mégse
-        </button>
-        <button
+        </Button>
+        <Button
           className={member.isActive ? 'danger-button' : 'primary-button'}
           disabled={mutation.isPending}
           onClick={() => void save()}
         >
           {mutation.isPending && <LoaderCircle size={16} className="spinning" />}
           {member.isActive ? 'Felfüggesztés' : 'Visszaállítás'}
-        </button>
+        </Button>
       </div>
     </AccessDialog>
   )

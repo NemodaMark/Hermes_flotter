@@ -1,6 +1,8 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Plus, RefreshCw, Search } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Building2, Plus, RefreshCw, Search } from 'lucide-react'
+import { Badge } from './ui/Badge'
 import type { Session } from './api'
 import { AccessDialog } from './AccessDialog'
 import {
@@ -33,20 +35,20 @@ export function PageButtons({
         {total} találat · {page}. oldal
       </span>
       <div>
-        <button
+        <Button
           className="secondary-button"
           disabled={pending || page === 1}
           onClick={() => onPage(page - 1)}
         >
           Előző oldal
-        </button>
-        <button
+        </Button>
+        <Button
           className="secondary-button"
           disabled={pending || page * 25 >= total}
           onClick={() => onPage(page + 1)}
         >
           Következő oldal
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -85,8 +87,8 @@ export function CompaniesPage({
   return (
     <section className="access-panel" aria-label="Cégek kezelése">
       <ListToolbar label="Cégek keresése és műveletei" actions={<>
-        <button className="icon-button" aria-label="Céglista frissítése" disabled={companies.isFetching} onClick={() => void companies.refetch()}><RefreshCw size={17} /></button>
-        <button className="primary-button" onClick={onNewCompany}><Plus size={16} />Új cég</button>
+        <Button className="icon-button" aria-label="Céglista frissítése" disabled={companies.isFetching} onClick={() => void companies.refetch()}><RefreshCw size={17} /></Button>
+        <Button className="primary-button" onClick={onNewCompany}><Plus size={16} />Új cég</Button>
       </>}>
       <form
         className="list-toolbar-form"
@@ -116,7 +118,7 @@ export function CompaniesPage({
             <option value="all">Minden állapot</option>
           </select>
         </label>
-        <button className="secondary-button">Keresés</button>
+        <Button className="secondary-button">Keresés</Button>
       </form>
       </ListToolbar>
       {companies.isError ? (
@@ -140,22 +142,24 @@ export function CompaniesPage({
                 {companies.data.items.map((company) => (
                   <tr key={company.id}>
                     <td data-label="Cég">
-                      <strong>{company.name}</strong>
+                      <div className="entity-cell"><span className="entity-icon" aria-hidden="true"><Building2 size={18} /></span><div><strong>{company.name}</strong>
                       {company.id === initialCompanyId && (
                         <span className="member-email">Kiválasztott munkaterület</span>
                       )}
+                      </div></div>
                     </td>
                     <td data-label="Állapot">
                       <CompanyStatus status={company.status} />
                     </td>
                     <td data-label="Műveletek">
-                      <button
+                      <Button
                         className="secondary-button"
                         aria-label={`Cég megnyitása: ${company.name}`}
                         onClick={() => setSelected(company)}
                       >
                         Megnyitás
-                      </button>
+                        <ArrowUpRight size={14} aria-hidden="true" />
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -178,12 +182,9 @@ export function CompaniesPage({
 }
 function CompanyStatus({ status }: { status: string }) {
   return (
-    <span
-      className={`status ${status === 'Active' ? 'status-active' : status === 'Suspended' ? 'status-maintenance' : 'status-inactive'}`}
-    >
-      <span />
+    <Badge tone={status === 'Active' ? 'success' : status === 'Suspended' ? 'warning' : 'neutral'}>
       {companyStatusName(status)}
-    </span>
+    </Badge>
   )
 }
 function CompanyWorkspace({
@@ -286,10 +287,10 @@ function CompanyWorkspace({
             : (profile.error ?? state.error)
   return (
     <div className="org-workspace">
-      <button className="text-button org-back" onClick={onBack}>
+      <Button className="text-button org-back" onClick={onBack}>
         <ArrowLeft size={16} />
         Vissza a cégekhez
-      </button>
+      </Button>
       <section className="access-panel organization-detail-panel" aria-label="Cég és telephelyek">
         <div className="org-toolbar organization-detail-header">
           <div>
@@ -297,8 +298,8 @@ function CompanyWorkspace({
             <CompanyStatus status={companyStatus} />
           </div>
           <div className="member-actions">
-          {tab === 'company' && has('companies.status') && <button className="secondary-button" disabled={!state.data} onClick={() => setDialog({ kind: 'company-status' })}>Cég állapotának kezelése</button>}
-          <button
+          {tab === 'company' && has('companies.status') && <Button className="secondary-button" disabled={!state.data} onClick={() => setDialog({ kind: 'company-status' })}>Cég állapotának kezelése</Button>}
+          <Button
             className="icon-button"
             aria-label="Cégadatok frissítése"
             onClick={() => {
@@ -307,7 +308,7 @@ function CompanyWorkspace({
             }}
           >
             <RefreshCw size={17} />
-          </button>
+          </Button>
           </div>
         </div>
         {!active && (
@@ -326,7 +327,7 @@ function CompanyWorkspace({
           if (next) { setTab(next.id); setNotice(''); event.currentTarget.querySelector<HTMLButtonElement>(`[data-company-tab="${next.id}"]`)?.focus() }
         }}>
           {tabs.map((item) => (
-            <button
+            <Button
               key={item.id}
               role="tab"
               data-company-tab={item.id}
@@ -338,7 +339,7 @@ function CompanyWorkspace({
               }}
             >
               {item.name}
-            </button>
+            </Button>
           ))}
         </div>
         {tabs.length > 0 && <label className="org-field organization-picker"><span>Cégadatlap részei</span><select value={tab} onChange={event => { setTab(event.target.value); setNotice('') }}>{tabs.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
@@ -382,7 +383,7 @@ function CompanyWorkspace({
             </label>
             {active && (tab === 'contacts' ? has('companies.update') : has('sites.create') &&
               (!company.permissionScopes || company.permissionScopes.some((s) => s.code === 'sites.create' && s.allSites))) && (
-              <button
+              <Button
                 className="primary-button"
                 onClick={() =>
                   tab === 'contacts'
@@ -392,7 +393,7 @@ function CompanyWorkspace({
               >
                 <Plus size={16} />
                 {tab === 'contacts' ? 'Új kapcsolattartó' : 'Új telephely'}
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -430,21 +431,21 @@ function CompanyWorkspace({
                             {active && has('companies.update') && (
                               <>
                                 {!contact.isArchived && (
-                                  <button
+                                  <Button
                                     className="secondary-button"
                                     aria-label={`Kapcsolattartó szerkesztése: ${contact.data.name}`}
                                     onClick={() => setDialog({ kind: 'contact', contact })}
                                   >
                                     Szerkesztés
-                                  </button>
+                                  </Button>
                                 )}
-                                <button
+                                <Button
                                   className="secondary-button"
                                   aria-label={`Kapcsolattartó állapota: ${contact.data.name}`}
                                   onClick={() => setDialog({ kind: 'contact-status', contact })}
                                 >
                                   {contact.isArchived ? 'Visszaállítás' : 'Archiválás'}
-                                </button>
+                                </Button>
                               </>
                             )}
                           </div>
@@ -502,22 +503,22 @@ function CompanyWorkspace({
                         <td data-label="Műveletek">
                           <div className="member-actions">
                             {active && !site.isArchived && (site.permissions ?? company.permissions).includes('sites.update') && (
-                              <button
+                              <Button
                                 className="secondary-button"
                                 aria-label={`Telephely szerkesztése: ${site.data.name}`}
                                 onClick={() => setDialog({ kind: 'site', site })}
                               >
                                 Szerkesztés
-                              </button>
+                              </Button>
                             )}
                             {active && (site.permissions ?? company.permissions).includes('sites.archive') && (
-                              <button
+                              <Button
                                 className="secondary-button"
                                 aria-label={`Telephely állapota: ${site.data.name}`}
                                 onClick={() => setDialog({ kind: 'site-status', site })}
                               >
                                 {site.isArchived ? 'Visszaállítás' : 'Archiválás'}
-                              </button>
+                              </Button>
                             )}
                           </div>
                         </td>
@@ -559,13 +560,13 @@ function CompanyWorkspace({
                         <td data-label="Telephely">{vehicle.siteName ?? 'Nincs hozzárendelve'}</td>
                         <td data-label="Műveletek">
                           {active && (vehicle.permissions ?? company.permissions).includes('sites.vehicles.assign') && (
-                            <button
+                            <Button
                               className="secondary-button"
                               aria-label={`Telephely-hozzárendelés: ${vehicle.registration}`}
                               onClick={() => setDialog({ kind: 'vehicle', vehicle })}
                             >
                               Telephely módosítása
-                            </button>
+                            </Button>
                           )}
                         </td>
                       </tr>

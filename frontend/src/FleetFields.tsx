@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AccessDialog } from './AccessDialog'
@@ -34,7 +35,7 @@ export function CurrencyField({ value, onChange }: { value: string; onChange: (v
   return <SelectField label="Pénznem" value={value} onChange={onChange} options={Object.fromEntries(withCurrentValue(currencies, value).map(x => [x, currencyLabel(x)]))} />
 }
 export function QueryMessage({ pending, error, retry }: { pending: boolean; error: Error | null; retry?: () => void }) {
-  return pending ? <p className="notice" role="status">Betöltés…</p> : error ? <div className="notice error" role="alert"><p>{error.message}</p>{retry && <button className="text-button" onClick={retry}>Újrapróbálom</button>}</div> : null
+  return pending ? <p className="notice" role="status">Betöltés…</p> : error ? <div className="notice error" role="alert"><p>{error.message}</p>{retry && <Button className="text-button" onClick={retry}>Újrapróbálom</Button>}</div> : null
 }
 export function ReasonDialog({ title, onClose, onSave }: { title: string; onClose: () => void; onSave: (reason: string) => Promise<unknown> }) {
   const [reason, setReason] = useState('')
@@ -42,7 +43,7 @@ export function ReasonDialog({ title, onClose, onSave }: { title: string; onClos
   return <AccessDialog title={title} pending={save.isPending} onClose={onClose}><form className="org-form" onSubmit={e => { e.preventDefault(); save.mutate() }}>
     <NotesField label="Indoklás" value={reason} onChange={setReason} required maxLength={500} disabled={save.isPending} />
     {save.error && <p className="form-error" role="alert">{save.error.message}</p>}
-    <div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={save.isPending}>Mégse</button><button className="primary-button" disabled={save.isPending}>Mentés</button></div>
+    <div className="dialog-actions"><Button type="button" className="secondary-button" onClick={onClose} disabled={save.isPending}>Mégse</Button><Button className="primary-button" disabled={save.isPending}>Mentés</Button></div>
   </form></AccessDialog>
 }
 const actionLabels: Record<string, string> = {

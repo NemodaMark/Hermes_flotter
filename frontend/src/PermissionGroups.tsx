@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
@@ -53,13 +54,13 @@ export function PermissionGroups({ user }: { user: Session }) {
   return (
     <div>
       <ListToolbar label="Jogosultságcsoportok keresése és műveletei" actions={<>
-          <button className="text-button" onClick={() => void data.refetch()}>
+          <Button className="text-button" onClick={() => void data.refetch()}>
             Csoportlista frissítése
-          </button>
+          </Button>
           {data.data?.companies.some((c) => c.canEdit) && (
-            <button className="primary-button" onClick={() => setDialog({ kind: 'create' })}>
+            <Button className="primary-button" onClick={() => setDialog({ kind: 'create' })}>
               Új jogosultságcsoport
-            </button>
+            </Button>
           )}
       </>}>
         <div className="list-toolbar-form"><div className="search-field"><Search size={18} /><input aria-label="Jogosultságcsoport keresése" placeholder="Csoport vagy cég neve" value={search} onChange={event => setSearch(event.target.value)} maxLength={100} /></div></div>
@@ -118,21 +119,21 @@ export function PermissionGroups({ user }: { user: Session }) {
                       <td data-label="Műveletek">
                         {group.canEdit && !group.isAdmin ? (
                           <div className="member-actions">
-                            <button
+                            <Button
                               className="secondary-button"
                               aria-label={`Jogosultságcsoport szerkesztése: ${group.name}`}
                               onClick={() => setDialog({ kind: 'edit', group })}
                             >
                               Szerkesztés
-                            </button>
+                            </Button>
                             {!group.isAdmin && (
-                              <button
+                              <Button
                                 className="secondary-button danger-text"
                                 aria-label={`Jogosultságcsoport törlése: ${group.name}`}
                                 onClick={() => setDialog({ kind: 'delete', group })}
                               >
                                 Törlés
-                              </button>
+                              </Button>
                             )}
                           </div>
                         ) : group.isAdmin ? (
@@ -352,17 +353,17 @@ function GroupEditor({
           </p>
         )}
         <div className="dialog-actions">
-          <button
+          <Button
             type="button"
             className="secondary-button"
             disabled={save.isPending}
             onClick={onClose}
           >
             Mégse
-          </button>
-          <button className="primary-button" disabled={save.isPending || !ids.length || invalidScope}>
+          </Button>
+          <Button className="primary-button" disabled={save.isPending || !ids.length || invalidScope}>
             Jogosultságcsoport mentése
-          </button>
+          </Button>
         </div>
       </form>
     </AccessDialog>
@@ -395,10 +396,10 @@ function GroupDelete({
         </p>
       )}
       <div className="dialog-actions">
-        <button className="secondary-button" disabled={remove.isPending} onClick={onClose}>
+        <Button className="secondary-button" disabled={remove.isPending} onClick={onClose}>
           Mégse
-        </button>
-        <button
+        </Button>
+        <Button
           className="danger-button"
           disabled={remove.isPending}
           onClick={() =>
@@ -412,7 +413,7 @@ function GroupDelete({
           }
         >
           Jogosultságcsoport törlése
-        </button>
+        </Button>
       </div>
     </AccessDialog>
   )
@@ -481,14 +482,14 @@ export function GroupAssignmentDialog({
           onClose={onClose}
         />
       )}
-      <button
+      <Button
         type="button"
         className="text-button"
         disabled={pending || data.isFetching}
         onClick={() => void data.refetch()}
       >
         Csoporttagságok újratöltése
-      </button>
+      </Button>
     </AccessDialog>
   )
 }
@@ -605,20 +606,20 @@ function AssignmentFields({
         </p>
       )}
       <div className="dialog-actions">
-        <button
+        <Button
           type="button"
           className="secondary-button"
           disabled={save.isPending}
           onClick={onClose}
         >
           Mégse
-        </button>
-        <button
+        </Button>
+        <Button
           className="primary-button"
           disabled={save.isPending || !groups.length || needsAdminCompany}
         >
           Tagság mentése
-        </button>
+        </Button>
       </div>
     </form>
   )

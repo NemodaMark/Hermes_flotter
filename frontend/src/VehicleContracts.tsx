@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
@@ -26,7 +27,7 @@ export function VehicleContracts({ tenant, car, kind, onChanged }: { tenant: Ten
   const query = lease ? leases : services
   return <>
     <div className="org-section-tools"><div>{!lease && <label className="org-checkbox"><input type="checkbox" checked={includeVoided} onChange={e => { setIncludeVoided(e.target.checked); setPage(1) }} />Érvénytelenített bejegyzések is</label>}</div>
-      {manage && <button className="primary-button" onClick={() => setEdit('new')}><Plus size={17} />{lease ? 'Új lízingszerződés' : 'Új szervizbejegyzés'}</button>}
+      {manage && <Button className="primary-button" onClick={() => setEdit('new')}><Plus size={17} />{lease ? 'Új lízingszerződés' : 'Új szervizbejegyzés'}</Button>}
     </div>
     {!read ? <p className="notice">A bejegyzések megtekintéséhez külön jogosultság szükséges.</p> : <>
       <QueryMessage pending={query.isPending} error={query.error} retry={() => void query.refetch()} />
@@ -34,16 +35,16 @@ export function VehicleContracts({ tenant, car, kind, onChanged }: { tenant: Ten
         <div className="fleet-record-list">
           {lease ? leases.data?.items.map(x => <article className="fleet-record" key={x.id}>
             <div className="fleet-record-heading"><div><h3>{x.data.contractNumber}</h3><p className="fleet-detail-caption">{x.partnerName} · {leaseStatuses[x.data.status as keyof typeof leaseStatuses]}</p></div>
-              <div className="member-actions"><button className="secondary-button" aria-label={`Dokumentumok: ${x.data.contractNumber}`} onClick={() => setDocumentTarget({ id: x.id, name: x.data.contractNumber, version: x.data.version })}>Dokumentumok</button>
-                {manage && <button className="secondary-button" aria-label={`Szerződés szerkesztése: ${x.data.contractNumber}`} onClick={() => setEdit(x)}>Szerkesztés</button>}</div>
+              <div className="member-actions"><Button className="secondary-button" aria-label={`Dokumentumok: ${x.data.contractNumber}`} onClick={() => setDocumentTarget({ id: x.id, name: x.data.contractNumber, version: x.data.version })}>Dokumentumok</Button>
+                {manage && <Button className="secondary-button" aria-label={`Szerződés szerkesztése: ${x.data.contractNumber}`} onClick={() => setEdit(x)}>Szerkesztés</Button>}</div>
             </div><dl><div><dt>Futamidő</dt><dd>{dateText(x.data.startDate)} – {dateText(x.data.endDate)}</dd></div><div><dt>Lízingdíj</dt><dd>{moneyText(x.data.paymentAmount, x.data.currency)} · {frequencies[x.data.billingFrequency as keyof typeof frequencies]}</dd></div>
               <div><dt>Éves / teljes km-keret</dt><dd>{x.data.annualKmLimit?.toLocaleString('hu-HU') ?? '–'} / {x.data.totalKmLimit?.toLocaleString('hu-HU') ?? '–'} km</dd></div></dl>
             {x.data.notes && <p className="fleet-record-note">{x.data.notes}</p>}{x.data.documentUrl && <a href={x.data.documentUrl} target="_blank" rel="noreferrer">Szerződés megnyitása</a>}
             <MetadataLine version={x.data.version} updatedAt={x.updatedAt} updatedBy={x.updatedBy} />
           </article>) : services.data?.items.map(x => <article className="fleet-record" key={x.id}>
             <div className="fleet-record-heading"><div><h3>{dateText(x.data.performedOn)} · {x.partnerName}</h3><p className="fleet-detail-caption">{x.data.workOrderNumber ? `Munkalap: ${x.data.workOrderNumber}` : 'Szervizbejegyzés'}{x.isVoided ? ' · Érvénytelenítve' : ''}</p></div>
-              <div className="member-actions"><button className="secondary-button" aria-label={`Dokumentumok: ${x.data.workOrderNumber ?? x.partnerName}`} onClick={() => setDocumentTarget({ id: x.id, name: x.data.workOrderNumber ?? x.partnerName, version: x.data.version, isVoided: x.isVoided })}>Dokumentumok</button>
-                {manage && !x.isVoided && <><button className="secondary-button" onClick={() => setEdit(x)}>Szerkesztés</button><button className="secondary-button" onClick={() => setVoidItem(x)}>Érvénytelenítés</button></>}</div>
+              <div className="member-actions"><Button className="secondary-button" aria-label={`Dokumentumok: ${x.data.workOrderNumber ?? x.partnerName}`} onClick={() => setDocumentTarget({ id: x.id, name: x.data.workOrderNumber ?? x.partnerName, version: x.data.version, isVoided: x.isVoided })}>Dokumentumok</Button>
+                {manage && !x.isVoided && <><Button className="secondary-button" onClick={() => setEdit(x)}>Szerkesztés</Button><Button className="secondary-button" onClick={() => setVoidItem(x)}>Érvénytelenítés</Button></>}</div>
             </div><p className="fleet-record-note">{x.data.description}</p>
             <dl><div><dt>Kilométerállás a szerviznél</dt><dd>{x.data.kilometers?.toLocaleString('hu-HU') ?? '–'} km</dd></div><div><dt>Költség</dt><dd>{moneyText(x.data.cost, x.data.currency)}</dd></div><div><dt>Következő szerviz</dt><dd>{dateText(x.data.nextServiceDate)} · {x.data.nextServiceKm?.toLocaleString('hu-HU') ?? '–'} km</dd></div></dl>
             {x.data.notes && <p className="fleet-record-note">{x.data.notes}</p>}{x.voidReason && <p className="fleet-record-note">Érvénytelenítés indoka: {x.voidReason}</p>}

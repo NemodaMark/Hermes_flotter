@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowRight, Building2, LoaderCircle, X } from 'lucide-react'
@@ -60,7 +61,7 @@ export function AuthScreen({
       )}
       <section className="account-panel" aria-labelledby="account-title">
         <div className="account-tabs" aria-label="Fiókműveletek">
-          <button
+          <Button
             type="button"
             className={mode === 'login' ? 'selected' : ''}
             aria-pressed={mode === 'login'}
@@ -71,8 +72,8 @@ export function AuthScreen({
             }}
           >
             Bejelentkezés
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             className={mode === 'register' ? 'selected' : ''}
             aria-pressed={mode === 'register'}
@@ -83,7 +84,7 @@ export function AuthScreen({
             }}
           >
             Regisztráció
-          </button>
+          </Button>
         </div>
         <h1 id="account-title">{mode === 'login' ? 'Bejelentkezés' : 'Hozd létre a fiókodat'}</h1>
         <p className="account-description">
@@ -168,10 +169,10 @@ export function AuthScreen({
               {error}
             </p>
           )}
-          <button className="primary-button account-submit" disabled={pending}>
+          <Button className="primary-button account-submit" disabled={pending}>
             {pending ? <LoaderCircle size={18} className="spinning" /> : <ArrowRight size={18} />}
             {mode === 'login' ? 'Belépés' : 'Fiók létrehozása'}
-          </button>
+          </Button>
         </form>
         {mode === 'register' && (
           <p className="account-note">A következő lépésben létrehozhatod az első cégedet.</p>
@@ -224,14 +225,14 @@ export function CompanyForm({
       )}
       <div className="dialog-actions">
         {onCancel && (
-          <button type="button" className="secondary-button" onClick={onCancel} disabled={pending}>
+          <Button type="button" className="secondary-button" onClick={onCancel} disabled={pending}>
             Mégse
-          </button>
+          </Button>
         )}
-        <button className="primary-button" disabled={pending}>
+        <Button className="primary-button" disabled={pending}>
           {pending ? <LoaderCircle size={18} className="spinning" /> : <Building2 size={18} />}Cég
           létrehozása
-        </button>
+        </Button>
       </div>
     </form>
   )
@@ -262,14 +263,14 @@ export function CompanyDialog({
     >
       <div className="dialog-heading">
         <h2 id="company-title">Új cég létrehozása</h2>
-        <button
+        <Button
           className="icon-button"
           aria-label="Bezárás"
           onClick={onClose}
           disabled={form.pending}
         >
           <X size={20} />
-        </button>
+        </Button>
       </div>
       <CompanyForm {...form} idPrefix="new-company" onCancel={onClose} />
     </dialog>

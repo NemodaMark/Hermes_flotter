@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { api } from './api'
@@ -101,13 +102,13 @@ export function PasswordChangeScreen({
               {error || logoutError}
             </p>
           )}
-          <button className="primary-button account-submit" disabled={pending || loggingOut}>
+          <Button className="primary-button account-submit" disabled={pending || loggingOut}>
             {pending ? 'Mentés…' : 'Jelszó megváltoztatása'}
-          </button>
+          </Button>
         </form>
-        <button className="text-button" onClick={onLogout} disabled={pending || loggingOut}>
+        <Button className="text-button" onClick={onLogout} disabled={pending || loggingOut}>
           Kijelentkezés
-        </button>
+        </Button>
       </section>
     </main>
   )

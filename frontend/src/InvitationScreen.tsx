@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useMutation } from '@tanstack/react-query'
 import { LoaderCircle } from 'lucide-react'
 import { api } from './api'
@@ -49,14 +50,14 @@ export function InvitationScreen({
                 {mutation.error.message}
               </p>
             )}
-            <button
+            <Button
               className="primary-button account-submit"
               disabled={mutation.isPending || loggingOut}
               onClick={() => mutation.mutate()}
             >
               {mutation.isPending && <LoaderCircle size={16} className="spinning" />}Meghívó
               elfogadása
-            </button>
+            </Button>
           </>
         ) : (
           <p className="form-error" role="alert">
@@ -69,20 +70,20 @@ export function InvitationScreen({
           </p>
         )}
         <div className="invitation-account-actions">
-          <button
+          <Button
             className="text-button"
             disabled={mutation.isPending || loggingOut}
             onClick={onLogout}
           >
             Másik fiókkal lépek be
-          </button>
-          <button
+          </Button>
+          <Button
             className="text-button"
             disabled={mutation.isPending || loggingOut}
             onClick={onDismiss}
           >
             Meghívó bezárása
-          </button>
+          </Button>
         </div>
       </section>
     </main>

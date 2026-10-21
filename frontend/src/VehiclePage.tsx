@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
@@ -44,11 +45,11 @@ export function VehiclePage({ user, tenant, id, onBack }: { user: Session; tenan
     ['history', 'Rendszám és kilométerelőzmények'], ...(can('audit.read') ? [['audit', 'Módosítási napló']] : [])]
   const activeTab = tabs.some(([key]) => key === tab) ? tab : 'data'
   return <>
-    <button className="text-button org-back" onClick={onBack}><ArrowLeft size={16} />Vissza a járművekhez</button>
+    <Button className="text-button org-back" onClick={onBack}><ArrowLeft size={16} />Vissza a járművekhez</Button>
     <section className="access-panel vehicle-detail-panel" aria-label="Járműadatlap">
       <div className="org-toolbar vehicle-detail-header"><div><h2>{car?.registration ?? 'Járműadatlap'}</h2>{car && <p>{car.make} {car.model}</p>}</div>
-        <div className="member-actions"><button className="icon-button" aria-label="Járműadatlap frissítése" disabled={record.isFetching} onClick={() => void changed()}><RefreshCw size={17} /></button>
-          {car && can('vehicles.archive') && <button className="secondary-button" onClick={() => setArchiveOpen(true)}>{car.status === 'Archived' ? 'Visszaállítás' : 'Archiválás'}</button>}
+        <div className="member-actions"><Button className="icon-button" aria-label="Járműadatlap frissítése" disabled={record.isFetching} onClick={() => void changed()}><RefreshCw size={17} /></Button>
+          {car && can('vehicles.archive') && <Button className="secondary-button" onClick={() => setArchiveOpen(true)}>{car.status === 'Archived' ? 'Visszaállítás' : 'Archiválás'}</Button>}
         </div>
         {car && <div className="vehicle-detail-meta"><span className={`status status-${car.status.toLowerCase()}`}>{vehicleStatuses[car.status as keyof typeof vehicleStatuses]}</span><span>{car.siteName ?? 'Telephely nélkül'}</span><span>{car.odometerKm == null ? 'Nincs km-adat' : `${car.odometerKm.toLocaleString('hu-HU')} km`}</span></div>}
       </div>
@@ -56,7 +57,7 @@ export function VehiclePage({ user, tenant, id, onBack }: { user: Session; tenan
       {record.data && <>
         <VehicleAssignee tenant={tenant} car={car!} onChanged={changed} readOnly />
         <div className="vehicle-detail-navigation">
-          <nav aria-label="Járműadatlap részei">{tabs.map(([key, label]) => <button key={key} aria-current={activeTab === key ? 'page' : undefined} onClick={() => { setTab(key); setMessage('') }}>{label}</button>)}</nav>
+          <nav aria-label="Járműadatlap részei">{tabs.map(([key, label]) => <Button key={key} aria-current={activeTab === key ? 'page' : undefined} onClick={() => { setTab(key); setMessage('') }}>{label}</Button>)}</nav>
           <label className="org-field vehicle-detail-picker"><span>Járműadatlap részei</span><select value={activeTab} onChange={event => { setTab(event.target.value); setMessage('') }}>{tabs.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
         </div>
         {message && <p className="notice" role="status">{message}</p>}
@@ -85,7 +86,7 @@ export function VehicleDataForm({ tenantId, record, editable, onSaved }: { tenan
     <VehicleFields tenantId={tenantId} data={data} setData={setData} disabled={!editable || save.isPending} serviceOptions={options.data ?? []} preferredServicePartnerName={record.preferredServicePartnerName} />
     {options.error && <p className="form-error" role="alert">{options.error.message}</p>}
     {save.error && <p className="notice error" role="alert">{save.error.message}</p>}
-    <div className="org-form-footer"><div>{dirty && <p className="vehicle-draft-status" role="status">Nem mentett módosítások</p>}<MetadataLine version={data.version} updatedAt={record.updatedAt} updatedBy={record.updatedBy} /></div>{editable && <div className="member-actions"><button type="button" className="secondary-button" disabled={save.isPending || !dirty} onClick={() => { setData(initial); save.reset() }}>Módosítások elvetése</button><button className="primary-button" disabled={save.isPending || !dirty}>{save.isPending ? 'Mentés…' : 'Járműadatok mentése'}</button></div>}</div>
+    <div className="org-form-footer"><div>{dirty && <p className="vehicle-draft-status" role="status">Nem mentett módosítások</p>}<MetadataLine version={data.version} updatedAt={record.updatedAt} updatedBy={record.updatedBy} /></div>{editable && <div className="member-actions"><Button type="button" className="secondary-button" disabled={save.isPending || !dirty} onClick={() => { setData(initial); save.reset() }}>Módosítások elvetése</Button><Button className="primary-button" disabled={save.isPending || !dirty}>{save.isPending ? 'Mentés…' : 'Járműadatok mentése'}</Button></div>}</div>
   </form>
 }
 function VehicleSite({ tenantId, record, editable, onSaved }: { tenantId: string; record: VehicleRecord; editable: boolean; onSaved: () => Promise<void> }) {
@@ -97,7 +98,7 @@ function VehicleSite({ tenantId, record, editable, onSaved }: { tenantId: string
     {editable && <><QueryMessage pending={options.isPending} error={options.error} retry={() => void options.refetch()} />{options.data && <>
       <div className="org-form-grid"><SelectField label="Új telephely" value={siteId} onChange={setSiteId} disabled={save.isPending} required={!options.data.canUnassign}
         options={{ ...(options.data.canUnassign ? { '': 'Telephely nélkül' } : !siteId ? { '': 'Válassz telephelyet' } : {}), ...(record.vehicle.siteId ? { [record.vehicle.siteId]: record.vehicle.siteName ?? 'Jelenlegi telephely' } : {}), ...Object.fromEntries(options.data.sites.map(x => [x.id, `${x.name} (${x.code})`])) }} /></div>
-      {save.error && <p className="notice error" role="alert">{save.error.message}</p>}<div className="dialog-actions"><button className="primary-button" disabled={save.isPending || siteId === (record.vehicle.siteId ?? '')}>Telephely mentése</button></div>
+      {save.error && <p className="notice error" role="alert">{save.error.message}</p>}<div className="dialog-actions"><Button className="primary-button" disabled={save.isPending || siteId === (record.vehicle.siteId ?? '')}>Telephely mentése</Button></div>
     </>}</>}
   </form>
 }

@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -12,6 +13,7 @@ import {
   MailPlus,
   Menu,
   ShieldCheck,
+  Settings,
   Search,
   Users,
 } from 'lucide-react'
@@ -34,6 +36,7 @@ import { InvitationScreen } from './InvitationScreen'
 import { clearInvitation, readInvitation } from './invitationLink'
 import './App.css'
 import './accounts.css'
+import { Badge } from './ui/Badge'
 
 const statuses: Record<string, string> = {
   Active: 'Aktív',
@@ -92,14 +95,13 @@ function FleetTable({
                 <span className="vehicle-model">{vehicle.model}</span>
               </td>
               <td data-label="Állapot">
-                <span className={`status status-${vehicle.status.toLowerCase()}`}>
-                  <span />
+                <Badge tone={vehicle.status === 'Active' ? 'success' : vehicle.status === 'Maintenance' ? 'warning' : 'neutral'}>
                   {statuses[vehicle.status] ?? vehicle.status}
-                </span>
+                </Badge>
               </td>
               <td data-label="Km-állás">{vehicle.odometerKm?.toLocaleString('hu-HU') ?? '—'}</td>
               <td data-label="Műveletek">
-                <div className="member-actions"><button className="secondary-button" aria-label={`Jármű adatlapja: ${vehicle.registration}`} onClick={() => onOpen(vehicle.id)}>Adatlap</button>
+                <div className="member-actions"><Button className="secondary-button" aria-label={`Jármű adatlapja: ${vehicle.registration}`} onClick={() => onOpen(vehicle.id)}>Adatlap</Button>
                   <VehicleActions user={user} tenant={tenant} vehicle={vehicle} />
                 </div>
               </td>
@@ -230,6 +232,7 @@ function FleetWorkspace({
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Ugrás a tartalomra</a>
       <aside className="sidebar">
         <a className="brand" href="/" aria-label="HERMES kezdőlap">
           <span className="brand-mark">H</span>
@@ -260,7 +263,7 @@ function FleetWorkspace({
             <ChevronDown size={14} />
           </div>
           {tenant && (
-            <button
+            <Button
               className="new-company-button"
               onClick={() => {
                 setCompanyError(null)
@@ -270,12 +273,12 @@ function FleetWorkspace({
             >
               <Plus size={14} />
               Új cég
-            </button>
+            </Button>
           )}
         </div>
-        <button className="secondary-button mobile-nav-toggle" aria-label={mobileNavOpen ? 'Menü bezárása' : 'Menü megnyitása'} aria-expanded={mobileNavOpen} aria-controls="main-navigation" disabled={busy} onClick={() => setMobileNavOpen(open => !open)}><Menu size={18} />Menü</button>
+        <Button className="secondary-button mobile-nav-toggle" aria-label={mobileNavOpen ? 'Menü bezárása' : 'Menü megnyitása'} aria-expanded={mobileNavOpen} aria-controls="main-navigation" disabled={busy} onClick={() => setMobileNavOpen(open => !open)}><Menu size={18} />Menü</Button>
         <nav id="main-navigation" aria-label="Fő navigáció" className={mobileNavOpen ? 'is-open' : undefined}>
-          <button
+          <Button
             className={view === 'fleet' ? 'nav-item active' : 'nav-item'}
             aria-current={view === 'fleet' ? 'page' : undefined}
             onClick={() => changeView('fleet')}
@@ -283,14 +286,14 @@ function FleetWorkspace({
             <CarFront size={19} />
             Járművek
             <ArrowRight size={16} />
-          </button>
-          {tenant?.permissions.some(code => code.startsWith('partners.')) && <button
+          </Button>
+          {tenant?.permissions.some(code => code.startsWith('partners.')) && <Button
             className={view === 'partners' ? 'nav-item active' : 'nav-item'}
             aria-current={view === 'partners' ? 'page' : undefined}
             onClick={() => changeView('partners')}
-          ><Building2 size={19} />Partnerek<ArrowRight size={16} /></button>}
+          ><Building2 size={19} />Partnerek<ArrowRight size={16} /></Button>}
           {canManageMembers && (
-            <button
+            <Button
               className={view === 'members' ? 'nav-item active' : 'nav-item'}
               aria-current={view === 'members' ? 'page' : undefined}
               onClick={() => changeView('members')}
@@ -298,11 +301,11 @@ function FleetWorkspace({
               <Users size={19} />
               Felhasználók
               <ArrowRight size={16} />
-            </button>
+            </Button>
           )}
-          {canInvite && <button className={view === 'invitations' ? 'nav-item active' : 'nav-item'} aria-current={view === 'invitations' ? 'page' : undefined} onClick={() => changeView('invitations')}><MailPlus size={19} />Meghívások<ArrowRight size={16} /></button>}
-          {canReadGroups && <button className={view === 'groups' ? 'nav-item active' : 'nav-item'} aria-label="Jogosultságcsoportok" aria-current={view === 'groups' ? 'page' : undefined} onClick={() => changeView('groups')}><ShieldCheck size={19} /><span>Jogosultság<wbr />csoportok</span></button>}
-          <button
+          {canInvite && <Button className={view === 'invitations' ? 'nav-item active' : 'nav-item'} aria-current={view === 'invitations' ? 'page' : undefined} onClick={() => changeView('invitations')}><MailPlus size={19} />Meghívások<ArrowRight size={16} /></Button>}
+          {canReadGroups && <Button className={view === 'groups' ? 'nav-item active' : 'nav-item'} aria-label="Jogosultságcsoportok" aria-current={view === 'groups' ? 'page' : undefined} onClick={() => changeView('groups')}><ShieldCheck size={19} /><span>Jogosultság<wbr />csoportok</span></Button>}
+          <Button
             className={view === 'organization' ? 'nav-item active' : 'nav-item'}
             aria-current={view === 'organization' ? 'page' : undefined}
             onClick={() => changeView('organization')}
@@ -310,8 +313,8 @@ function FleetWorkspace({
             <Building2 size={19} />
             Cégek és telephelyek
             <ArrowRight size={16} />
-          </button>
-          {canManageSystem && <details className="admin-navigation"><summary>Beállítások</summary><button className={view === 'system' ? 'nav-item active' : 'nav-item'} aria-current={view === 'system' ? 'page' : undefined} onClick={() => changeView('system')}><Users size={18} />Rendszerkezelés</button></details>}
+          </Button>
+          {canManageSystem && <details className="admin-navigation"><summary><Settings size={16} aria-hidden="true" />Beállítások<ChevronDown size={14} aria-hidden="true" /></summary><Button className={view === 'system' ? 'nav-item active' : 'nav-item'} aria-current={view === 'system' ? 'page' : undefined} onClick={() => changeView('system')}><Users size={18} />Rendszerkezelés</Button></details>}
         </nav>
         <div className="sidebar-bottom">
           <span className={`connection ${health.isSuccess ? 'online' : ''}`}>
@@ -322,7 +325,7 @@ function FleetWorkspace({
                 ? 'Kapcsolódás…'
                 : 'Nincs kapcsolat'}
           </span>
-          <button className="profile profile-button" aria-label="Saját profil megnyitása" onClick={() => openProfile(user.id)} disabled={busy}>
+          <Button className="profile profile-button" aria-label="Saját profil megnyitása" onClick={() => openProfile(user.id)} disabled={busy}>
             <span className="avatar">
               {user.displayName
                 .split(/\s+/)
@@ -337,22 +340,22 @@ function FleetWorkspace({
                 {tenant ? `${tenant.permissions.length} jogosultság` : 'Nincs kiválasztott cég'}
               </small>
             </span>
-          </button>
+          </Button>
         </div>
       </aside>
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <header className="topbar">
-          <span>
-            Munkaterület <span className="breadcrumb-separator">/</span> {viewTitle}
+          <span className="breadcrumb">
+            <span className="breadcrumb-home">Munkaterület</span><span className="breadcrumb-separator" aria-hidden="true">/</span><strong>{viewTitle}</strong>
           </span>
-          <button
+          <Button
             className="logout-button"
             onClick={onLogout}
             disabled={loggingOut || busy || createCompany.isPending}
           >
             <LogOut size={16} />
             {loggingOut ? 'Kilépés…' : 'Kijelentkezés'}
-          </button>
+          </Button>
         </header>
         <div className="page-content page-content-compact">
           {logoutError && (
@@ -388,9 +391,9 @@ function FleetWorkspace({
               <div>
                 <h2>A munkaterület nem tölthető be</h2>
                 <p>{tenants.error.message}</p>
-                <button className="text-button" onClick={() => void tenants.refetch()}>
+                <Button className="text-button" onClick={() => void tenants.refetch()}>
                   Újrapróbálom
-                </button>
+                </Button>
               </div>
             </div>
           ) : tenants.isPending ? (
@@ -416,12 +419,12 @@ function FleetWorkspace({
           ) : formOpen ? (
             <VehicleCreatePage key={tenant.id} user={user} tenant={tenant} onBusyChange={setBusy} onBack={() => setFormOpen(false)} onCreated={car => { setFormOpen(false); setSelectedVehicleId(tenant.permissions.includes('vehicles.read') ? car.id : null) }} />
           ) : !tenant.permissions.includes('vehicles.read') ? (
-            <section className="access-panel" aria-label="Járművek"><ListToolbar label="Járművek műveletei" actions={canCreate && <button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</button>} /><p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p></section>
+            <section className="access-panel" aria-label="Járművek"><ListToolbar label="Járművek műveletei" actions={canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>} /><p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p></section>
           ) : selectedVehicleId ? (
             <VehiclePage key={`${tenant.id}:${selectedVehicleId}`} user={user} tenant={tenant} id={selectedVehicleId} onBack={() => setSelectedVehicleId(null)} />
           ) : (
             <section className="fleet-panel" aria-label="Járműlista">
-              <ListToolbar label="Járművek keresése és műveletei" actions={canCreate && <button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</button>}>
+              <ListToolbar label="Járművek keresése és műveletei" actions={canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>}>
                 <div className="list-toolbar-form">
                   <span className="list-count" aria-live="polite"><strong>{visibleVehicles.length}{visibleVehicles.length !== allVehicles.length ? ` / ${allVehicles.length}` : ''}</strong> jármű</span>
                   <div className="search-field"><Search size={18} /><input aria-label="Jármű keresése" placeholder="Rendszám, gyártó vagy modell" value={search} onChange={event => setSearch(event.target.value)} /></div>
@@ -435,9 +438,9 @@ function FleetWorkspace({
                       ? vehicles.error.message
                       : 'A járműlista nem tölthető be.'}
                   </p>
-                  <button className="text-button" onClick={() => void vehicles.refetch()}>
+                  <Button className="text-button" onClick={() => void vehicles.refetch()}>
                     Újrapróbálom
-                  </button>
+                  </Button>
                 </div>
               ) : vehicles.isPending ? (
                 <div className="empty-state">
@@ -604,9 +607,9 @@ export default function App() {
         <section className="account-panel">
           <h1>A szerver nem érhető el</h1>
           <p className="account-description">{session.error.message}</p>
-          <button className="primary-button" onClick={() => void session.refetch()}>
+          <Button className="primary-button" onClick={() => void session.refetch()}>
             Újrapróbálom
-          </button>
+          </Button>
         </section>
       </main>
     )

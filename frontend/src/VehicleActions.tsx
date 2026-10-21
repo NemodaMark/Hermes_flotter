@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, vehicleKey } from './api'
@@ -18,22 +19,22 @@ export function VehicleActions({
   return (
     <div className="member-actions">
       {vehicle.status !== 'Archived' && (vehicle.permissions ?? tenant.permissions).includes('vehicles.update') && (
-        <button
+        <Button
           className="secondary-button"
           aria-label={`Jármű szerkesztése: ${vehicle.registration}`}
           onClick={() => setMode('edit')}
         >
           Szerkesztés
-        </button>
+        </Button>
       )}
       {vehicle.status !== 'Archived' && (vehicle.permissions ?? tenant.permissions).includes('vehicles.odometer.create') && (
-        <button
+        <Button
           className="secondary-button"
           aria-label={`Kilométerállás: ${vehicle.registration}`}
           onClick={() => setMode('odometer')}
         >
           Km rögzítése
-        </button>
+        </Button>
       )}
       {mode && (
         <VehicleActionDialog
@@ -151,17 +152,17 @@ function VehicleActionDialog({
           </p>
         )}
         <div className="dialog-actions">
-          <button
+          <Button
             type="button"
             className="secondary-button"
             disabled={save.isPending}
             onClick={onClose}
           >
             Mégse
-          </button>
-          <button className="primary-button" disabled={save.isPending}>
+          </Button>
+          <Button className="primary-button" disabled={save.isPending}>
             Mentés
-          </button>
+          </Button>
         </div>
       </form>
     </AccessDialog>

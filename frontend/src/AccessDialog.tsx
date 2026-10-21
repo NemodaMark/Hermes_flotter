@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
@@ -34,7 +35,7 @@ export function AccessDialog({
     >
       <div className="dialog-heading">
         <h2 id="access-dialog-title">{title}</h2>
-        <button
+        <Button
           type="button"
           className="icon-button"
           aria-label="Bezárás"
@@ -42,7 +43,7 @@ export function AccessDialog({
           onClick={onClose}
         >
           <X size={20} />
-        </button>
+        </Button>
       </div>
       {children}
     </dialog>

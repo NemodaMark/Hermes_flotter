@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Eye, RefreshCw, Upload } from 'lucide-react'
@@ -62,31 +63,31 @@ export function VehicleDocuments({ tenantId, vehicleId, registration, kind, targ
       <label className="org-field"><span>Fájl kiválasztása</span><input ref={input} type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" disabled={pending} onChange={e => { setFile(e.target.files?.[0] ?? null); upload.reset(); setMessage('') }} /></label>
       <p className="field-hint">PDF, JPG, PNG, DOCX vagy XLSX · legfeljebb 10 MB fájlonként.</p>
       {invalidFile && <p className="form-error" role="alert">Válassz megfelelő típusú, nem üres, legfeljebb 10 MB-os fájlt.</p>}
-      <button className="primary-button" disabled={pending || !file || !!invalidFile || canRead && list.isPending}><Upload size={16} />{upload.isPending ? 'Feltöltés…' : 'Feltöltés'}</button>
+      <Button className="primary-button" disabled={pending || !file || !!invalidFile || canRead && list.isPending}><Upload size={16} />{upload.isPending ? 'Feltöltés…' : 'Feltöltés'}</Button>
     </form>}
     {canRead ? <>
       <div className="document-tools"><label className="org-checkbox"><input type="checkbox" checked={showWithdrawn} onChange={e => setShowWithdrawn(e.target.checked)} />Visszavontak is</label>
         {kind === 'vehicle' && <SelectField label="Szűrés dokumentumtípus szerint" value={categoryFilter} options={{ '': 'Minden dokumentumtípus', ...documentCategories }} onChange={setCategoryFilter} />}
-        <button className="icon-button" aria-label="Dokumentumlista frissítése" disabled={pending || list.isFetching} onClick={() => { upload.reset(); status.reset(); void list.refetch() }}><RefreshCw size={17} /></button></div>
+        <Button className="icon-button" aria-label="Dokumentumlista frissítése" disabled={pending || list.isFetching} onClick={() => { upload.reset(); status.reset(); void list.refetch() }}><RefreshCw size={17} /></Button></div>
       <QueryMessage pending={list.isPending} error={list.error} retry={() => void list.refetch()} />
       {!list.error && list.data && <ul className="document-list">{items.map(doc => <li key={doc.id}>
         <div><strong>{doc.fileName}</strong>{doc.category && <p className="document-category">{documentCategories[doc.category] ?? doc.category}</p>}<p className="fleet-detail-caption">{bytesText(doc.byteLength)} · {new Date(doc.uploadedAt).toLocaleString('hu-HU')} · {doc.uploadedBy}</p>
           {doc.isWithdrawn && <p className="fleet-detail-caption">Visszavont · {doc.statusReason}</p>}</div>
         <div className="member-actions">
-          {canPreviewDocument(doc) && <button className="secondary-button" aria-label={`Megtekintés: ${doc.fileName}`} disabled={pending} onClick={e => { previewButton.current = e.currentTarget; download.reset(); setPreviewId(doc.id) }}><Eye size={15} />Megtekintés</button>}
-          {!doc.isWithdrawn && <button className="secondary-button" aria-label={`Letöltés: ${doc.fileName}`} disabled={pending} onClick={() => download.mutate(doc)}><Download size={15} />Letöltés</button>}
-          {editable && <button className="secondary-button" disabled={pending} onClick={() => { setChange({ file: doc, withdrawn: !doc.isWithdrawn }); setReason(''); status.reset() }}>{doc.isWithdrawn ? 'Visszaállítás' : 'Visszavonás'}</button>}
+          {canPreviewDocument(doc) && <Button className="secondary-button" aria-label={`Megtekintés: ${doc.fileName}`} disabled={pending} onClick={e => { previewButton.current = e.currentTarget; download.reset(); setPreviewId(doc.id) }}><Eye size={15} />Megtekintés</Button>}
+          {!doc.isWithdrawn && <Button className="secondary-button" aria-label={`Letöltés: ${doc.fileName}`} disabled={pending} onClick={() => download.mutate(doc)}><Download size={15} />Letöltés</Button>}
+          {editable && <Button className="secondary-button" disabled={pending} onClick={() => { setChange({ file: doc, withdrawn: !doc.isWithdrawn }); setReason(''); status.reset() }}>{doc.isWithdrawn ? 'Visszaállítás' : 'Visszavonás'}</Button>}
         </div>
       </li>)}{!items.length && <li>Még nincs megjeleníthető dokumentum.</li>}</ul>}
     </> : <p className="field-hint">A dokumentumok listázásához és letöltéséhez a bejegyzés megtekintési joga is szükséges.</p>}
     {change && editable && <form className="document-status" onSubmit={e => { e.preventDefault(); status.mutate() }}>
       <p><strong>{change.withdrawn ? 'Visszavonás' : 'Visszaállítás'}: {change.file.fileName}</strong></p>
       <NotesField label="Indoklás" required value={reason} maxLength={500} onChange={setReason} disabled={pending} />
-      <div className="dialog-actions"><button type="button" className="secondary-button" disabled={pending} onClick={() => setChange(null)}>Mégse</button><button className="primary-button" disabled={pending}>Állapot mentése</button></div>
+      <div className="dialog-actions"><Button type="button" className="secondary-button" disabled={pending} onClick={() => setChange(null)}>Mégse</Button><Button className="primary-button" disabled={pending}>Állapot mentése</Button></div>
     </form>}
     {[upload.error, status.error, download.error].filter(Boolean).map((error, index) => <p key={index} className="form-error" role="alert">{error!.message}</p>)}
     {message && <p className="access-success" role="status">{message}</p>}
-    {!embedded && <div className="dialog-actions"><button className="secondary-button" disabled={pending} onClick={onClose}>Bezárás</button></div>}
+    {!embedded && <div className="dialog-actions"><Button className="secondary-button" disabled={pending} onClick={onClose}>Bezárás</Button></div>}
   </>
   return embedded ? <section className="vehicle-documents" aria-label="Járműokmányok">
     <p className="access-description">Forgalmi engedély, biztosítás és műszaki vizsga dokumentumai.</p>

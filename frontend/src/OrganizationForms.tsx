@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { AccessDialog } from './AccessDialog'
@@ -232,9 +233,9 @@ export function CompanyForm({
       {save.isError && (
         <p className="notice error" role="alert">
           {save.error.message}{' '}
-          <button type="button" className="text-button" onClick={onReload}>
+          <Button type="button" className="text-button" onClick={onReload}>
             Friss adatok betöltése
-          </button>
+          </Button>
         </p>
       )}
       {saved && (
@@ -252,8 +253,8 @@ export function CompanyForm({
           </p></details>
         </div>
         {editable && <div className="member-actions">
-          <button type="button" className="secondary-button" disabled={save.isPending || !dirty} onClick={() => { setData(company.data); setSaved(false); save.reset() }}>Módosítások elvetése</button>
-          <button className="primary-button" disabled={save.isPending || !dirty}>{save.isPending ? 'Mentés…' : 'Cégadatok mentése'}</button>
+          <Button type="button" className="secondary-button" disabled={save.isPending || !dirty} onClick={() => { setData(company.data); setSaved(false); save.reset() }}>Módosítások elvetése</Button>
+          <Button className="primary-button" disabled={save.isPending || !dirty}>{save.isPending ? 'Mentés…' : 'Cégadatok mentése'}</Button>
         </div>}
       </div>
     </form>
@@ -481,12 +482,12 @@ export function DialogActions({
 }) {
   return (
     <div className="dialog-actions">
-      <button type="button" className="secondary-button" onClick={onClose} disabled={pending}>
+      <Button type="button" className="secondary-button" onClick={onClose} disabled={pending}>
         Mégse
-      </button>
-      <button className="primary-button" disabled={pending || submitDisabled}>
+      </Button>
+      <Button className="primary-button" disabled={pending || submitDisabled}>
         {pending ? 'Mentés…' : label}
-      </button>
+      </Button>
     </div>
   )
 }
