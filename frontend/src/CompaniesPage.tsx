@@ -290,12 +290,14 @@ function CompanyWorkspace({
         <ArrowLeft size={16} />
         Vissza a cégekhez
       </button>
-      <section className="access-panel" aria-label="Cég és telephelyek">
-        <div className="org-toolbar">
+      <section className="access-panel organization-detail-panel" aria-label="Cég és telephelyek">
+        <div className="org-toolbar organization-detail-header">
           <div>
             <h2>{companyName}</h2>
             <CompanyStatus status={companyStatus} />
           </div>
+          <div className="member-actions">
+          {tab === 'company' && has('companies.status') && <button className="secondary-button" disabled={!state.data} onClick={() => setDialog({ kind: 'company-status' })}>Cég állapotának kezelése</button>}
           <button
             className="icon-button"
             aria-label="Cégadatok frissítése"
@@ -306,6 +308,7 @@ function CompanyWorkspace({
           >
             <RefreshCw size={17} />
           </button>
+          </div>
         </div>
         {!active && (
           <p className="notice">
@@ -315,11 +318,19 @@ function CompanyWorkspace({
               ` Indok: ${state.data?.reason ?? profile.data?.statusReason}`}
           </p>
         )}
-        <div className="access-tabs org-tabs" role="tablist" aria-label="Cég kezelése">
+        <div className="access-tabs org-tabs organization-tabs" role="tablist" aria-label="Cég kezelése" onKeyDown={event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+          event.preventDefault()
+          const index = tabs.findIndex(item => item.id === tab)
+          const next = event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs[tabs.length - 1] : tabs[(index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]
+          if (next) { setTab(next.id); setNotice(''); event.currentTarget.querySelector<HTMLButtonElement>(`[data-company-tab="${next.id}"]`)?.focus() }
+        }}>
           {tabs.map((item) => (
             <button
               key={item.id}
               role="tab"
+              data-company-tab={item.id}
+              tabIndex={tab === item.id ? 0 : -1}
               aria-selected={tab === item.id}
               onClick={() => {
                 setTab(item.id)
@@ -330,6 +341,7 @@ function CompanyWorkspace({
             </button>
           ))}
         </div>
+        {tabs.length > 0 && <label className="org-field organization-picker"><span>Cégadatlap részei</span><select value={tab} onChange={event => { setTab(event.target.value); setNotice('') }}>{tabs.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
         {notice && (
           <p className="notice success" role="status">
             {notice}
@@ -340,19 +352,7 @@ function CompanyWorkspace({
             {error.message}
           </p>
         )}
-        {tab === 'company' && (
-          <>
-            <div className="org-section-tools">
-              {has('companies.status') && (
-                <button
-                  className="secondary-button"
-                  disabled={!state.data}
-                  onClick={() => setDialog({ kind: 'company-status' })}
-                >
-                  Cég állapotának kezelése
-                </button>
-              )}
-            </div>
+        <div hidden={tab !== 'company'}>
             {profile.isPending && has('companies.read') ? (
               <p className="notice">Cégadatok betöltése…</p>
             ) : profile.data ? (
@@ -369,14 +369,7 @@ function CompanyWorkspace({
                 <p className="notice">A cég törzsadatainak megtekintéséhez nincs jogosultságod.</p>
               )
             )}
-          </>
-        )}
-        {tab === 'sites' && (
-          <p className="notice">
-            A cég fizikai helyszínei, például irodák, raktárak vagy garázsok.
-            A járműveket a Járművek telephelyei fülön rendelheted hozzájuk.
-          </p>
-        )}
+        </div>
         {(tab === 'contacts' || tab === 'sites') && (
           <div className="org-section-tools">
             <label className="org-checkbox">
@@ -411,7 +404,7 @@ function CompanyWorkspace({
           ) : (
             <>
               <div className="table-scroll">
-                <table className="org-table">
+                <table className="org-table responsive-list">
                   <thead>
                     <tr>
                       <th>Kapcsolattartó</th>
@@ -423,16 +416,16 @@ function CompanyWorkspace({
                   <tbody>
                     {contacts.data?.map((contact) => (
                       <tr key={contact.id}>
-                        <td>
+                        <td data-label="Kapcsolattartó">
                           <strong>{contact.data.name}</strong>
                           <span className="member-email">{contact.data.position ?? '–'}</span>
                         </td>
-                        <td>
+                        <td data-label="Elérhetőség">
                           {contact.data.email ?? '–'}
                           <span className="member-email">{contact.data.phone ?? '–'}</span>
                         </td>
-                        <td>{contact.isArchived ? 'Archivált' : 'Aktív'}</td>
-                        <td>
+                        <td data-label="Állapot">{contact.isArchived ? 'Archivált' : 'Aktív'}</td>
+                        <td data-label="Műveletek">
                           <div className="member-actions">
                             {active && has('companies.update') && (
                               <>
@@ -472,7 +465,7 @@ function CompanyWorkspace({
           ) : (
             <>
               <div className="table-scroll">
-                <table className="org-table">
+                <table className="org-table responsive-list">
                   <thead>
                     <tr>
                       <th>Telephely</th>
@@ -485,13 +478,13 @@ function CompanyWorkspace({
                   <tbody>
                     {sites.data?.map((site) => (
                       <tr key={site.id}>
-                        <td>
+                        <td data-label="Telephely">
                           <strong>{site.data.name}</strong>
                           <span className="member-email">
                             {site.data.code} · {site.isArchived ? 'Archivált' : 'Aktív'}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Cím / elérhetőség">
                           {[
                             site.data.address.postalCode,
                             site.data.address.city,
@@ -504,9 +497,9 @@ function CompanyWorkspace({
                             {[site.data.email, site.data.phone].filter(Boolean).join(' · ')}
                           </span>
                         </td>
-                        <td>{site.contactName ?? '–'}</td>
-                        <td>{site.vehicleCount ?? '–'}</td>
-                        <td>
+                        <td data-label="Kapcsolattartó">{site.contactName ?? '–'}</td>
+                        <td data-label="Járművek">{site.vehicleCount ?? '–'}</td>
+                        <td data-label="Műveletek">
                           <div className="member-actions">
                             {active && !site.isArchived && (site.permissions ?? company.permissions).includes('sites.update') && (
                               <button
@@ -546,7 +539,7 @@ function CompanyWorkspace({
           ) : (
             <>
               <div className="table-scroll">
-                <table className="org-table">
+                <table className="org-table responsive-list">
                   <thead>
                     <tr>
                       <th>Jármű</th>
@@ -557,14 +550,14 @@ function CompanyWorkspace({
                   <tbody>
                     {vehicles.data?.map((vehicle) => (
                       <tr key={vehicle.id}>
-                        <td>
+                        <td data-label="Jármű">
                           <strong>{vehicle.registration}</strong>
                           <span className="member-email">
                             {vehicle.make} {vehicle.model}
                           </span>
                         </td>
-                        <td>{vehicle.siteName ?? 'Nincs hozzárendelve'}</td>
-                        <td>
+                        <td data-label="Telephely">{vehicle.siteName ?? 'Nincs hozzárendelve'}</td>
+                        <td data-label="Műveletek">
                           {active && (vehicle.permissions ?? company.permissions).includes('sites.vehicles.assign') && (
                             <button
                               className="secondary-button"
@@ -589,7 +582,7 @@ function CompanyWorkspace({
           ) : (
             <>
               <div className="table-scroll">
-                <table className="org-table">
+                <table className="org-table responsive-list">
                   <thead>
                     <tr>
                       <th>Időpont / művelet</th>
@@ -600,12 +593,12 @@ function CompanyWorkspace({
                   <tbody>
                     {audit.data?.items.map((entry) => (
                       <tr key={entry.id}>
-                        <td>
+                        <td data-label="Időpont / művelet">
                           {new Date(entry.createdAt).toLocaleString('hu-HU')}
                           <span className="member-email">{auditAction(entry.action)}</span>
                         </td>
-                        <td>{entry.actorSubject}</td>
-                        <td>
+                        <td data-label="Módosító">{entry.actorSubject}</td>
+                        <td data-label="Változás">
                           <details>
                             <summary>Részletek</summary>
                             <OrganizationAuditChanges details={entry.details} />

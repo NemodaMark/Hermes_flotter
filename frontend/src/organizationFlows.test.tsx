@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CompaniesPage } from './CompaniesPage'
@@ -217,6 +217,10 @@ function mount(allowed = permissions) {
           { code: 'site_has_vehicles', title: 'Előbb rendeld át a telephely járműveit.' },
           409,
         )
+      if (url.pathname === '/api/v1/company/sites/bp' && method === 'PUT') {
+        state.sites[0] = { ...state.sites[0], data: { ...body, version: body.version + 1 } }
+        return json(state.sites[0])
+      }
       if (url.pathname === '/api/v1/company/vehicles') return json(state.vehicles)
       if (url.pathname === '/api/v1/company/vehicles/car/site') {
         state.vehicles = [
@@ -289,6 +293,7 @@ it('saves company fields with the selected company, revision and CSRF token', as
   await userEvent.type(name, 'Duna Fuvarozó Kft.')
   expect(screen.queryByRole('textbox', { name: 'Adószám' })).not.toBeInTheDocument()
   expect(screen.queryByRole('textbox', { name: 'Közösségi adószám' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('tab', { name: 'Alapbeállítások' }))
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Időzóna' }), 'Europe/Vienna')
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Pénznem' }), 'EUR')
   await userEvent.click(screen.getByRole('button', { name: 'Cégadatok mentése' }))
@@ -310,8 +315,10 @@ it('preserves saved settings outside the dropdown catalog when another company f
   state.profile.data.timeZone = 'Central Europe Standard Time'
   state.profile.data.currency = 'XTS'
   await openCompany()
+  await userEvent.click(await screen.findByRole('tab', { name: 'Alapbeállítások' }))
   expect(await screen.findByRole('combobox', { name: 'Időzóna' })).toHaveValue('Central Europe Standard Time')
   expect(screen.getByRole('combobox', { name: 'Pénznem' })).toHaveValue('XTS')
+  await userEvent.click(screen.getByRole('tab', { name: 'Alapadatok' }))
   await userEvent.type(screen.getByRole('textbox', { name: 'Hivatalos cégnév' }), ' új')
   await userEvent.click(screen.getByRole('button', { name: 'Cégadatok mentése' }))
   await waitFor(() => expect(calls.find((c) => c.method === 'PUT')?.body).toMatchObject({
@@ -331,6 +338,67 @@ it('keeps unsaved values after a conflict until the user reloads the current rev
   expect(field).toHaveValue('Saját szerkesztés')
   await userEvent.click(screen.getByRole('button', { name: 'Friss adatok betöltése' }))
   expect(await screen.findByDisplayValue('Másik kezelő módosítása')).toBeInTheDocument()
+})
+it('keeps company edits across field groups and company sections, then discards every group together', async () => {
+  const { calls } = mount()
+  await openCompany()
+  const legal = await screen.findByRole('textbox', { name: 'Hivatalos cégnév' })
+  expect(screen.getByRole('button', { name: 'Cégadatok mentése' })).toBeDisabled()
+  fireEvent.change(legal, { target: { value: 'Piszkozat Kft.' } })
+  await userEvent.click(screen.getByRole('tab', { name: 'Székhely' }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'Település' }), { target: { value: 'Győr' } })
+  await userEvent.click(screen.getByRole('tab', { name: 'Telephelyek' }))
+  expect(screen.getByRole('form', { name: 'Cég törzsadatai', hidden: true })).not.toBeVisible()
+  await userEvent.click(screen.getByRole('tab', { name: 'Cégadatok' }))
+  expect(screen.getByRole('textbox', { name: 'Település' })).toHaveValue('Győr')
+  await userEvent.click(screen.getByRole('tab', { name: 'Alapadatok' }))
+  expect(legal).toHaveValue('Piszkozat Kft.')
+  await userEvent.click(screen.getByRole('button', { name: 'Módosítások elvetése' }))
+  expect(legal).toHaveValue(profile.data.legalName)
+  await userEvent.click(screen.getByRole('tab', { name: 'Székhely' }))
+  expect(screen.getByRole('textbox', { name: 'Település' })).toHaveValue('')
+  expect(screen.getByRole('button', { name: 'Cégadatok mentése' })).toBeDisabled()
+  expect(calls.some(call => call.method === 'PUT')).toBe(false)
+})
+it('reveals an invalid hidden company address and focuses the required country without sending a request', async () => {
+  const { calls } = mount()
+  await openCompany()
+  await userEvent.click(await screen.findByRole('tab', { name: 'Székhely' }))
+  await userEvent.clear(screen.getByRole('textbox', { name: 'Országkód' }))
+  await userEvent.click(screen.getByRole('tab', { name: 'Alapadatok' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Cégadatok mentése' }))
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Országkód' })).toHaveFocus())
+  expect(screen.getByRole('tab', { name: 'Székhely' })).toHaveAttribute('aria-selected', 'true')
+  expect(calls.some(call => call.method === 'PUT')).toBe(false)
+})
+it('keeps company field groups readable but disabled without company editing permission', async () => {
+  const { calls } = mount(['companies.read'])
+  await openCompany()
+  expect(await screen.findByRole('textbox', { name: 'Hivatalos cégnév' })).toBeDisabled()
+  await userEvent.selectOptions(screen.getByLabelText('Mezőcsoport'), 'address')
+  expect(screen.getByRole('textbox', { name: 'Országkód' })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: 'Cégadatok mentése' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Módosítások elvetése' })).not.toBeInTheDocument()
+  expect(calls.some(call => call.method === 'PUT')).toBe(false)
+})
+it('saves all site groups with the existing contact and version without exposing the company profile', async () => {
+  const { state, calls } = mount(['sites.read', 'sites.update'])
+  state.sites[0].data.contactId = 'existing-contact'
+  state.sites[0].contactName = 'Meglévő kapcsolattartó'
+  await openCompany()
+  await userEvent.click(await screen.findByRole('button', { name: 'Telephely szerkesztése: Budapest' }))
+  const dialog = screen.getByRole('dialog', { name: 'Telephely szerkesztése: Budapest' })
+  expect(within(dialog).getByRole('button', { name: 'Mentés' })).toBeDisabled()
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Cím' }))
+  fireEvent.change(within(dialog).getByRole('textbox', { name: 'Település' }), { target: { value: 'Győr' } })
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Elérhetőségek' }))
+  expect(within(dialog).getByRole('combobox', { name: 'Kapcsolattartó' })).toHaveValue('existing-contact')
+  fireEvent.change(within(dialog).getByRole('textbox', { name: 'Telephely e-mail-címe' }), { target: { value: 'telephely@example.test' } })
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Mentés' }))
+  await waitFor(() => expect(calls.find(call => call.method === 'PUT' && call.path.endsWith('/sites/bp'))?.body).toMatchObject({
+    name: 'Budapest', code: 'BP-01', address: { city: 'Győr', countryCode: 'HU' }, email: 'telephely@example.test', contactId: 'existing-contact', version: 4,
+  }))
+  expect(calls.some(call => call.path === '/api/v1/company' || call.path.includes('/contacts'))).toBe(false)
 })
 it('creates a company contact through the dialog', async () => {
   const { calls } = mount()
@@ -360,6 +428,7 @@ it('allows site creation without company-profile access and sends structured add
     'Győri telephely',
   )
   await userEvent.type(within(dialog).getByRole('textbox', { name: 'Telephelykód' }), 'GYOR')
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Cím' }))
   await userEvent.type(within(dialog).getByRole('textbox', { name: 'Település' }), 'Győr')
   await userEvent.click(within(dialog).getByRole('button', { name: 'Mentés' }))
   expect(await screen.findByText('Győri telephely')).toBeInTheDocument()

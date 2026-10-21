@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { AccessDialog } from './AccessDialog'
+import { FieldSections } from './FieldSections'
+import './organization-layout.css'
 import { blankAddress, companyStatusName, organizationApi } from './organizationApi'
 import { currencies, currencyLabel, timeZones, timeZoneLabel, withCurrentValue } from './companyOptions'
 import type {
@@ -107,6 +109,7 @@ export function CompanyForm({
 }) {
   const [data, setData] = useState(company.data)
   const [saved, setSaved] = useState(false)
+  const dirty = JSON.stringify(data) !== JSON.stringify(company.data)
   const save = useMutation({ mutationFn: () => organizationApi.saveCompany(tenantId, data) })
   const editable = canEdit && company.status === 'Active'
   const text = (
@@ -132,10 +135,11 @@ export function CompanyForm({
   )
   return (
     <form
-      className="org-form"
+      className="org-form organization-data-form"
       aria-label="Cég törzsadatai"
       onSubmit={(e) => {
         e.preventDefault()
+        if (!editable || !dirty || save.isPending) return
         void save
           .mutateAsync()
           .then(async () => {
@@ -145,15 +149,16 @@ export function CompanyForm({
           .catch(() => {})
       }}
     >
-      <fieldset disabled={save.isPending}>
+      <FieldSections label="Cégadatok mezőcsoportjai" sections={[
+        { id: 'basic', label: 'Alapadatok', content: (<fieldset disabled={save.isPending}>
         <legend>Alapadatok</legend>
         <div className="org-form-grid">
           {text('name', 'Megjelenített cégnév', 160, 'text', true)}
           {text('legalName', 'Hivatalos cégnév')}
           {text('registrationNumber', 'Cégjegyzékszám', 40)}
         </div>
-      </fieldset>
-      <fieldset>
+      </fieldset>) },
+        { id: 'address', label: 'Székhely', content: (<fieldset>
         <legend>Székhely</legend>
         <AddressFields
           value={data.address}
@@ -163,16 +168,16 @@ export function CompanyForm({
             setData({ ...data, address })
           }}
         />
-      </fieldset>
-      <fieldset>
+      </fieldset>) },
+        { id: 'contact', label: 'Elérhetőségek', content: (<fieldset>
         <legend>Elérhetőségek</legend>
         <div className="org-form-grid">
           {text('email', 'Központi e-mail', 254, 'email')}
           {text('phone', 'Központi telefonszám', 40, 'tel')}
           {text('website', 'Weboldal', 2048, 'url')}
         </div>
-      </fieldset>
-      <fieldset>
+      </fieldset>) },
+        { id: 'settings', label: 'Alapbeállítások', content: (<fieldset>
         <legend>Alapbeállítások</legend>
         <div className="org-form-grid">
           <label className="org-field">
@@ -222,7 +227,8 @@ export function CompanyForm({
             </select>
           </label>
         </div>
-      </fieldset>
+      </fieldset>) }
+      ]} />
       {save.isError && (
         <p className="notice error" role="alert">
           {save.error.message}{' '}
@@ -237,21 +243,19 @@ export function CompanyForm({
         </p>
       )}
       <div className="org-form-footer">
-        <MetadataLine
-          version={company.data.version}
-          updatedAt={company.updatedAt}
-          updatedBy={company.updatedBy}
-        />
-        {editable && (
-          <button className="primary-button" disabled={save.isPending}>
-            {save.isPending ? 'Mentés…' : 'Cégadatok mentése'}
-          </button>
-        )}
+        <div>
+          {dirty && !saved && <p className="organization-draft-status" role="status">Nem mentett módosítások</p>}
+          <MetadataLine version={company.data.version} updatedAt={company.updatedAt} updatedBy={company.updatedBy} />
+          <details className="organization-record-metadata"><summary>Létrehozási adatok</summary><p>
+            Létrehozta: {company.createdBy ?? 'Korábbi adat, a létrehozó nem ismert'}
+            {company.createdAt ? ` · ${new Date(company.createdAt).toLocaleString('hu-HU')}` : ''}
+          </p></details>
+        </div>
+        {editable && <div className="member-actions">
+          <button type="button" className="secondary-button" disabled={save.isPending || !dirty} onClick={() => { setData(company.data); setSaved(false); save.reset() }}>Módosítások elvetése</button>
+          <button className="primary-button" disabled={save.isPending || !dirty}>{save.isPending ? 'Mentés…' : 'Cégadatok mentése'}</button>
+        </div>}
       </div>
-      <p className="org-metadata">
-        Létrehozta: {company.createdBy ?? 'Korábbi adat, a létrehozó nem ismert'}
-        {company.createdAt ? ` · ${new Date(company.createdAt).toLocaleString('hu-HU')}` : ''}
-      </p>
     </form>
   )
 }
@@ -358,16 +362,20 @@ export function SiteDialog({
   const save = useMutation({
     mutationFn: () => organizationApi.saveSite(tenantId, site?.id ?? null, data),
   })
+  const dirty = !site || JSON.stringify(data) !== JSON.stringify(site.data)
   return (
     <AccessDialog
-      title={site ? 'Telephely szerkesztése' : 'Új telephely'}
+      title={site ? `Telephely szerkesztése: ${site.data.name}` : 'Új telephely'}
+      className="organization-site-dialog"
       pending={save.isPending}
       onClose={onClose}
     >
       <form
-        className="org-form"
+        className="org-form organization-site-form"
+        aria-label="Telephely törzsadatai"
         onSubmit={(e) => {
           e.preventDefault()
+          if (save.isPending || !dirty) return
           void save
             .mutateAsync()
             .then(async () => {
@@ -377,7 +385,10 @@ export function SiteDialog({
             .catch(() => {})
         }}
       >
-        <div className="org-form-grid">
+        <FieldSections label="Telephelyadatok mezőcsoportjai" sections={[
+          { id: 'basic', label: 'Alapadatok', content: (<fieldset disabled={save.isPending}>
+            <legend>Alapadatok</legend>
+            <div className="org-form-grid">
           <TextField
             label="Telephely neve"
             value={data.name}
@@ -393,14 +404,19 @@ export function SiteDialog({
             maxLength={32}
           />
         </div>
-        <fieldset>
+        <p className="field-hint">
+          A telephelykód cégen belül egyedi; archiválás után is foglalt marad.
+        </p></fieldset>) },
+          { id: 'address', label: 'Cím', content: (<fieldset disabled={save.isPending}>
           <legend>Cím</legend>
           <AddressFields
             value={data.address}
             onChange={(address) => setData({ ...data, address })}
           />
-        </fieldset>
-        <div className="org-form-grid">
+        </fieldset>) },
+          { id: 'contact', label: 'Elérhetőségek', content: (<fieldset disabled={save.isPending}>
+            <legend>Elérhetőségek</legend>
+            <div className="org-form-grid">
           <TextField
             label="Telephely e-mail-címe"
             value={data.email}
@@ -437,16 +453,17 @@ export function SiteDialog({
               )}
             </select>
           </label>
-        </div>
-        <p className="field-hint">
-          A telephelykód cégen belül egyedi; archiválás után is foglalt marad.
-        </p>
+        </div></fieldset>) }
+        ]} />
         {save.isError && (
           <p role="alert" className="notice error">
             {save.error.message}
           </p>
         )}
-        <DialogActions pending={save.isPending} onClose={onClose} />
+        <div className="organization-site-footer">
+          {site && <div>{dirty && <p className="organization-draft-status" role="status">Nem mentett módosítások</p>}<MetadataLine version={site.data.version} updatedAt={site.updatedAt} updatedBy={site.updatedBy} /></div>}
+          <DialogActions pending={save.isPending} submitDisabled={!dirty} onClose={onClose} />
+        </div>
       </form>
     </AccessDialog>
   )
