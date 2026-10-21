@@ -1,7 +1,7 @@
 .organization-detail-panel { overflow: visible; }
-.organization-detail-header { padding: 16px 24px; }
-.organization-detail-header h2 { margin-bottom: 6px; font-size: 21px; }
-.organization-data-form { padding: 24px; }
+.organization-detail-panel .organization-detail-header { padding: 16px 24px; }
+.organization-detail-panel .organization-detail-header h2 { margin-bottom: 6px; font-size: 21px; }
+.org-form.organization-data-form { padding: 24px; }
 .organization-data-form .org-form-footer { margin: 24px -24px -24px; padding: 16px 24px; background: white; border-radius: 0 0 4px 4px; }
 .organization-data-form .org-form-footer .member-actions { margin-left: auto; }
 .organization-draft-status { font-size: 12px; color: #285663; margin-bottom: 4px; }
@@ -23,7 +23,7 @@
   .organization-picker select { border-color: #728491; }
 }
 @media (max-width: 700px) {
-  .organization-detail-header, .organization-data-form { padding: 16px; }
+  .organization-detail-panel .organization-detail-header, .org-form.organization-data-form { padding: 16px; }
   .organization-detail-panel .organization-picker { padding: 12px 16px; }
   .organization-data-form .org-form-footer { margin: 20px -16px -16px; padding: 12px 16px; gap: 12px; }
   .organization-data-form .org-form-footer .member-actions { width: 100%; flex-wrap: wrap; }

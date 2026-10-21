@@ -1,4 +1,4 @@
-.field-picker { display: none; }
+.field-sections > .field-picker { display: none; }
 .field-sections { display: grid; gap: 20px; }
 .field-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: start; }
 .field-tabs button { min-height: 40px; padding: 8px 12px; border: 1px solid #728491; border-radius: 4px; background: white; color: #354f5d; font-size: 13px; text-align: left; }
@@ -6,8 +6,8 @@
 .field-tabs button[aria-selected=true] { border-color: var(--primary); color: var(--primary); background: #e7f2ef; font-weight: 500; }
 .field-panels { min-width: 0; container-type: inline-size; container-name: detail-fields; }
 .field-panels [hidden] { display: none; }
-.field-panels fieldset { margin-bottom: 0; }
-.field-panels legend { padding-bottom: 16px; }
+.field-sections .field-panels fieldset { margin-bottom: 0; }
+.field-sections .field-panels legend { padding-bottom: 16px; }
 .field-panels .org-form-grid { gap: 16px; }
 .field-panels .org-field input, .field-panels .org-field select, .field-panels .org-field textarea { border-color: #728491; }
 .field-panels input, .field-panels select, .field-panels textarea { scroll-margin-block: 100px; }
@@ -20,7 +20,7 @@
 }
 @media (max-width: 1000px) {
   .field-tabs { display: none; }
-  .field-picker { display: flex; }
+  .field-sections > .field-picker { display: flex; }
   .field-picker select { border-color: #728491; }
 }
 @media (max-width: 700px) { .field-sections { gap: 16px; } }
