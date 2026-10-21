@@ -88,6 +88,7 @@ function mountApp({
 it('replaces the visible fleet when a different company is selected', async () => {
   mountApp()
   expect(await screen.findByText('DUN-001')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: /Munkaterület váltása:/ }))
   await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület' }), 'pannon')
   expect(await screen.findByText('PAN-002')).toBeInTheDocument()
   expect(screen.queryByText('DUN-001')).not.toBeInTheDocument()
@@ -102,7 +103,11 @@ it('offers vehicle creation only with the explicit permission', async () => {
 it('filters the fleet by an authorized empty site and resets the site when changing company', async () => {
   mountApp()
   await screen.findByText('DUN-001')
+  expect(screen.queryByRole('combobox', { name: 'Munkaterület' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: /Munkaterület váltása: Duna \/ Összes telephely/ }))
   await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület telephelye' }), 'site-a')
+  expect(screen.getByRole('button', { name: 'Munkaterület váltása: Duna / Budapest' })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Kész' }))
   expect(screen.queryByText('DUN-001')).not.toBeInTheDocument()
   expect(screen.getByRole('columnheader', { name: 'Jármű' })).toBeInTheDocument()
   expect(screen.getByText(/Nincs találat/)).toBeInTheDocument()
@@ -110,6 +115,7 @@ it('filters the fleet by an authorized empty site and resets the site when chang
   await userEvent.click(screen.getByRole('button', { name: 'Új jármű' }))
   await waitFor(() => expect(screen.getByRole('combobox', { name: 'Telephely' })).toHaveValue('Budapest (BP)'))
   await userEvent.click(screen.getByRole('button', { name: 'Vissza a járművekhez' }))
+  await userEvent.click(screen.getByRole('button', { name: /Munkaterület váltása:/ }))
   await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület' }), 'pannon')
   expect(await screen.findByText('PAN-002')).toBeInTheDocument()
   expect(screen.getByRole('combobox', { name: 'Munkaterület telephelye' })).toHaveValue('Összes telephely')
@@ -210,7 +216,7 @@ it('takes a newly registered user through creating their first company', async (
   await userEvent.type(screen.getByLabelText('Cégnév'), 'Saját Flotta Kft.')
   await userEvent.click(screen.getByRole('button', { name: 'Cég létrehozása' }))
   expect(await screen.findByText('Még nincs jármű. Az Új jármű gombbal veheted fel az elsőt.')).toBeInTheDocument()
-  expect(screen.getByRole('combobox', { name: 'Munkaterület' })).toHaveValue('Saját Flotta Kft.')
+  expect(screen.getByRole('button', { name: 'Munkaterület váltása: Saját Flotta Kft. / Összes telephely' })).toBeInTheDocument()
 })
 
 it('clears private data on logout and returns to the login form', async () => {

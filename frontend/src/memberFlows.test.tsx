@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
@@ -375,14 +375,12 @@ it('reloads stale grants explicitly before retrying with the new version', async
   )
 })
 
-it('resets private editor state when switching companies', async () => {
-  const { calls } = mount()
+it('resets private editor state when the current company changes during an open dialog', async () => {
+  const { calls, client } = mount()
   await openMembers()
   await userEvent.click(screen.getByRole('button', { name: 'Jogosultságok: elek@example.test' }))
-  // Programmatic change models a company switch arriving while a request or dialog is open.
-  fireEvent.change(screen.getByRole('combobox', { name: 'Munkaterület' }).closest('.choice')!.querySelector('select')!, {
-    target: { value: otherTenantId },
-  })
+  // A background access refresh can remove the current company while an editor is open.
+  act(() => client.setQueryData<Tenant[]>(['tenants', user.id], [{ id: otherTenantId, name: 'Pannon', permissions: allPermissions }]))
   await userEvent.click(await screen.findByRole('button', { name: 'Felhasználók' }))
   expect(await screen.findByText('Pannon Panni')).toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -418,7 +416,7 @@ it('keeps a pending invitation through login and selects its company only after 
   await screen.findByRole('heading', { name: 'Céges meghívó' })
   expect(state.accepted).toBe(false)
   await userEvent.click(screen.getByRole('button', { name: 'Meghívó elfogadása' }))
-  expect(await screen.findByRole('combobox', { name: 'Munkaterület' })).toHaveValue('Duna')
+  expect(await screen.findByRole('button', { name: 'Munkaterület váltása: Duna / Összes telephely' })).toBeInTheDocument()
   expect(window.location.hash).toBe('')
   expect(calls.find((call) => call.path === '/api/v1/invitations/accept')).toMatchObject({
     tenant: null,
@@ -433,6 +431,6 @@ it('handles incomplete invitation links without sending a malformed acceptance',
   expect(screen.queryByRole('button', { name: 'Meghívó elfogadása' })).not.toBeInTheDocument()
   expect(calls.some((call) => call.path === '/api/v1/invitations/accept')).toBe(false)
   await userEvent.click(screen.getByRole('button', { name: 'Meghívó bezárása' }))
-  await screen.findByRole('combobox', { name: 'Munkaterület' })
+  await screen.findByRole('button', { name: /Munkaterület váltása:/ })
   expect(window.location.hash).toBe('')
 })

@@ -22,6 +22,4 @@
 .list-toolbar .choice { width: auto; min-width: 155px; max-width: 260px; }
 .org-field > .choice, .field-picker > .choice, .organization-picker > .choice { width: 100%; }
 .compact-filter > .choice { flex: 1; }
-.workspace-selector label.workspace-site { display: block; margin: 12px 0 0; }
-.workspace-selector .workspace-site > span { display: block; font-size: 12px; color: #aabfc7; margin: 0 10px 7px; }
-@media (max-width: 700px) { .workspace-selector label.workspace-site { margin: 0; } .sidebar .choice input[role=combobox] { font-size: 12px; padding-left: 8px; padding-right: 30px; } .workspace-selector .workspace-site > span { display: none; } .choice-option { min-height: 42px; } }
+@media (max-width: 700px) { .choice-option { min-height: 42px; } }

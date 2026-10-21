@@ -39,6 +39,7 @@ import './App.css'
 import './accounts.css'
 import { Badge } from './ui/Badge'
 import { ClickableRow, TableFrame } from './ui/Table'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 
 const statuses: Record<string, string> = {
   Active: 'Aktív',
@@ -179,12 +180,16 @@ function FleetWorkspace({
     enabled: view === 'fleet' && !!tenant?.permissions.includes('vehicles.read'),
     retry: false,
   })
+  const canReadVehicles = !!tenant?.permissions.includes('vehicles.read')
+  const canReadUnassigned = tenant?.permissionScopes?.find(scope => scope.code === 'vehicles.read')?.allSites ?? true
   const workspaceSites = useQuery({
     queryKey: ['workspace-sites', user.id, tenant?.id],
     queryFn: ({ signal }) => api.vehicleSites(tenant!.id, signal),
-    enabled: !!tenant?.permissions.includes('vehicles.read'), retry: false, refetchInterval: 30_000,
+    enabled: canReadVehicles, retry: false, refetchInterval: 30_000,
   })
-  const currentSiteId = workspaceSites.isSuccess && !workspaceSites.data.some(site => site.id === siteId) && siteId !== 'none' ? 'all' : siteId
+  const currentSiteId = !canReadVehicles || (siteId === 'none' && !canReadUnassigned) ||
+    (workspaceSites.isSuccess && !workspaceSites.data.some(site => site.id === siteId) && siteId !== 'none') ? 'all' : siteId
+  const currentSiteName = currentSiteId === 'none' ? 'Telephely nélkül' : workspaceSites.data?.find(site => site.id === currentSiteId)?.name ?? 'Összes telephely'
   const health = useQuery({
     queryKey: ['health'],
     queryFn: ({ signal }) => api.health(signal),
@@ -256,32 +261,25 @@ function FleetWorkspace({
           </span>
         </a>
         <div className="workspace-selector">
-          <label htmlFor="company">Munkaterület</label>
-            <Select
-              id="company"
-              aria-label="Munkaterület"
-              value={tenant?.id ?? ''}
-              disabled={
-                !tenants.data?.length || busy || createCompany.isPending || loggingOut
-              }
-              onChange={(event) => changeTenant(event.target.value)}
-            >
-              {!tenant && <option value="">Cég kiválasztása</option>}
-              {tenants.data?.map((company) => (
-                <option value={company.id} key={company.id}>
-                  {company.name}
-                </option>
-              ))}
-            </Select>
-          {tenant?.permissions.includes('vehicles.read') && <label className="workspace-site"><span>Telephely</span>
-            <Select aria-label="Munkaterület telephelye" value={currentSiteId} disabled={busy || loggingOut || workspaceSites.isPending}
-              onChange={event => { setSiteId(event.target.value); setSelectedVehicleId(null); setFormOpen(false) }}>
-              <option value="all">Összes telephely</option>
-              {(tenant.permissionScopes?.find(scope => scope.code === 'vehicles.read')?.allSites ?? true) && <option value="none">Telephely nélkül</option>}
-              {workspaceSites.data?.map(site => <option key={site.id} value={site.id}>{site.name} ({site.code})</option>)}
-            </Select>
-            {workspaceSites.isError && <Button className="new-company-button" onClick={() => void workspaceSites.refetch()}>Telephelyek újratöltése</Button>}
-          </label>}
+          <WorkspaceSwitcher company={tenant?.name ?? 'Cég kiválasztása'} site={canReadVehicles ? currentSiteName : undefined}
+            disabled={!tenants.data?.length || busy || createCompany.isPending || loggingOut}>
+            <label><span>Cég</span>
+              <Select id="company" aria-label="Munkaterület" value={tenant?.id ?? ''}
+                onChange={event => changeTenant(event.target.value)}>
+                {!tenant && <option value="">Cég kiválasztása</option>}
+                {tenants.data?.map(company => <option value={company.id} key={company.id}>{company.name}</option>)}
+              </Select>
+            </label>
+            {canReadVehicles && <label><span>Telephely</span>
+              <Select aria-label="Munkaterület telephelye" value={currentSiteId} disabled={workspaceSites.isPending}
+                onChange={event => { setSiteId(event.target.value); setSelectedVehicleId(null); setFormOpen(false) }}>
+                <option value="all">Összes telephely</option>
+                {canReadUnassigned && <option value="none">Telephely nélkül</option>}
+                {workspaceSites.data?.map(site => <option key={site.id} value={site.id}>{site.name} ({site.code})</option>)}
+              </Select>
+              {workspaceSites.isError && <Button type="button" variant="outline" size="sm" className="workspace-retry" onClick={() => void workspaceSites.refetch()}>Telephelyek újratöltése</Button>}
+            </label>}
+          </WorkspaceSwitcher>
           {tenant && (
             <Button
               className="new-company-button"

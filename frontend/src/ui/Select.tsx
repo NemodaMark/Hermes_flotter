@@ -65,7 +65,7 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
   useEffect(() => {
     popup.current?.querySelector('[data-active=true]')?.scrollIntoView?.({ block: 'nearest' })
   }, [active, query, open])
-  function show() { if (!disabled && !input.current?.matches(':disabled')) { setPortalRoot(root.current?.closest('dialog') ?? document.body); setQuery(''); setActive(Math.max(0, options.filter(x => !x.disabled).findIndex(x => x.value === value))); setOpen(true) } }
+  function show() { if (!disabled && !input.current?.matches(':disabled')) { setPortalRoot(root.current?.closest<HTMLElement>('dialog, [data-choice-root]') ?? document.body); setQuery(''); setActive(Math.max(0, options.filter(x => !x.disabled).findIndex(x => x.value === value))); setOpen(true) } }
   function choose(option: Option) { if (input.current?.matches(':disabled')) return; onValue(option.value); setOpen(false); setQuery(''); input.current?.focus() }
   return <div className={`choice ${className}`} ref={root} data-open={open || undefined} data-disabled={disabled || undefined} data-invalid={invalid || undefined}>
     <input ref={input} id={inputId} role="combobox" aria-label={accessibleLabel} aria-autocomplete="list" aria-haspopup="listbox"
@@ -73,7 +73,7 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
       value={display} disabled={disabled} required={creatable && required} maxLength={maxLength} autoComplete="off"
       placeholder={open && !creatable ? 'Keresés…' : placeholder}
       onClick={() => { if (!open) show() }}
-      onChange={event => { setPortalRoot(root.current?.closest('dialog') ?? document.body); setQuery(event.target.value); setActive(0); setOpen(true); if (creatable) onValue(event.target.value) }}
+      onChange={event => { setPortalRoot(root.current?.closest<HTMLElement>('dialog, [data-choice-root]') ?? document.body); setQuery(event.target.value); setActive(0); setOpen(true); if (creatable) onValue(event.target.value) }}
       onKeyDown={event => {
         if (event.key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); setOpen(false); return }
         if (event.key === 'Tab') { setOpen(false); return }

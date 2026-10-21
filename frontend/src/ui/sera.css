@@ -158,9 +158,8 @@ dialog::backdrop { background: #102b3c80; }
   .sidebar .brand { margin: 0; font-size: 18px; gap: 8px; }
   .sidebar .brand-mark { width: 31px; height: 34px; font-size: 21px; }
   .sidebar .brand { grid-column: 1; grid-row: 1; }
-  .sidebar .workspace-selector { margin: 0; grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .sidebar .workspace-selector { margin: 0; grid-column: 1 / -1; grid-row: 2; }
   .sidebar .workspace-selector .new-company-button { display: none; }
-  .sidebar .workspace-selector:not(:has(.workspace-site)) > .choice { grid-column: 1 / -1; }
   .sidebar .select-wrap { padding: 9px 7px; }
   .sidebar .select-wrap select { font-size: 12px; }
   .sidebar .profile.profile-button { border: 0; background: transparent; padding: 5px; font-size: 12px; }
