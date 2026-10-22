@@ -69,6 +69,27 @@ A tesztek alapértelmezésben Dockerrel indítanak PostgreSQL-t. Docker nélkül
 
 A teljes HTTP-s regisztrációs és céges folyamatot a [smoke teszt](../scripts/smoke-auth.mjs) ellenőrzi. Ez tesztadatokat hoz létre, ezért fejlesztői vagy CI-környezeten futtasd. A részletes végpontlista és az éles környezet beállításai a [projekt README-jében](../README.md) találhatók.
 
+## Helyi mintaadatok
+
+A projekt gyökeréből, futó fejlesztői API mellett, Node.js 22 vagy újabb verzióval:
+
+```powershell
+# A meglévő rendszerkezelő jelszavát környezeti változóként add meg.
+$env:HERMES_SEED_ADMIN_PASSWORD = '<helyi rendszerkezelő jelszava>'
+try { node scripts/seed-demo-data.mjs }
+finally { Remove-Item Env:HERMES_SEED_ADMIN_PASSWORD }
+```
+
+Alapértelmezés: `http://127.0.0.1:5080`, felhasználó: `admin`; a `HERMES_BASE_URL` és `HERMES_SEED_ADMIN_USER` változókkal felülírható. A betöltő csak loopback címen, `Development` API-val és meglévő `system.manage` jogú fiókkal működik. Éles indulás és migráció nem tölt be demóadatot. Betöltés előtt készíts adatbázis-mentést.
+
+A külön **Demo Flotta** céghez 3 telephely, 3 céges kapcsolattartó, 10 demófiók, 8 műveleti jogcsoport, 30 részletes jármű, 5 partner, 18 lízing-/bérleti szerződés és 60 szervizbejegyzés készül. Van teljes céges és telephelyre korlátozott hozzáférés, felfüggesztett tag, 2 telephely nélküli jármű, különböző állapotok, határidők, kilométer- és használati előzmények. A használói hozzárendelések időpontja a valódi betöltési idő, nincs visszadátumozva. A nevek, címek, e-mailek és azonosítók fiktívek; nincs e-mail-küldés vagy új adminfiók.
+
+Minden módosítás a normál API-n keresztül, jogosultságellenőrzéssel és naplózással történik. Az egyedi, véletlen demójelszavak a Gitből kizárt `.local/demo-data/bejelentkezesek.json` fájlban találhatók. Ez és a `.local/demo-data/state.json` bizalmas helyi fájl, ne publikáld őket.
+
+Az állapotfájl műveletenként rögzíti az előrehaladást. Megszakítás után ugyanazzal a fiókkal és API-val futtasd újra; befejezett betöltésnél már csak ellenőrzés történik. Állapotfájl nélkül meglévő azonos nevű céget vagy demófiókot a program nem használ fel és nem ír felül. A cég-/csoportlétrehozás közben elvesztett válasznál az ütközés miatt leállhat; ilyenkor őrizd meg az állapotfájlt és vizsgáld meg az utolsó műveletet, ne indíts második betöltést. Egyszerre egy betöltő fusson.
+
+Kizárólagos ellenőrzés: `node scripts/seed-demo-data.mjs --verify-only` (ugyanazzal a jelszóváltozóval). Ez ellenőrzi a darabszámokat, a meglévő cégek és profilok megőrzését, a telephelykorlátokat, a más cégek kizárását és a felfüggesztett tagság tiltását. Későbbi kézi módosítások után a kezdeti pillanatképpel való eltérés szándékosan ellenőrzési hibát eredményezhet. A cég létrehozása a létrehozó profiljának verzióját a szokásos módon eggyel növeli; a korábbi profiladatokat és jogokat megőrzi.
+
 ## További backendmunka
 
 A következő bővítés lehet a szerveroldali flottakeresés és lapozás, a sofőrök és hozzárendeléseik, a szerviztervezés és a teljes költségmodul. A szerződésekhez és munkalapokhoz védett fájlfeltöltés és http(s) dokumentumhivatkozás is használható; a végpontok és tárolási korlátok a projekt README dokumentumfeltöltési részében találhatók. Minden új céges művelethez tartozzon külön jog, szerveroldali validáció és cégek közötti hozzáférést kizáró teszt.
