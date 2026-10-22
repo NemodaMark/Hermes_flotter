@@ -37,6 +37,7 @@ function mount({
   forceOnVehicle = false,
   hash = '',
   noCompanies = false,
+  companyPermissions = Object.keys(permissionNames),
 } = {}) {
   if (hash) window.history.replaceState(null, '', hash)
   const session: Session = {
@@ -84,7 +85,7 @@ function mount({
                 {
                   id: 'duna',
                   name: 'Duna',
-                  permissions: Object.keys(permissionNames),
+                  permissions: companyPermissions,
                 },
               ],
         )
@@ -268,6 +269,7 @@ it('opens the profile from the company members, shows immutable ID and saves edi
 it('requires a deliberate confirmation before forcing a password change or granting global access', async () => {
   const { calls } = mount()
   const dialog = await openProfile()
+  await userEvent.click(within(dialog).getByRole('tab', { name: 'Fiókbiztonság' }))
   await userEvent.click(
     within(dialog).getByRole('button', {
       name: 'Kötelező jelszócsere elrendelése',
@@ -291,6 +293,53 @@ it('requires a deliberate confirmation before forcing a password change or grant
     enabled: true,
     version: 8,
   })
+})
+
+it('separates the three profile panels, supports keyboard navigation and retains drafts across security changes', async () => {
+  const { calls } = mount()
+  const page = await openProfile()
+  expect(within(page).getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Profiladatok', 'Céges hozzáférések', 'Fiókbiztonság'])
+  expect(within(page).getByRole('tabpanel', { name: 'Profiladatok' })).toBeVisible()
+  expect(within(page).queryByRole('button', { name: 'Kötelező jelszócsere elrendelése' })).not.toBeInTheDocument()
+  await userEvent.clear(within(page).getByLabelText('Teljes név'))
+  await userEvent.type(within(page).getByLabelText('Teljes név'), 'Megkezdett szerkesztés')
+  within(page).getByRole('tab', { name: 'Profiladatok' }).focus()
+  await userEvent.keyboard('{ArrowRight}')
+  expect(within(page).getByRole('tab', { name: 'Céges hozzáférések' })).toHaveFocus()
+  expect(within(page).getByRole('tabpanel', { name: 'Céges hozzáférések' })).toBeVisible()
+  expect(within(page).queryByRole('button', { name: 'Profil mentése' })).not.toBeInTheDocument()
+  await userEvent.keyboard('{End}')
+  expect(within(page).getByRole('tab', { name: 'Fiókbiztonság' })).toHaveAttribute('aria-selected', 'true')
+  await userEvent.click(within(page).getByRole('button', { name: 'Kötelező jelszócsere elrendelése' }))
+  await userEvent.click(within(page).getByRole('button', { name: 'Megerősítem' }))
+  await within(page).findByText('Kötelező a következő belépéskor')
+  await userEvent.click(within(page).getByRole('tab', { name: 'Profiladatok' }))
+  expect(within(page).getByLabelText('Teljes név')).toHaveValue('Megkezdett szerkesztés')
+  expect(calls.filter(call => call.method === 'PUT')).toHaveLength(0)
+  await userEvent.click(within(page).getByRole('button', { name: 'Profil mentése' }))
+  await waitFor(() => expect(calls.find(call => call.method === 'PUT')?.body).toMatchObject({ displayName: 'Megkezdett szerkesztés', version: 8 }))
+})
+
+it('cancels an unconfirmed security operation when leaving its tab', async () => {
+  const { calls } = mount()
+  const page = await openProfile()
+  await userEvent.click(within(page).getByRole('tab', { name: 'Fiókbiztonság' }))
+  await userEvent.click(within(page).getByRole('button', { name: 'Rendszerszintű jog megadása' }))
+  expect(within(page).getByRole('button', { name: 'Megerősítem' })).toBeInTheDocument()
+  await userEvent.click(within(page).getByRole('tab', { name: 'Profiladatok' }))
+  await userEvent.click(within(page).getByRole('tab', { name: 'Fiókbiztonság' }))
+  expect(within(page).queryByRole('button', { name: 'Megerősítem' })).not.toBeInTheDocument()
+  expect(calls.some(call => call.path.endsWith('/system-access'))).toBe(false)
+})
+
+it('does not expose account or company management tabs or fetch private account data for a colleague viewer', async () => {
+  const { calls } = mount({ admin: false, companyPermissions: [], hash: `#/profile/${initial.id}` })
+  const tabs = await screen.findByRole('tablist', { name: 'Felhasználói adatlap részei' })
+  expect(within(tabs).getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Profiladatok'])
+  expect(screen.queryByRole('tab', { name: 'Céges hozzáférések' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('tab', { name: 'Fiókbiztonság' })).not.toBeInTheDocument()
+  expect(calls.some(call => call.path.startsWith('/api/v1/system/'))).toBe(false)
+  expect(calls.some(call => call.path.startsWith('/api/v1/members/'))).toBe(false)
 })
 
 it('keeps stale profile edits unsaved and explicitly reloads the fresh revision', async () => {

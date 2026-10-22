@@ -18,13 +18,26 @@
 .permission-summary, .people-company-summary { font-size: 13px; line-height: 1.5; }
 .profile-page { display: grid; gap: 20px; }
 .profile-page .org-back { justify-self: start; margin: 0; }
-.profile-summary { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; padding: 28px; }
-.profile-portrait { height: 104px; width: 104px; flex: 0 0 104px; border-radius: 10px; object-fit: cover; font-size: 28px; }
+.profile-tabbed-panel { min-width: 0; overflow: hidden; }
+.profile-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+.profile-tabs .sera-tab { min-height: 48px; padding: 12px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: #536c77; background: transparent; font-size: 13px; }
+.profile-tabs .sera-tab:hover { background: #f5f9f8; }
+.profile-tabs .sera-tab[aria-selected=true] { color: #185e52; border-bottom-color: var(--primary); background: #eef6f3; }
+.profile-tab-panel[hidden] { display: none; }
+.profile-tab-panel .profile-columns { gap: 0; }
+.profile-tab-panel .profile-columns > section + section { border-left: 1px solid var(--line); }
+.profile-tab-panel .profile-details { margin-block: 12px 16px; }
+.profile-tab-panel .account-form label { margin-top: 14px; }
+.profile-tab-panel .profile-security { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 16px; padding-top: 20px; }
+.profile-tab-panel .profile-security h3 { margin-top: 0; }
+.profile-summary { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; padding: 20px 24px; }
+.profile-portrait { height: 72px; width: 72px; flex: 0 0 72px; border-radius: 10px; object-fit: cover; font-size: 24px; }
 .profile-identity { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; overflow-wrap: anywhere; }
 .profile-identity h2, .profile-identity p { margin: 0; }
 .profile-identity h2 { font-size: 24px; }
 .profile-identity a { color: #17675f; }
-.profile-photo-actions { display: grid; justify-items: start; gap: 10px; }
+.profile-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 340px; }
+.profile-photo-actions .field-hint { flex-basis: 100%; margin: 0; }
 .photo-file-button { display: inline-flex; align-items: center; gap: 7px; position: relative; overflow: hidden; cursor: pointer; }
 .photo-file-button input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .photo-file-button:focus-within { outline: 3px solid #378d86; outline-offset: 2px; }
@@ -65,6 +78,7 @@
 .vehicle-gallery { padding: 20px 24px; border-bottom: 1px solid #d4e0e7; }
 .vehicle-gallery .org-section-tools { padding: 0; }
 @media (max-width: 768px) { .profile-columns { grid-template-columns: 1fr; } .profile-summary, .profile-section { padding: 20px; } .toggle-control { margin-left: 0; } .profile-page { gap: 16px; } }
+@media (max-width: 768px) { .profile-tab-panel .profile-columns > section + section { border-left: 0; border-top: 1px solid var(--line); } .profile-tab-panel .profile-security { grid-template-columns: 1fr; } .profile-tabs { padding-inline: 8px; } .profile-tabs .sera-tab { padding-inline: 10px; } }
 @media (max-width: 700px) {
   .sidebar .admin-navigation { flex-basis: 100%; width: 100%; margin-top: 0; padding-top: 6px; }
   .sidebar .sidebar-bottom { display: block; grid-column: 1 / -1; margin-top: 0; padding-top: 0; }
@@ -74,4 +88,5 @@
   .profile-portrait { width: 72px; height: 72px; flex-basis: 72px; }
   .profile-identity { min-width: 0; }
 }
+@media (max-width: 360px) { .profile-identity { flex-basis: 100%; } }
 @media (prefers-reduced-motion: reduce) { .toggle-track, .toggle-track::after { transition: none; } }

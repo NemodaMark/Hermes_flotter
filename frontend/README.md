@@ -110,3 +110,13 @@ Az önálló **Jogosultságcsoportok** oldal minden csoportnál egy vagy több c
 Kiosztás: felhasználó sora → Csoportok. A checkboxoknál látható a céglista és a jogcsomag. Új cég kijelölése meglévő csoporttagokat is hozzáad; cég vagy csoport kivétele csak az onnan kapott hozzáférést szünteti meg, és nem aktivál felfüggesztett tagságot. A nem kezelhető csoporttagságok megmaradnak. Rendszerszintű kezelő az egységes felhasználólista **Összes felhasználó** kapcsolójával megnyitott profilról, cégtagság nélkül is indíthat hozzárendelést.
 
 A közös csoportkiosztás a fiók verzióját, a csoportszerkesztés a csoport verzióját küldi. Ütközéskor az újratöltés friss verzióval kezdi újra a szerkesztést.
+
+## Felhasználói adatlap
+
+A felhasználó sorára kattintva teljes adatlap nyílik, külön fülekkel:
+
+- **Profiladatok:** elérhetőségek, profiladatok szerkesztése és az aktuálisan hozzárendelt, a megtekintő számára elérhető járművek. A profilkép a közös fejlécben kezelhető.
+- **Céges hozzáférések:** a kiválasztott cég tagsága, egyedi jogosultságok, csoportkiosztás és felfüggesztés/visszaállítás, a megfelelő kezelési jogokkal.
+- **Fiókbiztonság:** kötelező jelszócsere, annak időpontjai és a rendszerszintű kezelési jog; csak `system.manage` joggal érhető el.
+
+A munkatársprofil megtekintése nem ad fiók- vagy jogosultságkezelési jogot. A nem engedélyezett kezelőfülek nem jelennek meg. Fülváltáskor a profilűrlap megkezdett szerkesztése megmarad; a még meg nem erősített biztonsági művelet megerősítése megszűnik. A fülek a bal/jobb nyíllal, illetve a Home és End billentyűvel is válthatók.

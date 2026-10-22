@@ -211,6 +211,7 @@ async function openMemberProfile() {
   expect(screen.queryByRole('columnheader', { name: 'Műveletek' })).not.toBeInTheDocument()
   expect(screen.queryByRole('columnheader', { name: 'Hozzáférés összegzése' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('row', { name: 'Felhasználó: Teszt Elek' }))
+  await userEvent.click(await screen.findByRole('tab', { name: 'Céges hozzáférések' }))
   await screen.findByRole('heading', { name: 'Céges hozzáférések' })
   await screen.findByText('1 jogosultság')
 }
@@ -238,6 +239,7 @@ it('keeps existing grants outside the actors delegation scope locked and unchang
   setMembers([{ ...initialMember, permissions: ['vehicles.read', 'vehicles.create'] }])
   await openMembers()
   await userEvent.click(screen.getByRole('row', { name: 'Felhasználó: Teszt Elek' }))
+  await userEvent.click(await screen.findByRole('tab', { name: 'Céges hozzáférések' }))
   await screen.findByText('2 jogosultság')
   await userEvent.click(screen.getByRole('button', { name: 'Jogosultságok: elek@example.test' }))
   const dialog = screen.getByRole('dialog')
@@ -325,6 +327,7 @@ it('offers read-only member access without any mutation controls', async () => {
 })
 it('keeps permission-only management on the profile without fetching a member-reader endpoint', async () => {
   const { calls } = mount({ permissions: ['permissions.manage'], hash: '#/profile/elek' })
+  await userEvent.click(await screen.findByRole('tab', { name: 'Céges hozzáférések' }))
   await userEvent.click(await screen.findByRole('button', { name: 'Jogosultságok: elek' }))
   expect(await screen.findByRole('dialog', { name: 'Jogosultságok módosítása' })).toBeInTheDocument()
   expect(calls.some(call => call.path === '/api/v1/members/elek/permissions')).toBe(true)

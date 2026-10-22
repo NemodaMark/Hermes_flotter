@@ -9,9 +9,13 @@ import './members.css'
 export function UserProfileEditor({
   id,
   actor,
+  section,
+  active = true,
 }: {
   id: string
   actor: Session
+  section: 'profile' | 'security'
+  active?: boolean
 }) {
   const client = useQueryClient()
   const query = useQuery({
@@ -22,6 +26,11 @@ export function UserProfileEditor({
   })
   const [notice, setNotice] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<'force' | 'grant' | 'revoke' | null>(null)
+  const [previousActive, setPreviousActive] = useState(active)
+  if (previousActive !== active) {
+    setPreviousActive(active)
+    if (!active) setConfirmation(null)
+  }
   const mutation = useMutation({
     mutationFn: async (
       input:
@@ -42,6 +51,8 @@ export function UserProfileEditor({
         client.invalidateQueries({ queryKey: ['members'] }),
         client.invalidateQueries({ queryKey: ['system-audit'] }),
         client.invalidateQueries({ queryKey: ['session'] }),
+        client.invalidateQueries({ queryKey: ['tenants'] }),
+        client.invalidateQueries({ queryKey: ['profile-member'] }),
       ])
     },
   })
@@ -55,7 +66,7 @@ export function UserProfileEditor({
     }
   }
   return (
-    <section className="profile-editor" aria-label="Fiók kezelése">
+    <section className="profile-editor" aria-label={section === 'profile' ? 'Profiladatok szerkesztése' : 'Fiókbiztonság kezelése'}>
       {query.isPending ? (
         <p>Profil betöltése…</p>
       ) : query.isError ? (
@@ -64,7 +75,7 @@ export function UserProfileEditor({
         </p>
       ) : (
         <>
-          <p className="field-hint">
+          {section === 'profile' && <><p className="field-hint">
             Ez az egyedi profil minden cégnél közös. A módosítások rendszerszinten érvényesek és
             naplózottak.
           </p>
@@ -73,6 +84,15 @@ export function UserProfileEditor({
               <dt>Felhasználónév / belső ID (állandó)</dt>
               <dd>{query.data.id}</dd>
             </div>
+          </dl>
+          {/* A security-only revision change must not discard an unsaved profile draft. */}
+          <ProfileForm
+            key={JSON.stringify([query.data.id, query.data.displayName, query.data.email, query.data.phoneNumber])}
+            profile={query.data}
+            pending={mutation.isPending}
+            save={(body) => void save({ kind: 'profile', body })}
+          /></>}
+          {section === 'security' && <><dl className="profile-details">
             <div>
               <dt>Jelszócsere</dt>
               <dd>
@@ -94,13 +114,8 @@ export function UserProfileEditor({
               </div>
             )}
           </dl>
-          <ProfileForm
-            key={query.data.version}
-            profile={query.data}
-            pending={mutation.isPending}
-            save={(body) => void save({ kind: 'profile', body })}
-          />
           <div className="profile-security">
+            <section>
             <h3>Fiókbiztonság</h3>
             <p className="field-hint">
               A jelszó nem olvasható és nem írható át itt. A felhasználó a jelenlegi jelszavával lép
@@ -117,6 +132,7 @@ export function UserProfileEditor({
             >
               Kötelező jelszócsere elrendelése
             </Button>
+            </section><section>
             <h3>Rendszerszintű jogosultság</h3>
             <p className="field-hint">
               {query.data.systemPermissions.includes('system.manage')
@@ -139,6 +155,7 @@ export function UserProfileEditor({
                 ? 'Rendszerszintű jog visszavonása'
                 : 'Rendszerszintű jog megadása'}
             </Button>
+            </section>
           </div>
           {confirmation && (
             <div className="profile-confirmation" role="group" aria-label="Művelet megerősítése">
@@ -172,6 +189,7 @@ export function UserProfileEditor({
               </div>
             </div>
           )}
+          </>}
         </>
       )}
       {mutation.isError && (
