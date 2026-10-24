@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { disposeVehicleModel, prepareVehicleModel, setVehiclePaint } from './vehicleSceneModel'
 import type { VehicleShape } from './vehicleSceneModel'
 import { vehiclePaint } from './vehicleAppearance'
-import carModelUrl from './assets/car-concept.glb?url'
+import type { VehicleModel } from './vehicleModels'
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
 
 export type StudioSection = 'data' | 'history' | 'services' | 'documents' | 'leases' | 'site' | 'photos'
@@ -15,8 +15,8 @@ export type StudioAction = { key: StudioSection | CameraAction; sequence: number
 export type StudioMenu = { key: StudioSection; label: string }
 const isSection = (key: StudioAction['key']): key is StudioSection => !['home', 'left', 'right', 'closer', 'farther'].includes(key)
 
-export default function VehicleStudio({ color, menus, action, onSelect, onFocused, onCancelled, paused = false }: {
-  color: string | null; menus: StudioMenu[]; action: StudioAction | null; paused?: boolean
+export default function VehicleStudio({ model, color, menus, action, onSelect, onFocused, onCancelled, paused = false }: {
+  model: VehicleModel; color: string | null; menus: StudioMenu[]; action: StudioAction | null; paused?: boolean
   onSelect: (key: StudioSection) => void; onFocused: (key: StudioSection) => void; onCancelled: () => void
 }) {
   const host = useRef<HTMLDivElement>(null), overlay = useRef<HTMLDivElement>(null)
@@ -34,6 +34,7 @@ export default function VehicleStudio({ color, menus, action, onSelect, onFocuse
   useEffect(() => {
     const container = host.current!
     if (!window.WebGL2RenderingContext) return
+    queueMicrotask(() => setLoadState('loading'))
     let renderer: T.WebGLRenderer
     try { renderer = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'low-power' }) }
     catch { queueMicrotask(() => setUnavailable(true)); return }
@@ -91,16 +92,24 @@ export default function VehicleStudio({ color, menus, action, onSelect, onFocuse
     const fit = () => {
       const width = container.clientWidth, height = container.clientHeight; if (!width || !height) return
       camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height)
-      const distance = Math.max(6.95, (shape?.length ?? 4.8) * .64 / (Math.tan(T.MathUtils.degToRad(16)) * camera.aspect))
-      home.set(4.6, 2.4, 4.8).normalize().multiplyScalar(distance)
+      const length = shape?.length ?? model.length, roof = shape?.roof ?? 1.5
+      homeTarget.y = roof * .48
+      const distance = Math.max(6.95, length * 1.42, length * .65 / (Math.tan(T.MathUtils.degToRad(16)) * camera.aspect), roof * 2.5)
+      orbit.maxDistance = Math.max(16, distance * 1.5)
+      home.set(4.6, 2.4, 4.8).normalize().multiplyScalar(distance).add(homeTarget)
       if (!flight) { camera.position.copy(home); orbit.target.copy(homeTarget); orbit.update() }
     }
     const resize = new ResizeObserver(fit); resize.observe(container)
-    void new GLTFLoader().loadAsync(carModelUrl).then(gltf => {
+    void new GLTFLoader().loadAsync(model.url).then(gltf => {
       if (disposed || contextLost) { disposeVehicleModel(gltf.scene); return }
-      const vehicle = prepareVehicleModel(gltf.scene, paintRef.current)
+      let vehicle: ReturnType<typeof prepareVehicleModel>
+      try { vehicle = prepareVehicleModel(gltf.scene, paintRef.current, model) }
+      catch (error) { disposeVehicleModel(gltf.scene); throw error }
       loadedModel.current = vehicle.model; shape = vehicle.shape; scene.add(vehicle.model)
       const { length, width, roof, frontAxle } = shape
+      const cameraScale = Math.max(1, length / 4.8, roof / 2)
+      orbit.minDistance = Math.max(4.5, length * .8); orbit.maxDistance = Math.max(16, length * 3)
+      for (const target of Object.values(targets)) target.multiplyScalar(cameraScale)
       Object.assign(positions, {
         data: new T.Vector3(-.05 * length, roof, 0), history: new T.Vector3(frontAxle, .34, width * .43),
         services: new T.Vector3(length * .29, roof * .43, 0), documents: new T.Vector3(.08 * length, roof * .73, width * .34),
@@ -141,7 +150,7 @@ export default function VehicleStudio({ color, menus, action, onSelect, onFocuse
       renderer.domElement.removeEventListener('pointerdown', cancelFlight, true); renderer.domElement.removeEventListener('webglcontextlost', lost)
       disposeVehicleModel(scene); environment.dispose(); renderer.dispose(); renderer.domElement.remove()
     }
-  }, [attempt])
+  }, [attempt, model])
   useEffect(() => {
     if (!action) return
     if (unavailable) { if (isSection(action.key)) callbacks.current.onFocused(action.key); return }

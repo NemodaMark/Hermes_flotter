@@ -1,0 +1,68 @@
+[
+  {
+    "key": "convertible",
+    "sha256": "767a3fc31c236550c285963120817e76ec6f523f6bb357036f4dc1c0e00c3eb3",
+    "bytes": 4181448,
+    "source": "convertible"
+  },
+  {
+    "key": "estate",
+    "sha256": "eb92ef3146e707d74eb6f2c5119007a401bcc1f0d870ed851a2826a236fa90a2",
+    "bytes": 4666108,
+    "source": "estate"
+  },
+  {
+    "key": "minivan",
+    "sha256": "3d6cd9312e272b446c4cc7bfdd6199b5e906e5b4e3c1bacd0de0394a0f4e7c7c",
+    "bytes": 4753668,
+    "source": "minivan"
+  },
+  {
+    "key": "tipper",
+    "sha256": "b7d2547ca2d77bbf34c3194aa7d58a95a866f37ba2a6c4edbfb83810afa997e5",
+    "bytes": 5937800,
+    "source": "tipper"
+  },
+  {
+    "key": "suv",
+    "sha256": "e1eebc21de7742bbce73bd85c92e90b658be547c1ba002ecf014a1f70343bbac",
+    "bytes": 4745984,
+    "source": "suv"
+  },
+  {
+    "key": "hatchback",
+    "sha256": "51a907ba32ab91514a71a4edb5e1697bd0d23fe9111cea20aa23b284354ba198",
+    "bytes": 4639096,
+    "source": "hatchback"
+  },
+  {
+    "key": "pickup",
+    "sha256": "0a17e3bde0835e781cdc322206b54c1b11d15574282db39c600cc04ed0c62575",
+    "bytes": 5614380,
+    "source": "pickup"
+  },
+  {
+    "key": "sedan",
+    "sha256": "6e2e030f142e263d6281454cda7e5590f12215e69400fcda89921a19599d7aca",
+    "bytes": 5060124,
+    "source": "sedan"
+  },
+  {
+    "key": "van",
+    "sha256": "a58c0c9a21de667c1ee1a55f6d812b56fa0860d2d7eb4c5c3145e99bec6ffb3b",
+    "bytes": 5483300,
+    "source": "van"
+  },
+  {
+    "key": "box",
+    "sha256": "f3d2cd35fade44d4efc8a0351dadfe3095c2ed554c0cac08ecfcbeeeb4bfdfbb",
+    "bytes": 6062980,
+    "source": "box"
+  },
+  {
+    "key": "chassis",
+    "sha256": "02118ac37b447bee374b3a9bae0a6175fac78e007a53357b83f935d52fcee3dc",
+    "bytes": 6061464,
+    "source": "box"
+  }
+]

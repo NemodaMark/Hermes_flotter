@@ -82,3 +82,16 @@ Adapted for HERMES: logo plate texture and steering emblem removed, unused data
 and sample material variants pruned; runtime paint, framing, lighting and hotspots
 added. No Forza assets are used. The model attribution is visible below the
 showroom. Full notices and provenance are shipped in public/models/khronos-car/.
+
+# Body-specific vehicle models — Innerscene
+
+Original, unbranded sedan, hatchback, estate, SUV, convertible, MPV, van, pickup,
+box truck and dump truck models by Innerscene, released under CC0 1.0 Universal:
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Adaptations: neutral runtime exterior paint; unused paint textures removed;
+freight enclosure removed for the chassis-cab variant; body-specific framing
+and hotspots. Source pages, original and prepared SHA-256 checksums, and notices
+are bundled in public/models/vehicle-bodies/. These are representative body
+illustrations, not manufacturer-specific replicas. Model credits in the studio
+follow the selected model; the Khronos notice applies to the coupe only.

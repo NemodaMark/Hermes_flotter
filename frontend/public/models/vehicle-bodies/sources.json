@@ -1,0 +1,72 @@
+[
+  {
+    "key": "convertible",
+    "slug": "generic-convertible-roadster-05aace60",
+    "source": "https://www.innerscene.com/api/library/generic-convertible-roadster-05aace60/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/generic-convertible-roadster-05aace60",
+    "sha256": "22f7c7321862f4f6e54fadfc53ada73ef6da268eb38f8a22c299b7dac7a0ef27"
+  },
+  {
+    "key": "estate",
+    "slug": "generic-station-wagon-estate-car-dec07098",
+    "source": "https://www.innerscene.com/api/library/generic-station-wagon-estate-car-dec07098/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/generic-station-wagon-estate-car-dec07098",
+    "sha256": "a539bc49a3226b10d082f14e2d847cdd1f2b371171eb6b550faa16a40f5b4ea6"
+  },
+  {
+    "key": "minivan",
+    "slug": "generic-minivan-mpv-ef315aef",
+    "source": "https://www.innerscene.com/api/library/generic-minivan-mpv-ef315aef/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/generic-minivan-mpv-ef315aef",
+    "sha256": "a5803b9d4b04f5b5187fffe1a75ee1441a19eded6b5f3c435c3fee1fa480a440"
+  },
+  {
+    "key": "tipper",
+    "slug": "dump-truck-8fbb9f8c",
+    "source": "https://www.innerscene.com/api/library/dump-truck-8fbb9f8c/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/dump-truck-8fbb9f8c",
+    "sha256": "9c563b9d3226ee3913d3494406160d8ba77e51914a4ad1c1e9f7a1dd494b773d"
+  },
+  {
+    "key": "suv",
+    "slug": "generic-compact-suv-9f157ee5",
+    "source": "https://www.innerscene.com/api/library/generic-compact-suv-9f157ee5/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/generic-compact-suv-9f157ee5",
+    "sha256": "634f6d8723d3d00a3265416620b2e1da3d229ca003fdbc2412895d55d08850c1"
+  },
+  {
+    "key": "hatchback",
+    "slug": "generic-hot-hatch-a60561a5",
+    "source": "https://www.innerscene.com/api/library/generic-hot-hatch-a60561a5/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/generic-hot-hatch-a60561a5",
+    "sha256": "eab3eab189ff0b82b496806d5216229589620e6f2337c2ae419f593777a622ab"
+  },
+  {
+    "key": "pickup",
+    "slug": "crew-cab-pickup-with-open-bed-4f02e0cc",
+    "source": "https://www.innerscene.com/api/library/crew-cab-pickup-with-open-bed-4f02e0cc/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/crew-cab-pickup-with-open-bed-4f02e0cc",
+    "sha256": "47aa7193686d426401766c89d3d4bcb78e5b880ab7b15d2050639ff9d14a00c4"
+  },
+  {
+    "key": "sedan",
+    "slug": "graphite-four-door-sedan-eed96d12",
+    "source": "https://www.innerscene.com/api/library/graphite-four-door-sedan-eed96d12/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/graphite-four-door-sedan-eed96d12",
+    "sha256": "feb0be31d153ddb42dc15ae52a651e214e85ab67e31bec4282b00f9d47c9b597"
+  },
+  {
+    "key": "van",
+    "slug": "high-roof-cargo-panel-van-c4d5145f",
+    "source": "https://www.innerscene.com/api/library/high-roof-cargo-panel-van-c4d5145f/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/high-roof-cargo-panel-van-c4d5145f",
+    "sha256": "b0d26a40bdb39c67224259213faafef71f9396c0ba658a1bb68cc1626a34ef36"
+  },
+  {
+    "key": "box",
+    "slug": "7-5-t-class-box-truck-with-roll-up-door-12baea66",
+    "source": "https://www.innerscene.com/api/library/7-5-t-class-box-truck-with-roll-up-door-12baea66/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/7-5-t-class-box-truck-with-roll-up-door-12baea66",
+    "sha256": "2ad07a090e66c58c637599df23cb6b71fc6cae3ba58d37460b942f9ce8b93a27"
+  }
+]

@@ -12,6 +12,7 @@ import { QueryMessage } from './FleetFields'
 import { VehiclePage } from './VehiclePage'
 import { AccessDialog } from './AccessDialog'
 import { bodyNames, vehiclePaint } from './vehicleAppearance'
+import { vehicleModel } from './vehicleModels'
 import './dashboard.css'
 
 const VehicleStudio=lazy(()=>import('./VehicleStudio'))
@@ -75,18 +76,19 @@ function CarDashboard({cars,user,tenant,onFleet}:{cars:DashboardCar[];user:Sessi
   const cancelled=useCallback(()=>setFlight(false),[setFlight])
   if(!car)return <section className="access-panel dashboard-no-car"><CarFront size={36}/><h3>Nincs megjeleníthető jármű</h3><p>Válassz másik telephelyet, vagy nyisd meg a járműlistát.</p><Button className="primary-button" onClick={onFleet}>Járműlista</Button></section>
   const paint=vehiclePaint(car.color)
+  const model=vehicleModel(car.bodyType)
   return <>
     <section className="car-dashboard" aria-label="Autós dashboard">
       <div className="car-dashboard-toolbar"><div><span className="car-registration">{car.vehicle.registration}</span><span className="car-dashboard-model">{car.vehicle.make} {car.vehicle.model}</span></div><label className="car-picker"><span>Jármű kiválasztása</span><Select value={car.vehicle.id} onChange={event=>{setSelected(event.target.value);setAction(null);setOpened(null);setFlight(false)}}>{eligible.map(item=><option key={item.vehicle.id} value={item.vehicle.id}>{item.vehicle.registration}{item.isAssignedToMe?' · Nálam lévő jármű':''}</option>)}</Select></label></div>
       <div className="car-stage-wrap">
-        <Suspense fallback={<div className="vehicle-studio studio-loading" role="status">3D nézet betöltése…</div>}><VehicleStudio key={car.vehicle.id} color={car.color} menus={menus} action={action} onSelect={focus} onFocused={focused} onCancelled={cancelled} paused={opened !== null}/></Suspense>
+        <Suspense fallback={<div className="vehicle-studio studio-loading" role="status">3D nézet betöltése…</div>}><VehicleStudio key={`${car.vehicle.id}:${model.key}`} model={model} color={car.color} menus={menus} action={action} onSelect={focus} onFocused={focused} onCancelled={cancelled} paused={opened !== null}/></Suspense>
         <div className="car-stage-meta"><span>{bodyNames[car.bodyType]??'Egyéb karosszéria'}<i style={{backgroundColor:paint.hex}}/>{car.color??'Szín nincs megadva'}</span><Button className="studio-reset" aria-label="Kamera alaphelyzetbe" onClick={()=>{setFlight(false);setOpened(null);setAction(previous=>({key:'home',sequence:(previous?.sequence??0)+1}))}}><RotateCcw size={16}/>Alapnézet</Button></div>
         <div className="car-stage-instrument"><Gauge size={20}/><strong>{car.vehicle.odometerKm?.toLocaleString('hu-HU')??'–'}</strong><span>km</span></div>
         {flight&&<span className="studio-flight-status" role="status">Nézet beállítása…</span>}
       </div>
       <nav className="car-menu" aria-label="Jármű gyorsmenü">{menus.map(menu=>{const Icon=icons[menu.key];return <Button key={menu.key} onClick={()=>focus(menu.key)}><Icon size={20}/><span>{menu.label}</span><ArrowRight size={14}/></Button>})}</nav>
       <div className="car-dashboard-footer"><span><MapPin size={14}/>{car.vehicle.siteName??'Telephely nélkül'}</span><span>{car.isAssignedToMe?'Hozzám rendelt jármű':'Céges jármű'} · {car.vehicle.status==='Maintenance'?'Szervizben':car.vehicle.status==='Active'?'Aktív':'Inaktív'}</span></div>
-      <div className="studio-credit"><a href={`${import.meta.env.BASE_URL}models/khronos-car/LICENSE.md`} target="_blank" rel="noreferrer">3D: Car Concept · Eric Chadwick / DGG · CC BY 4.0 · módosítva</a></div>
+      <div className="studio-credit"><span>{model.fallback?'Általános bemutatómodell · ':''}Karosszériatípus szerinti illusztráció · </span><a href={`${import.meta.env.BASE_URL}${model.license}`} target="_blank" rel="noreferrer">{model.credit}</a></div>
     </section>
     {!paint.matched&&car.color&&<p className="field-hint">A „{car.color}” színhez semleges árnyalat látható. A jármű színét ismert színnévvel vagy #RRGGBB kóddal pontosíthatod az adatlapon.</p>}
     {opened&&<AccessDialog title={`${car.vehicle.registration} · ${menus.find(menu=>menu.key===opened)?.label??'Jármű'}`} pending={false} onClose={()=>setOpened(null)} className="studio-vehicle-dialog"><VehiclePage key={`${car.vehicle.id}:${opened}`} user={user} tenant={tenant} id={car.vehicle.id} initialTab={opened} onBack={()=>setOpened(null)}/></AccessDialog>}

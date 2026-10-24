@@ -92,3 +92,4 @@
 @media(max-width:600px) { .studio-hotspot > i { display: none; } }
 @media(max-width:600px) { .studio-camera-controls { right: 12px; bottom: 14px; } .studio-camera-controls button { width: 40px; height: 40px; } .car-stage-instrument { bottom: 65px; } }
 @container(max-width:600px) { .studio-hotspot strong, .studio-hotspot > i { display: none; } }
+@media(max-width:600px) { .dashboard-heading > div:first-child { flex-shrink: 0; } }

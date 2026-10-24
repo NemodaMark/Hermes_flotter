@@ -4,6 +4,7 @@ import type { GLTF } from 'three/addons/loaders/GLTFLoader.js'
 import { BoxGeometry, Group, Mesh, MeshPhysicalMaterial, Vector3 } from 'three'
 import type { PerspectiveCamera } from 'three'
 import VehicleStudio from './VehicleStudio'
+import { vehicleModel } from './vehicleModels'
 
 const mocks = vi.hoisted(() => ({ load: vi.fn(), render: vi.fn(), dispose: vi.fn() }))
 vi.mock('three', async () => {
@@ -37,7 +38,7 @@ beforeEach(() => {
   vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id) })
   vi.stubGlobal('matchMedia', () => ({ matches: false }))
 })
-const props = () => ({ color: 'Kék', menus: [{ key: 'data' as const, label: 'Járműadatok' }], action: null, onSelect: vi.fn(), onFocused: vi.fn(), onCancelled: vi.fn() })
+const props = () => ({ model: vehicleModel('Coupe'), color: 'Kék', menus: [{ key: 'data' as const, label: 'Járműadatok' }], action: null, onSelect: vi.fn(), onFocused: vi.fn(), onCancelled: vi.fn() })
 function asset() {
   const scene = new Group(), paint = new MeshPhysicalMaterial({ color: '#ff0000' }); paint.name = 'Paint 1'
   const geometry = new BoxGeometry(2, 1.2, 4.8); scene.add(new Mesh(geometry, paint))
@@ -76,6 +77,19 @@ it('keeps direct menu access after a load failure and can retry the local asset'
   await screen.findByRole('button', { name: 'Forgatás jobbra' })
   expect(mocks.load).toHaveBeenCalledTimes(2)
   expect(callbacks.onFocused).toHaveBeenCalledTimes(1)
+})
+it('switches to the requested body asset and discards a previous body that finishes late', async () => {
+  let complete!: (gltf: GLTF) => void
+  const old = asset(), next = asset(), disposed = vi.spyOn(old.geometry, 'dispose')
+  mocks.load.mockImplementationOnce(() => new Promise<GLTF>(resolve => { complete = resolve })).mockResolvedValueOnce(next.gltf)
+  const callbacks = props(), view = render(<VehicleStudio {...callbacks} model={vehicleModel('Estate')} />)
+  view.rerender(<VehicleStudio {...callbacks} model={vehicleModel('Box')} />)
+  await screen.findByRole('button', { name: 'Forgatás jobbra' })
+  expect(mocks.load.mock.calls.map(call => call[0])).toEqual([vehicleModel('Estate').url, vehicleModel('Box').url])
+  await act(async () => { complete(old.gltf) })
+  expect(disposed).toHaveBeenCalledTimes(1)
+  expect(next.paint.color.getHexString()).toBe('214d81')
+  expect(mocks.render).not.toHaveBeenCalled()
 })
 it('disposes a late-arriving model after unmount without reviving its renderer', async () => {
   let complete!: (gltf: GLTF) => void

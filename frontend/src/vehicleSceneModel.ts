@@ -12,21 +12,21 @@ export function setVehiclePaint(model: T.Object3D, color: string) {
   })
 }
 
-export function prepareVehicleModel(source: T.Group, color: string): { model: T.Group; shape: VehicleShape } {
+export function prepareVehicleModel(source: T.Group, color: string, appearance = { rotation: Math.PI / 2, length: 4.8 }): { model: T.Group; shape: VehicleShape } {
   const model = new T.Group()
-  model.name = 'HermesCarConcept'
-  // Source is Y-up, nose at +Z. The studio uses +X for the nose.
-  source.rotation.y = Math.PI / 2
+  model.name = 'HermesVehicle'
+  // Assets have different forward axes; the studio always uses +X.
+  source.rotation.y = appearance.rotation
   model.add(source)
   const bounds = new T.Box3().setFromObject(model, true), size = bounds.getSize(new T.Vector3())
   if (bounds.isEmpty() || !Number.isFinite(size.x) || size.x <= 0) throw new Error('A járműmodell geometriája érvénytelen.')
-  const scale = 4.8 / size.x, center = bounds.getCenter(new T.Vector3())
+  const scale = appearance.length / size.x, center = bounds.getCenter(new T.Vector3())
   model.scale.setScalar(scale)
   model.position.set(-center.x * scale, -bounds.min.y * scale + .025, -center.z * scale)
   model.traverse(object => { if (object instanceof T.Mesh) { object.castShadow = true; object.receiveShadow = true } })
   setVehiclePaint(model, color)
   model.updateMatrixWorld(true)
-  return { model, shape: { length: 4.8, width: size.z * scale, roof: size.y * scale + .025, frontAxle: 4.8 * .29, rearAxle: -4.8 * .3 } }
+  return { model, shape: { length: appearance.length, width: size.z * scale, roof: size.y * scale + .025, frontAxle: appearance.length * .29, rearAxle: -appearance.length * .3 } }
 }
 
 export function disposeVehicleModel(model: T.Object3D) {
