@@ -77,6 +77,11 @@
 .studio-unavailable, .studio-loading { display: grid; place-content: center; text-align: center; padding: 40px; gap: 10px; color: #496873; }
 .studio-unavailable p { margin: 0; font-weight: 600; }
 .studio-unavailable span { font-size: 13px; }
+.studio-model-status { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 36px; background: #dce4e5ed; color: #335760; font-size: 13px; text-align: center; }
+.studio-model-status p { max-width: 380px; margin: 0; }
+.studio-model-status button { border: 1px solid #91acb4; border-radius: 5px; background: #fff; padding: 8px 12px; color: #244d58; }
+.studio-credit { padding: 8px 22px; border-top: 1px solid #e1e9eb; background: #f6f9f9; font-size: 10px; text-align: right; }
+.studio-credit a { color: #617f89; text-underline-offset: 3px; }
 .studio-vehicle-dialog.access-dialog { width: min(1050px,95vw); max-width: 1050px; max-height: 90dvh; margin-left: auto; margin-right: 24px; }
 .studio-vehicle-dialog > .vehicle-detail-panel { border: 0; }
 .studio-vehicle-dialog > .org-back { display: none; }

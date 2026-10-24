@@ -46,7 +46,7 @@ SOFTWARE.
 
 # Three.js
 
-The vehicle studio uses Three.js, OrbitControls and RoomEnvironment from the three npm package (https://github.com/mrdoob/three.js). Vehicle geometry is authored in HERMES; no Forza artwork or third-party vehicle models are included.
+The vehicle studio uses Three.js, OrbitControls, GLTFLoader and RoomEnvironment from the three npm package (https://github.com/mrdoob/three.js).
 
 The MIT License
 
@@ -69,3 +69,16 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+
+# Khronos glTF Sample Assets — Car Concept
+
+Model and textures: Eric Chadwick, © 2024 Darmstadt Graphics Group GmbH.
+License: Creative Commons Attribution 4.0 International (CC BY 4.0).
+https://creativecommons.org/licenses/by/4.0/
+
+Source: https://github.com/KhronosGroup/glTF-Sample-Assets/tree/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/CarConcept
+
+Adapted for HERMES: logo plate texture and steering emblem removed, unused data
+and sample material variants pruned; runtime paint, framing, lighting and hotspots
+added. No Forza assets are used. The model attribution is visible below the
+showroom. Full notices and provenance are shipped in public/models/khronos-car/.
