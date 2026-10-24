@@ -7,6 +7,8 @@ import { disposeVehicleModel, prepareVehicleModel, setVehiclePaint } from './veh
 import type { VehicleShape } from './vehicleSceneModel'
 import { vehiclePaint } from './vehicleAppearance'
 import type { VehicleModel } from './vehicleModels'
+import { vehicleHotspots } from './vehicleHotspots'
+import type { VehicleHotspot } from './vehicleHotspots'
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
 
 export type StudioSection = 'data' | 'history' | 'services' | 'documents' | 'leases' | 'site' | 'photos'
@@ -64,7 +66,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     orbit.enableDamping = true; orbit.dampingFactor = .075; orbit.enablePan = false; orbit.minDistance = 4.5; orbit.maxDistance = 16
     orbit.minPolarAngle = .25; orbit.maxPolarAngle = Math.PI / 2 - .035; orbit.update()
     let shape: VehicleShape | null = null
-    const positions: Partial<Record<StudioSection, T.Vector3>> = {}
+    const positions: Partial<Record<StudioSection, VehicleHotspot>> = {}
+    let hotspots: ReturnType<typeof vehicleHotspots> | null = null
     const targets: Record<StudioSection, T.Vector3> = {
       data: new T.Vector3(5.2, 2.8, 5.2), history: new T.Vector3(3.2, 1.1, 5.5), services: new T.Vector3(6.1, 2.3, 2.5),
       documents: new T.Vector3(3.5, 2.1, 5), leases: new T.Vector3(-5.8, 2.1, 4.2), site: new T.Vector3(-.5, 1.6, 6.2), photos: new T.Vector3(-5.8, 2.1, 4.8),
@@ -84,7 +87,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         if (section === 'left' || section === 'right') offset.applyAxisAngle(new T.Vector3(0, 1, 0), section === 'left' ? Math.PI / 4 : -Math.PI / 4)
         else offset.setLength(T.MathUtils.clamp(offset.length() * (section === 'closer' ? .82 : 1.22), orbit.minDistance, orbit.maxDistance))
         to = offset.add(targetTo)
-      } else { to = targets[section]; targetTo = positions[section]!.clone().lerp(homeTarget, .35) }
+      } else { to = targets[section]; targetTo = positions[section]!.point.clone().lerp(homeTarget, .35) }
       flight = { key: section, started: performance.now(), from: camera.position.clone(), targetFrom: orbit.target.clone(), to, targetTo }
     } }
     const cancelFlight = () => { if (flight) callbacks.current.onCancelled(); flight = null; orbit.enabled = true }
@@ -107,18 +110,21 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       catch (error) { disposeVehicleModel(gltf.scene); throw error }
       loadedModel.current = vehicle.model; shape = vehicle.shape; scene.add(vehicle.model)
       const { length, width, roof, frontAxle } = shape
+      hotspots = vehicleHotspots(vehicle.model, length)
+      const anchor = (x: number, y: number, z: number, nx: number, ny: number, nz: number) => hotspots!.anchor(new T.Vector3(x, y, z), new T.Vector3(nx, ny, nz))
       const cameraScale = Math.max(1, length / 4.8, roof / 2)
       orbit.minDistance = Math.max(4.5, length * .8); orbit.maxDistance = Math.max(16, length * 3)
       for (const target of Object.values(targets)) target.multiplyScalar(cameraScale)
       Object.assign(positions, {
-        data: new T.Vector3(-.05 * length, roof, 0), history: new T.Vector3(frontAxle, .34, width * .43),
-        services: new T.Vector3(length * .29, roof * .43, 0), documents: new T.Vector3(.08 * length, roof * .73, width * .34),
-        leases: new T.Vector3(-length * .4, roof * .55, 0), site: new T.Vector3(-length * .08, roof * .5, width * .44), photos: new T.Vector3(-length * .38, roof * .3, width * .42),
+        data: anchor(-.05 * length, roof, 0, 0, 1, 0), history: anchor(frontAxle, .34, width * .43, 0, 0, 1),
+        services: anchor(length * .29, roof * .43, 0, 0, 1, 0), documents: anchor(.08 * length, roof * .73, width * .34, 0, 0, 1),
+        leases: anchor(-length * .4, roof * .55, 0, -1, 0, 0), site: anchor(-length * .08, roof * .5, width * .44, 0, 0, 1), photos: anchor(-length * .38, roof * .3, width * .42, 0, 0, 1),
       })
       fit(); setLoadState('ready')
     }).catch(() => { if (!disposed && !contextLost) setLoadState('error') })
     let frame = 0, last = 0
     const projected = new T.Vector3()
+    const lastCamera = new T.Matrix4(), lastProjection = new T.Matrix4(), visiblePoints = new Map<StudioSection, boolean>()
     function animate(time: number) {
       if (disposed) return
       frame = requestAnimationFrame(animate)
@@ -130,17 +136,27 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         if (t === 1) { const section = flight.key; flight = null; orbit.enabled = true; if (isSection(section)) callbacks.current.onFocused(section) }
       }
       orbit.update(); renderer.render(scene, camera)
+      camera.updateMatrixWorld()
+      const cameraChanged = !lastCamera.equals(camera.matrixWorld) || !lastProjection.equals(camera.projectionMatrix)
       for (const button of overlay.current?.querySelectorAll<HTMLButtonElement>('[data-hotspot]') ?? []) {
-        const section = button.dataset.hotspot as StudioSection, point = positions[section]
-        if (!point) continue
+        const section = button.dataset.hotspot as StudioSection, hotspot = positions[section]
+        if (!hotspot || !hotspots) continue
+        const { point } = hotspot
+        if (cameraChanged || !visiblePoints.has(section)) visiblePoints.set(section, hotspots.visible(hotspot, camera.position))
         projected.copy(point).project(camera)
         button.style.left = `${(projected.x * .5 + .5) * 100}%`; button.style.top = `${(-projected.y * .5 + .5) * 100}%`
         const [labelX, labelY] = labels[section]
         const dx = (labelX - (projected.x * .5 + .5)) * container.clientWidth + 15, dy = (labelY - (-projected.y * .5 + .5)) * container.clientHeight + 15
         button.style.setProperty('--label-x', `${dx}px`); button.style.setProperty('--label-y', `${dy}px`)
         button.style.setProperty('--leader-length', `${Math.hypot(dx - 17, dy - 17)}px`); button.style.setProperty('--leader-angle', `${Math.atan2(dy - 17, dx - 17)}rad`)
-        button.style.visibility = projected.z > 1 || Math.abs(projected.x) > 1.05 || Math.abs(projected.y) > 1.05 ? 'hidden' : 'visible'
+        const visible = visiblePoints.get(section) && projected.z >= -1 && projected.z <= 1 && Math.abs(projected.x) <= 1.05 && Math.abs(projected.y) <= 1.05
+        // One parent controls the dot, leader and label together, including
+        // keyboard and assistive-technology access to the hidden button.
+        button.style.visibility = visible ? 'visible' : 'hidden'
+        button.disabled = !visible
+        button.setAttribute('aria-hidden', String(!visible))
       }
+      lastCamera.copy(camera.matrixWorld); lastProjection.copy(camera.projectionMatrix)
     }
     frame = requestAnimationFrame(animate)
     const lost = (event: Event) => { event.preventDefault(); contextLost = true; cancelAnimationFrame(frame); cancelFlight(); setUnavailable(true) }

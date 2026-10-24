@@ -127,6 +127,8 @@ Az Innerscene eredeti, márkajelzés nélküli modelljei CC0 1.0 licencűek. For
 
 A járműpontokra vagy a hagyományos gyorsmenüre kattintva a kamera átfordul, majd a megfelelő **valódi járműadatlap-rész** nyílik meg, a meglévő mentési és dokumentumfunkciókkal. A szerviz/lízing/okmány menü a jármű saját műveleti joga alapján jelenik meg. Az adatbázisba mentett új jog nem keletkezik. `prefers-reduced-motion` mellett az átfordulás azonnali; WebGL2 nélkül a teljes hagyományos menü használható. A 3D motor csak az autós nézetben töltődik le, nincs külső 3D fájl- vagy képletöltés.
 
+A pontok a modell tényleges külső felületére illeszkednek. A túloldali vagy a karosszéria által takart pont a vonalával és feliratával együtt rejtett, és billentyűzettel sem aktiválható. A kamera visszafordításakor ismét megjelenik. A takarásvizsgálat csak kameramozgáskor vagy új pont megjelenésekor fut; az alsó gyorsmenü mindig használható marad.
+
 ## Felhasználói adatlap
 
 A felhasználó sorára kattintva teljes adatlap nyílik, külön fülekkel:

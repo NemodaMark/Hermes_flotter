@@ -78,6 +78,29 @@ it('keeps direct menu access after a load failure and can retry the local asset'
   expect(mocks.load).toHaveBeenCalledTimes(2)
   expect(callbacks.onFocused).toHaveBeenCalledTimes(1)
 })
+it('hides a side hotspot with its label and leader when rotated behind the car, then restores it', async () => {
+  mocks.load.mockResolvedValue(asset().gltf)
+  const callbacks = { ...props(), menus: [{ key: 'site' as const, label: 'Telephely és használó' }] }
+  render(<VehicleStudio {...callbacks} />)
+  await screen.findByRole('button', { name: 'Forgatás jobbra' })
+  vi.spyOn(performance, 'now').mockReturnValue(0)
+  await frame(100)
+  const hotspot = screen.getByRole('button', { name: '3D pont: Telephely és használó' })
+  expect(hotspot).toHaveStyle({ visibility: 'visible' })
+  // Half a turn puts the same physical point on the far side of the model.
+  for (let i = 0; i < 4; i++) {
+    fireEvent.click(screen.getByRole('button', { name: 'Forgatás balra' }))
+    await frame(1000 + i * 1000)
+  }
+  expect(hotspot).toHaveStyle({ visibility: 'hidden' })
+  expect(hotspot).toBeDisabled(); expect(hotspot).toHaveAttribute('aria-hidden', 'true')
+  expect(screen.queryByRole('button', { name: '3D pont: Telephely és használó' })).not.toBeInTheDocument()
+  for (let i = 0; i < 4; i++) {
+    fireEvent.click(screen.getByRole('button', { name: 'Forgatás balra' }))
+    await frame(5000 + i * 1000)
+  }
+  expect(hotspot).toHaveStyle({ visibility: 'visible' }); expect(hotspot).toBeEnabled()
+})
 it('switches to the requested body asset and discards a previous body that finishes late', async () => {
   let complete!: (gltf: GLTF) => void
   const old = asset(), next = asset(), disposed = vi.spyOn(old.geometry, 'dispose')

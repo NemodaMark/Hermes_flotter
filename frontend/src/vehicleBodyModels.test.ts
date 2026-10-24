@@ -8,6 +8,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { vehicleModel } from './vehicleModels'
 import { bodyNames } from './vehicleAppearance'
 import { disposeVehicleModel, prepareVehicleModel } from './vehicleSceneModel'
+import { vehicleHotspots } from './vehicleHotspots'
+import { Vector3 } from 'three'
 
 const bodies = Object.keys(bodyNames).filter(body => !['Unknown', 'Other', 'Coupe'].includes(body))
 const prepared = JSON.parse(readFileSync(resolve('public/models/vehicle-bodies/prepared.json'), 'utf8')) as { key: string; sha256: string }[]
@@ -50,6 +52,10 @@ it.each(bodies)('loads and paints the real %s body with valid ground-level propo
     }
   })
   expect(painted).toBeGreaterThan(0); expect(glass).toBeGreaterThan(0)
+  const hotspots = vehicleHotspots(model, shape.length)
+  const door = hotspots.anchor(new Vector3(-shape.length * .08, shape.roof * .5, shape.width * .44), new Vector3(0, 0, 1))
+  expect(hotspots.visible(door, door.point.clone().add(new Vector3(0, 0, 5)))).toBe(true)
+  expect(hotspots.visible(door, door.point.clone().add(new Vector3(0, 0, -5)))).toBe(false)
   if (body === 'ChassisCab') {
     let enclosure = false
     model.traverse(object => { if (object instanceof Mesh && /freight_box/.test(object.name)) enclosure = true })
