@@ -51,6 +51,7 @@ function mountApp({
         }
         return json(tenants)
       }
+      if (path === '/api/v1/dashboard') return json({ mode: 'Overview', priority: 0, sourceGroup: null, canReadVehicles: true, vehicles: [] })
       if (path.endsWith('/permissions') || path.endsWith('/permission-groups') || path.endsWith('/permission-groups/companies')) return json([])
       if (/\/(members|people|invitations)(\?|$)/.test(path)) return json({ items: [], total: 0, page: 1, pageSize: 25 })
       if (path.endsWith('/vehicles/create-options')) return json({ canCreateUnassigned, sites: [{ id: 'site-a', name: 'Budapest', code: 'BP' }] })
@@ -87,6 +88,15 @@ function mountApp({
   )
   return client
 }
+
+it('opens the dashboard for the root URL while keeping explicit fleet links available', async () => {
+  window.history.replaceState(null, '', '/')
+  mountApp()
+  expect(await screen.findByRole('heading', { name: 'Flotta áttekintés' })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Járművek' }))
+  expect(await screen.findByText('DUN-001')).toBeInTheDocument()
+  expect(window.location.hash).toBe('#/vehicles')
+})
 
 it('replaces the visible fleet when a different company is selected', async () => {
   mountApp()
@@ -239,7 +249,7 @@ it('takes a newly registered user through creating their first company', async (
   await screen.findByRole('heading', { name: 'Hozd létre az első cégedet' })
   await userEvent.type(screen.getByLabelText('Cégnév'), 'Saját Flotta Kft.')
   await userEvent.click(screen.getByRole('button', { name: 'Cég létrehozása' }))
-  expect(await screen.findByText('Még nincs jármű. Az Új jármű gombbal veheted fel az elsőt.')).toBeInTheDocument()
+  expect(await screen.findByText('Még nincs jármű ezen a munkaterületen.')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Munkaterület váltása: Saját Flotta Kft. / Összes telephely' })).toBeInTheDocument()
 })
 

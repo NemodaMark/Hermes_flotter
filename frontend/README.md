@@ -111,6 +111,16 @@ Kiosztás: felhasználó sora → Csoportok. A checkboxoknál látható a cégli
 
 A közös csoportkiosztás a fiók verzióját, a csoportszerkesztés a csoport verzióját küldi. Ütközéskor az újratöltés friss verzióval kezdi újra a szerkesztést.
 
+## Kezdőlap és autós dashboard
+
+Belépés után a `#/dashboard` kezdőlap nyílik meg. A **Beállítások → Jogosultságcsoportok** oldalon, csoportonként választható áttekintő vagy autós kezdőnézet és 0–1000 közötti prioritás. A nagyobb prioritás nyer az aktuális cég csoportjai között; különböző módok azonos prioritásánál az áttekintő indul. A közös admin kezdőnézetét külön **Kezdőnézet** gomb kezeli, csak rendszerszintű kezelőnek; a védett jogcsomagot nem írja át. A felső nézetváltó az aktuális látogatásra vált, nem módosítja a csoportbeállítást.
+
+Az áttekintő járműállapotokat, lejárt/30 napon belüli határidőket és telephelyi megoszlást mutat a megtekinthető járművekből. Az autós nézet az elérhető, nem archivált autók közül először a saját aktuális hozzárendelést választja; több autó között rendszám alapján lehet váltani. A workspace telephelyszűrője mindkét nézetre érvényes. Üres lista vagy járműolvasási jog hiánya külön állapotot kap.
+
+Az autós stúdió Three.js WebGL2 nézet, 360°-ban forgatható, nagyítható, érintéssel és kameragombokkal is vezérelhető. A karosszéria mező alapján saját, általános 3D geometria készül; **nem gyártó-/modellhű autómodell és nem Forza-asset**. A tárolt magyar/angol színnevek és `#RRGGBB` kódok festik a modellt. Hiányzó karosszériánál általános alak, ismeretlen színnél jelzett semleges szín jelenik meg. A pontosabb márkamodellek később külön, licencelt modellkönyvtárral bővíthetők.
+
+A járműpontokra vagy a hagyományos gyorsmenüre kattintva a kamera átfordul, majd a megfelelő **valódi járműadatlap-rész** nyílik meg, a meglévő mentési és dokumentumfunkciókkal. A szerviz/lízing/okmány menü a jármű saját műveleti joga alapján jelenik meg. Az adatbázisba mentett új jog nem keletkezik. `prefers-reduced-motion` mellett az átfordulás azonnali; WebGL2 nélkül a teljes hagyományos menü használható. A 3D motor csak az autós nézetben töltődik le, nincs külső 3D fájl- vagy képletöltés.
+
 ## Felhasználói adatlap
 
 A felhasználó sorára kattintva teljes adatlap nyílik, külön fülekkel:

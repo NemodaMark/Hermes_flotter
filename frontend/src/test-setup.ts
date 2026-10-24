@@ -1,6 +1,10 @@
-import { afterEach } from 'vitest'
+import { afterEach, beforeEach } from 'vitest'
 import { cleanup, configure } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
+
+// Existing feature-flow tests explicitly begin in the fleet workspace. Dashboard
+// and sign-in tests select their own URL to exercise the new landing behavior.
+beforeEach(() => { window.history.replaceState(null, '', '/#/vehicles') })
 afterEach(() => {
   cleanup()
   window.history.replaceState(null, '', '/')

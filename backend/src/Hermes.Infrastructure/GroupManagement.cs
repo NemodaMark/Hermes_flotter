@@ -8,7 +8,13 @@ namespace Hermes.Infrastructure;
 
 public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) : IGroupManagement
 {
-    private sealed record State(string Name, bool AllPermissions, string[] Permissions, Guid[] CompanyIds, GroupSiteSelection[]? SiteScopes = null);
+    private sealed record State(string Name, bool AllPermissions, string[] Permissions, Guid[] CompanyIds, GroupSiteSelection[]? SiteScopes = null,
+        string DashboardMode = "Overview", int DashboardPriority = 0);
+    private static void ValidateDashboard(string mode, int priority)
+    {
+        if (mode is not ("Overview" or "Vehicle") || priority is < 0 or > 1000)
+            throw UserAccounts.Error(400, "invalid_dashboard", "Válassz áttekintő vagy autós kezdőnézetet és 0–1000 közötti prioritást.");
+    }
     private static ManagementException Denied() => UserAccounts.Error(403, "group_permission_denied", "Minden érintett cégnél rendelkezned kell a művelethez és a kiosztandó jogokhoz szükséges hozzáféréssel.");
     private Task<T> Run<T>(bool write, Func<Task<T>> action, CancellationToken ct) => RunCore(write, action, ct);
     private async Task<T> RunCore<T>(bool write, Func<Task<T>> action, CancellationToken ct)
@@ -113,7 +119,7 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
     }
     private static ManagementException ProtectedAdmin() => UserAccounts.Error(409, "protected_admin_group", "Az admin közös rendszercsoport, nem módosítható és nem törölhető. A cégeket a felhasználó csoporttagságánál válaszd ki.");
     private static State Snapshot(PermissionGroup group) => new(group.Name, group.AllPermissions, group.EffectivePermissions.Order(StringComparer.Ordinal).ToArray(), group.Companies.Select(x => x.TenantId).Order().ToArray(),
-        group.Companies.Select(x => new GroupSiteSelection(x.TenantId, !x.RestrictSites, x.Sites.Select(s => s.SiteId).Order().ToArray())).ToArray());
+        group.Companies.Select(x => new GroupSiteSelection(x.TenantId, !x.RestrictSites, x.Sites.Select(s => s.SiteId).Order().ToArray())).ToArray(), group.DashboardMode, group.DashboardPriority);
     private async Task<PermissionGroup> Group(Guid id, GroupCompanyOption[] choices, CancellationToken ct)
     {
         var visible = choices.Select(x => x.Id).ToArray();
@@ -140,7 +146,8 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
         {
             var assignable = choices.Where(x => x.CanAssign && x.CanGrantAll).ToArray();
             return new(group.Id, group.Name, group.CreatedBy, group.Version, true, true, Permissions.All,
-                (assignable.Length > 0 ? assignable : choices).Select(x => new GroupCompanyTarget(x.Id, x.Name)).ToArray(), count, false, assignable.Length > 0);
+                (assignable.Length > 0 ? assignable : choices).Select(x => new GroupCompanyTarget(x.Id, x.Name)).ToArray(), count, false, assignable.Length > 0)
+                { DashboardMode = group.DashboardMode, DashboardPriority = group.DashboardPriority };
         }
         var state = Snapshot(group);
         return new(group.Id, group.Name, group.CreatedBy, group.Version, group.AllPermissions, group.IsAdmin, state.Permissions,
@@ -150,9 +157,17 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
                 Sites = choices.Single(x => x.Id == id).Sites.Where(s => state.SiteScopes!.Single(x => x.CompanyId == id).SiteIds.Contains(s.Id)).ToArray()
             }).ToArray(), count,
             Allows(choices, state.CompanyIds, state.Permissions, group.AllPermissions, edit: true, assign: count > 0, scopes: state.SiteScopes),
-            Allows(choices, state.CompanyIds, state.Permissions, group.AllPermissions, edit: false, assign: true, scopes: state.SiteScopes));
+            Allows(choices, state.CompanyIds, state.Permissions, group.AllPermissions, edit: false, assign: true, scopes: state.SiteScopes))
+        {
+            DashboardMode = group.DashboardMode, DashboardPriority = group.DashboardPriority,
+            CanConfigureDashboard = Allows(choices, state.CompanyIds, state.Permissions, group.AllPermissions, edit: true, assign: count > 0, scopes: state.SiteScopes)
+        };
     }
-    public Task<PermissionGroupSummary[]> ListAsync(string actor, CancellationToken ct) => Run(false, async () => await List(await Choices(actor, ct), ct), ct);
+    public Task<PermissionGroupSummary[]> ListAsync(string actor, CancellationToken ct) => Run(false, async () =>
+    {
+        var system = await UserAccounts.IsSystemManager(db, actor, ct);
+        return (await List(await Choices(actor, ct), ct)).Select(group => group.IsAdmin && system ? group with { CanConfigureDashboard = true } : group).ToArray();
+    }, ct);
 
     private async Task<HashSet<Guid>> Managers(string actor, Guid[] ids, CancellationToken ct)
     {
@@ -192,8 +207,8 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
                 // A suspended membership is never reactivated by adding or changing a group.
                 scoped.AccessAuditEvents.Add(new() { TenantId = company, ActorSubject = actor, Action = action, Details = JsonSerializer.Serialize(new
                 {
-                    groupId, before = before is null ? null : new { before.Name, before.AllPermissions, before.Permissions, applies = before.CompanyIds.Contains(company), siteScope = before.SiteScopes?.SingleOrDefault(x => x.CompanyId == company) },
-                    after = after is null ? null : new { after.Name, after.AllPermissions, after.Permissions, applies = after.CompanyIds.Contains(company), siteScope = after.SiteScopes?.SingleOrDefault(x => x.CompanyId == company) }, affectedUsers = affected
+                    groupId, before = before is null ? null : new { before.Name, before.AllPermissions, before.Permissions, before.DashboardMode, before.DashboardPriority, applies = before.CompanyIds.Contains(company), siteScope = before.SiteScopes?.SingleOrDefault(x => x.CompanyId == company) },
+                    after = after is null ? null : new { after.Name, after.AllPermissions, after.Permissions, after.DashboardMode, after.DashboardPriority, applies = after.CompanyIds.Contains(company), siteScope = after.SiteScopes?.SingleOrDefault(x => x.CompanyId == company) }, affectedUsers = affected
                 }) });
                 await scoped.SaveChangesAsync(ct);
                 scoped.GroupUserCompanies.RemoveRange(scopes.Where(x => !desired.Contains(x.UserId)));
@@ -211,13 +226,15 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
     public Task<PermissionGroupSummary> CreateAsync(string actor, CreateGroupRequest request, CancellationToken ct) => Run(true, async () =>
     {
         var choices = await Choices(actor, ct);
+        ValidateDashboard(request.DashboardMode, request.DashboardPriority);
         var ids = Companies(request.CompanyIds); var name = Name(request.Name); var codes = AccessRules.Validate(request.Permissions);
         var sites = SiteSelections(ids, choices, request.SiteScopes);
         if (request.AllPermissions && codes.Length > 0) throw UserAccounts.Error(400, "invalid_permissions", "Automatikus teljes jogkörnél ne adj meg külön joglistát.");
         Require(choices, ids, request.AllPermissions ? Permissions.All : codes, request.AllPermissions, edit: true, assign: false, scopes: sites);
         if (name.Equals("admin", StringComparison.OrdinalIgnoreCase)) throw ProtectedAdmin();
         await Unique(name, ids, null, ct);
-        var group = new PermissionGroup { CreatedBy = actor, Name = name, NormalizedName = name.ToUpperInvariant(), AllPermissions = request.AllPermissions };
+        var group = new PermissionGroup { CreatedBy = actor, Name = name, NormalizedName = name.ToUpperInvariant(), AllPermissions = request.AllPermissions,
+            DashboardMode = request.DashboardMode, DashboardPriority = request.DashboardPriority };
         group.Permissions = codes.Select(code => new GroupPermission { GroupId = group.Id, Code = code }).ToList();
         group.Companies = sites.Select(scope => new GroupCompany { GroupId = group.Id, TenantId = scope.CompanyId, RestrictSites = !scope.AllSites,
             Sites = scope.SiteIds.Select(site => new GroupCompanySite { GroupId = group.Id, TenantId = scope.CompanyId, SiteId = site }).ToList() }).ToList();
@@ -230,6 +247,9 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
     {
         var choices = await Choices(actor, ct); var group = await Group(id, choices, ct); Version(group.Version, request.Version);
         if (group.IsAdmin) throw ProtectedAdmin();
+        var mode = request.DashboardMode ?? group.DashboardMode;
+        var priority = request.DashboardPriority ?? group.DashboardPriority;
+        ValidateDashboard(mode, priority);
         var before = Snapshot(group); var ids = Companies(request.CompanyIds); var name = Name(request.Name); var codes = AccessRules.Validate(request.Permissions);
         var sites = SiteSelections(ids, choices, request.SiteScopes, before);
         if (request.AllPermissions && codes.Length > 0) throw UserAccounts.Error(400, "invalid_permissions", "Automatikus teljes jogkörnél ne adj meg külön joglistát.");
@@ -253,14 +273,44 @@ public sealed class GroupManagement(HermesDbContext db, UserAccounts accounts) :
             foreach (var site in selection.SiteIds.Except(scope.Sites.Select(x => x.SiteId)))
                 scope.Sites.Add(new() { GroupId = id, TenantId = selection.CompanyId, SiteId = site });
         }
-        group.Name = name; group.NormalizedName = name.ToUpperInvariant(); group.AllPermissions = request.AllPermissions; group.Version++;
+        group.Name = name; group.NormalizedName = name.ToUpperInvariant(); group.AllPermissions = request.AllPermissions;
+        group.DashboardMode = mode; group.DashboardPriority = priority; group.Version++;
         await db.SaveChangesAsync(ct); // Insert new scope keys before materializing memberships; retain old scope FKs until removal.
-        var after = new State(name, request.AllPermissions, group.EffectivePermissions.Order(StringComparer.Ordinal).ToArray(), ids, sites);
+        var after = new State(name, request.AllPermissions, group.EffectivePermissions.Order(StringComparer.Ordinal).ToArray(), ids, sites, mode, priority);
         await Sync(actor, id, before, after, users, users, managers, "group.updated", ct);
         foreach (var scope in removedScopes) { group.Companies.Remove(scope); db.GroupCompanies.Remove(scope); }
         await db.SaveChangesAsync(ct);
         return Summary(group, choices, users.Length);
     }, ct);
+    public Task<PermissionGroupSummary> DashboardAsync(string actor, Guid id, GroupDashboardInput request, CancellationToken ct) => Run(true, async () =>
+    {
+        var choices = await Choices(actor, ct); var group = await Group(id, choices, ct);
+        Version(group.Version, request.Version); ValidateDashboard(request.Mode, request.Priority);
+        var before = Snapshot(group);
+        if (group.IsAdmin)
+        {
+            if (!await UserAccounts.IsSystemManager(db, actor, ct)) throw Denied();
+        }
+        else
+        {
+            var hasUsers = await db.GroupUsers.AnyAsync(x => x.GroupId == id, ct);
+            Require(choices, before.CompanyIds, before.Permissions, before.AllPermissions, edit: true, assign: hasUsers, scopes: before.SiteScopes);
+        }
+        group.DashboardMode = request.Mode; group.DashboardPriority = request.Priority; group.Version++;
+        UserAccounts.Audit(db, actor, null, "group.dashboard_changed", new { groupId = id, before, after = Snapshot(group) });
+        foreach (var company in group.Companies.Where(c => choices.Any(x => x.Id == c.TenantId)).Select(c => c.TenantId).Order())
+            await InCompany(company, actor, async scoped =>
+            {
+                await AccessRules.LockTenant(scoped, company, ct);
+                scoped.AccessAuditEvents.Add(new() { TenantId = company, ActorSubject = actor, Action = "group.dashboard_changed",
+                    Details = JsonSerializer.Serialize(new { groupId = id, before = new { before.DashboardMode, before.DashboardPriority }, after = new { request.Mode, request.Priority } }) });
+                await scoped.SaveChangesAsync(ct); return true;
+            }, ct);
+        await db.SaveChangesAsync(ct);
+        var result = (await List(choices, ct)).Single(x => x.Id == id);
+        return result with { DashboardMode = request.Mode, DashboardPriority = request.Priority, CanConfigureDashboard = true };
+    }, ct);
+
     public async Task DeleteAsync(string actor, Guid id, long version, CancellationToken ct) => _ = await Run(true, async () =>
     {
         var choices = await Choices(actor, ct); var group = await Group(id, choices, ct); Version(group.Version, version);

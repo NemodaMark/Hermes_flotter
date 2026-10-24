@@ -15,9 +15,17 @@ public sealed record GroupCompanyTarget(Guid Id, string Name)
     public GroupSiteOption[] Sites { get; init; } = [];
 }
 public sealed record PermissionGroupSummary(Guid Id, string Name, string CreatedBy, long Version, bool AllPermissions, bool IsAdmin,
-    string[] Permissions, GroupCompanyTarget[] Companies, int MemberCount, bool CanEdit, bool CanAssign);
-public sealed record CreateGroupRequest(string Name, string[] Permissions, Guid[] CompanyIds, bool AllPermissions = false, GroupSiteSelection[]? SiteScopes = null);
-public sealed record UpdateGroupRequest(string Name, string[] Permissions, Guid[] CompanyIds, long Version, bool AllPermissions = false, GroupSiteSelection[]? SiteScopes = null);
+    string[] Permissions, GroupCompanyTarget[] Companies, int MemberCount, bool CanEdit, bool CanAssign)
+{
+    public string DashboardMode { get; init; } = "Overview";
+    public int DashboardPriority { get; init; }
+    public bool CanConfigureDashboard { get; init; }
+}
+public sealed record CreateGroupRequest(string Name, string[] Permissions, Guid[] CompanyIds, bool AllPermissions = false, GroupSiteSelection[]? SiteScopes = null,
+    string DashboardMode = "Overview", int DashboardPriority = 0);
+public sealed record UpdateGroupRequest(string Name, string[] Permissions, Guid[] CompanyIds, long Version, bool AllPermissions = false, GroupSiteSelection[]? SiteScopes = null,
+    string? DashboardMode = null, int? DashboardPriority = null);
+public sealed record GroupDashboardInput(string Mode, int Priority, long Version);
 public sealed record GroupUserSummary(string UserId, long Version, Guid[] GroupIds, bool HasOtherGroups)
 {
     public Guid[] AdminCompanyIds { get; init; } = [];
@@ -31,6 +39,7 @@ public interface IGroupManagement
     Task<PermissionGroupSummary> CreateAsync(string actor, CreateGroupRequest request, CancellationToken ct);
     Task<PermissionGroupSummary> UpdateAsync(string actor, Guid id, UpdateGroupRequest request, CancellationToken ct);
     Task DeleteAsync(string actor, Guid id, long version, CancellationToken ct);
+    Task<PermissionGroupSummary> DashboardAsync(string actor, Guid id, GroupDashboardInput request, CancellationToken ct);
     Task<GroupUserSummary> UserAsync(string actor, string userId, CancellationToken ct);
     Task<GroupUserSummary> AssignAsync(string actor, string userId, AssignGroupsRequest request, CancellationToken ct);
 }

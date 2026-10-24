@@ -50,6 +50,9 @@ export type GroupCompanyOption = Tenant & {
   permissionScopes?: PermissionSiteScope[]
 }
 export type PermissionGroup = {
+  dashboardMode?: 'Overview' | 'Vehicle'
+  dashboardPriority?: number
+  canConfigureDashboard?: boolean
   id: string
   name: string
   createdBy: string
@@ -63,6 +66,8 @@ export type PermissionGroup = {
   canAssign: boolean
 }
 export type GroupDraft = {
+  dashboardMode?: 'Overview' | 'Vehicle'
+  dashboardPriority?: number
   name: string
   permissions: string[]
   companyIds: string[]

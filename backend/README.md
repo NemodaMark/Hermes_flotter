@@ -90,6 +90,14 @@ Az állapotfájl műveletenként rögzíti az előrehaladást. Megszakítás ut�
 
 Kizárólagos ellenőrzés: `node scripts/seed-demo-data.mjs --verify-only` (ugyanazzal a jelszóváltozóval). Ez ellenőrzi a darabszámokat, a meglévő cégek és profilok megőrzését, a telephelykorlátokat, a más cégek kizárását és a felfüggesztett tagság tiltását. Későbbi kézi módosítások után a kezdeti pillanatképpel való eltérés szándékosan ellenőrzési hibát eredményezhet. A cég létrehozása a létrehozó profiljának verzióját a szokásos módon eggyel növeli; a korábbi profiladatokat és jogokat megőrzi.
 
+## Csoportonkénti dashboard
+
+A közös jogosultságcsoporthoz `DashboardMode` (`Overview` / `Vehicle`) és 0–1000 közötti `DashboardPriority` tartozik. A nagyobb prioritás dönt; eltérő módok azonos prioritásánál az áttekintő nyer. Csak az aktuális cégben valóban kiosztott, aktív tagsághoz tartozó csoportok számítanak. Közvetlen jogok mellett, megfelelő csoportbeállítás nélkül az áttekintő az alap. Egy rendszerszintű kezelő virtuális céges hozzáférése nem örökli más felhasználók csoportbeállításait.
+
+A normál csoportfelvitel és -szerkesztés atomikusan fogadja a `dashboardMode` / `dashboardPriority` mezőket. Régebbi kliens hiányzó mezői szerkesztéskor megőrzik a korábbi beállítást. Külön beállítás: `PUT /api/v1/permission-groups/{id}/dashboard`, törzs: `{ "mode": "Vehicle", "priority": 100, "version": 3 }`. Minden érintett cégnél a meglévő csoportkezelési és delegálási ellenőrzések érvényesek; a közös védett admin kezdőnézetét kizárólag `system.manage` joggal lehet átállítani. Ez nem módosítja az admin nevét, automatikus jogkörét vagy hozzárendeléseit. A módosítás verzióellenőrzött és naplózott.
+
+A `GET /api/v1/dashboard` céges munkamenettel adja vissza a feloldott nézetet és a megtekintő számára `vehicles.read` alapján elérhető járműveket, karosszériával, színnel, határidőkkel és saját aktuális hozzárendeléssel. Az összesítés és az alapértelmezett jármű kiválasztása is követi a jogonkénti telephelykorlátot; a használói hozzárendelés nem ad olvasási jogot. Járműolvasási jog nélkül a válasz járműlistája üres. A mód kiválasztása nem ad szerviz-, lízing-, dokumentum- vagy bármilyen új műveleti jogot. A normál végpontok továbbra is frissen ellenőrzik ezeket.
+
 ## További backendmunka
 
 A következő bővítés lehet a szerveroldali flottakeresés és lapozás, a sofőrök és hozzárendeléseik, a szerviztervezés és a teljes költségmodul. A szerződésekhez és munkalapokhoz védett fájlfeltöltés és http(s) dokumentumhivatkozás is használható; a végpontok és tárolási korlátok a projekt README dokumentumfeltöltési részében találhatók. Minden új céges művelethez tartozzon külön jog, szerveroldali validáció és cégek közötti hozzáférést kizáró teszt.

@@ -100,6 +100,7 @@ it('selects multiple managed companies and restricts permissions to their inters
   await waitFor(() =>
     expect(create).toHaveBeenCalledWith({
       name: 'Közös sofőrök',
+      dashboardMode: 'Overview', dashboardPriority: 0,
       permissions: ['vehicles.read'],
       companyIds: ['a', 'b'],
       allPermissions: false,
@@ -220,6 +221,7 @@ it('updates a group using its version and sends the changed company list', async
   await waitFor(() =>
     expect(update).toHaveBeenCalledWith(group.id, {
       name: group.name,
+      dashboardMode: 'Overview', dashboardPriority: 0,
       permissions: ['vehicles.read'],
       companyIds: ['a'],
       allPermissions: false,

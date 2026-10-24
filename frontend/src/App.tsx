@@ -17,6 +17,7 @@ import {
   Settings,
   Search,
   Users,
+  LayoutDashboard,
 } from 'lucide-react'
 import { api, ApiError, resetCsrfToken, vehicleKey } from './api'
 import type { Session, Tenant, Vehicle } from './api'
@@ -42,6 +43,7 @@ import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { peopleApi } from './peopleApi'
 import { ProtectedImage } from './ProtectedImage'
 import { initials } from './peopleDisplay'
+import { DashboardPage } from './DashboardPage'
 
 const statuses: Record<string, string> = {
   Active: 'Aktív',
@@ -50,16 +52,16 @@ const statuses: Record<string, string> = {
   Archived: 'Archivált',
 }
 
-type WorkspaceView = 'fleet' | 'organization' | 'members' | 'system' | 'partners' | 'profile' | 'invitations' | 'groups'
+type WorkspaceView = 'dashboard' | 'fleet' | 'organization' | 'members' | 'system' | 'partners' | 'profile' | 'invitations' | 'groups'
 function profileFromHash() {
   const match = /^#\/profile\/([^/?#]+)$/.exec(window.location.hash)
   try { return match ? decodeURIComponent(match[1]) : null } catch { return null }
 }
 
-const workspacePaths: Record<Exclude<WorkspaceView, 'profile'>, string> = { fleet: '/vehicles', members: '/users', invitations: '/invitations', groups: '/permission-groups', organization: '/companies', partners: '/partners', system: '/system' }
+const workspacePaths: Record<Exclude<WorkspaceView, 'profile'>, string> = { dashboard: '/dashboard', fleet: '/vehicles', members: '/users', invitations: '/invitations', groups: '/permission-groups', organization: '/companies', partners: '/partners', system: '/system' }
 function viewFromHash(): WorkspaceView {
   if (profileFromHash()) return 'profile'
-  return (Object.entries(workspacePaths).find(([, path]) => window.location.hash === `#${path}`)?.[0] as WorkspaceView | undefined) ?? 'fleet'
+  return (Object.entries(workspacePaths).find(([, path]) => window.location.hash === `#${path}`)?.[0] as WorkspaceView | undefined) ?? 'dashboard'
 }
 
 function FleetTable({
@@ -216,7 +218,7 @@ function FleetWorkspace({
   const canInvite = tenant?.permissions.includes('members.invite') ?? false
   const canReadGroups = canManageSystem || (tenants.data?.some(company => company.permissions.some(code => ['members.read', 'permissions.manage', 'permission-groups.manage'].includes(code))) ?? false)
   const viewTitle =
-    view === 'invitations' ? 'Meghívások' : view === 'groups' ? 'Jogosultságcsoportok' : view === 'profile' ? 'Felhasználói adatlap' : view === 'fleet'
+    view === 'dashboard' ? 'Kezdőlap' : view === 'invitations' ? 'Meghívások' : view === 'groups' ? 'Jogosultságcsoportok' : view === 'profile' ? 'Felhasználói adatlap' : view === 'fleet'
       ? 'Járművek'
       : view === 'partners'
         ? 'Partnerek'
@@ -277,6 +279,7 @@ function FleetWorkspace({
         </div>
         <Button className="secondary-button mobile-nav-toggle" aria-label={mobileNavOpen ? 'Menü bezárása' : 'Menü megnyitása'} aria-expanded={mobileNavOpen} aria-controls="main-navigation" disabled={busy} onClick={() => setMobileNavOpen(open => !open)}><Menu size={18} />Menü</Button>
         <nav id="main-navigation" aria-label="Fő navigáció" className={mobileNavOpen ? 'is-open' : undefined}>
+          <Button className={view === 'dashboard' ? 'nav-item active' : 'nav-item'} aria-current={view === 'dashboard' ? 'page' : undefined} onClick={() => changeView('dashboard')}><LayoutDashboard size={19}/>Kezdőlap<ArrowRight size={16}/></Button>
           <Button
             className={view === 'fleet' ? 'nav-item active' : 'nav-item'}
             aria-current={view === 'fleet' ? 'page' : undefined}
@@ -402,6 +405,8 @@ function FleetWorkspace({
             </section>
           ) : view === 'members' || view === 'invitations' ? (
             <MembersPage key={`${tenant.id}:${view}`} user={user} tenant={tenant} onProfile={openProfile} mode={view} />
+          ) : view === 'dashboard' ? (
+            <DashboardPage key={tenant.id} user={user} tenant={tenant} siteId={currentSiteId} onFleet={nextStatus => { changeView('fleet'); setSelectedVehicleId(null); setStatus(nextStatus ?? 'all') }} onVehicle={id => { changeView('fleet'); setSelectedVehicleId(id) }} />
           ) : view === 'partners' ? (
             <PartnersPage key={tenant.id} tenant={tenant} />
           ) : formOpen ? (
@@ -626,6 +631,6 @@ export default function App() {
       />
     )
   ) : (
-    <AuthScreen onAuthenticated={changeSession} invitationPending={!!invitation} />
+    <AuthScreen onAuthenticated={async user => { if (!invitation) window.location.hash = '/dashboard'; await changeSession(user) }} invitationPending={!!invitation} />
   )
 }

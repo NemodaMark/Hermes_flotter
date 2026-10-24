@@ -50,6 +50,7 @@ if (!maintenanceMode)
     builder.Services.AddScoped<SystemUserDirectory>();
     builder.Services.AddScoped<OrganizationManagement>();
     builder.Services.AddScoped<FleetManagement>();
+    builder.Services.AddScoped<DashboardManagement>();
     builder.Services.AddScoped<IMemberManagement, MemberManagement>();
     builder.Services.AddScoped<IGroupManagement, GroupManagement>();
     builder.Services.AddIdentityCore<ApplicationUser>(options =>
@@ -193,6 +194,8 @@ api.MapPost("/tenants", async (CreateTenantRequest request, HttpContext context,
 });
 
 var vehicles = api.MapGroup("/vehicles").WithMetadata(new TenantRequired());
+api.MapGet("/dashboard", async (DashboardManagement service, CancellationToken ct) => Results.Ok(await service.Read(ct)))
+    .WithMetadata(new TenantRequired());
 vehicles.MapGet("/site-options", async (IVehicleStore store, CancellationToken ct)
     => Results.Ok(await store.ReadSiteOptionsAsync(ct))).RequireAuthorization(Permissions.VehiclesRead);
 vehicles.MapGet("/create-options", async (IVehicleStore store, CancellationToken ct)

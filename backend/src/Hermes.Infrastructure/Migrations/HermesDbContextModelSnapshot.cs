@@ -665,6 +665,18 @@ namespace Hermes.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("DashboardMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("Overview");
+
+                    b.Property<int>("DashboardPriority")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<bool>("IsAdmin")
                         .HasColumnType("boolean");
 
@@ -690,7 +702,12 @@ namespace Hermes.Infrastructure.Migrations
 
                     b.HasIndex("NormalizedName");
 
-                    b.ToTable("company_access_groups", (string)null);
+                    b.ToTable("company_access_groups", null, t =>
+                        {
+                            t.HasCheckConstraint("group_dashboard_mode", "\"DashboardMode\" IN ('Overview','Vehicle')");
+
+                            t.HasCheckConstraint("group_dashboard_priority", "\"DashboardPriority\" BETWEEN 0 AND 1000");
+                        });
                 });
 
             modelBuilder.Entity("Hermes.Domain.Site", b =>

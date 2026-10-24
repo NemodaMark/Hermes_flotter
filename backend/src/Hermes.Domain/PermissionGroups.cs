@@ -10,6 +10,8 @@ public sealed class PermissionGroup
     public bool IsAdmin { get; init; }
     public bool AllPermissions { get; set; }
     public long Version { get; set; } = 1;
+    public string DashboardMode { get; set; } = "Overview";
+    public int DashboardPriority { get; set; }
     public List<GroupPermission> Permissions { get; set; } = [];
     public List<GroupCompany> Companies { get; set; } = [];
     public string[] EffectivePermissions => AllPermissions ? Hermes.Domain.Permissions.All : Permissions.Select(x => x.Code).ToArray();

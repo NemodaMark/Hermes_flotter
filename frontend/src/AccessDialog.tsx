@@ -1,5 +1,5 @@
 import { Button } from './ui/Button'
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
 
@@ -17,6 +17,7 @@ export function AccessDialog({
   className?: string
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
   useEffect(() => {
     const element = dialog.current!
     if (!element.open) element.showModal()
@@ -27,14 +28,14 @@ export function AccessDialog({
     <dialog
       ref={dialog}
       className={`access-dialog ${className}`.trim()}
-      aria-labelledby="access-dialog-title"
+      aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()
         if (!pending) onClose()
       }}
     >
       <div className="dialog-heading">
-        <h2 id="access-dialog-title">{title}</h2>
+        <h2 id={titleId}>{title}</h2>
         <Button
           type="button"
           className="icon-button"

@@ -18,9 +18,9 @@ import { VehicleAssignmentHistory } from './VehicleAssignmentHistory'
 import { VehicleActions } from './VehicleActions'
 import './fleet.css'
 
-export function VehiclePage({ user, tenant, id, onBack }: { user: Session; tenant: Tenant; id: string; onBack: () => void }) {
+export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data' }: { user: Session; tenant: Tenant; id: string; onBack: () => void; initialTab?: string }) {
   const client = useQueryClient()
-  const [tab, setTab] = useState('data')
+  const [tab, setTab] = useState(initialTab)
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [message, setMessage] = useState('')
   const record = useQuery({ queryKey: ['fleet-management', tenant.id, id, 'vehicle'], queryFn: ({ signal }) => fleetApi.vehicle(tenant.id, id, signal), retry: false })
@@ -38,6 +38,7 @@ export function VehiclePage({ user, tenant, id, onBack }: { user: Session; tenan
       client.invalidateQueries({ queryKey: ['person-profile'] }),
       client.invalidateQueries({ queryKey: ['vehicle-catalog', tenant.id] }),
       client.invalidateQueries({ queryKey: ['system-audit'] }),
+      client.invalidateQueries({ queryKey: ['dashboard'] }),
     ])
   }
   const tabs = [['data', 'Adatlap'], ['site', 'Telephely és használó'], ['photos', 'Képek'], ['assignees', 'Használati előzmények'],

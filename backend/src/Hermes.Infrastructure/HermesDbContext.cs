@@ -153,13 +153,19 @@ public sealed partial class HermesDbContext(DbContextOptions<HermesDbContext> op
         });
         modelBuilder.Entity<PermissionGroup>(entity =>
         {
-            entity.ToTable("company_access_groups");
+            entity.ToTable("company_access_groups", table =>
+            {
+                table.HasCheckConstraint("group_dashboard_mode", "\"DashboardMode\" IN ('Overview','Vehicle')");
+                table.HasCheckConstraint("group_dashboard_priority", "\"DashboardPriority\" BETWEEN 0 AND 1000");
+            });
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(80);
             entity.Property(x => x.NormalizedName).HasMaxLength(80);
             entity.Property(x => x.CreatedBy).HasMaxLength(256);
             entity.Property(x => x.Version).IsConcurrencyToken();
             entity.Ignore(x => x.EffectivePermissions);
+            entity.Property(x => x.DashboardMode).HasMaxLength(16).HasDefaultValue("Overview");
+            entity.Property(x => x.DashboardPriority).HasDefaultValue(0);
             entity.HasIndex(x => x.NormalizedName);
             entity.HasIndex(x => x.IsAdmin).IsUnique().HasFilter("\"IsAdmin\"");
             // CreatedBy is historical provenance, including migrated actors without an identity account.

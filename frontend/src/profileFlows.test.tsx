@@ -22,7 +22,7 @@ const initial: UserProfile = {
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status })
 beforeEach(() => {
   resetCsrfToken()
-  window.history.replaceState(null, '', '/')
+  window.history.replaceState(null, '', '/#/vehicles')
   HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute('open', '')
   }

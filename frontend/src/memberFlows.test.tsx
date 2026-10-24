@@ -36,7 +36,7 @@ type Call = {
 
 beforeEach(() => {
   resetCsrfToken()
-  window.history.replaceState(null, '', '/')
+  window.history.replaceState(null, '', '/#/vehicles')
   if (!HTMLDialogElement.prototype.showModal)
     HTMLDialogElement.prototype.showModal = function () {
       this.setAttribute('open', '')

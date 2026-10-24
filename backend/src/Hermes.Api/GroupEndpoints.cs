@@ -19,6 +19,8 @@ public static class GroupEndpoints
             => Results.Ok(await groups.UpdateAsync(Actor(context), id, request, ct)));
         api.MapDelete("/{id:guid}", async (Guid id, long version, HttpContext context, IGroupManagement groups, CancellationToken ct) =>
         { await groups.DeleteAsync(Actor(context), id, version, ct); return Results.NoContent(); });
+        api.MapPut("/{id:guid}/dashboard", async (Guid id, GroupDashboardInput request, HttpContext context, IGroupManagement groups, CancellationToken ct)
+            => Results.Ok(await groups.DashboardAsync(Actor(context), id, request, ct)));
         api.MapGet("/users/{userId}", async (string userId, HttpContext context, IGroupManagement groups, CancellationToken ct) => Results.Ok(await groups.UserAsync(Actor(context), userId, ct)));
         api.MapPut("/users/{userId}", async (string userId, AssignGroupsRequest request, HttpContext context, IGroupManagement groups, CancellationToken ct)
             => Results.Ok(await groups.AssignAsync(Actor(context), userId, request, ct)));

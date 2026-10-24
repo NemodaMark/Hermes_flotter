@@ -19,6 +19,7 @@ import { permissionLabel } from './permissions'
 import { Search } from 'lucide-react'
 import { ListToolbar } from './ListToolbar'
 import { PermissionDetails } from './PermissionDetails'
+import { dashboardApi } from './dashboardApi'
 
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'A művelet nem sikerült.'
@@ -30,6 +31,7 @@ const companyScopeLabel = (company: PermissionGroup['companies'][number]) =>
 export function PermissionGroups({ user }: { user: Session }) {
   const client = useQueryClient()
   const [search, setSearch] = useState('')
+  const [dashboardGroup, setDashboardGroup] = useState<PermissionGroup | null>(null)
   const [dialog, setDialog] = useState<
     { kind: 'edit' | 'delete'; group: PermissionGroup } | { kind: 'create' } | null
   >(null)
@@ -47,7 +49,7 @@ export function PermissionGroups({ user }: { user: Session }) {
   })
   async function refresh() {
     await Promise.all(
-      ['permission-groups', 'tenants', 'members', 'people-list', 'person-profile', 'system-audit', 'vehicles', 'companies', 'organization', 'vehicle-create-options'].map((key) =>
+      ['dashboard', 'permission-groups', 'tenants', 'members', 'people-list', 'person-profile', 'system-audit', 'vehicles', 'companies', 'organization', 'vehicle-create-options'].map((key) =>
         client.invalidateQueries({ queryKey: [key] }),
       ),
     )
@@ -103,6 +105,7 @@ export function PermissionGroups({ user }: { user: Session }) {
                         {!group.isAdmin && (
                           <span className="member-email">Létrehozó: {group.createdBy}</span>
                         )}
+                        <span className="member-email">Kezdőnézet: {group.dashboardMode === 'Vehicle' ? 'Autós' : 'Áttekintő'} · prioritás: {group.dashboardPriority ?? 0}</span>
                       </td>
                       <td data-label="Cégek">
                         {group.isAdmin
@@ -118,6 +121,7 @@ export function PermissionGroups({ user }: { user: Session }) {
                       </td>
                       <td data-label="Tagok">{group.memberCount}</td>
                       <td data-label="Műveletek">
+                        {group.canConfigureDashboard && <Button className="secondary-button" aria-label={`Kezdőnézet beállítása: ${group.name}`} onClick={() => setDashboardGroup(group)}>Kezdőnézet</Button>}
                         {group.canEdit && !group.isAdmin ? (
                           <div className="member-actions">
                             <Button
@@ -163,8 +167,31 @@ export function PermissionGroups({ user }: { user: Session }) {
           )}
         </>
       )}
+      {dashboardGroup && <GroupDashboardDialog group={dashboardGroup} onClose={() => setDashboardGroup(null)} onChanged={refresh} />}
     </div>
   )
+}
+
+function DashboardFields({ mode, priority, onMode, onPriority, disabled }: {
+  mode: 'Overview' | 'Vehicle'; priority: number; onMode: (mode: 'Overview' | 'Vehicle') => void; onPriority: (value: number) => void; disabled: boolean
+}) {
+  return <fieldset className="dashboard-preferences" disabled={disabled}><legend>Bejelentkezés utáni kezdőnézet</legend>
+    <label>Dashboard típusa<Select value={mode} onChange={event => onMode(event.target.value as 'Overview' | 'Vehicle')}><option value="Overview">Áttekintő – a flotta összegzése</option><option value="Vehicle">Autós – egy jármű 3D nézete</option></Select></label>
+    <label>Dashboard prioritása<input type="number" min={0} max={1000} step={1} required value={priority} onChange={event => onPriority(Number(event.target.value))} /></label>
+    <p className="field-hint">A nagyobb szám dönt az adott cégen belüli csoportok között. Eltérő nézetek azonos prioritásánál az áttekintő indul. A kezdőnézet nem ad új jogosultságot.</p>
+  </fieldset>
+}
+function GroupDashboardDialog({ group, onClose, onChanged }: { group: PermissionGroup; onClose: () => void; onChanged: () => Promise<void> }) {
+  const [mode, setMode] = useState<'Overview' | 'Vehicle'>(group.dashboardMode ?? 'Overview')
+  const [priority, setPriority] = useState(group.dashboardPriority ?? 0)
+  const save = useMutation({ mutationFn: () => dashboardApi.configure(group.id, mode, priority, group.version), onSuccess: async () => { await onChanged(); onClose() } })
+  return <AccessDialog title={`${group.name} · Kezdőnézet`} pending={save.isPending} onClose={onClose}>
+    <form onSubmit={event => { event.preventDefault(); save.mutate() }}>
+      <DashboardFields mode={mode} priority={priority} onMode={setMode} onPriority={setPriority} disabled={save.isPending} />
+      {save.error && <p role="alert" className="form-error">{message(save.error)}</p>}
+      <div className="dialog-actions"><Button type="button" className="secondary-button" onClick={onClose} disabled={save.isPending}>Mégse</Button><Button className="primary-button" disabled={save.isPending}>Kezdőnézet mentése</Button></div>
+    </form>
+  </AccessDialog>
 }
 
 function GroupEditor({
@@ -181,6 +208,8 @@ function GroupEditor({
   onChanged: () => Promise<void>
 }) {
   const [name, setName] = useState(group?.name ?? '')
+  const [dashboardMode, setDashboardMode] = useState<'Overview' | 'Vehicle'>(group?.dashboardMode ?? 'Overview')
+  const [dashboardPriority, setDashboardPriority] = useState(group?.dashboardPriority ?? 0)
   const [ids, setIds] = useState(group?.companies.map((x) => x.id) ?? [])
   const [permissions, setPermissions] = useState(
     group?.allPermissions ? [] : (group?.permissions ?? []),
@@ -222,6 +251,7 @@ function GroupEditor({
     mutationFn: () => {
       const body: GroupDraft = {
         name: name.trim(),
+        dashboardMode, dashboardPriority,
         permissions: allPermissions ? [] : permissions,
         companyIds: ids,
         allPermissions,
@@ -266,6 +296,7 @@ function GroupEditor({
           disabled={save.isPending || group?.isAdmin}
           onChange={(e) => setName(e.target.value)}
         />
+        <DashboardFields mode={dashboardMode} priority={dashboardPriority} onMode={setDashboardMode} onPriority={setDashboardPriority} disabled={save.isPending} />
         <fieldset className="permission-fields company-options" disabled={save.isPending}>
           <legend>Hozzáférés ezekhez a cégekhez</legend>
           {eligible.map((company) => (
@@ -453,6 +484,7 @@ export function GroupAssignmentDialog({
         'person-profile',
         'user-profile',
         'system-audit',
+        'dashboard',
         'vehicles',
         'companies',
         'organization',

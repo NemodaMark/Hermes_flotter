@@ -47,6 +47,7 @@ export function VehicleActions({
           onClose={() => setMode(null)}
           onChanged={async () => {
             await client.invalidateQueries({ queryKey: vehicleKey(user.id, tenant.id) })
+            await client.invalidateQueries({ queryKey: ['dashboard'] })
             await client.invalidateQueries({ queryKey: ['fleet-management', tenant.id, vehicle.id] })
           }}
         />
