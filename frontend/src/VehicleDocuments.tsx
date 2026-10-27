@@ -1,4 +1,5 @@
 import { Button } from './ui/Button'
+import { Toggle } from './ui/Toggle'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Eye, RefreshCw, Upload } from 'lucide-react'
@@ -66,7 +67,7 @@ export function VehicleDocuments({ tenantId, vehicleId, registration, kind, targ
       <Button className="primary-button" disabled={pending || !file || !!invalidFile || canRead && list.isPending}><Upload size={16} />{upload.isPending ? 'Feltöltés…' : 'Feltöltés'}</Button>
     </form>}
     {canRead ? <>
-      <div className="document-tools"><label className="org-checkbox"><input type="checkbox" checked={showWithdrawn} onChange={e => setShowWithdrawn(e.target.checked)} />Visszavontak is</label>
+      <div className="document-tools"><Toggle checked={showWithdrawn} onChange={setShowWithdrawn}>Visszavontak is</Toggle>
         {kind === 'vehicle' && <SelectField label="Szűrés dokumentumtípus szerint" value={categoryFilter} options={{ '': 'Minden dokumentumtípus', ...documentCategories }} onChange={setCategoryFilter} />}
         <Button className="icon-button" aria-label="Dokumentumlista frissítése" disabled={pending || list.isFetching} onClick={() => { upload.reset(); status.reset(); void list.refetch() }}><RefreshCw size={17} /></Button></div>
       <QueryMessage pending={list.isPending} error={list.error} retry={() => void list.refetch()} />

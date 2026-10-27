@@ -316,7 +316,7 @@ it('takes a newly registered user through creating their first company', async (
   await screen.findByRole('heading', { name: 'Hozd létre az első cégedet' })
   await userEvent.type(screen.getByLabelText('Cégnév'), 'Saját Flotta Kft.')
   await userEvent.click(screen.getByRole('button', { name: 'Cég létrehozása' }))
-  expect(await screen.findByText('Még nincs jármű ezen a munkaterületen.')).toBeInTheDocument()
+  expect(await screen.findByText('Ezen a munkaterületen még nincs jármű.')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Munkaterület váltása: Saját Flotta Kft. / Összes telephely' })).toBeInTheDocument()
 })
 

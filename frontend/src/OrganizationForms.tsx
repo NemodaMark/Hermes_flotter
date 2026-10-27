@@ -88,12 +88,12 @@ export function MetadataLine({
   updatedBy: string | null
 }) {
   return (
-    <p className="org-metadata">
-      {version}. adatverzió
-      {updatedAt
+    <details className="org-metadata">
+      <summary>Módosítási adatok</summary>
+      <p>{version}. adatverzió{updatedAt
         ? ` · Módosította: ${updatedBy ?? '–'} · ${new Date(updatedAt).toLocaleString('hu-HU')}`
-        : ''}
-    </p>
+        : ''}</p>
+    </details>
   )
 }
 export function CompanyForm({

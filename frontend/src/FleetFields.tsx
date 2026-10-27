@@ -61,8 +61,8 @@ export function FleetAudit({ tenantId, id, vehicle }: { tenantId: string; id: st
   const [page, setPage] = useState(1)
   const data = useQuery({ queryKey: ['fleet-management', tenantId, id, 'audit', page], queryFn: ({ signal }) => fleetApi.audit(tenantId, id, vehicle, page, signal), retry: false })
   return <><QueryMessage pending={data.isPending} error={data.error} retry={() => void data.refetch()} />{data.data && <>
-    <div className="table-scroll"><table className="org-table"><thead><tr><th>Időpont / művelet</th><th>Módosító</th><th>Változás</th></tr></thead><tbody>
-      {data.data.items.map(x => <tr key={x.id}><td>{new Date(x.createdAt).toLocaleString('hu-HU')}<span className="member-email">{actionLabels[x.action] ?? x.action}</span></td><td>{x.actorSubject}</td><td><details><summary>Részletek</summary><OrganizationAuditChanges details={x.details} /></details></td></tr>)}
+    <div className="table-scroll"><table className="org-table responsive-list"><thead><tr><th>Időpont / művelet</th><th>Módosító</th><th>Változás</th></tr></thead><tbody>
+      {data.data.items.map(x => <tr key={x.id}><td>{new Date(x.createdAt).toLocaleString('hu-HU')}<span className="member-email">{actionLabels[x.action] ?? x.action}</span></td><td data-label="Módosító">{x.actorSubject}</td><td data-label="Változás"><details><summary>Részletek</summary><OrganizationAuditChanges details={x.details} /></details></td></tr>)}
       {!data.data.items.length && <tr><td colSpan={3}>Még nincs naplóbejegyzés.</td></tr>}
     </tbody></table></div><PageButtons page={page} total={data.data.total} pending={data.isFetching} onPage={setPage} />
   </>}</>

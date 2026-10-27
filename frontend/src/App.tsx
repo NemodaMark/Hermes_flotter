@@ -334,12 +334,7 @@ function FleetWorkspace({
           <Button className="profile profile-button" aria-label="Saját profil megnyitása" onClick={() => openProfile(user.id)} disabled={busy}>
             <ProtectedImage path={peopleApi.avatarPath(user.id)} revision={ownProfile.data?.person?.avatarRevision}
               alt="Saját profilkép" className="avatar profile-avatar" fallback={initials(user.displayName)} />
-            <span>
-              {user.displayName}
-              <small>
-                {tenant ? `${tenant.permissions.length} jogosultság` : 'Nincs kiválasztott cég'}
-              </small>
-            </span>
+            <span>{user.displayName}</span>
           </Button>
         </div>
       </aside>

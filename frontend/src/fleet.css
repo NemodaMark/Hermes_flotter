@@ -1,6 +1,6 @@
 .fleet-partner-categories { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; font-size: 13px; }
 .fleet-partner-search > .org-checkbox { display: flex; align-items: center; align-self: center; gap: 8px; }
-.fleet-contact-row { border: 1px solid var(--line); padding: 16px; margin-bottom: 16px; }
+.fleet-contact-row { border-bottom: 1px solid var(--line); padding: 16px 0; margin-bottom: 16px; }
 .fleet-contact-row > .text-button { margin-top: 12px; }
 .fleet-detail-caption { color: var(--muted); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
 .fleet-record-list { padding: 0 20px; }
@@ -50,6 +50,6 @@
   .document-preview-surface { height: 45dvh; min-height: 220px; }
   .fleet-record-list { padding-inline: 16px; }
   .fleet-record dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-  .fleet-contact-row { padding: 12px; }
+  .fleet-contact-row { padding-block: 12px; }
 }
 @media (max-width: 420px) { .fleet-record dl { grid-template-columns: 1fr; } }

@@ -1,5 +1,6 @@
 import { Select } from './ui/Select'
 import { Button } from './ui/Button'
+import { Toggle } from './ui/Toggle'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Building2, Plus, RefreshCw, Search } from 'lucide-react'
@@ -121,7 +122,7 @@ export function CompaniesPage({
       ) : (
         <>
           <TableFrame hasRows={(companies.data?.items.length ?? 0) > 0}>
-            <table className="org-table org-company-table responsive-list">
+            <table className="org-table org-company-table responsive-list compact-list">
               <thead>
                 <tr>
                   <th>Cég</th>
@@ -351,14 +352,7 @@ function CompanyWorkspace({
         </div>
         {(tab === 'contacts' || tab === 'sites') && (
           <div className="org-section-tools">
-            <label className="org-checkbox">
-              <input
-                type="checkbox"
-                checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
-              />
-              Archiváltak megjelenítése
-            </label>
+            <Toggle checked={showArchived} onChange={setShowArchived}>Archiváltak megjelenítése</Toggle>
             {active && (tab === 'contacts' ? has('companies.update') : has('sites.create') &&
               (!company.permissionScopes || company.permissionScopes.some((s) => s.code === 'sites.create' && s.allSites))) && (
               <Button

@@ -1,7 +1,7 @@
 # HERMES – projektösszefoglaló és fejlesztési teendők
 
 **Összeállítva:** 2026. október 27.  
-**Az összefoglalt funkcionális állapot:** 2026. október 27., e-mailes fiókfolyamatokkal, meghívóküldéssel és szerveroldali járműkereséssel kiegészítve.
+**Az összefoglalt funkcionális állapot:** 2026. október 27., e-mailes fiókfolyamatokkal, meghívóküldéssel, szerveroldali járműkereséssel és a webes felület egységesítésével kiegészítve.
 **Cél:** az eddig elkészült webes és asztali funkciók, technológiák, működési szabályok és a hozzájuk tartozó teendők áttekintése fejlesztéshez, bemutatáshoz és műszaki átadáshoz.
 
 Az egyes részek végén a **TODO** listák jelölik a még nyitott fejlesztéseket. A már működő funkciók leírása ettől külön szerepel; az opcionális bővítéseket és új javaslatokat külön megjelöljük. A teendők nem jelentenek már megvalósított funkciót vagy vállalt határidőt.
@@ -180,6 +180,8 @@ Belépés után a kezdőlap nyílik meg. A kezdőnézet **jogosultságcsoportonk
 
 **Áttekintő nézet:** járműállapotok összesítése, lejárt és 30 napon belül esedékes határidők, valamint telephelyi megoszlás. Csak a felhasználó számára megtekinthető járművekből számol.
 
+Az áttekintő egyetlen közös felületen jelenik meg, külön mutatókártyák nélkül. A határidők sürgősség szerint rendezve, hatosával bővíthetők; a teljes sor megnyitja a járművet. Az állapotösszesítések a megfelelő járműlistára vezetnek, a telephelyenkénti bontás lenyitható.
+
 **Autós nézet:** egyszerre egy elérhető járműre fókuszál. Először a felhasználóhoz rendelt, megtekinthető járművet választja; a járművek között rendszámmal lehet váltani.
 
 A Forza Vista inspirálta működés saját Three.js-megvalósítás:
@@ -203,6 +205,15 @@ Az előkészítő scriptek forrás-ellenőrzőösszegeket vizsgálnak; a licence
 ### 4.8. Egységesebb felület
 
 Elkészültek a közös eszköztárak, kereshető választók, kapcsolók, váltakozó hátterű és kattintható táblasorok. A listaoldalak ismétlődő címsávjai csökkentek; a fő műveletek és szűrők közös helyre kerültek. Az adatlapok fülekkel és mezőcsoportokkal csökkentik az egyszerre látható mezők számát.
+
+A 2026. október 27-i egységesítés a meglévő `Button`, `Badge`, `Select`, `Toggle`, `FieldSections`, `TableFrame` és `ClickableRow` elemekre épül; új függőség nem került be.
+
+- A partnerek űrlapja **Alapadatok**, **Cím** és **Kapcsolattartók** mezőcsoportokra oszlik. A kitöltött értékek csoportváltáskor megmaradnak, és a mentést akadályozó rejtett mező automatikusan megjelenik.
+- A profil fejlécéről lekerült a külön kártyakeret; a három profilfül megmaradt. A felesleges ismétlések és a biztonsági figyelmeztetések túlírt részei rövidebbek lettek.
+- Az adatverzió és módosító lenyitható metaadat lett. A csoportok létrehozója és dashboardprioritása szintén kérésre látható, a műveletgombjaik egy közös sorban rendeződnek.
+- A kapcsolattartók, telephelyek, szervizbejegyzések és dokumentumok archivált/érvénytelenített/visszavont elemeinek szűrői a közös kapcsolót használják.
+- A táblák, űrlapok és vezérlők tipográfiája, fókuszjelölése és térközei egységesebbek. Mobilon a fő vezérlők legalább 44 px magasak; a választók és beviteli mezők 16 px-es betűméretet használnak.
+- A cégek és a céges felhasználók rövid listái mobilon is egymás mellett mutatják az azonosítást és az állapotot. A hosszú felhasználói fiókadatok rövidítve, teljes értékkel a súgóban és az adatlapon olvashatók. A járműelőzmények és a naplók is tördelődnek, a JSON-részletek nem szélesítik ki az oldalt.
 
 A rendszerszintű napló **Beállítások → Rendszerkezelés** alatt érhető el a megfelelő joggal. A munkaterület-váltó, a profiloldalak és az űrlapok billentyűzetes, illetve kisebb képernyős használata is kapott támogatást.
 
@@ -346,7 +357,11 @@ A jelszavak a Gitből kizárt `.local/demo-data/bejelentkezesek.json` fájlban v
 
 A tesztek kiterjednek többek között a cégek elkülönítésére, közvetlen és csoportos jogokra, telephelykorlátokra, delegálásra, verzióütközésekre, előzményekre, dokumentumokra, képekre és a felületi folyamatokra. A 3D tesztek a csomagolt modellek geometriáját, színezését, modellváltását és a pontok takarását is vizsgálják.
 
-**Legutóbbi ellenőrzés:** 2026. október 27-én 205 sikeres backendteszt (Debug, külön ideiglenes PostgreSQL-példánnyal), 174 sikeres frontendteszt, valamint sikeres frontendbuild és lint. A helyi frontendtesztek `threads` poollal futottak. A lapozott járműlista asztali, tablet- és mobilnézetét, billentyűzetes szűrését, betöltési, üres és hibaállapotát böngészőben is ellenőriztük. A hibapróba utáni teszt-API-újraindítást az automatikus jóváhagyási ellenőrzés blokkolta, ezért az újrapróbálás utáni helyreállás nem ellenőrzött. Külső SMTP-kézbesítés és az új fiókoldalak külön böngészős próbája továbbra is nyitott. Az asztali részeket ez a kör nem módosította és nem tesztelte újra.
+**Legutóbbi frontendellenőrzés:** 2026. október 27-én **178 sikeres frontendteszt**, sikeres TypeScript/Vite build és lint. A tesztek `threads` poollal futottak. Az új próbák ellenőrzik a határidők teljes listájának elérhetőségét, az állapotszűrőre vezető parancsokat, az üres munkaterületet és a partnerűrlap mezőcsoportjai közötti adatmegőrzést, illetve validációt. A külön betöltődő 3D csomagnál a Vite méretfigyelmeztetése megmaradt.
+
+**Böngészős felületi próba:** 320 px-en a jogosultságcsoportok; 390 px-en a dashboard, felhasználólista, profilfülek, járműadatlap, partnerűrlap, bejelentkezés és regisztráció; 768 px-en a céges és telephelyi nézetek, meghívások és rendszernapló; 1440 px-en az áttekintő és autós dashboard ellenőrzött. A vizsgált nézetek nem lógtak túl oldalirányban. Enterrel megnyílt a határidőhöz tartozó jármű, nyílbillentyűkkel működött a profilfülek váltása. A 3D kamera forgatása és a gyorsmenüből induló kameramozgás után mobilon is megnyílt az adatlap. A fő alkalmazás konzoljában nem jelent meg hiba. A próba nem módosított üzleti adatot, és végül az eredeti D-Fuvar munkaterület és böngészőméret állt vissza. Ez nem teljes akadálymentességi audit.
+
+**Korábbi backendellenőrzés és nyitott próbák:** ugyanezen a napon 205 backendteszt sikeres volt Debug módban, külön ideiglenes PostgreSQL-példánnyal. A korábbi járműlista-hibapróba utáni teszt-API-újraindítást az automatikus jóváhagyási ellenőrzés blokkolta, ezért az újrapróbálás utáni helyreállás továbbra sem ellenőrzött. A külső SMTP-kézbesítés és a levélből induló fiókfolyamatok teljes böngészős próbája nyitott; a bejelentkezés és regisztráció felületét most megtekintettük, új fiók létrehozása nélkül. Ez a UI-kör a backendet és az asztali alkalmazást nem módosította, és tesztjeiket nem futtatta újra.
 
 Fő ellenőrző parancsok a projekt gyökeréből:
 

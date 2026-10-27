@@ -39,7 +39,7 @@ export function UserProfilePage({ id, actor, tenant, onBack, onVehicle }: {
     <Button className="text-button org-back" onClick={onBack}><ArrowLeft size={16} />Vissza a felhasználókhoz</Button>
     <QueryMessage pending={profile.isPending} error={profile.error} retry={() => void profile.refetch()} />
     {profile.data && person &&
-      <section className="access-panel profile-summary">
+      <section className="profile-summary">
         <ProtectedImage path={peopleApi.avatarPath(id)} tenantId={tenant?.id} revision={person.avatarRevision} alt={`${person.displayName} profilképe`} fallback={initials(person.displayName)} className="profile-portrait" />
         <div className="profile-identity"><h2>{person.displayName}</h2><p>@{person.id}</p><a href={`mailto:${person.email}`}>{person.email}</a>{person.phoneNumber && <a href={`tel:${person.phoneNumber}`}>{person.phoneNumber}</a>}</div>
         {profile.data.canEdit && <div className="profile-photo-actions">
@@ -62,8 +62,8 @@ export function UserProfilePage({ id, actor, tenant, onBack, onVehicle }: {
               <Button className="primary-button" disabled={editSelf.isPending}>Profil mentése</Button>
             </form> : <dl className="profile-details"><div><dt>E-mail-cím</dt><dd>{person.email}</dd></div><div><dt>Telefonszám</dt><dd>{person.phoneNumber || 'Nincs megadva'}</dd></div>{tenant && <div><dt>Kiválasztott cég</dt><dd>{tenant.name}</dd></div>}</dl>}
         </section>
-        <section className="profile-section"><h3>Jelenleg nála lévő járművek</h3>
-          {profile.data.vehicles.length ? <ul className="profile-vehicles">{profile.data.vehicles.map(car => <li key={car.id}><CarFront size={21} /><div><Button className="text-button" disabled={!onVehicle} onClick={() => onVehicle?.(car.id)}>{car.registration}</Button><p>{car.make} {car.model}</p><span className="field-hint">{car.siteName ?? 'Telephely nélkül'}</span></div></li>)}</ul> : <p className="field-hint">Nincs számodra megtekinthető aktuális jármű-hozzárendelés.</p>}
+        <section className="profile-section"><h3>Aktuális járművek</h3>
+          {profile.data.vehicles.length ? <ul className="profile-vehicles">{profile.data.vehicles.map(car => <li key={car.id}><CarFront size={21} /><div><Button className="text-button" disabled={!onVehicle} onClick={() => onVehicle?.(car.id)}>{car.registration}</Button><p>{car.make} {car.model}</p><span className="field-hint">{car.siteName ?? 'Telephely nélkül'}</span></div></li>)}</ul> : <p className="field-hint">Nincs megtekinthető jármű.</p>}
         </section>
       </div> },
       ...(canManageAccess ? [{ id: 'access', label: 'Céges hozzáférések', content: () => <section className="profile-section" aria-label="Céges hozzáférések kezelése">

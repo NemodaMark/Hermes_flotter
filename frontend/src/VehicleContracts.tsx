@@ -1,4 +1,5 @@
 import { Button } from './ui/Button'
+import { Toggle } from './ui/Toggle'
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
@@ -26,7 +27,7 @@ export function VehicleContracts({ tenant, car, kind, onChanged }: { tenant: Ten
   const services = useQuery({ queryKey: ['fleet-management', tenant.id, car.id, 'services', page, includeVoided], queryFn: ({ signal }) => fleetApi.services(tenant.id, car.id, page, includeVoided, signal), enabled: !lease && read, retry: false })
   const query = lease ? leases : services
   return <>
-    <div className="org-section-tools"><div>{!lease && <label className="org-checkbox"><input type="checkbox" checked={includeVoided} onChange={e => { setIncludeVoided(e.target.checked); setPage(1) }} />Érvénytelenített bejegyzések is</label>}</div>
+    <div className="org-section-tools"><div>{!lease && <Toggle checked={includeVoided} onChange={value => { setIncludeVoided(value); setPage(1) }}>Érvénytelenített bejegyzések is</Toggle>}</div>
       {manage && <Button className="primary-button" onClick={() => setEdit('new')}><Plus size={17} />{lease ? 'Új lízingszerződés' : 'Új szervizbejegyzés'}</Button>}
     </div>
     {!read ? <p className="notice">A bejegyzések megtekintéséhez külön jogosultság szükséges.</p> : <>

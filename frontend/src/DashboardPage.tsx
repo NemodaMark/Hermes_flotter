@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, CarFront, Gauge, Wrench, FileText, CalendarDays, RotateCcw, Building2, Camera, MapPin, LayoutDashboard, CircleAlert, List } from 'lucide-react'
+import { ArrowRight, CarFront, Gauge, Wrench, FileText, RotateCcw, Camera, MapPin, LayoutDashboard } from 'lucide-react'
 import { dashboardApi } from './dashboardApi'
 import type { DashboardCar } from './dashboardApi'
 import type { Session, Tenant } from './api'
@@ -32,31 +32,75 @@ export function DashboardPage({ user,tenant,siteId,onFleet,onVehicle }: { user:S
   return <section className="dashboard-page" aria-label="Kezdőlap">
     <QueryMessage pending={dashboard.isPending} error={dashboard.error} retry={()=>void dashboard.refetch()}/>
     {dashboard.data&&<>
-      <div className="dashboard-heading"><div><p>{tenant.name}</p><h2>{mode==='Vehicle'?'Járműközpont':'Flotta áttekintés'}</h2></div>
+      <div className="dashboard-heading"><h2 className="sr-only">{mode==='Vehicle'?'Járműközpont':'Flotta áttekintés'}</h2>
         <div className="dashboard-view-switch" role="group" aria-label="Dashboard nézete"><Button aria-pressed={mode==='Overview'} onClick={()=>setOverride('Overview')}><LayoutDashboard size={16}/>Áttekintő</Button><Button aria-pressed={mode==='Vehicle'} onClick={()=>setOverride('Vehicle')}><CarFront size={17}/>Autós</Button></div>
+        {mode === 'Overview' && dashboard.data.canReadVehicles && <Button className="secondary-button" aria-label="Járműlista megnyitása" onClick={() => onFleet()}>Járműlista<ArrowRight size={16} aria-hidden="true" /></Button>}
       </div>
-      {!dashboard.data.canReadVehicles?<p className="notice">Nincs jogosultságod járműadatok megtekintéséhez. A többi elérhető funkciót az oldalsó menüben találod.</p>:
+      {!dashboard.data.canReadVehicles?<p className="notice">Nincs jogosultságod járműadatok megtekintéséhez.</p>:
         mode==='Overview'?<Overview cars={cars} onFleet={onFleet} onVehicle={onVehicle}/>:<CarDashboard key={`${tenant.id}:${siteId}`} cars={cars} user={user} tenant={tenant} onFleet={onFleet}/>}
     </>}
   </section>
 }
-function Overview({cars,onFleet,onVehicle}:{cars:DashboardCar[];onFleet:(status?:string)=>void;onVehicle:(id:string)=>void}) {
-  const deadlines=dashboardDeadlines(cars),current=cars.filter(car=>car.vehicle.status!=='Archived')
-  const totals=[{label:'Jármű a flottában',value:cars.length,icon:CarFront,status:undefined},{label:'Aktív jármű',value:cars.filter(car=>car.vehicle.status==='Active').length,icon:Gauge,status:'Active'},{label:'Szervizben',value:cars.filter(car=>car.vehicle.status==='Maintenance').length,icon:Wrench,status:'Maintenance'},{label:'30 napon belüli határidő',value:deadlines.length,icon:CalendarDays,status:null}]
-  return <>
-    <div className="dashboard-totals">{totals.map(total=><div key={total.label} className="dashboard-total"><total.icon size={21}/><strong>{total.value}</strong><span>{total.label}</span>{total.status!==null&&<Button aria-label={`${total.label} megnyitása`} className="text-button" onClick={()=>onFleet(total.status)}><ArrowRight size={17}/></Button>}</div>)}</div>
-    <div className="dashboard-overview-columns">
-      <section className="access-panel dashboard-deadlines"><div className="dashboard-section-heading"><h3>Közelgő és lejárt határidők</h3><span>{deadlines.length} tétel</span></div>
-        {deadlines.length?<ul>{deadlines.slice(0,12).map(item=><li key={`${item.car.vehicle.id}-${item.kind}`}><span className={item.days<0?'deadline-icon overdue':'deadline-icon'}><CircleAlert size={18}/></span><div><Button className="text-button" onClick={()=>onVehicle(item.car.vehicle.id)}>{item.car.vehicle.registration}</Button><span>{item.label} · {new Date(`${item.date}T12:00:00`).toLocaleDateString('hu-HU')}</span></div><Badge tone={item.days<0?'danger':'warning'}>{item.days<0?`${-item.days} napja lejárt`:item.days===0?'Ma esedékes':`${item.days} nap múlva`}</Badge></li>)}</ul>:<p className="dashboard-empty">Nincs lejárt vagy 30 napon belüli határidő.</p>}
-        {deadlines.length>12&&<p className="field-hint">A 12 legközelebbi határidő látható. A további adatokat a járműlistában érheted el.</p>}
-      </section>
-      <section className="access-panel dashboard-distribution"><div className="dashboard-section-heading"><h3>Telephelyek</h3><Building2 size={19}/></div>
-        {Array.from(current.reduce((counts,car)=>{const name=car.vehicle.siteName??'Telephely nélkül';counts.set(name,(counts.get(name)??0)+1);return counts},new Map<string,number>())).map(([name,count])=><div className="dashboard-site-line" key={name}><div><span>{name}</span><strong>{count}</strong></div><div className="dashboard-site-bar"><span style={{width:`${count/Math.max(1,current.length)*100}%`}}/></div></div>)}
-        {!current.length&&<p className="dashboard-empty">Még nincs jármű ezen a munkaterületen.</p>}
-        <Button className="secondary-button" onClick={()=>onFleet()}><List size={16}/>Járműlista megnyitása</Button>
-      </section>
+function Overview({ cars, onFleet, onVehicle }: {
+  cars: DashboardCar[]
+  onFleet: (status?: string) => void
+  onVehicle: (id: string) => void
+}) {
+  const [visibleDeadlines, setVisibleDeadlines] = useState(6)
+  const deadlines = dashboardDeadlines(cars)
+  const current = cars.filter(car => car.vehicle.status !== 'Archived')
+  const totals = [
+    { label: 'Jármű a flottában', shortLabel: 'Jármű', value: cars.length, status: undefined },
+    { label: 'Aktív jármű', shortLabel: 'Aktív', value: cars.filter(car => car.vehicle.status === 'Active').length, status: 'Active' },
+    { label: 'Szervizben', shortLabel: 'Szervizben', value: cars.filter(car => car.vehicle.status === 'Maintenance').length, status: 'Maintenance' },
+  ]
+  const sites = Array.from(current.reduce((counts, car) => {
+    const name = car.vehicle.siteName ?? 'Telephely nélkül'
+    counts.set(name, (counts.get(name) ?? 0) + 1)
+    return counts
+  }, new Map<string, number>()))
+
+  return <section className="access-panel dashboard-overview" aria-label="Flotta összegzése">
+    <div className="dashboard-overview-toolbar">
+      <div className="dashboard-summary" role="group" aria-label="Flotta állapota">
+        {totals.map(total => <Button key={total.label} variant="ghost" className="dashboard-summary-button"
+          aria-label={`${total.label} megnyitása`} onClick={() => onFleet(total.status)}>
+          <strong>{total.value}</strong><span>{total.shortLabel}</span>
+        </Button>)}
+      </div>
     </div>
-  </>
+    {!cars.length ? <p className="dashboard-empty">Ezen a munkaterületen még nincs jármű.</p> : <>
+      <section className="dashboard-deadlines" aria-labelledby="dashboard-deadlines-heading">
+        <div className="dashboard-section-heading">
+          <h3 id="dashboard-deadlines-heading">Határidők <span>({deadlines.length})</span></h3>
+          <span>Lejárt és 30 napon belüli</span>
+        </div>
+        {deadlines.length ? <ul>
+          {deadlines.slice(0, visibleDeadlines).map(item => <li key={`${item.car.vehicle.id}-${item.kind}`}>
+            <Button variant="ghost" className="dashboard-deadline" onClick={() => onVehicle(item.car.vehicle.id)}
+              aria-label={`${item.car.vehicle.registration} · ${item.label}`}>
+              <strong>{item.car.vehicle.registration}</strong>
+              <span className="dashboard-deadline-detail"><span>{item.label}</span>
+                <time dateTime={item.date ?? undefined}>{new Date(`${item.date}T12:00:00`).toLocaleDateString('hu-HU')}</time>
+              </span>
+              <Badge dot={false} tone={item.days < 0 ? 'danger' : item.days === 0 ? 'warning' : 'neutral'}>
+                {item.days < 0 ? `${-item.days} napja lejárt` : item.days === 0 ? 'Ma esedékes' : `${item.days} nap múlva`}
+              </Badge>
+            </Button>
+          </li>)}
+        </ul> : <p className="dashboard-empty">Nincs esedékes határidő.</p>}
+        {deadlines.length > visibleDeadlines && <div className="dashboard-more">
+          <Button className="secondary-button" onClick={() => setVisibleDeadlines(count => count + 6)}>
+            További határidők ({deadlines.length - visibleDeadlines})
+          </Button>
+        </div>}
+      </section>
+      {sites.length > 0 && <details className="dashboard-sites">
+        <summary>Járművek telephelyenként <span>({sites.length})</span></summary>
+        <dl>{sites.map(([name, count]) => <div key={name}><dt>{name}</dt><dd>{count}</dd></div>)}</dl>
+      </details>}
+    </>}
+  </section>
 }
 const icons={data:CarFront,history:Gauge,services:Wrench,documents:FileText,leases:FileText,site:MapPin,photos:Camera}
 function CarDashboard({cars,user,tenant,onFleet}:{cars:DashboardCar[];user:Session;tenant:Tenant;onFleet:()=>void}) {

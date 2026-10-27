@@ -104,11 +104,9 @@ export function AuthScreen({
           </Button>
         </div>
         <h1 id="account-title">{mode === 'login' ? 'Bejelentkezés' : mode === 'register' ? 'Hozd létre a fiókodat' : mode === 'forgot' ? 'Elfelejtett jelszó' : 'E-mail-cím megerősítése'}</h1>
-        <p className="account-description">
-          {mode === 'login'
-            ? 'Lépj be a céges munkaterületeidhez.'
-            : mode === 'register' ? 'Egy fiókkal több cég flottáját is kezelheted.' : 'Add meg a fiókod e-mail-címét. A levélben kapott hivatkozással folytathatod.'}
-        </p>
+        {(mode === 'forgot' || mode === 'resend') && <p className="account-description">
+          Add meg a fiókod e-mail-címét. A levélben kapott hivatkozással folytathatod.
+        </p>}
         {notice && <p role="status" className="access-success">{notice}</p>}
         <form key={mode} onSubmit={submit} className="account-form">
           {mode === 'register' && (
@@ -198,9 +196,6 @@ export function AuthScreen({
           <Button type="button" disabled={pending} onClick={() => { setMode('forgot'); setError(null); setNotice(null) }}>Elfelejtett jelszó</Button>
           <Button type="button" disabled={pending} onClick={() => { setMode('resend'); setError(null); setNotice(null) }}>Megerősítő levél kérése</Button>
         </div>}
-        {mode === 'register' && (
-          <p className="account-note">A következő lépésben létrehozhatod az első cégedet.</p>
-        )}
       </section>
     </main>
   )

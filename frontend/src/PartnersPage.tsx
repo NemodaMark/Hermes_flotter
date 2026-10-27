@@ -15,6 +15,7 @@ import { Badge } from './ui/Badge'
 import { ClickableRow, TableFrame } from './ui/Table'
 import { Toggle } from './ui/Toggle'
 import { useListSearch } from './useListSearch'
+import { FieldSections } from './FieldSections'
 
 export function PartnersPage({ tenant }: { tenant: Tenant }) {
   const { page, setPage, search, draft, setDraft } = useListSearch()
@@ -57,7 +58,7 @@ function PartnerWorkspace({ tenant, id, onBack }: { tenant: Tenant; id: string |
   async function changed() { await client.invalidateQueries({ queryKey: ['fleet-management', tenant.id] }) }
   return <>
     <Button className="text-button org-back" onClick={onBack}><ArrowLeft size={16} />Vissza a partnerekhez</Button>
-    <section className="access-panel" aria-label="Partneradatlap">
+    <section className="access-panel organization-detail-panel" aria-label="Partneradatlap">
       <div className="org-toolbar"><div><h2>{id === null ? 'Új partner' : partner.data?.data.name ?? 'Partner'}</h2>{partner.data && <p>{partner.data.isArchived ? 'Archivált' : 'Aktív'}{partner.data.statusReason ? ` · ${partner.data.statusReason}` : ''}</p>}</div><div className="member-actions">
         {id && <Button className="icon-button" aria-label="Partneradatlap frissítése" onClick={() => void partner.refetch()}><RefreshCw size={17} /></Button>}
         {partner.data && can('partners.archive') && <Button className="secondary-button" onClick={() => setStatusOpen(true)}>{partner.data.isArchived ? 'Visszaállítás' : 'Archiválás'}</Button>}
@@ -77,22 +78,26 @@ export function PartnerForm({ tenantId, partner, editable, onSaved }: { tenantId
   const save = useMutation({ mutationFn: () => fleetApi.savePartner(tenantId, partner?.id ?? null, data), onSuccess: async () => { setSaved(true); await onSaved() } })
   const disabled = !editable || save.isPending
   const text = (key: 'name' | 'email' | 'phone' | 'website', label: string, maxLength = 200, type = 'text', required = false) => <TextField label={label} value={data[key]} onChange={x => setData({ ...data, [key]: x })} maxLength={maxLength} type={type} required={required} disabled={disabled} />
-  return <form className="org-form" onSubmit={e => { e.preventDefault(); setSaved(false); save.mutate() }}>
-    <fieldset disabled={disabled}><legend>Partneradatok</legend><div className="org-form-grid">{text('name', 'Partner neve', 200, 'text', true)}
+  return <form className="org-form organization-data-form" onSubmit={e => { e.preventDefault(); setSaved(false); save.mutate() }}>
+    <FieldSections label="Partneradatok mezőcsoportjai" sections={[
+      { id: 'basics', label: 'Alapadatok', content: <>
+      <fieldset disabled={disabled}><legend>Partneradatok</legend><div className="org-form-grid">{text('name', 'Partner neve', 200, 'text', true)}
       <div className="fleet-partner-categories"><span>Kategória (több is választható)</span><label className="org-checkbox"><input type="checkbox" checked={data.isLessor} onChange={e => setData({ ...data, isLessor: e.target.checked })} />Lízingbeadó / finanszírozó</label>
         <label className="org-checkbox"><input type="checkbox" checked={data.isService} onChange={e => setData({ ...data, isService: e.target.checked })} />Szerviz</label></div>
       {text('email', 'E-mail-cím', 254, 'email')}{text('phone', 'Telefonszám', 40)}{text('website', 'Weboldal', 2048, 'url')}
-    </div></fieldset>
-    <fieldset disabled={disabled}><legend>Cím</legend><AddressFields value={data.address} onChange={x => setData({ ...data, address: x })} disabled={disabled} /></fieldset>
-    <fieldset disabled={disabled}><legend>Kapcsolattartók</legend>
+      </div></fieldset>
+      <NotesField value={data.notes} onChange={x => setData({ ...data, notes: x })} disabled={disabled} />
+      </> },
+      { id: 'address', label: 'Cím', content: <fieldset disabled={disabled}><legend>Cím</legend><AddressFields value={data.address} onChange={x => setData({ ...data, address: x })} disabled={disabled} /></fieldset> },
+      { id: 'contacts', label: 'Kapcsolattartók', content: <fieldset disabled={disabled}><legend>Kapcsolattartók</legend>
       {data.contacts.map((c, index) => <div className="fleet-contact-row" key={index}><div className="org-form-grid">
         {([['name', 'Név', 120, 'text'], ['position', 'Beosztás', 80, 'text'], ['email', 'E-mail-cím', 254, 'email'], ['phone', 'Telefonszám', 40, 'text']] as const).map(([key, label, maxLength, type]) => <TextField key={key} label={label} value={c[key]} maxLength={maxLength} type={type} required={key === 'name'} disabled={disabled}
           onChange={value => setData({ ...data, contacts: data.contacts.map((old, i) => i === index ? { ...old, [key]: value } : old) })} />)}
       </div>{editable && <Button type="button" className="text-button" onClick={() => setData({ ...data, contacts: data.contacts.filter((_, i) => i !== index) })}>Kapcsolattartó eltávolítása</Button>}</div>)}
       {!data.contacts.length && !editable && <p className="field-hint">Nincs megadott kapcsolattartó.</p>}
       {editable && <Button type="button" className="secondary-button" disabled={disabled || data.contacts.length >= 20} onClick={() => setData({ ...data, contacts: [...data.contacts, { name: '', position: '', email: '', phone: '' }] })}>Kapcsolattartó hozzáadása</Button>}
-    </fieldset>
-    <NotesField value={data.notes} onChange={x => setData({ ...data, notes: x })} disabled={disabled} />
+      </fieldset> },
+    ]} />
     {save.error && <p className="notice error" role="alert">{save.error.message}</p>}{saved && <p role="status">A partner adatai elmentve.</p>}
     <div className="org-form-footer"><MetadataLine version={data.version} updatedAt={partner?.updatedAt ?? null} updatedBy={partner?.updatedBy ?? null} />{editable && <Button className="primary-button" disabled={save.isPending}>Partner mentése</Button>}</div>
   </form>

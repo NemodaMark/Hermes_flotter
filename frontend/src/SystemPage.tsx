@@ -4,6 +4,7 @@ import { api } from './api'
 import type { Session } from './api'
 import { QueryMessage } from './FleetFields'
 import { PageButtons } from './CompaniesPage'
+import { TableFrame } from './ui/Table'
 import './members.css'
 
 export function SystemPage({ user }: { user: Session }) {
@@ -12,6 +13,22 @@ export function SystemPage({ user }: { user: Session }) {
   return <section className="access-panel" aria-label="Rendszerkezelés">
     <div className="org-section-tools"><h2>Módosítási napló</h2></div>
     <QueryMessage pending={audit.isPending} error={audit.error} retry={() => void audit.refetch()} />
-      {audit.data && <><div className="table-scroll"><table className="audit-table"><thead><tr><th>Időpont</th><th>Módosító</th><th>Művelet</th><th>Részletek</th></tr></thead><tbody>{audit.data.items.map(entry => <tr key={entry.id}><td>{new Date(entry.createdAt).toLocaleString('hu-HU')}</td><td>{entry.actorSubject}</td><td>{entry.action}{entry.targetSubject && <span className="member-email">{entry.targetSubject}</span>}</td><td><details><summary>Részletek</summary><pre>{JSON.stringify(JSON.parse(entry.details), null, 2)}</pre></details></td></tr>)}{!audit.data.items.length && <tr><td colSpan={4}>Még nincs naplóbejegyzés.</td></tr>}</tbody></table></div><PageButtons page={page} total={audit.data.total} pending={audit.isFetching} onPage={setPage} /></>}
+    {audit.data && <>
+      <TableFrame hasRows={audit.data.items.length > 0}>
+        <table className="audit-table responsive-list">
+          <thead><tr><th>Időpont</th><th>Módosító</th><th>Művelet</th><th>Részletek</th></tr></thead>
+          <tbody>
+            {audit.data.items.map(entry => <tr key={entry.id}>
+              <td><time dateTime={entry.createdAt}>{new Date(entry.createdAt).toLocaleString('hu-HU')}</time></td>
+              <td data-label="Módosító">{entry.actorSubject}</td>
+              <td data-label="Művelet">{entry.action}{entry.targetSubject && <span className="member-email">{entry.targetSubject}</span>}</td>
+              <td data-label="Részletek"><details><summary>Részletek</summary><pre>{JSON.stringify(JSON.parse(entry.details), null, 2)}</pre></details></td>
+            </tr>)}
+            {!audit.data.items.length && <tr><td colSpan={4} className="table-empty">Még nincs naplóbejegyzés.</td></tr>}
+          </tbody>
+        </table>
+      </TableFrame>
+      <PageButtons page={page} total={audit.data.total} pending={audit.isFetching} onPage={setPage} />
+    </>}
   </section>
 }

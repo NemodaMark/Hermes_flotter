@@ -11,14 +11,15 @@
   --surface-subtle: #f6f8f9;
   --radius-control: 7px;
   --radius-panel: 12px;
-  --shadow-panel: 0 2px 5px #20343e04;
+  --table-row-height: 76px;
+  --shadow-panel: none;
+  --focus-ring: #278479;
   color: var(--ink);
   background: #f1f5f6;
 }
 .sera-button { position: relative; flex-shrink: 0; font-weight: 500; transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
 .sera-button > svg { flex-shrink: 0; }
-.sera-button:active:not(:disabled) { translate: 0 1px; }
-.sera-button[data-variant] { min-height: 40px; padding: 9px 15px; border: 1px solid transparent; border-radius: var(--radius-control); font-size: 13px; }
+.sera-button[data-variant] { min-height: 40px; padding: 9px 15px; border: 1px solid transparent; border-radius: var(--radius-control); font-size: 14px; }
 .sera-button[data-variant=default], .primary-button { color: white; border-color: var(--primary); background: var(--primary); }
 .sera-button[data-variant=default]:hover, .primary-button:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
 .sera-button[data-variant=outline] { color: var(--ink); border-color: var(--control-border); background: white; }
@@ -27,15 +28,16 @@
 .sera-button[data-variant=destructive] { background: #a33434; color: white; }
 .sera-button[data-variant=link] { text-decoration: underline; text-underline-offset: 3px; }
 .sera-button[data-variant=outline]:hover, .sera-button[data-variant=ghost]:hover, .sera-button[data-variant=secondary]:hover { background: #edf3f3; }
-.sera-button[data-size=sm] { min-height: 34px; padding: 6px 11px; font-size: 12px; }
+.sera-button[data-size=sm] { min-height: 36px; padding: 6px 11px; font-size: 13px; }
 .sera-button[data-size=lg] { min-height: 44px; padding-inline: 20px; }
-.sera-button:focus-visible, .app-shell :focus-visible, .account-page :focus-visible { outline: 3px solid #278479; outline-offset: 3px; }
-.sera-button:disabled { translate: none; box-shadow: none; }
-.primary-button, .secondary-button { border-radius: var(--radius-control); min-height: 40px; padding: 9px 14px; font-size: 13px; line-height: 1.4; }
+.sera-button:focus-visible, .app-shell :focus-visible, .account-page :focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+.sidebar :focus-visible { outline-color: #b2dfd2; }
+.sera-button:disabled { box-shadow: none; }
+.primary-button, .secondary-button { border-radius: var(--radius-control); min-height: 40px; padding: 9px 14px; font-size: 14px; line-height: 1.4; }
 .secondary-button { background: white; border-color: var(--control-border); color: #344e5b; }
 .secondary-button:hover { background: #f0f5f5; border-color: #6a828c; }
-.member-actions .secondary-button { min-height: 34px; font-size: 12px; padding: 7px 11px; }
-.icon-button { border: 1px solid transparent; border-radius: var(--radius-control); width: 36px; height: 36px; color: #516a76; }
+.member-actions .secondary-button { min-height: 36px; font-size: 13px; padding: 7px 11px; }
+.icon-button { border: 1px solid transparent; border-radius: var(--radius-control); width: 40px; height: 40px; color: #516a76; }
 .icon-button:hover { border-color: var(--line); background: #f0f5f5; }
 .sera-badge, .app-shell .status { display: inline-flex; width: fit-content; align-items: center; gap: 6px; border: 1px solid transparent; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 500; line-height: 1.5; white-space: nowrap; }
 .sera-badge > .sera-badge-dot { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: currentColor; }
@@ -56,7 +58,7 @@
 .sidebar .select-wrap { border-color: #506b76; border-radius: 8px; background: #203e4a; padding: 10px; }
 .sidebar .new-company-button { color: #b4cbd1; padding-left: 10px; }
 .sidebar #main-navigation { gap: 4px; }
-.sidebar .nav-item { min-height: 42px; padding: 10px 12px; gap: 11px; color: #bdcfd5; font-weight: 400; font-size: 13px; border-radius: 7px; text-align: left; line-height: 1.45; }
+.sidebar .nav-item { min-height: 44px; padding: 10px 12px; gap: 11px; color: #bdcfd5; font-weight: 400; font-size: 14px; border-radius: 7px; text-align: left; line-height: 1.45; }
 .sidebar .nav-item > svg:first-child { color: #9db7c1; }
 .sidebar .nav-item:hover { background: #203d49; color: white; }
 .sidebar .nav-item.active { background: #2a4b55; color: #fff; box-shadow: inset 3px 0 #7bbcab; font-weight: 500; }
@@ -68,7 +70,7 @@
 .admin-navigation[open] summary > svg:last-child { rotate: 180deg; }
 .sidebar .sidebar-bottom { padding-top: 32px; }
 .sidebar .connection { padding: 0 12px 16px; font-size: 11px; }
-.sidebar .profile.profile-button { border: 1px solid #36535f; background: #1d3945; border-radius: 8px; padding: 12px 10px; text-align: left; }
+.sidebar .profile.profile-button { border: 1px solid transparent; background: transparent; border-radius: var(--radius-control); padding: 10px; text-align: left; }
 .sidebar .profile.profile-button:hover { background: #294854; }
 .sidebar .avatar { background: #31545d; border: 1px solid #57727b; color: #e2eeee; }
 .topbar { min-height: 72px; padding: 15px 32px; background: white; }
@@ -83,12 +85,12 @@
 .app-shell .list-toolbar { padding: 18px 20px; background: #fff; border-radius: var(--radius-panel) var(--radius-panel) 0 0; gap: 12px; }
 .list-toolbar .search-field { border-radius: var(--radius-control); background: #f9fbfb; border-color: var(--control-border); min-height: 40px; }
 .search-field svg { color: #677f8b; flex-shrink: 0; }
-.list-toolbar .search-field input { font-size: 13px; }
-.app-shell .list-toolbar select { border-radius: var(--radius-control); border-color: var(--control-border); background-color: #fff; font-size: 13px; }
+.list-toolbar .search-field input { font-size: 14px; }
+.app-shell .list-toolbar select { border-radius: var(--radius-control); border-color: var(--control-border); background-color: #fff; font-size: 14px; }
 .list-count { padding-right: 5px; color: #4f6976; }
 .list-count strong { color: #203c48; }
 .app-shell table th { padding: 11px 20px; font-size: 12px; color: #516975; background: #f6f9fa; font-weight: 500; }
-.app-shell table td { padding: 17px 20px; font-size: 13px; border-bottom-color: #e9eef0; }
+.app-shell table td { padding: 17px 20px; font-size: 14px; border-bottom-color: #e9eef0; }
 .app-shell table tbody tr:hover { background: #f7fbfa; }
 .app-shell table.responsive-list tbody tr:nth-child(even) { background: #f0f5f7; }
 .app-shell table.responsive-list tbody tr.clickable-row { cursor: pointer; }
@@ -96,35 +98,39 @@
 .app-shell table.responsive-list tbody tr.clickable-row:focus-visible { outline: 2px solid #278479; outline-offset: -2px; background: #e3f0eb; }
 .row-title { max-width: 100%; padding: 0; border: 0; border-radius: 0; background: none; color: #234956; font: inherit; font-weight: 500; text-align: left; white-space: normal; }
 .clickable-row:hover .row-title { text-decoration: underline; text-underline-offset: 3px; }
-.stable-table td { height: 76px; }
+.stable-table td { height: var(--table-row-height); }
 .stable-table .table-empty { color: #5d707b; font-size: 13px; text-align: center; white-space: normal; }
-.app-shell .table-footer { background: #fbfcfc; padding: 12px 20px; font-size: 12px; border-radius: 0 0 var(--radius-panel) var(--radius-panel); }
+.app-shell .table-footer { background: var(--surface-subtle); padding: 12px 20px; font-size: 13px; border-radius: 0 0 var(--radius-panel) var(--radius-panel); }
 .entity-cell { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.entity-icon { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #d9e6e5; background: #f0f6f5; border-radius: 8px; color: #426b71; flex-shrink: 0; }
+.entity-icon { display: grid; place-items: center; width: 24px; height: 24px; color: var(--muted); flex-shrink: 0; }
 .entity-cell > div { min-width: 0; }
 .entity-cell strong { font-weight: 500; }
-.app-shell .member-email { font-size: 12px; color: #617681; }
+.app-shell .member-email { font-size: 13px; color: var(--muted); }
 .app-shell .registration { font-weight: 600; letter-spacing: .2px; }
 .app-shell .org-toolbar { background: #fff; border-radius: var(--radius-panel) var(--radius-panel) 0 0; }
-.app-shell .org-toolbar h2 { font-size: 20px; font-weight: 500; letter-spacing: -.2px; }
-.app-shell :is(.org-field, .account-form) :is(input:not([type=checkbox]):not([type=radio]), select, textarea), .account-page .account-form input, .app-shell dialog input:not([type=checkbox]):not([type=radio]) { border-radius: var(--radius-control); border-color: var(--control-border); min-height: 40px; font-size: 13px; box-shadow: 0 1px 2px #20343e04; }
+.app-shell .org-toolbar h2 { font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+.app-shell .org-toolbar > div { min-width: 0; }
+.app-shell :is(.org-field, .account-form) :is(input:not([type=checkbox]):not([type=radio]), select, textarea), .account-page .account-form input, .app-shell dialog input:not([type=checkbox]):not([type=radio]) { border-radius: var(--radius-control); border-color: var(--control-border); min-height: 40px; font-size: 14px; box-shadow: none; }
 .app-shell :is(.org-field, .account-form) :is(input, select, textarea):not(:disabled):hover { border-color: #4f6e7b; }
-.app-shell .org-field > span { color: #354f5b; font-weight: 500; }
+.app-shell .org-field > span { color: #354f5b; font-weight: 500; font-size: 14px; }
 .app-shell .org-field :is(input, select, textarea):disabled { color: #536b76; background: #f5f8f9; border-color: #d3dee3; }
 .app-shell :is(.organization-data-form, .vehicle-data-form) .org-form-footer { background: #fbfcfc; }
 .app-shell .field-sections .field-tabs { gap: 6px; }
-.app-shell .field-tabs .sera-tab { position: relative; border-radius: 7px; padding: 10px 12px; font-size: 13px; color: #536c77; }
+.app-shell .field-tabs .sera-tab { position: relative; border-radius: var(--radius-control); padding: 10px 12px; font-size: 14px; color: var(--muted); }
 .app-shell .field-tabs .sera-tab:hover { background: #f2f7f6; }
 .app-shell .field-tabs .sera-tab[aria-selected=true] { background: var(--primary-soft); border-color: #b2d5c9; color: #145c50; box-shadow: inset 3px 0 #277d69; font-weight: 500; }
-.app-shell :is(.access-tabs, .vehicle-detail-navigation nav) button { padding: 12px 11px; border-radius: 0; font-size: 13px; }
+.app-shell :is(.access-tabs, .vehicle-detail-navigation nav) button { padding: 12px 11px; border-radius: 0; font-size: 14px; }
 .app-shell :is(.access-tabs, .vehicle-detail-navigation nav) button:is([aria-selected=true], [aria-pressed=true], [aria-current]) { background: #eef6f3; color: #185e52; border-bottom-color: var(--primary); }
 .app-shell :is(.access-tabs, .vehicle-detail-navigation nav) button:hover { background: #f5f9f8; }
-.app-shell dialog, dialog.access-dialog { border-radius: 12px; padding: 24px; box-shadow: 0 24px 80px #102b3c38; }
+.app-shell dialog, dialog.access-dialog { border-radius: var(--radius-panel); padding: 24px; box-shadow: 0 12px 40px #102b3c38; }
 dialog::backdrop { background: #102b3c80; }
 .dialog-heading h2 { font-size: 21px; font-weight: 500; }
 .dialog-actions { padding-top: 18px; border-top: 1px solid var(--line); }
 .organization-site-footer .dialog-actions { padding-top: 0; border-top: 0; }
-.app-shell .notice { font-size: 13px; padding: 22px; }
+.app-shell .notice { font-size: 14px; padding: 16px 20px; }
+.app-shell .field-hint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.app-shell :is(.audit-table, .org-table) :is(pre, details) { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+.app-shell :is(.audit-table, .org-table) pre { white-space: pre-wrap; }
 .app-shell .error, .form-error { color: #96382b; }
 .skip-link { position: fixed; z-index: 10; top: 10px; left: 12px; background: white; border: 2px solid var(--primary); border-radius: 7px; padding: 10px 16px; color: var(--primary); transform: translateY(-160%); }
 .skip-link:focus { transform: none; }
@@ -138,6 +144,8 @@ dialog::backdrop { background: #102b3c80; }
   .sidebar .nav-item { padding-inline: 10px; gap: 9px; }
 }
 @media (max-width: 1000px) {
+  .stable-table .responsive-list tbody td { height: auto; }
+  .app-shell .clickable-row .row-title { min-height: 0; }
   .table-scroll > table.responsive-list { display: block; min-width: 0; width: 100%; white-space: normal; }
   .responsive-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .responsive-list tbody { display: block; }
@@ -147,11 +155,11 @@ dialog::backdrop { background: #102b3c80; }
   .responsive-list td:first-child, .responsive-list td:last-child, .responsive-list td[colspan] { grid-column: 1 / -1; }
   .responsive-list td:first-child::before, .responsive-list td[data-label="Műveletek"]::before { display: none; }
   .responsive-list .member-actions { justify-content: flex-start; flex-wrap: wrap; }
-  .app-shell .org-company-table tbody tr { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-  .app-shell .org-company-table tbody td:first-child { grid-column: 1; }
-  .app-shell .org-company-table tbody td:last-child { grid-column: 2; }
-  .app-shell .org-company-table td:last-child::before { display: none; }
-  .app-shell .org-company-table tbody td[colspan] { grid-column: 1 / -1; }
+  .app-shell .compact-list tbody tr { grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-height: var(--table-row-height); }
+  .app-shell .compact-list tbody td:first-child { grid-column: 1; }
+  .app-shell .compact-list tbody td:last-child { grid-column: 2; }
+  .app-shell .compact-list td:last-child::before { display: none; }
+  .app-shell .compact-list tbody td[colspan] { grid-column: 1 / -1; }
 }
 @media (max-width: 700px) {
   .app-shell > .sidebar { padding: 16px; gap: 12px; grid-template-columns: minmax(0, 1fr) auto auto; }
@@ -170,30 +178,26 @@ dialog::backdrop { background: #102b3c80; }
   .sidebar .mobile-nav-toggle { min-height: 40px; padding: 7px 11px; border-radius: 7px; grid-column: 2; grid-row: 1; }
   .sidebar #main-navigation.is-open { display: grid; grid-row: 3; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-top: 10px; border-top: 1px solid #34505c; gap: 5px; }
   .sidebar #main-navigation .admin-navigation { grid-column: 1 / -1; }
-  .sidebar .nav-item { width: 100%; font-size: 12px; padding: 9px 10px; gap: 7px; }
+  .sidebar .nav-item { width: 100%; font-size: 13px; padding: 9px 10px; gap: 7px; }
   .sidebar .admin-navigation { grid-column: 1 / -1; margin-top: 6px; padding-top: 8px; }
   .topbar { padding: 12px 16px; min-height: 60px; gap: 8px; }
   .topbar .breadcrumb { gap: 4px; }
   .breadcrumb .breadcrumb-home, .breadcrumb .breadcrumb-separator { display: none; }
   .breadcrumb strong { font-size: 15px; }
-  .topbar .logout-button { padding: 7px; font-size: 11px; gap: 5px; }
+  .topbar .logout-button { padding: 7px; font-size: 13px; gap: 5px; }
   .page-content.page-content-compact { padding: 16px 12px 28px; }
   .app-shell .list-toolbar { padding: 16px; gap: 10px; }
   .app-shell .table-footer { padding: 12px 16px; gap: 10px; flex-wrap: wrap; }
   .app-shell .responsive-list tbody td { padding: 11px 16px; }
-  .stable-table .responsive-list tbody td { height: auto; }
   .responsive-list td[data-label="Műveletek"]::before { display: none; }
-  .app-shell .org-company-table tbody tr { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-  .app-shell .org-company-table tbody td:first-child { grid-column: 1; }
-  .app-shell .org-company-table tbody td:last-child { grid-column: 2; }
-  .app-shell .org-company-table td:last-child::before { display: none; }
-  .app-shell .org-company-table tbody td[colspan] { grid-column: 1 / -1; }
   .app-shell .responsive-list tbody tr { padding-block: 5px; }
   .app-shell .member-actions { gap: 7px; }
-  .entity-icon { width: 32px; height: 32px; }
+  .app-shell .sera-button, .account-page .sera-button, .app-shell .icon-button, .app-shell .photo-file-button { min-height: 44px; }
+  .app-shell :is(.org-field, .account-form, .search-field) :is(input:not([type=checkbox]):not([type=radio]), select, textarea), .account-page .account-form input { min-height: 44px; font-size: 16px; }
+  .app-shell .list-toolbar .search-field { flex-basis: 100%; max-width: none; }
+  .app-shell .list-toolbar .org-field { flex: 1 1 140px; }
   .app-shell dialog, dialog.access-dialog { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .sera-button, .admin-navigation summary > svg:last-child { transition: none; }
-  .sera-button:active:not(:disabled) { translate: none; }
 }

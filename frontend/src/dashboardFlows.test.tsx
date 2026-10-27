@@ -32,9 +32,43 @@ it('summarizes only the selected site and opens a due vehicle through its author
     await screen.findByRole('heading',{name:'Flotta áttekintés'})
     expect(screen.queryByText('BBB-002')).not.toBeInTheDocument()
     expect(screen.getByText('9 napja lejárt')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button',{name:'AAA-001'}))
+    await userEvent.click(screen.getByRole('button',{name:'AAA-001 · Műszaki vizsga'}))
     expect(onVehicle).toHaveBeenCalledWith('first')
   } finally { vi.useRealTimers() }
+})
+it('makes every deadline reachable beyond the compact initial list', async () => {
+  vi.setSystemTime(new Date('2026-10-24T09:00:00Z'))
+  try {
+    const vehicles = Array.from({ length: 13 }, (_, index) => ({ ...car,
+      vehicle: { ...car.vehicle, id: `car-${index + 1}`, registration: `CAR-${String(index + 1).padStart(3, '0')}` },
+    }))
+    const { onVehicle } = mount({ vehicles })
+    await screen.findByRole('heading', { name: 'Határidők (13)' })
+    expect(screen.getAllByRole('button', { name: /CAR-\d+ · Műszaki vizsga/ })).toHaveLength(6)
+    await userEvent.click(screen.getByRole('button', { name: 'További határidők (7)' }))
+    expect(screen.getAllByRole('button', { name: /CAR-\d+ · Műszaki vizsga/ })).toHaveLength(12)
+    await userEvent.click(screen.getByRole('button', { name: 'További határidők (1)' }))
+    await userEvent.click(screen.getByRole('button', { name: 'CAR-013 · Műszaki vizsga' }))
+    expect(onVehicle).toHaveBeenCalledWith('car-13')
+    expect(screen.queryByRole('button', { name: /További határidők/ })).not.toBeInTheDocument()
+  } finally { vi.useRealTimers() }
+})
+it('keeps status shortcuts connected to the corresponding fleet filter', async () => {
+  const { onFleet } = mount()
+  await userEvent.click(await screen.findByRole('button', { name: 'Aktív jármű megnyitása' }))
+  expect(onFleet).toHaveBeenLastCalledWith('Active')
+  await userEvent.click(screen.getByRole('button', { name: 'Szervizben megnyitása' }))
+  expect(onFleet).toHaveBeenLastCalledWith('Maintenance')
+  await userEvent.click(screen.getByRole('button', { name: 'Járműlista megnyitása' }))
+  expect(onFleet).toHaveBeenLastCalledWith()
+})
+it('offers one empty state and fleet navigation when the selected site has no vehicles', async () => {
+  const { onFleet } = mount({}, 'empty-site')
+  expect(await screen.findByText('Ezen a munkaterületen még nincs jármű.')).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: /Határidők/ })).not.toBeInTheDocument()
+  expect(screen.queryByText(/Járművek telephelyenként/)).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Járműlista megnyitása' }))
+  expect(onFleet).toHaveBeenCalledOnce()
 })
 it('chooses an assigned active vehicle and keeps unauthorized menus hidden even with company-wide aggregate rights',async()=>{
   mount({mode:'Vehicle',vehicles:[car,{...car,vehicle:{...car.vehicle,id:'mine',registration:'MINE-002'},isAssignedToMe:true}]})

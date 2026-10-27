@@ -102,10 +102,10 @@ export function PermissionGroups({ user }: { user: Session }) {
                             Védett admin · automatikusan bővülő jogkör
                           </span>
                         )}
-                        {!group.isAdmin && (
-                          <span className="member-email">Létrehozó: {group.createdBy}</span>
-                        )}
-                        <span className="member-email">Kezdőnézet: {group.dashboardMode === 'Vehicle' ? 'Autós' : 'Áttekintő'} · prioritás: {group.dashboardPriority ?? 0}</span>
+                        <details className="org-metadata">
+                          <summary>{group.dashboardMode === 'Vehicle' ? 'Autós' : 'Áttekintő'} kezdőnézet</summary>
+                          <p>Létrehozó: {group.createdBy}<br />Prioritás: {group.dashboardPriority ?? 0}</p>
+                        </details>
                       </td>
                       <td data-label="Cégek">
                         {group.isAdmin
@@ -121,9 +121,10 @@ export function PermissionGroups({ user }: { user: Session }) {
                       </td>
                       <td data-label="Tagok">{group.memberCount}</td>
                       <td data-label="Műveletek">
+                        <div className="member-actions">
                         {group.canConfigureDashboard && <Button className="secondary-button" aria-label={`Kezdőnézet beállítása: ${group.name}`} onClick={() => setDashboardGroup(group)}>Kezdőnézet</Button>}
                         {group.canEdit && !group.isAdmin ? (
-                          <div className="member-actions">
+                          <>
                             <Button
                               className="secondary-button"
                               aria-label={`Jogosultságcsoport szerkesztése: ${group.name}`}
@@ -140,12 +141,13 @@ export function PermissionGroups({ user }: { user: Session }) {
                                 Törlés
                               </Button>
                             )}
-                          </div>
+                          </>
                         ) : group.isAdmin ? (
                           'Felhasználónál kiosztható'
                         ) : (
                           'Megtekintés'
                         )}
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -76,15 +76,8 @@ export function UserProfileEditor({
       ) : (
         <>
           {section === 'profile' && <><p className="field-hint">
-            Ez az egyedi profil minden cégnél közös. A módosítások rendszerszinten érvényesek és
-            naplózottak.
+            A profiladatok minden cégnél közösek.
           </p>
-          <dl className="profile-details">
-            <div>
-              <dt>Felhasználónév / belső ID (állandó)</dt>
-              <dd>{query.data.id}</dd>
-            </div>
-          </dl>
           {/* A security-only revision change must not discard an unsaved profile draft. */}
           <ProfileForm
             key={JSON.stringify([query.data.id, query.data.displayName, query.data.email, query.data.phoneNumber])}
@@ -261,8 +254,7 @@ function ProfileForm({
         disabled={pending}
       />
       <p className="field-hint">
-        Az e-mail módosítása minden meglévő munkamenetet érvénytelenít. A felhasználó az új címmel
-        vagy a változatlan felhasználónevével tud belépni.
+        Az e-mail módosítása minden eszközről kijelentkezteti a felhasználót.
       </p>
       <label htmlFor="profile-phone">Telefonszám</label>
       <input

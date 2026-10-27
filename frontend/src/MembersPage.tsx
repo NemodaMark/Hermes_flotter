@@ -206,7 +206,7 @@ export function MembersPage({ user, tenant, onProfile, mode = 'members' }: { use
                           </td>
                         </tr>
                       ))}
-                      {!invitations.data.items.length && <tr><td colSpan={4} className="table-empty">Még nincs meghívás. A létrehozott meghívók itt jelennek meg.</td></tr>}
+                      {!invitations.data.items.length && <tr><td colSpan={4} className="table-empty">Még nincs meghívás.</td></tr>}
                     </tbody>
                   </table>
                 </TableFrame>
