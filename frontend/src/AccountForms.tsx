@@ -12,9 +12,16 @@ export function AuthScreen({
   onAuthenticated: (user: Session) => Promise<void>
   invitationPending?: boolean
 }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'resend'>('login')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [emailEnabled, setEmailEnabled] = useState(false)
+  useEffect(() => {
+    let active = true
+    void api.accountOptions().then(options => { if (active) setEmailEnabled(options.emailEnabled) }).catch(() => {})
+    return () => { active = false }
+  }, [])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -26,8 +33,13 @@ export function AuthScreen({
       return
     }
     setError(null)
+    setNotice(null)
     setPending(true)
     try {
+      if (mode === 'forgot' || mode === 'resend') {
+        setNotice((await api.requestAccountEmail(email, mode === 'resend')).message)
+        return
+      }
       const user =
         mode === 'login'
           ? await api.login(email, password)
@@ -37,7 +49,10 @@ export function AuthScreen({
               email,
               password,
             })
-      await onAuthenticated(user)
+      if ('requiresEmailConfirmation' in user) {
+        setNotice(user.message)
+        setMode('resend')
+      } else await onAuthenticated(user)
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'A kérés nem sikerült.')
     } finally {
@@ -69,6 +84,7 @@ export function AuthScreen({
             onClick={() => {
               setMode('login')
               setError(null)
+              setNotice(null)
             }}
           >
             Bejelentkezés
@@ -81,17 +97,19 @@ export function AuthScreen({
             onClick={() => {
               setMode('register')
               setError(null)
+              setNotice(null)
             }}
           >
             Regisztráció
           </Button>
         </div>
-        <h1 id="account-title">{mode === 'login' ? 'Bejelentkezés' : 'Hozd létre a fiókodat'}</h1>
+        <h1 id="account-title">{mode === 'login' ? 'Bejelentkezés' : mode === 'register' ? 'Hozd létre a fiókodat' : mode === 'forgot' ? 'Elfelejtett jelszó' : 'E-mail-cím megerősítése'}</h1>
         <p className="account-description">
           {mode === 'login'
             ? 'Lépj be a céges munkaterületeidhez.'
-            : 'Egy fiókkal több cég flottáját is kezelheted.'}
+            : mode === 'register' ? 'Egy fiókkal több cég flottáját is kezelheted.' : 'Add meg a fiókod e-mail-címét. A levélben kapott hivatkozással folytathatod.'}
         </p>
+        {notice && <p role="status" className="access-success">{notice}</p>}
         <form key={mode} onSubmit={submit} className="account-form">
           {mode === 'register' && (
             <>
@@ -134,6 +152,7 @@ export function AuthScreen({
             maxLength={254}
             disabled={pending}
           />
+          {(mode === 'login' || mode === 'register') && <>
           <label htmlFor="password">Jelszó</label>
           <input
             id="password"
@@ -164,6 +183,7 @@ export function AuthScreen({
               />
             </>
           )}
+          </>}
           {error && (
             <p className="form-error" role="alert">
               {error}
@@ -171,9 +191,13 @@ export function AuthScreen({
           )}
           <Button className="primary-button account-submit" disabled={pending}>
             {pending ? <LoaderCircle size={18} className="spinning" /> : <ArrowRight size={18} />}
-            {mode === 'login' ? 'Belépés' : 'Fiók létrehozása'}
+            {mode === 'login' ? 'Belépés' : mode === 'register' ? 'Fiók létrehozása' : 'Hivatkozás kérése'}
           </Button>
         </form>
+        {emailEnabled && <div className="dialog-actions">
+          <Button type="button" disabled={pending} onClick={() => { setMode('forgot'); setError(null); setNotice(null) }}>Elfelejtett jelszó</Button>
+          <Button type="button" disabled={pending} onClick={() => { setMode('resend'); setError(null); setNotice(null) }}>Megerősítő levél kérése</Button>
+        </div>}
         {mode === 'register' && (
           <p className="account-note">A következő lépésben létrehozhatod az első cégedet.</p>
         )}

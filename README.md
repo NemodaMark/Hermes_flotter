@@ -8,7 +8,8 @@ Több céget kiszolgáló flottakezelő SaaS: React + TypeScript frontend, ASP.N
 
 ## Elkészült funkciók
 
-- Valódi regisztráció névvel, e-mail-címmel és jelszóval; sikeres regisztráció után automatikus belépés.
+- Regisztráció névvel, e-mail-címmel és jelszóval; választható e-mail-megerősítés az új fiókokhoz, alapbeállítással automatikus belépés.
+- E-mailes jelszó-visszaállítás és automatikus meghívóküldés; [SMTP és helyi tesztlevelek beállítása](docs/EMAIL.md).
 - Bejelentkezés, kijelentkezés és oldalfrissítést túlélő, sütialapú munkamenet.
 - Első cég létrehozása a belépés után, majd további cégek létrehozása és cégváltás.
 - Az új cég és a létrehozó induló jogosultságai egy tranzakcióban készülnek el.

@@ -22,6 +22,8 @@ import {
 import { api, ApiError, resetCsrfToken, vehicleKey } from './api'
 import type { Session, Tenant, Vehicle } from './api'
 import { AuthScreen, CompanyDialog, CompanyForm } from './AccountForms'
+import { AccountRecoveryScreen } from './AccountRecoveryScreen'
+import { clearAccountToken, readAccountLink } from './accountLink'
 import { CompaniesPage } from './CompaniesPage'
 import { PartnersPage } from './PartnersPage'
 import { VehiclePage } from './VehiclePage'
@@ -461,6 +463,16 @@ export default function App() {
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
   const [invitation, setInvitation] = useState(readInvitation)
+  const [accountLink, setAccountLink] = useState(readAccountLink)
+  useEffect(() => {
+    if (accountLink) clearAccountToken()
+    const read = () => {
+      const link = readAccountLink()
+      if (link) { setAccountLink(link); clearAccountToken() }
+    }
+    window.addEventListener('hashchange', read)
+    return () => window.removeEventListener('hashchange', read)
+  }, [accountLink])
   const [acceptedTenantId, setAcceptedTenantId] = useState<string | null>(null)
   useEffect(() => {
     const read = () => setInvitation(readInvitation())
@@ -570,6 +582,11 @@ export default function App() {
       setLoggingOut(false)
     }
   }
+  if (accountLink) return <AccountRecoveryScreen link={accountLink} onClose={() => {
+    setAccountLink(null)
+    window.location.hash = '/dashboard'
+    void queryClient.invalidateQueries({ queryKey: ['session'] })
+  }} />
   if (session.isPending)
     return (
       <main className="account-page">

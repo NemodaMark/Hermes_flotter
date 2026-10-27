@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Microsoft.Extensions.Options;
 using System.Threading.RateLimiting;
 
 if (args is ["--health-check"])
@@ -45,6 +46,14 @@ builder.Services.AddScoped<IVehicleStore, VehicleStore>();
 
 if (!maintenanceMode)
 {
+    builder.Services.AddOptions<EmailOptions>().BindConfiguration("Email").ValidateOnStart();
+    builder.Services.AddSingleton<IValidateOptions<EmailOptions>, EmailOptionsValidator>();
+    builder.Services.AddOptions<AccountOptions>().BindConfiguration("Accounts")
+        .Validate<IOptions<EmailOptions>>((options, mail) => !options.RequireEmailConfirmation || mail.Value.Mode != "Disabled",
+            "Email delivery is required before enabling account confirmation.").ValidateOnStart();
+    builder.Services.AddScoped<IEmailTransport, EmailTransport>();
+    builder.Services.AddScoped<EmailDelivery>();
+    builder.Services.AddScoped<AccountRecovery>();
     builder.Services.AddScoped<UserAccounts>();
     builder.Services.AddScoped<PeopleManagement>();
     builder.Services.AddScoped<SystemUserDirectory>();
@@ -64,7 +73,10 @@ if (!maintenanceMode)
         options.Password.RequireLowercase = false;
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-    }).AddEntityFrameworkStores<HermesDbContext>().AddSignInManager();
+    }).AddEntityFrameworkStores<HermesDbContext>().AddSignInManager().AddDefaultTokenProviders()
+        .AddTokenProvider<EmailConfirmationTokenProvider>("Hermes.EmailConfirmation");
+    builder.Services.Configure<IdentityOptions>(options => options.Tokens.EmailConfirmationTokenProvider = "Hermes.EmailConfirmation");
+    builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(1));
     builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
     builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
     builder.Services.ConfigureApplicationCookie(options =>
@@ -154,6 +166,7 @@ app.UseAuthorization();
 app.UseRateLimiter();
 app.UseMiddleware<CsrfProtectionMiddleware>();
 app.MapAccountEndpoints();
+app.MapAccountRecovery();
 app.MapMemberEndpoints();
 app.MapGroupEndpoints();
 app.MapSystemEndpoints();

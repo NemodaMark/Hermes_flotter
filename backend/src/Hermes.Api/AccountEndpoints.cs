@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Microsoft.Extensions.Options;
 
 namespace Hermes.Api;
 
@@ -36,7 +37,7 @@ public static class AccountEndpoints
             return Results.Ok(await ToSession(user, accounts, ct));
         }).RequireAuthorization();
 
-        accounts.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, UserAccounts accounts, HermesDbContext db, CancellationToken ct) =>
+        accounts.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, UserAccounts accounts, HermesDbContext db, AccountRecovery recovery, IOptions<AccountOptions> options, CancellationToken ct) =>
         {
             var errors = new Dictionary<string, string[]>();
             if (string.IsNullOrWhiteSpace(request.DisplayName) || request.DisplayName.Trim().Length > 120)
@@ -59,7 +60,8 @@ public static class AccountEndpoints
                 Id = userName,
                 UserName = userName,
                 Email = request.Email.Trim(),
-                DisplayName = request.DisplayName.Trim()
+                DisplayName = request.DisplayName.Trim(),
+                EmailConfirmationRequired = options.Value.RequireEmailConfirmation
             };
             IdentityResult result;
             try { result = await users.CreateAsync(user, request.Password!); }
@@ -77,6 +79,13 @@ public static class AccountEndpoints
             UserAccounts.Audit(db, user.Id, user.Id, "user.registered", new { userName = user.Id });
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
+            await transaction.DisposeAsync();
+            if (user.EmailConfirmationRequired)
+            {
+                await recovery.Request(user.Email, true, ct);
+                return Results.Accepted(value: new { requiresEmailConfirmation = true,
+                    message = "A fiókod elkészült. A bejelentkezés előtt erősítsd meg az e-mail-címedet a levélben kapott hivatkozással. Ha nem érkezik meg, kérj új megerősítő levelet." });
+            }
             await signIn.SignInAsync(user, isPersistent: false);
             return Results.Created("/api/v1/auth/session", await ToSession(user, accounts, ct));
         }).AllowAnonymous().RequireRateLimiting("accounts");
@@ -89,6 +98,8 @@ public static class AccountEndpoints
             var user = request.UserName is { } name
                 ? await users.FindByNameAsync(UserNames.Normalize(name)) : await users.FindByEmailAsync(request.Email!.Trim());
             if (user is null) return InvalidLogin();
+            if (user.EmailConfirmationRequired && !user.EmailConfirmed) return InvalidLogin();
+            if (await db.AccountLifecycles.AnyAsync(x => x.UserId == user.Id && x.IsArchived, ct)) return InvalidLogin();
             if (!app.Environment.IsDevelopment() && await db.AccountLifecycles.AnyAsync(x => x.UserId == user.Id && x.DevelopmentOnly, ct)) return InvalidLogin();
             var result = await signIn.PasswordSignInAsync(user, request.Password, isPersistent: false, lockoutOnFailure: true);
             return result.Succeeded ? Results.Ok(await ToSession(user, accounts, ct)) : InvalidLogin();

@@ -2,6 +2,7 @@ using Hermes.Application;
 using Hermes.Domain;
 using Hermes.Infrastructure;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace Hermes.Api;
 
@@ -32,10 +33,19 @@ public static class MemberEndpoints
             return user?.NormalizedEmail is null ? Results.Unauthorized() : Results.Ok(await members.AcceptAsync(user.Id, user.NormalizedEmail, request, ct));
         }).RequireRateLimiting("accounts");
         var invitations = api.MapGroup("/invitations").WithMetadata(new TenantRequired()).RequireAuthorization(Permissions.MembersInvite);
-        invitations.MapPost("/", async (CreateInvitationRequest request, IMemberManagement members, CancellationToken ct) =>
+        invitations.MapPost("/", async (CreateInvitationRequest request, IMemberManagement members, EmailDelivery mail, CancellationToken ct) =>
         {
             var invitation = await members.InviteAsync(request, ct);
-            return Results.Created($"/api/v1/invitations/{invitation.Invitation.Id}", invitation);
+            // InviteAsync has already committed and released the company lock before SMTP starts.
+            var link = mail.Link(QueryHelpers.AddQueryString("", new Dictionary<string, string?>
+            {
+                ["invite"] = "1",
+                ["tenantId"] = invitation.Acceptance.TenantId.ToString(),
+                ["invitationId"] = invitation.Acceptance.InvitationId.ToString(), ["token"] = invitation.Acceptance.Token
+            }).TrimStart('?'));
+            var emailDelivery = await mail.TrySend(new(invitation.Invitation.Email, "HERMES – Céges meghívó",
+                $"Meghívót kaptál egy HERMES céges munkaterülethez. A meghívott e-mail-címhez tartozó fiókkal tudod elfogadni:\n\n{link}\n\nA hivatkozás 7 napig érvényes, egyszer használható. Ha nem számítottál meghívóra, hagyd figyelmen kívül ezt a levelet."), ct);
+            return Results.Created($"/api/v1/invitations/{invitation.Invitation.Id}", new { invitation.Invitation, invitation.Acceptance, emailDelivery });
         });
         invitations.MapGet("/", async (IMemberManagement members, CancellationToken ct, int page = 1, int pageSize = 25)
             => Results.Ok(await members.InvitationsAsync(page, pageSize, ct)));

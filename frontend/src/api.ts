@@ -5,6 +5,8 @@ export type Session = {
   passwordChangeRequired?: boolean
   systemPermissions?: string[]
 }
+export type RegistrationResult = Session | { requiresEmailConfirmation: true; message: string }
+export type AccountToken = { userId: string; email: string; token: string }
 export type UserProfile = {
   avatarRevision?: string | null
   id: string
@@ -142,6 +144,7 @@ export type InvitationAcceptance = {
 export type CreatedInvitation = {
   invitation: Invitation
   acceptance: InvitationAcceptance
+  emailDelivery?: 'sent' | 'saved' | 'failed' | 'disabled'
 }
 export const vehicleKey = (userId: string, tenantId?: string) =>
   ['vehicles', userId, tenantId] as const
@@ -281,7 +284,17 @@ export const api = {
       throw error
     }
   },
-  register: (input: RegisterInput) => authenticate('/api/v1/auth/register', input),
+  register: async (input: RegisterInput) => {
+    const result = await request<RegistrationResult>('/api/v1/auth/register', { body: input })
+    resetCsrfToken()
+    return result
+  },
+  accountOptions: () => request<{ emailEnabled: boolean; requireEmailConfirmation: boolean }>('/api/v1/auth/options'),
+  requestAccountEmail: (email: string, confirmation: boolean) => request<{ message: string }>(
+    `/api/v1/auth/${confirmation ? 'resend-confirmation' : 'forgot-password'}`, { body: { email } }),
+  confirmEmail: (token: AccountToken) => request<{ message: string }>('/api/v1/auth/confirm-email', { body: token }),
+  resetPassword: (token: AccountToken, newPassword: string, confirmPassword: string) =>
+    request<{ message: string }>('/api/v1/auth/reset-password', { body: { ...token, newPassword, confirmPassword } }),
   login: (login: string, password: string) =>
     authenticate(
       '/api/v1/auth/login',

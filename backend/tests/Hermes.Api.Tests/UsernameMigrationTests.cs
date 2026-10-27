@@ -6,10 +6,13 @@ using Hermes.Domain;
 using Hermes.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using Xunit;
 
@@ -41,28 +44,45 @@ public sealed class UsernameMigrationTests(FleetFixture fixture) : IClassFixture
             string securityStamp;
             await using (var scope = factory.Services.CreateAsyncScope())
             {
-                var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-                foreach (var user in new[] {
+                var db = scope.ServiceProvider.GetRequiredService<HermesDbContext>();
+                var legacyUsers = new[] {
                     new ApplicationUser { Id = firstId, UserName = "shared@one.example.test", Email = "shared@one.example.test", DisplayName = "Meglévő Kezelő" },
                     new ApplicationUser { Id = secondId, UserName = "shared@two.example.test", Email = "shared@two.example.test", DisplayName = "Másik Személy", PasswordChangeRequired = true },
-                    new ApplicationUser { Id = longId, UserName = "old-long-name", Email = new string('a', 90) + "@example.test", DisplayName = "Hosszú Azonosító" } })
-                    Assert.True((await users.CreateAsync(user, FleetFixture.Password)).Succeeded);
-                var first = (await users.FindByIdAsync(firstId))!;
-                Assert.True((await users.AddClaimAsync(first, new Claim("custom", "retained"))).Succeeded);
-                Assert.True((await users.AddLoginAsync(first, new UserLoginInfo("test-provider", "external-key", "Provider"))).Succeeded);
-                Assert.True((await users.SetAuthenticationTokenAsync(first, "test-provider", "token", "private-provider-token")).Succeeded);
+                    new ApplicationUser { Id = longId, UserName = "old-long-name", Email = new string('a', 90) + "@example.test", DisplayName = "Hosszú Azonosító" } };
+                // Seed the historical schema independently of today's user model: later
+                // account fields must be added by migration, not assumed to exist already.
+                foreach (var user in legacyUsers)
+                {
+                    user.SecurityStamp = Guid.NewGuid().ToString();
+                    user.PasswordHash = new PasswordHasher<ApplicationUser>().HashPassword(user, FleetFixture.Password);
+                    await db.Database.ExecuteSqlInterpolatedAsync($"""
+                        INSERT INTO identity_users ("Id","UserName","NormalizedUserName","Email","NormalizedEmail","DisplayName",
+                            "SecurityStamp","ConcurrencyStamp","PasswordHash","EmailConfirmed","PhoneNumberConfirmed",
+                            "TwoFactorEnabled","LockoutEnabled","AccessFailedCount","PasswordChangeRequired")
+                        VALUES ({user.Id},{user.UserName},{user.UserName!.ToUpperInvariant()},{user.Email},{user.Email!.ToUpperInvariant()},
+                            {user.DisplayName},{user.SecurityStamp},{Guid.NewGuid().ToString()},{user.PasswordHash},false,false,false,true,0,{user.PasswordChangeRequired})
+                        """);
+                }
+                var first = legacyUsers[0];
+                db.UserClaims.Add(new() { UserId = firstId, ClaimType = "custom", ClaimValue = "retained" });
+                db.UserLogins.Add(new() { UserId = firstId, LoginProvider = "test-provider", ProviderKey = "external-key", ProviderDisplayName = "Provider" });
+                db.UserTokens.Add(new() { UserId = firstId, LoginProvider = "test-provider", Name = "token", Value = "private-provider-token" });
                 passwordHash = first.PasswordHash!;
                 securityStamp = first.SecurityStamp!;
-                var db = scope.ServiceProvider.GetRequiredService<HermesDbContext>();
                 db.SystemPermissionGrants.Add(new() { UserId = firstId, Code = SystemPermissions.Manage });
                 db.Roles.Add(new IdentityRole { Id = "legacy-unused-role", Name = "Unused", NormalizedName = "UNUSED" });
                 db.UserRoles.Add(new() { UserId = firstId, RoleId = "legacy-unused-role" });
                 await db.SaveChangesAsync();
             }
             using var oldClient = factory.CreateClient();
-            await FleetFixture.RefreshCsrfAsync(oldClient);
-            Assert.Equal(HttpStatusCode.OK, (await oldClient.PostAsJsonAsync("/api/v1/auth/login", new { email = "shared@one.example.test", password = FleetFixture.Password })).StatusCode);
-            await FleetFixture.RefreshCsrfAsync(oldClient);
+            // Issue an authentic old-format cookie without running today's endpoints
+            // against a historical database. The upgrade must invalidate this identity.
+            var cookieOptions = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get(IdentityConstants.ApplicationScheme);
+            var identity = new ClaimsIdentity([new Claim("sub", firstId), new Claim(ClaimTypes.Name, "shared@one.example.test"),
+                new Claim("AspNet.Identity.SecurityStamp", securityStamp)], IdentityConstants.ApplicationScheme);
+            var oldCookie = cookieOptions.TicketDataFormat.Protect(new AuthenticationTicket(new ClaimsPrincipal(identity),
+                new AuthenticationProperties { IssuedUtc = DateTimeOffset.UtcNow, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(1) }, IdentityConstants.ApplicationScheme));
+            oldClient.DefaultRequestHeaders.Add("Cookie", $"Hermes.Session={Uri.EscapeDataString(oldCookie)}");
             // Seed the historical schema directly; today's endpoints depend on later tables.
             var company = new TenantSummary(Guid.NewGuid(), "Meglévő Flotta", []);
             var token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
@@ -147,6 +167,8 @@ public sealed class UsernameMigrationTests(FleetFixture fixture) : IClassFixture
             {
                 var first = await db.Users.AsNoTracking().SingleAsync(x => x.Id == "shared.2");
                 Assert.Equal(passwordHash, first.PasswordHash);
+                Assert.False(first.EmailConfirmationRequired);
+                Assert.Null(first.AccountEmailSentAt);
                 Assert.NotEqual(securityStamp, first.SecurityStamp);
                 Assert.Equal("shared.2", first.UserName);
                 Assert.Equal("shared.2", (await db.UserClaims.SingleAsync()).UserId);

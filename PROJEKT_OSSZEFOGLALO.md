@@ -1,7 +1,7 @@
 # HERMES – projektösszefoglaló és fejlesztési teendők
 
 **Összeállítva:** 2026. október 27.  
-**Az összefoglalt funkcionális állapot:** `a630179`, 2026. október 24.  
+**Az összefoglalt funkcionális állapot:** 2026. október 27., e-mailes fiókfolyamatokkal és meghívóküldéssel kiegészítve.
 **Cél:** az eddig elkészült webes és asztali funkciók, technológiák, működési szabályok és a hozzájuk tartozó teendők áttekintése fejlesztéshez, bemutatáshoz és műszaki átadáshoz.
 
 Az egyes részek végén a **TODO** listák jelölik a még nyitott fejlesztéseket. A már működő funkciók leírása ettől külön szerepel; az opcionális bővítéseket és új javaslatokat külön megjelöljük. A teendők nem jelentenek már megvalósított funkciót vagy vállalt határidőt.
@@ -10,7 +10,7 @@ Az egyes részek végén a **TODO** listák jelölik a még nyitott fejlesztése
 
 - **GitHub-tároló:** [NemodaMark/Hermes_flotter](https://github.com/NemodaMark/Hermes_flotter)
 - **Alapértelmezett fejlesztési ág:** [main](https://github.com/NemodaMark/Hermes_flotter/tree/main)
-- **Funkcionális referencia:** [a630179 – a takart 3D menüpontok elrejtése](https://github.com/NemodaMark/Hermes_flotter/commit/a630179c66bd0851135c643f114d890afae8249c)
+- **Korábbi 3D-referencia:** [a630179 – a takart 3D menüpontok elrejtése](https://github.com/NemodaMark/Hermes_flotter/commit/a630179c66bd0851135c643f114d890afae8249c)
 - **Automatizált ellenőrzések:** [GitHub Actions](https://github.com/NemodaMark/Hermes_flotter/actions)
 
 A HERMES több céget kiszolgáló, magyar felületű flottakezelő webalkalmazás. Egy felhasználói fiók több céghez és telephelyhez férhet hozzá, cégenként és műveletenként eltérő jogosultságokkal. Az alkalmazás a cégek, telephelyek, munkatársak, járművek, partnerek, lízingszerződések, szervizbejegyzések és dokumentumok kezelését kapcsolja össze.
@@ -25,6 +25,7 @@ Az alábbi verziók a projekt jelenlegi csomag- és konfigurációs fájljait je
 |---|---|
 | **C# / .NET 10 / ASP.NET Core 10** | HTTP API, üzleti végpontok, hitelesítés, jogosultságvizsgálat, feltöltések és egészségellenőrzés. A `global.json` a .NET SDK 10.0.100 verzióját adja meg `latestFeature` továbblépéssel. |
 | **ASP.NET Core Identity** | Felhasználói fiókok, jelszóhashek, bejelentkezés, munkamenetek és fiókbiztonsági műveletek. |
+| **MailKit / MimeKit 4.17** | TLS-es SMTP-küldés és helyi `.eml` tesztlevelek; meghívók, e-mail-megerősítés és jelszó-visszaállítás. |
 | **Entity Framework Core 10** | Adatbázis-modellezés, lekérdezések, migrációk, tranzakciók és verzióellenőrzött mentések. |
 | **PostgreSQL 18 / Npgsql** | Tartós üzleti adatok, dokumentumok és képek; adatbázis-korlátok, sorzárak, céges RLS és előzményvédő triggerek. |
 | **React 19 / TypeScript 7** | Komponensekre bontott webes felület, típusos API-kliens, űrlapok, adatlapok, listák és dashboardok. |
@@ -86,9 +87,11 @@ Egy tipikus járműmódosítás folyamata:
 
 **TODO – fiókfolyamatok:**
 
-- [ ] E-mail-cím megerősítése regisztráció után.
-- [ ] Elfelejtett jelszó és biztonságos jelszó-visszaállítási folyamat.
+- [x] E-mail-cím megerősítése regisztráció után, újrakérhető, 24 órás hivatkozással. Új regisztrációkra bekapcsolható; a meglévő fiókokat nem zárja ki.
+- [x] Elfelejtett jelszó és biztonságos jelszó-visszaállítás: egyórás, egyszer használható hivatkozás, régi munkamenetek érvénytelenítése, naplózás és fiókonkénti levélküldési korlát.
 - [ ] Javaslat: a regisztrációs mód beállíthatóvá tétele, például nyitott vagy csak meghívásos működés. A jelenlegi regisztráció nyitott.
+
+A levélküldés alapértelmezésben kikapcsolt. Az SMTP és a fejlesztői tesztlevél beállítását, az API-végpontokat és a hivatkozások védelmét az [e-mailes működés leírása](docs/EMAIL.md) tartalmazza. Valódi levelezőszolgáltatóval végzett kézbesítési próba még szükséges az éles bekapcsolás előtt.
 
 ### 4.2. Cégek, telephelyek és kapcsolattartók
 
@@ -115,7 +118,7 @@ Egy tipikus járműmódosítás folyamata:
 
 **TODO – meghívások:**
 
-- [ ] E-mail-küldő integráció és a meghívó automatikus kiküldése. Jelenleg a létrehozott hivatkozást kézzel kell továbbítani.
+- [x] E-mail-küldő integráció és a meghívó automatikus kiküldése beállított SMTP-vel. Hiba vagy kikapcsolt küldés esetén a hivatkozás kézzel továbbítható; a meghívó megmarad.
 
 ### 4.4. Járműkezelés és használati előzmények
 
@@ -343,14 +346,14 @@ A jelszavak a Gitből kizárt `.local/demo-data/bejelentkezesek.json` fájlban v
 
 A tesztek kiterjednek többek között a cégek elkülönítésére, közvetlen és csoportos jogokra, telephelykorlátokra, delegálásra, verzióütközésekre, előzményekre, dokumentumokra, képekre és a felületi folyamatokra. A 3D tesztek a csomagolt modellek geometriáját, színezését, modellváltását és a pontok takarását is vizsgálják.
 
-**Utolsó, ebben a fejlesztési folyamatban rögzített teljes frontendellenőrzés:** 2026. október 24-én 164 sikeres teszt, sikeres build és lint az `a630179` állapothoz. Ez korábbi ellenőrzési eredmény; az összefoglaló megírása nem jelent újabb teljes alkalmazástesztet.
+**Legutóbbi ellenőrzés:** 2026. október 27-én 188 sikeres backendteszt (Debug, külön ideiglenes PostgreSQL-példánnyal), 170 sikeres frontendteszt, valamint sikeres frontendbuild és lint. A helyi frontendtesztek `threads` poollal futottak. Külső SMTP-szerveres kézbesítés és az új fiókoldalak böngészős vizuális ellenőrzése még nem történt; a böngészőautomatizálás indulási hibába ütközött. Az asztali részeket ez a kör nem módosította és nem tesztelte újra.
 
 Fő ellenőrző parancsok a projekt gyökeréből:
 
 ```powershell
 # Frontend
 npm --prefix frontend ci
-npm --prefix frontend run test -- --maxWorkers=2
+npm --prefix frontend run test -- --pool=threads --maxWorkers=2
 npm --prefix frontend run build
 npm --prefix frontend run lint
 
@@ -363,11 +366,11 @@ dotnet test desktop/tests/Hermes.ControlCenter.Tests/Hermes.ControlCenter.Tests.
 
 A backend Testcontainers segítségével valódi PostgreSQL-t indít. Alternatív elkülönített tesztszerver is megadható a dokumentált változóval; a tesztek saját ideiglenes adatbázist használnak. A HTTP smoke tesztek tesztadatokat hoznak létre, ezért kizárólag elkülönített, eldobható környezetben futtatandók.
 
-A [CI-konfiguráció](.github/workflows/ci.yml) az itt tárgyalt részekhez `frontend`, `backend`, `containers`, `control-center-core` és `control-center-windows` ellenőrzéseket tartalmaz. A frontend CI tesztet és buildet futtat; a lint külön helyi parancs. Az asztali Core tesztjei Windows és Linux alatt is futnak, a WPF-alkalmazás Windows x64-re csomagolását külön lépés vizsgálja.
+A [CI-konfiguráció](.github/workflows/ci.yml) az itt tárgyalt részekhez `frontend`, `backend`, `containers`, `control-center-core` és `control-center-windows` ellenőrzéseket tartalmaz. A frontend CI lintet, tesztet és buildet futtat. Az asztali Core tesztjei Windows és Linux alatt is futnak, a WPF-alkalmazás Windows x64-re csomagolását külön lépés vizsgálja.
 
 **TODO – javasolt ellenőrzési bővítés:**
 
-- [ ] A frontend lint lépés felvétele a CI-ba, hogy a jelenlegi helyi ellenőrzés automatikusan is lefusson.
+- [x] A frontend lint lépés felvétele a CI-ba, hogy a jelenlegi helyi ellenőrzés automatikusan is lefusson.
 - [ ] A moduloknál felsorolt új funkciókhoz célzott jogosultsági, telephelyi és felületi tesztek készítése a megvalósításukkal együtt.
 
 ## 10. Hol találhatók a legfontosabb megvalósítások?
@@ -375,6 +378,7 @@ A [CI-konfiguráció](.github/workflows/ci.yml) az itt tárgyalt részekhez `fro
 | Rész | Fő források |
 |---|---|
 | API-indítás, hitelesítés, tenant és CSRF | `backend/src/Hermes.Api/Program.cs`, `TenantResolutionMiddleware.cs`, `CsrfProtectionMiddleware.cs`, `AccountSecurity.cs` |
+| Fióklevelek és SMTP | `backend/src/Hermes.Api/AccountRecovery.cs`, `EmailDelivery.cs`, `frontend/src/AccountRecoveryScreen.tsx`, `docs/EMAIL.md` |
 | Jogkatalógus és hozzáférési szabályok | `backend/src/Hermes.Domain/Permissions.cs`, `backend/src/Hermes.Infrastructure/AccessRules.cs`, `VehicleAccess.cs`, `GroupManagement.cs` |
 | Cégek, telephelyek, munkatársak | `OrganizationManagement.cs`, `MemberManagement.cs`, `PeopleManagement.cs` az Infrastructure projektben |
 | Járművek, partnerek, szerződések | `FleetManagement.cs`, `PartnerManagement.cs`, `VehicleContractsManagement.cs` az Infrastructure projektben |

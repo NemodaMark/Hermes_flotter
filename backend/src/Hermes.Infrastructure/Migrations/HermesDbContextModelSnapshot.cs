@@ -1649,6 +1649,9 @@ namespace Hermes.Infrastructure.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
 
+                    b.Property<DateTimeOffset?>("AccountEmailSentAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text");
@@ -1661,6 +1664,9 @@ namespace Hermes.Infrastructure.Migrations
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("EmailConfirmationRequired")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");

@@ -107,8 +107,14 @@ export function InvitationDialog({
             <strong>{created.invitation.email}</strong> · {tenant.name}
           </p>
           <p className="access-description">
-            Küldd el az alábbi hivatkozást a címzettnek. Automatikus e-mail nem készül. A hivatkozás
-            csak most másolható ki.
+            {created.emailDelivery === 'sent'
+              ? 'A meghívót e-mailben elküldtük. A hivatkozást innen is kimásolhatod.'
+              : created.emailDelivery === 'saved'
+                ? 'A helyi tesztlevél elkészült (.eml fájl). A hivatkozást innen is kimásolhatod.'
+              : created.emailDelivery === 'failed'
+                ? 'A meghívó elkészült, de a levélküldés sikertelen. Másold ki és továbbítsd a hivatkozást a címzettnek.'
+                : 'A levélküldés nincs beállítva. Másold ki és továbbítsd a hivatkozást a címzettnek.'}
+            {' '}A hivatkozás csak most másolható ki.
           </p>
           <label htmlFor="invitation-link">Meghívási hivatkozás</label>
           <input
