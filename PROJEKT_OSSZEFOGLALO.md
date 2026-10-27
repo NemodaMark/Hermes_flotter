@@ -1,8 +1,10 @@
-# HERMES – projektösszefoglaló és műszaki áttekintés
+# HERMES – projektösszefoglaló és fejlesztési teendők
 
 **Összeállítva:** 2026. október 27.  
 **Az összefoglalt funkcionális állapot:** `a630179`, 2026. október 24.  
-**Cél:** az eddig elkészült funkciók, technológiák és a legfontosabb működési szabályok áttekintése fejlesztéshez, bemutatáshoz és műszaki átadáshoz.
+**Cél:** az eddig elkészült webes és asztali funkciók, technológiák, működési szabályok és a hozzájuk tartozó teendők áttekintése fejlesztéshez, bemutatáshoz és műszaki átadáshoz.
+
+Az egyes részek végén a **TODO** listák jelölik a még nyitott fejlesztéseket. A már működő funkciók leírása ettől külön szerepel; az opcionális bővítéseket és új javaslatokat külön megjelöljük. A teendők nem jelentenek már megvalósított funkciót vagy vállalt határidőt.
 
 ## 1. GitHub és a projekt célja
 
@@ -35,12 +37,11 @@ Az alábbi verziók a projekt jelenlegi csomag- és konfigurációs fájljait je
 | **PDF.js (`pdfjs-dist`)** | PDF-ek alkalmazáson belüli, lapozható és nagyítható előnézete; helyi workerrel, betűkészletekkel és dekódolókkal. |
 | **StbImageSharp / StbImageWriteSharp** | Feltöltött profil- és járműképek szerveroldali dekódolása, átméretezése és metaadatmentes újrakódolása. |
 | **Docker / Docker Compose / Nginx** | Elkülönített adatbázis-, migrációs, API- és frontend-szolgáltatások; a kész webes fájlokat Nginx szolgálja ki. |
-| **Caddy / HTTPS** | Debian 13 alatt a publikus belépési pont, HTTP→HTTPS átirányítás és automatikus tanúsítványkezelés. |
-| **restic / pg_dump / systemd** | Titkosított mentés, adatbázismentés, időzített futtatás és elkülönített visszaállítási próba. |
-| **WPF / .NET 10** | Külön natív Windows rendszervezérlő a helyi fejlesztői szolgáltatásokhoz. |
+| **WPF / XAML / .NET 10** | Natív Windows rendszervezérlő: szolgáltatásállapotok, folyamatlista, CPU-/memóriaadatok, naplók, Git-verziók és újraindítási műveletek. A XAML a felületet, a C# a vezérlést és háttérműveleteket adja. |
+| **PowerShell / pg_ctl / Git** | A Windows rendszervezérlő csomagolása és indítása, a helyi PostgreSQL vezérlése, illetve a forrás és a követett GitHub-ág összehasonlítása. |
 | **Vitest / Testing Library / jsdom / Oxlint** | Frontend-folyamatok és komponensek tesztelése, valamint statikus kódellenőrzés. |
 | **xUnit / ASP.NET Core tesztkiszolgáló / Testcontainers** | Backend-integrációs tesztek valódi PostgreSQL-lel; külön Windows/Linux rendszervezérlő-tesztek. |
-| **GitHub Actions** | Frontend-, backend-, konténer-, Windows- és Debian-telepítési ellenőrzések push és pull request esetén. |
+| **GitHub Actions** | Frontend-, backend-, konténer- és asztali ellenőrzések push és pull request esetén; a Windows-alkalmazás csomagolásának ellenőrzésével. |
 
 ## 3. Felépítés és egy kérés útja
 
@@ -51,8 +52,9 @@ backend/src/Hermes.Application/    Szerződések, DTO-k és interfészek
 backend/src/Hermes.Domain/         Entitások, jogkatalógus és alapfogalmak
 backend/src/Hermes.Infrastructure/ EF Core, Identity és üzleti szolgáltatások
 backend/tests/Hermes.Api.Tests/    PostgreSQL-es integrációs tesztek
-desktop/                          Windows rendszervezérlő és tesztjei
-deploy/debian13/                  HTTPS-es telepítés, mentés és visszaállítás
+desktop/src/Hermes.ControlCenter/      WPF-ablak, XAML és Windows-folyamatfigyelés
+desktop/src/Hermes.ControlCenter.Core/ Szolgáltatásvezérlés, health, Git és naplózás
+desktop/tests/                        Az asztali vezérlő automatizált tesztjei
 infra/postgres/                   Adatbázis-szerepkörök inicializálása
 scripts/                          Indító-, mintaadat- és ellenőrző scriptek
 .github/workflows/                CI-folyamatok
@@ -82,6 +84,12 @@ Egy tipikus járműmódosítás folyamata:
 - Rendszerszintű kezelőnek globális fiókkezelés és kötelező jelszócsere előírása. A kötelező csere a backend üzleti végpontjait is lezárja a sikeres csere elvégzéséig.
 - Egy felhasználólista; a rendszerszintű kezelő **Összes felhasználó** kapcsolóval a céges hozzáférés nélküli fiókokat is láthatja.
 
+**TODO – fiókfolyamatok:**
+
+- [ ] E-mail-cím megerősítése regisztráció után.
+- [ ] Elfelejtett jelszó és biztonságos jelszó-visszaállítási folyamat.
+- [ ] Javaslat: a regisztrációs mód beállíthatóvá tétele, például nyitott vagy csak meghívásos működés. A jelenlegi regisztráció nyitott.
+
 ### 4.2. Cégek, telephelyek és kapcsolattartók
 
 - Céglétrehozás, céglista, keresés, állapotszűrés, szerkesztés, felfüggesztés, archiválás és visszaállítás.
@@ -105,6 +113,10 @@ Egy tipikus járműmódosítás folyamata:
 - Védett közös **admin** csoport, felhasználónként kijelölt cégekkel. Minden jelenlegi és jövőbeli céges jogot megkap, de önmagában nem ad `system.manage` jogot.
 - A rendszer védi az utolsó aktív jogosultságkezelőt, és a hozzáférés-változásokat naplózza.
 
+**TODO – meghívások:**
+
+- [ ] E-mail-küldő integráció és a meghívó automatikus kiküldése. Jelenleg a létrehozott hivatkozást kézzel kell továbbítani.
+
 ### 4.4. Járműkezelés és használati előzmények
 
 A jármű belső azonosítója UUID maradt; a felületen a **rendszám** az elsődleges azonosító. Rendszám- vagy országváltáskor megmaradó előzmény készül, és a korábbi rendszám alapján is kereshető az autó.
@@ -124,6 +136,10 @@ A kilométer-rögzítés külön műveleti jog, nem igényel általános jármű
 
 A **Használati előzmények** megmutatja, kinél volt a jármű, mettől meddig, ki rendelte hozzá, illetve ki zárta le a hozzárendelést. Használóváltáskor a régi időszak lezárása és az új megnyitása egy tranzakcióban történik. A használó kijelölése önmagában nem ad hozzáférést a járműhöz.
 
+**TODO – nagyobb flották kezelése:**
+
+- [ ] Szerveroldali járműkeresés, szűrés és lapozás. A járműlista keresése és szűrése jelenleg kliensoldali.
+
 ### 4.5. Partnerek, lízing és szerviz
 
 - Cégenként külön partnertörzs, **lízingbeadó** és/vagy **szerviz** kategóriával.
@@ -134,6 +150,12 @@ A **Használati előzmények** megmutatja, kinél volt a jármű, mettől meddig
 - Hibás szervizbejegyzés indoklással érvényteleníthető, történetből törléssel nem tüntethető el.
 - A szervizben rögzített történeti kilométer vagy következő határidő nem írja át automatikusan a jármű aktuális adatait.
 - Aktív szerződésben használt lízingbeadó, illetve alapértelmezett szervizpartner nem archiválható az érintett kapcsolat feloldása nélkül.
+
+**TODO – szerviz és pénzügyi adatok:**
+
+- [ ] Önálló szerviztervezési munkafolyamat a már tárolt határidőkre és kilométerkeretekre építve.
+- [ ] Összesített flottaköltség-modul és üzemanyagköltségek kezelése. A lízingdíjak és szervizköltségek rögzítése már működik, a teljes költségkimutatás még nincs kész.
+- [ ] Opcionális SaaS-bővítés: előfizetés- és számlázáskezelés.
 
 ### 4.6. Dokumentumok, előnézet és képek
 
@@ -171,11 +193,19 @@ A Forza Vista inspirálta működés saját Three.js-megvalósítás:
 
 Az előkészítő scriptek forrás-ellenőrzőösszegeket vizsgálnak; a licencek és származási adatok a `frontend/public/models/` mappában, a többi felhasznált UI-/3D-forrás a [THIRD_PARTY_NOTICES.md](frontend/THIRD_PARTY_NOTICES.md) fájlban található.
 
+**TODO – opcionális 3D-bővítés:**
+
+- [ ] Igény esetén márka-/modellhű, megfelelő licencű 3D katalógus kialakítása. A jelenlegi karosszériatípus- és színalapú megjelenítés már működik.
+
 ### 4.8. Egységesebb felület
 
 Elkészültek a közös eszköztárak, kereshető választók, kapcsolók, váltakozó hátterű és kattintható táblasorok. A listaoldalak ismétlődő címsávjai csökkentek; a fő műveletek és szűrők közös helyre kerültek. Az adatlapok fülekkel és mezőcsoportokkal csökkentik az egyszerre látható mezők számát.
 
 A rendszerszintű napló **Beállítások → Rendszerkezelés** alatt érhető el a megfelelő joggal. A munkaterület-váltó, a profiloldalak és az űrlapok billentyűzetes, illetve kisebb képernyős használata is kapott támogatást.
+
+**TODO – javasolt felhasználói próba:**
+
+- [ ] Végigjárni a tipikus napi folyamatokat teljes céges kezelővel, telephelyre korlátozott felhasználóval és kilométer-rögzítővel; a visszajelzések alapján tovább egyszerűsíteni a kezelést.
 
 ## 5. A legfontosabb jogosultsági és adatvédelmi szabályok
 
@@ -208,9 +238,7 @@ A szerkeszthető adatok verziószámot kapnak. Elavult verziónál a szerver üt
 
 A napló rögzíti a műveletet, az időpontot, a kezdeményezőt és az érintett változást. Több előzmény- és naplótábla hozzáfűzött működését adatbázistriggerek is védik. A megjelenítés a régi felhasználói azonosítókat feloldhatja, az eredeti történeti sor átírása nélkül.
 
-## 6. Telepítés, HTTPS, mentés és visszaállítás
-
-### Fejlesztői környezet
+## 6. Helyi futtatás és fejlesztői környezet
 
 A gyökér `compose.yaml` PostgreSQL-, migrációs, API- és frontend-szolgáltatást indít. Külön natív fejlesztői futtatás is rendelkezésre áll .NET SDK-val, Node.js-szel és PostgreSQL-lel.
 
@@ -225,30 +253,73 @@ A portok konfigurálhatók; ezen a fejlesztői gépen a natív PostgreSQL koráb
 
 Indítási leírás: [README.md](README.md), [backend/README.md](backend/README.md), [frontend/README.md](frontend/README.md).
 
-### Debian 13 tesztszerver
+## 7. Asztali alkalmazás – HERMES Rendszervezérlő
 
-Elkészült a külön, Production környezetet használó telepítési csomag a `deploy/debian13/` mappában. Caddy kezeli a HTTPS-t és a tanúsítványmegújítást; csak a proxy 80/443 portja publikus. Az adatbázis és az API belső hálózaton kommunikál. A migráció külön, erre jogosult adatbázis-szerepkörrel fut.
+### 7.1. Szerepe és technológiája
 
-| Üzemeltetési funkció | Elkészült működés |
+Elkészült egy külön **natív Windows-alkalmazás** a helyi HERMES-környezet felügyeletéhez. Egy helyről látható, fut-e a backend, a frontend és az adatbázis, melyik verzió van betöltve, illetve mi történt egy sikertelen indításnál. Az **Alkalmazás megnyitása** gomb a webes flottakezelőt nyitja meg; a céges üzleti felület továbbra is a böngészőben működik.
+
+A felület **WPF és XAML**, a vezérlés **C# / .NET 10** alapú. A Windows-ablak és a platformhoz kötött folyamatfigyelés a `Hermes.ControlCenter` projektben, a szolgáltatáskezelés, health-vizsgálat, Git-összehasonlítás és naplózás a külön `Hermes.ControlCenter.Core` projektben található. A Core önállóan tesztelhető Windows és Linux alatt; a WPF-felület Windowsra készül.
+
+### 7.2. Elkészült funkciók
+
+| Funkció | Mit mutat vagy végez? |
 |---|---|
-| Telepítés és frissítés | Commitolt forrásból konténerképek készítése, frissítés előtti mentés, migráció és készenlét-ellenőrzés. |
-| Napi mentés | systemd időzítő, 03:15 UTC körül, legfeljebb 10 perc véletlen késleltetéssel. |
-| Mentési tartalom | Konzisztens `pg_dump`, dokumentumok és képek, alkalmazáskulcsok, TLS-adatok, védett konfiguráció, forráscsomag és a futó konténerképek. |
-| Titkosítás és megőrzés | restic; legalább 3 utolsó mentés, továbbá 7 napi, 4 heti és 3 havi példány. |
-| Heti próba | Vasárnap 04:30 UTC körül repository-ellenőrzés és elkülönített adatbázis-/API-visszaállítás. |
-| Teljes helyreállítás | Mentett adatbázis és hozzá tartozó alkalmazásverzió visszaállítása új, üres célra. |
+| Szolgáltatásállapotok | Backend, Vite frontend és a helyi PostgreSQL elérhetősége, címe, válaszideje és azonosított folyamatai. |
+| Backend-ellenőrzés | `/health/live` és `/health/ready`; a készenlét az adatbázis és a migrációk állapotát is vizsgálja. |
+| Frontend-ellenőrzés | A sikeres HTTP-válasz mellett ellenőrzi, hogy valóban a HERMES oldala érhető-e el. |
+| Adatbázis-ellenőrzés | Hitelesített alkalmazáskapcsolat és `SELECT 1`, a beállított helyi adatbázissal. |
+| Folyamatlista | Szolgáltatás, folyamatnév, PID, szülő PID, memória, CPU-használat, futási idő és a futtatható fájl elérési útja. |
+| Egyedi újraindítás | Külön backend-, frontend- és adatbázis-újraindítás; leállt szolgáltatás elindítása is. |
+| Teljes újraindítás | PostgreSQL → backend → frontend sorrend, a függőségek és elérhetőség ellenőrzésével. |
+| Git-verziók | Helyi ág és HEAD, commitüzenet, módosított munkafa, követett GitHub-ág és helyi/távoli commitkülönbség. |
+| Futó build | A ténylegesen betöltött API-verzió, buildcommit, fordítási idő és folyamatadatok; ezek eltérhetnek a lemezen lévő forrástól. |
+| Naplók | Külön **Események** és **Szolgáltatásnapló** fülek; backend/frontend/adatbázis-napló választása. |
+| Gyors elérés | Webalkalmazás, helyi beállításfájl és naplómappa megnyitása. |
 
-A visszaállítási próba nem módosítja a működő adatbázist és nem publikál portot. A teljes kör a Debian CI-folyamatban is szerepel. A saját szerveren a DNS-t, nyilvános ACME-tanúsítványt, mentési tárhelyet és újraindulást külön kell ellenőrizni; a csomag elkészülte nem jelent automatikus távoli telepítést.
+A szolgáltatások állapota **5 másodpercenként**, a GitHub-ellenőrzés **60 másodpercenként** frissül; kézzel is indítható frissítés. A folyamat megléte és a működő szolgáltatás két külön jelzés: egy futó PID önmagában nem bizonyítja, hogy az API vagy az adatbázis használható.
 
-A részletes, követendő parancsok és helyreállítási feltételek: [Debian 13 üzemeltetési leírás](deploy/debian13/README.md). A restic-jelszó külön megőrzendő, nem szerepel a saját mentésében. A valós konfigurációk és hitelesítő adatok nem kerülnek Gitbe.
+### 7.3. Az újraindítás és verzióellenőrzés működése
 
-### Windows rendszervezérlő
+- **Backend:** a saját folyamat leállítása, a port felszabadulásának megvárása, Debug-fordítás, indítás és készenlét-ellenőrzés. A hibák a vezérlő eseményei közé kerülnek.
+- **Frontend:** a saját Vite-folyamat újraindítása a beállított porton. A Vite az aktuális munkafát szolgálja ki; az induláskor feljegyzett commit tájékoztató adat.
+- **PostgreSQL:** a beállított adatmappához tartozó `pg_ctl start/restart -m fast`. Az adatmappa megmarad; az újraindítás az aktív kapcsolatokat megszakítja.
+- **Folyamatazonosítás:** leállítás előtt újra ellenőrzi a PID-et, elérési utat és indulási időt. Idegen folyamattal foglalt portnál hibát jelez; nem állít le minden azonos nevű `node`, `dotnet` vagy `postgres` folyamatot.
+- **GitHub-ellenőrzés:** `git fetch --no-tags`, a gép meglévő Git-hitelesítésével. A vezérlő nem végez automatikus pullt, checkoutot vagy resetet. Kapcsolati hibánál jelzi, hogy a távoli verzió csak az utoljára ismert adat.
 
-Külön WPF-alkalmazás figyeli a helyi backend, frontend és PostgreSQL állapotát. Megjeleníti a health-válaszokat, folyamatokat, erőforrásadatokat, naplókat és a futó verziót; egyenként vagy függőségi sorrendben újraindítja a saját szolgáltatásait.
+A backend és frontend külön háttérbeli szolgáltatásgazdával fut. **A vezérlőablak bezárása nem állítja le ezeket a szolgáltatásokat.** A felület mutatja az indítás és újraindítás folyamatát, illetve az esetleges hibát.
 
-A Git-ellenőrzés fetch műveletet végez, automatikus pullt vagy fájlfelülírást nem. A vezérlő a helyi natív fejlesztői folyamatokat kezeli; nem Debian-adminisztrációs felület. Részletek: [desktop/README.md](desktop/README.md).
+### 7.4. Indítás, csomagolás és helyi adatok
 
-## 7. Mintaadatok
+A projekt gyökerében:
+
+```powershell
+./scripts/start-control-center.ps1 -CreateShortcut
+```
+
+A script Windows x64-re, saját .NET-futtatókörnyezettel csomagol, elindítja a vezérlőt, és elkészíti a **HERMES Rendszervezérlő** asztali parancsikont. A csomagolt vezérlő indításához külön Desktop Runtime nem szükséges. A backend újrafordításához .NET 10 SDK, a frontend futtatásához Node.js és telepített npm-függőségek, a helyi adatbázishoz PostgreSQL szükséges; a script nem telepíti ezeket automatikusan.
+
+| Hely | Tartalom és szerep |
+|---|---|
+| `.local/control-center/settings.json` | Szolgáltatásportok, PostgreSQL bin-/adatmappa és a futtatóeszközök útvonalai. A **Beállítások** gomb ezt a fájlt nyitja meg; módosítás után a vezérlőablak újraindítandó. |
+| `.local/control-center/releases/<id>/` | Elkülönített kiadások; a régi szolgáltatásgazda és az új vezérlő fordítása nem akadályozza egymást. |
+| `.local/control-center/` naplói és állapotfájljai | Szolgáltatásnaplók, események és a kezelt futások helyi adatai; Gitből kizárva. |
+| A projekt `.env` fájlja | Az adatbázis-jelszó forrása. A jelszó nem kerül a vezérlő settings fájljába vagy a folyamatok parancssorába. |
+
+A naplónézet az utolsó 150 szolgáltatásnapló-sort mutatja. A vezérlő-, backend- és frontendnaplók 3 MB fölött egy előző fájl megtartásával fordulnak át. A vezérlő a számára ismert jelszóértékeket kitakarja a saját naplóiból.
+
+### 7.5. Jelenlegi határok és TODO
+
+A vezérlő jelenleg **helyi natív fejlesztői folyamatokat** kezel. Docker-konténerekhez és Windows-szolgáltatásként telepített PostgreSQL-hez nincs vezérlőadapter. Automatikus migrációt vagy GitHubról történő alkalmazásfrissítést nem indít.
+
+- [ ] Opcionális bővítés: Docker-szolgáltatások állapotának és indításának kezelése külön adapterrel.
+- [ ] Opcionális bővítés: Windows-szolgáltatásként futó PostgreSQL kezelése a szolgáltatáskezelőn keresztül.
+- [ ] Javaslat: a beállításfájl kézi szerkesztése helyett saját, ellenőrzött beállítási űrlap.
+- [ ] Javasolt átadási próba: csomagolás és indítás egy tiszta Windows-gépen, a szükséges fejlesztői eszközök és útvonalak ellenőrzésével.
+
+Részletes használat és beállításminta: [desktop/README.md](desktop/README.md), [desktop/settings.example.json](desktop/settings.example.json).
+
+## 8. Mintaadatok
 
 Elkészült és korábban betöltésre került a külön **Demo Flotta** adathalmaz. A betöltő tervezett, ellenőrzött tartalma:
 
@@ -268,7 +339,7 @@ A `scripts/seed-demo-data.mjs` csak helyi, Development API-val és meglévő ren
 
 A jelszavak a Gitből kizárt `.local/demo-data/bejelentkezesek.json` fájlban vannak; tartalmuk nem része ennek a dokumentumnak. A fenti számok a létrehozott mintakészletet írják le, nem a dokumentumkészítéskor végzett élő adatbázis-leltárt. Használat és korlátok: [backend/README.md – Helyi mintaadatok](backend/README.md#helyi-mintaadatok).
 
-## 8. Ellenőrzés és automatizálás
+## 9. Ellenőrzés és automatizálás
 
 A tesztek kiterjednek többek között a cégek elkülönítésére, közvetlen és csoportos jogokra, telephelykorlátokra, delegálásra, verzióütközésekre, előzményekre, dokumentumokra, képekre és a felületi folyamatokra. A 3D tesztek a csomagolt modellek geometriáját, színezését, modellváltását és a pontok takarását is vizsgálják.
 
@@ -292,16 +363,12 @@ dotnet test desktop/tests/Hermes.ControlCenter.Tests/Hermes.ControlCenter.Tests.
 
 A backend Testcontainers segítségével valódi PostgreSQL-t indít. Alternatív elkülönített tesztszerver is megadható a dokumentált változóval; a tesztek saját ideiglenes adatbázist használnak. A HTTP smoke tesztek tesztadatokat hoznak létre, ezért kizárólag elkülönített, eldobható környezetben futtatandók.
 
-A [CI-konfiguráció](.github/workflows/ci.yml) hat feladatot tartalmaz: `frontend`, `backend`, `containers`, `control-center-core`, `control-center-windows`, `debian-staging`. A Debian-folyamat ellenőrzi a scripteket és systemd-egységeket, valamint a HTTPS-es tesztelést, mentést és helyreállítást. A frontend CI tesztet és buildet futtat; a lint külön helyi parancs.
+A [CI-konfiguráció](.github/workflows/ci.yml) az itt tárgyalt részekhez `frontend`, `backend`, `containers`, `control-center-core` és `control-center-windows` ellenőrzéseket tartalmaz. A frontend CI tesztet és buildet futtat; a lint külön helyi parancs. Az asztali Core tesztjei Windows és Linux alatt is futnak, a WPF-alkalmazás Windows x64-re csomagolását külön lépés vizsgálja.
 
-## 9. Jelenlegi határok és nyitott bővítések
+**TODO – javasolt ellenőrzési bővítés:**
 
-- Nincs automatikus meghívólevél-küldés, e-mail-megerősítés vagy elfelejtettjelszó-folyamat.
-- A regisztráció jelenleg nyitott; a tesztszerver külső hozzáférésének korlátozását az üzemeltetési leírás tárgyalja.
-- Nincs teljes előfizetés-, számlázás-, üzemanyag- vagy összesített flottaköltség-modul. A szerződésdíjak és szervizköltségek már rögzíthetők.
-- A járműlista keresése/szűrése jelenleg kliensoldali; nagy flottához szerveroldali keresés és lapozás további feladat.
-- A mentések eredménye systemd-naplóból ellenőrizhető; külső automatikus e-mailes/riasztási integráció nincs.
-- A 3D modellek karosszériatípust és színt szemléltetnek. Márka-/modellhű 3D katalógus nem készült.
+- [ ] A frontend lint lépés felvétele a CI-ba, hogy a jelenlegi helyi ellenőrzés automatikusan is lefusson.
+- [ ] A moduloknál felsorolt új funkciókhoz célzott jogosultsági, telephelyi és felületi tesztek készítése a megvalósításukkal együtt.
 
 ## 10. Hol találhatók a legfontosabb megvalósítások?
 
@@ -317,7 +384,9 @@ A [CI-konfiguráció](.github/workflows/ci.yml) hat feladatot tartalmaz: `fronte
 | Adatlapok és dokumentumelőnézet | `frontend/src/VehiclePage.tsx`, `UserProfilePage.tsx`, `CompaniesPage.tsx`, `DocumentPreview.tsx`, `PdfPreview.tsx` |
 | Dashboard és 3D | `frontend/src/DashboardPage.tsx`, `VehicleStudio.tsx`, `vehicleModels.ts`, `vehicleSceneModel.ts`, `vehicleHotspots.ts` |
 | Modell-előkészítés és licencek | `scripts/prepare-khronos-car.mjs`, `scripts/prepare-vehicle-bodies.mjs`, `frontend/public/models/`, `frontend/THIRD_PARTY_NOTICES.md` |
-| Telepítés és visszaállítás | `deploy/debian13/hermes.sh`, `compose.yaml`, `compose.restore.yaml`, `systemd/`, `tests/roundtrip.sh` |
-| Helyi rendszervezérlő | `desktop/src/Hermes.ControlCenter/`, `desktop/src/Hermes.ControlCenter.Core/` |
+| Asztali ablak és Windows-folyamatok | `desktop/src/Hermes.ControlCenter/MainWindow.xaml`, `MainWindow.xaml.cs`, `WindowsProcessInspector.cs` |
+| Asztali szolgáltatásvezérlés és megfigyelés | `desktop/src/Hermes.ControlCenter.Core/ServiceController.cs`, `Processes.cs`, `HealthMonitor.cs` |
+| Asztali verziók, naplók és beállítások | `desktop/src/Hermes.ControlCenter.Core/GitVersionService.cs`, `EventJournal.cs`, `ControlCenterSettings.cs`, `CommandRunner.cs` |
+| Asztali csomagolás és tesztek | `scripts/start-control-center.ps1`, `desktop/tests/Hermes.ControlCenter.Tests/`, `desktop/settings.example.json` |
 
-A részletes végpontlistákat és indítási útmutatókat a [projekt README](README.md), a [backend](backend/README.md), a [frontend](frontend/README.md), a [Debian-telepítés](deploy/debian13/README.md) és a [Windows rendszervezérlő](desktop/README.md) leírása tartalmazza.
+A részletes végpontlistákat és indítási útmutatókat a [projekt README](README.md), a [backend](backend/README.md), a [frontend](frontend/README.md) és a [Windows rendszervezérlő](desktop/README.md) leírása tartalmazza.
