@@ -4,7 +4,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
-import { resetCsrfToken } from './api'
+import { api, resetCsrfToken } from './api'
 
 function mountApp({
   permissions = ['vehicles.read', 'vehicles.create'],
@@ -56,6 +56,15 @@ function mountApp({
       if (/\/(members|people|invitations)(\?|$)/.test(path)) return json({ items: [], total: 0, page: 1, pageSize: 25 })
       if (path.endsWith('/vehicles/create-options')) return json({ canCreateUnassigned, sites: [{ id: 'site-a', name: 'Budapest', code: 'BP' }] })
       if (path.endsWith('/vehicles/site-options')) return json([{ id: 'site-a', name: 'Budapest', code: 'BP' }])
+      if (path.startsWith('/api/v1/vehicles/search?')) {
+        if (expire) { session = null; return json({}, 401) }
+        const tenantId = new Headers(options.headers).get('X-Tenant-Id')
+        const query = new URL(path, 'http://localhost').searchParams
+        const all = tenantId === 'new-company' ? [] : [{ id: 'vehicle', registration: tenantId === 'duna' ? 'DUN-001' : 'PAN-002', make: 'Ford', model: 'Focus', status: 'Active' }]
+        const items = all.filter(car => (query.get('siteId') ?? 'all') === 'all' && (query.get('status') === 'all' || query.get('status') === car.status)
+          && `${car.registration} ${car.make} ${car.model}`.toLowerCase().includes((query.get('search') ?? '').toLowerCase()))
+        return json({ items, total: items.length, availableTotal: all.length, page: 1, pageSize: Number(query.get('pageSize') ?? 25) })
+      }
       if (path.includes('/vehicles')) {
         if (options.method === 'POST') return json({ id: 'created', ...JSON.parse(String(options.body)) }, 201)
         if (expire) {
@@ -162,6 +171,64 @@ it('puts fleet search, filtering and creation in the same toolbar without duplic
   expect(screen.queryByRole('button', { name: /Jármű szerkesztése:/ })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Járműlista frissítése' })).not.toBeInTheDocument()
   expect(screen.queryByText('Céges hozzáférés')).not.toBeInTheDocument()
+})
+
+it('pages the server results and resets page on filters, page size and workspace changes', async () => {
+  const rows = Array.from({ length: 26 }, (_, i) => ({ id: `car-${i}`, registration: `SERVER-${String(i + 1).padStart(3, '0')}`, make: 'Ford', model: 'Focus', status: 'Active' }))
+  const search = vi.spyOn(api, 'searchVehicles').mockImplementation(async (_tenant, query) => ({
+    items: rows.slice((query.page - 1) * query.pageSize, query.page * query.pageSize),
+    total: rows.length, availableTotal: rows.length, page: query.page, pageSize: query.pageSize,
+  }))
+  mountApp()
+  await screen.findByText('SERVER-001')
+  expect(screen.getByText('26 jármű')).toBeInTheDocument()
+  expect(screen.queryByText('SERVER-026')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Következő oldal' }))
+  await screen.findByText('SERVER-026')
+  expect(screen.queryByText('SERVER-001')).not.toBeInTheDocument()
+  expect(screen.getByText('2 / 2. oldal')).toBeInTheDocument()
+  await chooseOption(screen.getByRole('combobox', { name: 'Szűrés állapot szerint' }), 'Maintenance')
+  await waitFor(() => expect(search).toHaveBeenLastCalledWith('duna', expect.objectContaining({ page: 1, status: 'Maintenance' }), expect.any(AbortSignal)))
+  await chooseOption(screen.getByRole('combobox', { name: 'Járművek száma oldalanként' }), '50')
+  await waitFor(() => expect(search).toHaveBeenLastCalledWith('duna', expect.objectContaining({ page: 1, pageSize: 50 }), expect.any(AbortSignal)))
+  await userEvent.click(screen.getByRole('button', { name: /Munkaterület váltása:/ }))
+  await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület telephelye' }), 'site-a')
+  await waitFor(() => expect(search).toHaveBeenLastCalledWith('duna', expect.objectContaining({ page: 1, siteId: 'site-a' }), expect.any(AbortSignal)))
+  await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület' }), 'pannon')
+  await waitFor(() => expect(search).toHaveBeenLastCalledWith('pannon', expect.objectContaining({ page: 1, search: '', status: 'all', siteId: 'all' }), expect.any(AbortSignal)))
+})
+
+it('debounces search and trusts historical plate matches from the server without filtering the page again', async () => {
+  const search = vi.spyOn(api, 'searchVehicles').mockImplementation(async (_tenant, query) => ({
+    items: [{ id: 'server-match', registration: 'CURRENT-001', make: 'Ford', model: 'Focus', status: 'Active' }],
+    total: 1, availableTotal: 80, page: query.page, pageSize: query.pageSize,
+  }))
+  mountApp()
+  await screen.findByText('CURRENT-001')
+  await userEvent.click(screen.getByRole('button', { name: 'Következő oldal' }))
+  // The server's total controls the page button, not the number of rendered rows.
+  expect(screen.getByRole('button', { name: 'Következő oldal' })).toBeDisabled()
+  await userEvent.type(screen.getByRole('textbox', { name: 'Jármű keresése' }), 'OLD-456')
+  await waitFor(() => expect(search).toHaveBeenLastCalledWith('duna', expect.objectContaining({ search: 'OLD-456', page: 1 }), expect.any(AbortSignal)))
+  expect(screen.getByText('CURRENT-001')).toBeInTheDocument()
+  expect(screen.getByText('1 / 80 jármű')).toBeInTheDocument()
+  expect(search.mock.calls.filter(([, query]) => query.search.length > 0)).toHaveLength(1)
+})
+
+it('cancels stale company searches and never replaces a newer workspace with their late response', async () => {
+  let finishOld!: (value: Awaited<ReturnType<typeof api.searchVehicles>>) => void
+  const search = vi.spyOn(api, 'searchVehicles').mockImplementation((tenant, query) => tenant === 'duna'
+    ? new Promise(resolve => { finishOld = resolve })
+    : Promise.resolve({ items: [{ id: 'pannon-car', registration: 'NEW-SCOPE', make: 'Ford', model: 'Focus', status: 'Active' }], total: 1, availableTotal: 1, page: 1, pageSize: query.pageSize }))
+  mountApp()
+  await screen.findByText('Járművek betöltése…')
+  await userEvent.click(screen.getByRole('button', { name: /Munkaterület váltása:/ }))
+  await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület' }), 'pannon')
+  await screen.findByText('NEW-SCOPE')
+  expect(search.mock.calls[0][2]?.aborted).toBe(true)
+  finishOld({ items: [{ id: 'old', registration: 'OLD-SCOPE', make: 'Ford', model: 'Focus', status: 'Active' }], total: 1, availableTotal: 1, page: 1, pageSize: 25 })
+  await waitFor(() => expect(screen.queryByText('OLD-SCOPE')).not.toBeInTheDocument())
+  expect(screen.getByText('NEW-SCOPE')).toBeInTheDocument()
 })
 
 it('opens users, invitations and groups as independent pages with distinct URLs', async () => {

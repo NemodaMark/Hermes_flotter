@@ -161,6 +161,15 @@ function FleetWorkspace({
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   const canManageSystem = user.systemPermissions?.includes('system.manage') ?? false
   const [search, setSearch] = useState('')
+  const [vehicleQuery, setVehicleQuery] = useState({ search: '', page: 1 })
+  const [pageSize, setPageSize] = useState(25)
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const committed = search.trim()
+      setVehicleQuery(current => current.search === committed ? current : { search: committed, page: 1 })
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [search])
   const [status, setStatus] = useState('all')
   const [siteId, setSiteId] = useState('all')
   const [formOpen, setFormOpen] = useState(false)
@@ -174,12 +183,6 @@ function FleetWorkspace({
   })
   const tenant: Tenant | undefined =
     tenants.data?.find((item) => item.id === tenantId) ?? tenants.data?.[0]
-  const vehicles = useQuery({
-    queryKey: vehicleKey(user.id, tenant?.id),
-    queryFn: ({ signal }) => api.vehicles(tenant!.id, signal),
-    enabled: view === 'fleet' && !!tenant?.permissions.includes('vehicles.read'),
-    retry: false,
-  })
   const canReadVehicles = !!tenant?.permissions.includes('vehicles.read')
   const canReadUnassigned = tenant?.permissionScopes?.find(scope => scope.code === 'vehicles.read')?.allSites ?? true
   const workspaceSites = useQuery({
@@ -190,6 +193,13 @@ function FleetWorkspace({
   const currentSiteId = !canReadVehicles || (siteId === 'none' && !canReadUnassigned) ||
     (workspaceSites.isSuccess && !workspaceSites.data.some(site => site.id === siteId) && siteId !== 'none') ? 'all' : siteId
   const currentSiteName = currentSiteId === 'none' ? 'Telephely nélkül' : workspaceSites.data?.find(site => site.id === currentSiteId)?.name ?? 'Összes telephely'
+  const listQuery = { ...vehicleQuery, pageSize, status, siteId: currentSiteId }
+  const vehicles = useQuery({
+    queryKey: [...vehicleKey(user.id, tenant?.id), listQuery, tenant?.permissions, tenant?.permissionScopes],
+    queryFn: ({ signal }) => api.searchVehicles(tenant!.id, listQuery, signal),
+    enabled: view === 'fleet' && canReadVehicles,
+    retry: false,
+  })
   const ownProfile = useQuery({
     queryKey: ['person-profile', user.id, 'sidebar'],
     queryFn: ({ signal }) => peopleApi.profile(user.id, undefined, signal), retry: false,
@@ -206,15 +216,11 @@ function FleetWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['companies', user.id] })
     },
   })
-  const allVehicles = vehicles.data ?? []
-  const visibleVehicles = allVehicles.filter(
-    (vehicle) =>
-      `${vehicle.registration} ${vehicle.make} ${vehicle.model} ${(vehicle.previousRegistrations ?? []).join(' ')}`
-        .toLocaleLowerCase('hu')
-        .includes(search.toLocaleLowerCase('hu')) &&
-      (status === 'all' || vehicle.status === status) &&
-      (currentSiteId === 'all' || (currentSiteId === 'none' ? !vehicle.siteId : vehicle.siteId === currentSiteId)),
-  )
+  const visibleVehicles = vehicles.data?.items ?? []
+  const vehicleTotal = vehicles.data?.total ?? 0
+  const availableTotal = vehicles.data?.availableTotal ?? 0
+  const vehiclePage = vehicles.data?.page ?? vehicleQuery.page
+  const vehiclePages = Math.max(1, Math.ceil(vehicleTotal / pageSize))
   const canCreate = tenant?.permissions.includes('vehicles.create') ?? false
   const canManageMembers = canManageSystem || !!tenant
   const canInvite = tenant?.permissions.includes('members.invite') ?? false
@@ -235,6 +241,7 @@ function FleetWorkspace({
     if (view === 'profile') changeView('members')
     setSelectedVehicleId(null)
     setSearch('')
+    setVehicleQuery({ search: '', page: 1 })
     setStatus('all')
     setSiteId('all')
     setFormOpen(false)
@@ -270,7 +277,7 @@ function FleetWorkspace({
             </label>
             {canReadVehicles && <label><span>Telephely</span>
               <Select aria-label="Munkaterület telephelye" value={currentSiteId} disabled={workspaceSites.isPending}
-                onChange={event => { setSiteId(event.target.value); setSelectedVehicleId(null); setFormOpen(false) }}>
+                onChange={event => { setSiteId(event.target.value); setVehicleQuery(current => ({ ...current, page: 1 })); setSelectedVehicleId(null); setFormOpen(false) }}>
                 <option value="all">Összes telephely</option>
                 {canReadUnassigned && <option value="none">Telephely nélkül</option>}
                 {workspaceSites.data?.map(site => <option key={site.id} value={site.id}>{site.name} ({site.code})</option>)}
@@ -408,7 +415,7 @@ function FleetWorkspace({
           ) : view === 'members' || view === 'invitations' ? (
             <MembersPage key={`${tenant.id}:${view}`} user={user} tenant={tenant} onProfile={openProfile} mode={view} />
           ) : view === 'dashboard' ? (
-            <DashboardPage key={tenant.id} user={user} tenant={tenant} siteId={currentSiteId} onFleet={nextStatus => { changeView('fleet'); setSelectedVehicleId(null); setStatus(nextStatus ?? 'all') }} onVehicle={id => { changeView('fleet'); setSelectedVehicleId(id) }} />
+            <DashboardPage key={tenant.id} user={user} tenant={tenant} siteId={currentSiteId} onFleet={nextStatus => { changeView('fleet'); setSelectedVehicleId(null); setStatus(nextStatus ?? 'all'); setVehicleQuery(current => ({ ...current, page: 1 })) }} onVehicle={id => { changeView('fleet'); setSelectedVehicleId(id) }} />
           ) : view === 'partners' ? (
             <PartnersPage key={tenant.id} tenant={tenant} />
           ) : formOpen ? (
@@ -418,11 +425,11 @@ function FleetWorkspace({
           ) : selectedVehicleId ? (
             <VehiclePage key={`${tenant.id}:${selectedVehicleId}`} user={user} tenant={tenant} id={selectedVehicleId} onBack={() => setSelectedVehicleId(null)} />
           ) : (
-            <section className="fleet-panel" aria-label="Járműlista">
+            <section className="fleet-panel" aria-label="Járműlista" aria-busy={vehicles.isFetching}>
               <ListToolbar label="Járművek keresése és műveletei" actions={canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>}>
                 <div className="list-toolbar-form">
-                  <div className="search-field"><Search size={18} /><input aria-label="Jármű keresése" placeholder="Rendszám, gyártó vagy modell" value={search} onChange={event => setSearch(event.target.value)} /></div>
-                  <Select aria-label="Szűrés állapot szerint" className="status-filter" value={status} onChange={event => setStatus(event.target.value)}><option value="all">Minden állapot</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
+                  <div className="search-field"><Search size={18} /><input aria-label="Jármű keresése" placeholder="Rendszám, gyártó vagy modell" maxLength={200} value={search} onChange={event => setSearch(event.target.value)} /></div>
+                  <Select aria-label="Szűrés állapot szerint" className="status-filter" value={status} onChange={event => { setStatus(event.target.value); setVehicleQuery(current => ({ ...current, page: 1 })) }}><option value="all">Minden állapot</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
                 </div>
               </ListToolbar>
               {vehicles.isError ? (
@@ -438,9 +445,19 @@ function FleetWorkspace({
                 </div>
               ) : (
                 <FleetTable vehicles={visibleVehicles} tenant={tenant!} onOpen={setSelectedVehicleId}
-                  message={vehicles.isPending ? 'Járművek betöltése…' : allVehicles.length ? undefined : 'Még nincs jármű. Az Új jármű gombbal veheted fel az elsőt.'} />
+                  message={vehicles.isPending ? 'Járművek betöltése…' : availableTotal ? undefined : 'Még nincs jármű. Az Új jármű gombbal veheted fel az elsőt.'} />
               )}
-              <div className="table-footer"><span aria-live="polite">{visibleVehicles.length}{visibleVehicles.length !== allVehicles.length ? ` / ${allVehicles.length}` : ''} jármű</span></div>
+              <div className="table-footer fleet-pagination">
+                <span aria-live="polite">{vehicles.isPending ? 'Betöltés…' : vehicles.isError ? 'A találatszám nem elérhető' : `${vehicleTotal}${vehicleTotal !== availableTotal ? ` / ${availableTotal}` : ''} jármű`}</span>
+                <div className="fleet-page-controls" role="group" aria-label="Járműlista lapozása">
+                  <Select aria-label="Járművek száma oldalanként" value={String(pageSize)} onChange={event => { setPageSize(Number(event.target.value)); setVehicleQuery(current => ({ ...current, page: 1 })) }}>
+                    {[25, 50, 100].map(size => <option key={size} value={size}>{size} / oldal</option>)}
+                  </Select>
+                  <span aria-live="polite">{vehicles.data ? `${vehiclePage} / ${vehiclePages}. oldal` : '—'}</span>
+                  <Button className="secondary-button" disabled={vehicles.isFetching || vehicles.isError || vehiclePage <= 1} onClick={() => setVehicleQuery(current => ({ ...current, page: vehiclePage - 1 }))}>Előző oldal</Button>
+                  <Button className="secondary-button" disabled={vehicles.isFetching || vehicles.isError || vehiclePage >= vehiclePages} onClick={() => setVehicleQuery(current => ({ ...current, page: vehiclePage + 1 }))}>Következő oldal</Button>
+                </div>
+              </div>
             </section>
           )}
         </div>

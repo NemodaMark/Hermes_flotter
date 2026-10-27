@@ -13,7 +13,7 @@ Több céget kiszolgáló flottakezelő SaaS: React + TypeScript frontend, ASP.N
 - Bejelentkezés, kijelentkezés és oldalfrissítést túlélő, sütialapú munkamenet.
 - Első cég létrehozása a belépés után, majd további cégek létrehozása és cégváltás.
 - Az új cég és a létrehozó induló jogosultságai egy tranzakcióban készülnek el.
-- Cégenként elkülönített járműlista, keresés, állapotszűrés és járműfelvétel.
+- Cégenként elkülönített járműlista, szerveroldali keresés, állapot- és telephelyszűrés, lapozás és járműfelvétel. [Lekérdezési API](docs/VEHICLE_SEARCH.md).
 - Cégenként kiosztható egyedi műveleti jogok és szerkeszthető jogosultságcsoportok.
 - Céges felhasználólista, meghívások, hozzáférések felfüggesztése és jogosultsági eseménynapló az API-ban.
 - Egyszerű Felhasználók oldal céges meghívással, jogkiosztással, felfüggesztéssel/visszaállítással és meghívóelfogadással.

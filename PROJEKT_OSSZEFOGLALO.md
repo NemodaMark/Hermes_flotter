@@ -1,7 +1,7 @@
 # HERMES – projektösszefoglaló és fejlesztési teendők
 
 **Összeállítva:** 2026. október 27.  
-**Az összefoglalt funkcionális állapot:** 2026. október 27., e-mailes fiókfolyamatokkal és meghívóküldéssel kiegészítve.
+**Az összefoglalt funkcionális állapot:** 2026. október 27., e-mailes fiókfolyamatokkal, meghívóküldéssel és szerveroldali járműkereséssel kiegészítve.
 **Cél:** az eddig elkészült webes és asztali funkciók, technológiák, működési szabályok és a hozzájuk tartozó teendők áttekintése fejlesztéshez, bemutatáshoz és műszaki átadáshoz.
 
 Az egyes részek végén a **TODO** listák jelölik a még nyitott fejlesztéseket. A már működő funkciók leírása ettől külön szerepel; az opcionális bővítéseket és új javaslatokat külön megjelöljük. A teendők nem jelentenek már megvalósított funkciót vagy vállalt határidőt.
@@ -141,7 +141,7 @@ A **Használati előzmények** megmutatja, kinél volt a jármű, mettől meddig
 
 **TODO – nagyobb flották kezelése:**
 
-- [ ] Szerveroldali járműkeresés, szűrés és lapozás. A járműlista keresése és szűrése jelenleg kliensoldali.
+- [x] Szerveroldali járműkeresés, állapot- és telephelyszűrés, valamint lapozás. A keresés az aktuális és korábbi rendszámot, gyártót és modellt is kezeli. A felületen 25/50/100-as oldalméret választható, a találatszámok is a saját olvasási körre korlátozottak. [API és működés](docs/VEHICLE_SEARCH.md).
 
 ### 4.5. Partnerek, lízing és szerviz
 
@@ -346,7 +346,7 @@ A jelszavak a Gitből kizárt `.local/demo-data/bejelentkezesek.json` fájlban v
 
 A tesztek kiterjednek többek között a cégek elkülönítésére, közvetlen és csoportos jogokra, telephelykorlátokra, delegálásra, verzióütközésekre, előzményekre, dokumentumokra, képekre és a felületi folyamatokra. A 3D tesztek a csomagolt modellek geometriáját, színezését, modellváltását és a pontok takarását is vizsgálják.
 
-**Legutóbbi ellenőrzés:** 2026. október 27-én 188 sikeres backendteszt (Debug, külön ideiglenes PostgreSQL-példánnyal), 170 sikeres frontendteszt, valamint sikeres frontendbuild és lint. A helyi frontendtesztek `threads` poollal futottak. Külső SMTP-szerveres kézbesítés és az új fiókoldalak böngészős vizuális ellenőrzése még nem történt; a böngészőautomatizálás indulási hibába ütközött. Az asztali részeket ez a kör nem módosította és nem tesztelte újra.
+**Legutóbbi ellenőrzés:** 2026. október 27-én 205 sikeres backendteszt (Debug, külön ideiglenes PostgreSQL-példánnyal), 174 sikeres frontendteszt, valamint sikeres frontendbuild és lint. A helyi frontendtesztek `threads` poollal futottak. A lapozott járműlista asztali, tablet- és mobilnézetét, billentyűzetes szűrését, betöltési, üres és hibaállapotát böngészőben is ellenőriztük. A hibapróba utáni teszt-API-újraindítást az automatikus jóváhagyási ellenőrzés blokkolta, ezért az újrapróbálás utáni helyreállás nem ellenőrzött. Külső SMTP-kézbesítés és az új fiókoldalak külön böngészős próbája továbbra is nyitott. Az asztali részeket ez a kör nem módosította és nem tesztelte újra.
 
 Fő ellenőrző parancsok a projekt gyökeréből:
 
@@ -379,6 +379,7 @@ A [CI-konfiguráció](.github/workflows/ci.yml) az itt tárgyalt részekhez `fro
 |---|---|
 | API-indítás, hitelesítés, tenant és CSRF | `backend/src/Hermes.Api/Program.cs`, `TenantResolutionMiddleware.cs`, `CsrfProtectionMiddleware.cs`, `AccountSecurity.cs` |
 | Fióklevelek és SMTP | `backend/src/Hermes.Api/AccountRecovery.cs`, `EmailDelivery.cs`, `frontend/src/AccountRecoveryScreen.tsx`, `docs/EMAIL.md` |
+| Lapozott járműkeresés | `backend/src/Hermes.Application/Contracts.cs`, `backend/src/Hermes.Infrastructure/Stores.cs`, `frontend/src/App.tsx`, `docs/VEHICLE_SEARCH.md` |
 | Jogkatalógus és hozzáférési szabályok | `backend/src/Hermes.Domain/Permissions.cs`, `backend/src/Hermes.Infrastructure/AccessRules.cs`, `VehicleAccess.cs`, `GroupManagement.cs` |
 | Cégek, telephelyek, munkatársak | `OrganizationManagement.cs`, `MemberManagement.cs`, `PeopleManagement.cs` az Infrastructure projektben |
 | Járművek, partnerek, szerződések | `FleetManagement.cs`, `PartnerManagement.cs`, `VehicleContractsManagement.cs` az Infrastructure projektben |

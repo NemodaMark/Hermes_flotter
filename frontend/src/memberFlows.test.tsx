@@ -174,6 +174,7 @@ function mount({
         return new Response(null, { status: 204 })
       }
       if (url.pathname === '/api/v1/vehicles') return json([])
+      if (url.pathname === '/api/v1/vehicles/search') return json({ items: [], total: 0, availableTotal: 0, page: 1, pageSize: 25 })
       if (url.pathname === '/api/v1/members/elek') return json(members[0])
       if (url.pathname.startsWith('/api/v1/people/')) {
         const target = url.pathname.endsWith('/elek') ? members[0] : user

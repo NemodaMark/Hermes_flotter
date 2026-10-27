@@ -37,6 +37,9 @@ public sealed record VehicleCreationOptions(bool CanCreateUnassigned, VehicleSit
 }
 public sealed record UpdateVehicleRequest(string Registration, string Make, string Model, long Version);
 public sealed record RecordOdometerRequest(long? Kilometers, long Version);
+public sealed record VehicleListQuery(int Page = 1, int PageSize = 25, string? Search = null,
+    string Status = "all", string SiteId = "all");
+public sealed record VehicleListPage(VehicleSummary[] Items, int Total, int AvailableTotal, int Page, int PageSize);
 
 public interface ITenantDirectory
 {
@@ -50,6 +53,7 @@ public interface IVehicleStore
     Task<VehicleSiteOption[]> ReadSiteOptionsAsync(CancellationToken ct);
     Task<VehicleCreationOptions> CreationOptionsAsync(CancellationToken ct);
     Task<IReadOnlyList<VehicleSummary>> ListAsync(CancellationToken cancellationToken);
+    Task<VehicleListPage> SearchAsync(VehicleListQuery query, CancellationToken cancellationToken);
     Task<VehicleSummary?> GetAsync(Guid id, CancellationToken cancellationToken);
     Task<VehicleSummary> CreateAsync(CreateVehicleRequest request, CancellationToken cancellationToken);
     Task<VehicleSummary> UpdateAsync(Guid id, UpdateVehicleRequest request, CancellationToken ct);

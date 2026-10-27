@@ -6,6 +6,21 @@ afterEach(resetCsrfToken)
 const user = { id: 'user-a', displayName: 'Teszt Elek', email: 'elek@example.test' }
 
 describe('authenticated API requests', () => {
+  it('encodes vehicle search and pagination and forwards the tenant and cancellation signal', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [], total: 0, availableTotal: 3, page: 1, pageSize: 25 })))
+    vi.stubGlobal('fetch', fetch)
+    const controller = new AbortController()
+    await api.searchVehicles('company-a', { page: 2, pageSize: 50, search: 'Árvíz & 100%_', status: 'Maintenance', siteId: 'none' }, controller.signal)
+    const [path, options] = fetch.mock.calls[0]
+    const query = new URL(String(path), 'http://localhost').searchParams
+    expect(query.get('search')).toBe('Árvíz & 100%_')
+    expect(query.get('page')).toBe('2')
+    expect(query.get('pageSize')).toBe('50')
+    expect(query.get('status')).toBe('Maintenance')
+    expect(query.get('siteId')).toBe('none')
+    expect(new Headers(options.headers).get('X-Tenant-Id')).toBe('company-a')
+    expect(options.signal).toBe(controller.signal)
+  })
   it('keeps multipart boundaries browser-owned and sends company, cookie and CSRF protection', async () => {
     const fetch = vi.fn(async (path: string) => path.endsWith('/csrf') ? new Response('{"requestToken":"csrf"}') : new Response('{}'))
     vi.stubGlobal('fetch', fetch)

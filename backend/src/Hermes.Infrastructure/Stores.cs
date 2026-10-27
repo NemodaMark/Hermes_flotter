@@ -95,17 +95,68 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
             ? await Summary(vehicle, access, ct) : null, ct);
     public Task<IReadOnlyList<VehicleSummary>> ListAsync(CancellationToken ct) => Authorized<IReadOnlyList<VehicleSummary>>(Permissions.VehiclesRead, async access =>
     {
-        var rows = await (from v in VehicleAccess.Query(db, access, Permissions.VehiclesRead).AsNoTracking()
+        return await Summaries(VehicleAccess.Query(db, access, Permissions.VehiclesRead), access, ct);
+    }, ct);
+
+    public Task<VehicleListPage> SearchAsync(VehicleListQuery options, CancellationToken ct) => Authorized(Permissions.VehiclesRead, async access =>
+    {
+        if (options.Page < 1 || options.PageSize is < 1 or > 100)
+            throw UserAccounts.Error(400, "invalid_pagination", "Az oldalszám legalább 1, az oldalméret 1–100 közötti egész szám legyen.");
+        var search = options.Search?.Trim() ?? "";
+        if (search.Length > 200)
+            throw UserAccounts.Error(400, "invalid_search", "A keresés legfeljebb 200 karakter lehet.");
+        VehicleStatus? status = null;
+        if (options.Status != "all")
+        {
+            if (!Enum.TryParse<VehicleStatus>(options.Status, out var parsed) || !Enum.IsDefined(parsed) || parsed.ToString() != options.Status)
+                throw UserAccounts.Error(400, "invalid_status", "Válassz érvényes járműállapotot.");
+            status = parsed;
+        }
+        Guid? site = null;
+        if (options.SiteId is not ("all" or "none") && (!Guid.TryParse(options.SiteId, out var parsedSite) || parsedSite == Guid.Empty))
+            throw UserAccounts.Error(400, "invalid_site", "Érvénytelen telephelyszűrő.");
+        if (Guid.TryParse(options.SiteId, out var selectedSite)) site = selectedSite;
+
+        // Apply authorization before both counts, search, site filtering and paging.
+        // Other operation rights never widen the read scope.
+        var query = VehicleAccess.Query(db, access, Permissions.VehiclesRead).AsNoTracking();
+        var availableTotal = await query.CountAsync(ct);
+        if (status is { } vehicleStatus) query = query.Where(v => v.Status == vehicleStatus);
+        if (options.SiteId == "none")
+            query = query.Where(v => !db.VehicleSiteAssignments.Any(a => a.VehicleId == v.Id && a.TenantId == v.TenantId));
+        else if (site is { } siteId)
+            query = query.Where(v => db.VehicleSiteAssignments.Any(a => a.VehicleId == v.Id && a.TenantId == v.TenantId && a.SiteId == siteId));
+        if (search.Length > 0)
+        {
+            // Treat SQL pattern characters as literal text. Built-in UTF-8 collation
+            // keeps accented case matching consistent even in a C-locale database.
+            var pattern = "%" + search.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+            query = query.Where(v => EF.Functions.ILike(EF.Functions.Collate(v.Registration + " " + v.Make + " " + v.Model, "pg_c_utf8"), pattern, "\\")
+                || db.VehicleRegistrations.Any(r => r.VehicleId == v.Id && r.TenantId == v.TenantId
+                    && EF.Functions.ILike(EF.Functions.Collate(r.Registration, "pg_c_utf8"), pattern, "\\")));
+        }
+        var total = await query.CountAsync(ct);
+        // Return the last existing page when a deletion/reassignment shrinks the list.
+        // Clamping before multiplication also prevents an overflowing SQL offset.
+        var page = Math.Min(options.Page, total == 0 ? 1 : (total - 1) / options.PageSize + 1);
+        var pageQuery = query.OrderBy(v => v.Registration).ThenBy(v => v.Id)
+            .Skip((page - 1) * options.PageSize).Take(options.PageSize);
+        return new VehicleListPage(await Summaries(pageQuery, access, ct), total, availableTotal, page, options.PageSize);
+    }, ct);
+
+    private async Task<VehicleSummary[]> Summaries(IQueryable<Vehicle> query, ResourceAccess access, CancellationToken ct)
+    {
+        var rows = await (from v in query
             join a in db.VehicleSiteAssignments on v.Id equals a.VehicleId into assignments from a in assignments.DefaultIfEmpty()
             join s in db.Sites on a.SiteId equals s.Id into sites from s in sites.DefaultIfEmpty()
-            orderby v.Registration select new { Vehicle = v, SiteId = (Guid?)a.SiteId, SiteName = s.Name }).ToArrayAsync(ct);
+            orderby v.Registration, v.Id select new { Vehicle = v, SiteId = (Guid?)a.SiteId, SiteName = s.Name }).ToArrayAsync(ct);
         var ids = rows.Select(x => x.Vehicle.Id).ToArray();
         var registrations = await db.VehicleRegistrations.AsNoTracking().Where(x => ids.Contains(x.VehicleId))
             .Select(x => new { x.VehicleId, x.Registration }).Distinct().ToArrayAsync(ct);
         var previous = registrations.ToLookup(x => x.VehicleId, x => x.Registration);
         return rows.Select(x => Summary(x.Vehicle, access, x.SiteId, x.SiteName) with
             { PreviousRegistrations = previous[x.Vehicle.Id].Where(p => p != x.Vehicle.Registration).ToArray() }).ToArray();
-    }, ct);
+    }
     private Task<T> Authorized<T>(string permission, Func<ResourceAccess, Task<T>> action, CancellationToken ct) => TenantTransaction.RunAsync(db, TenantId, async () =>
     {
         await UserAccounts.LockSystemAccess(db, ct, shared: true);

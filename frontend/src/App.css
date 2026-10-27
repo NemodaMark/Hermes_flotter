@@ -367,6 +367,15 @@ tbody tr:hover {
   font-size: 11px;
   color: var(--muted);
 }
+.fleet-pagination { align-items: center; flex-wrap: wrap; gap: 12px; }
+.fleet-page-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.fleet-page-controls > span { white-space: nowrap; }
+.fleet-page-controls .choice { width: 130px; }
+@media (max-width: 700px) {
+  .fleet-page-controls { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fleet-page-controls .choice { width: 100%; }
+  .fleet-page-controls > span { text-align: right; }
+}
 .empty-state {
   padding: 63px 24px;
   text-align: center;

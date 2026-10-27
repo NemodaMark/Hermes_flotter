@@ -215,6 +215,8 @@ vehicles.MapGet("/create-options", async (IVehicleStore store, CancellationToken
     => Results.Ok(await store.CreationOptionsAsync(ct))).RequireAuthorization(Permissions.VehiclesCreate);
 vehicles.MapGet("/", async (IVehicleStore store, CancellationToken cancellationToken)
     => Results.Ok(await store.ListAsync(cancellationToken))).RequireAuthorization(Permissions.VehiclesRead);
+vehicles.MapGet("/search", async ([AsParameters] VehicleListQuery query, IVehicleStore store, CancellationToken ct)
+    => Results.Ok(await store.SearchAsync(query, ct))).RequireAuthorization(Permissions.VehiclesRead);
 vehicles.MapGet("/{id:guid}", async (Guid id, IVehicleStore store, CancellationToken cancellationToken)
     => await store.GetAsync(id, cancellationToken) is { } vehicle ? Results.Ok(vehicle) : Results.NotFound()).RequireAuthorization(Permissions.VehiclesRead);
 vehicles.MapPost("/", async (CreateVehicleRequest request, IVehicleStore store, CancellationToken cancellationToken) =>

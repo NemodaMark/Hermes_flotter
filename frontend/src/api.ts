@@ -111,6 +111,8 @@ export type Page<T> = {
   page: number
   pageSize: number
 }
+export type VehicleListQuery = { page: number; pageSize: number; search: string; status: string; siteId: string }
+export type VehicleListPage = Page<Vehicle> & { availableTotal: number }
 export type MemberAccess = {
   directPermissions?: string[]
   groups?: AssignedGroup[]
@@ -391,6 +393,11 @@ export const api = {
     request<MemberAccess>('/api/v1/invitations/accept', { body }),
   vehicles: (tenantId: string, signal?: AbortSignal) =>
     request<Vehicle[]>('/api/v1/vehicles', { tenantId, signal }),
+  searchVehicles: (tenantId: string, query: VehicleListQuery, signal?: AbortSignal) => {
+    const params = new URLSearchParams({ page: String(query.page), pageSize: String(query.pageSize),
+      search: query.search, status: query.status, siteId: query.siteId })
+    return request<VehicleListPage>(`/api/v1/vehicles/search?${params}`, { tenantId, signal })
+  },
   createVehicle: (tenantId: string, body: NewVehicle) =>
     request<Vehicle>('/api/v1/vehicles', { tenantId, body }),
   vehicleCreationOptions: (tenantId: string, signal?: AbortSignal) =>

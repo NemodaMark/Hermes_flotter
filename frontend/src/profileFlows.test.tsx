@@ -96,13 +96,13 @@ function mount({
             name,
           })),
         )
-      if (url.pathname === '/api/v1/vehicles') {
+      if (url.pathname === '/api/v1/vehicles' || url.pathname === '/api/v1/vehicles/search') {
         if (state.forceOnVehicle) {
           state.forceOnVehicle = false
           state.session.passwordChangeRequired = true
           return json({ code: 'password_change_required', title: 'Kötelező jelszócsere' }, 403)
         }
-        return json([])
+        return json(url.pathname.endsWith('/search') ? { items: [], total: 0, availableTotal: 0, page: 1, pageSize: 25 } : [])
       }
       if (url.pathname === '/api/v1/members')
         return json({
