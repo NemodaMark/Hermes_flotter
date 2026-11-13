@@ -1,0 +1,44 @@
+.vehicle-operation { display: grid; gap: 1rem; }
+.vehicle-operation-toolbar, .operation-appointment-detail, .vehicle-month-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+.vehicle-operation h3, .vehicle-operation h4 { margin: 0; }
+.vehicle-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .25rem;
+}
+.vehicle-calendar-weekday { text-align: center; font-size: .8rem; }
+.vehicle-calendar .vehicle-calendar-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .15rem;
+  min-height: 3.25rem;
+  min-width: 0;
+  padding: .25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  font-variant-numeric: tabular-nums;
+}
+.vehicle-calendar-day small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vehicle-calendar .vehicle-calendar-day.booked { background: var(--surface-subtle); font-weight: 600; box-shadow: inset 0 -2px currentColor; }
+.vehicle-calendar .vehicle-calendar-day:not(.booked):is(span) { color: var(--muted); }
+.vehicle-calendar .vehicle-calendar-day.selected { outline: 2px solid var(--primary); outline-offset: -2px; background: var(--primary-soft); }
+.operation-form { display: grid; gap: .85rem; padding-block: .85rem; border-top: 1px solid var(--line); }
+.operation-form > button { justify-self: start; }
+.vehicle-operation-list { list-style: none; margin: 0; padding: 0; }
+.vehicle-operation-list li { border-top: 1px solid var(--line); padding: .75rem 0; display: flex; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.vehicle-operation-list li > div:first-child { display: grid; align-content: start; gap: .25rem; min-width: 0; overflow-wrap: anywhere; }
+.operation-image { max-width: min(100%, 28rem); max-height: 24rem; object-fit: contain; }
+.operation-month-input { max-width: 100%; }
+.vehicle-appointment { border-bottom: 1px solid var(--line); }
+@media (max-width: 600px) {
+  .vehicle-calendar .vehicle-calendar-day { min-height: 2.6rem; }
+  .vehicle-calendar-day small { display: none; }
+}

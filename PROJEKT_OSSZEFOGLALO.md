@@ -1,5 +1,7 @@
 # HERMES – projektösszefoglaló és fejlesztési teendők
 
+**2026. november 13-i kiegészítés:** a foglalási naptár, az átadás-átvétel, a tankolás, a szervizemlékeztetők, a 3D stúdió és a TeamCity-telepítés a [részletes műszaki dokumentációban](docs/HERMES_MUSZAKI_DOKUMENTACIO.md) és a [telepítési útmutatóban](deploy/teamcity/README.md) szerepel.
+
 **Összeállítva:** 2026. október 27.  
 **Az összefoglalt funkcionális állapot:** 2026. október 27., e-mailes fiókfolyamatokkal, meghívóküldéssel, szerveroldali járműkereséssel és a webes felület egységesítésével kiegészítve.
 **Cél:** az eddig elkészült webes és asztali funkciók, technológiák, működési szabályok és a hozzájuk tartozó teendők áttekintése fejlesztéshez, bemutatáshoz és műszaki átadáshoz.
@@ -156,8 +158,9 @@ A **Használati előzmények** megmutatja, kinél volt a jármű, mettől meddig
 
 **TODO – szerviz és pénzügyi adatok:**
 
-- [ ] Önálló szerviztervezési munkafolyamat a már tárolt határidőkre és kilométerkeretekre építve.
-- [ ] Összesített flottaköltség-modul és üzemanyagköltségek kezelése. A lízingdíjak és szervizköltségek rögzítése már működik, a teljes költségkimutatás még nincs kész.
+- [x] Szervizidőpont rögzítése és dátum vagy kilométer alapján küldhető emlékeztető.
+- [x] Járművenkénti tankolási napló, nyugtafotó, havi elszámolás és CSV.
+- [ ] A lízing-, szerviz- és tankolási költségek céges szintű összesítése.
 - [ ] Opcionális SaaS-bővítés: előfizetés- és számlázáskezelés.
 
 ### 4.6. Dokumentumok, előnézet és képek

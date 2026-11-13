@@ -50,6 +50,7 @@ public sealed partial class HermesDbContext(DbContextOptions<HermesDbContext> op
         ConfigureVehicleManagement(modelBuilder);
         ConfigureDocuments(modelBuilder);
         ConfigurePeopleAndMedia(modelBuilder);
+        ConfigureFleetOperations(modelBuilder);
         modelBuilder.Entity<ApplicationUser>(entity =>
         {
             entity.ToTable("identity_users", table => table.HasCheckConstraint("CK_identity_users_username_key", UserNames.KeyConstraint));

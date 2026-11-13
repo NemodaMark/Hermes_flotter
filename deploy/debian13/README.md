@@ -1,5 +1,7 @@
 # HERMES tesztszerver – Debian 13
 
+A 2026. november 13-án bevezetett egyszeri telepítő és TeamCity-frissítés lépései az [új telepítési útmutatóban](../teamcity/README.md) találhatók. Az alábbi parancsok a kézi üzemeltetéshez és helyreállításhoz tartoznak.
+
 Önálló, egy szerverre szánt telepítés Docker Engine és Compose használatával. A helyi fejlesztői `compose.yaml` nem része ennek a konfigurációnak. Az API `Production` környezetben fut. A Caddy kezeli a HTTPS-t, a HTTP→HTTPS átirányítást és a tanúsítványok automatikus megújítását. Csak a proxy 80/443 TCP portja nyilvános; a PostgreSQL és az API nem kap publikált portot.
 
 ## Előkészületek
@@ -8,7 +10,7 @@
 - A szerverre mutató valódi DNS-név. Az A rekord, és ha van, az AAAA rekord is a megfelelő szerverre mutasson. A 80/443 TCP port legyen elérhető; a csomag nem írja át a meglévő tűzfaladat és nem veszi át más webszerver portjait.
 - Kezdésnek 2 CPU és 4 GB RAM javasolt. A szükséges lemez a dokumentumoktól függ; a mentés/visszaállítás munkaterületén a teljes logikai adatbázismentés és a konténerképek többszörösének is el kell férnie. A visszaállítási próba ideiglenesen külön PostgreSQL-t és API-t indít.
 - Egy külön mentési hely: például másik szerverre csatolt `/mnt/offsite-backups/hermes`, SFTP- vagy S3-tárhely. Ugyanazon a szerveren egy másik mappa csak helyi másolat, szervervesztés ellen nem véd. A csatolt meghajtó rendelkezésre állását az üzemeltető biztosítsa; ne maradjon észrevétlenül helyi mappán egy kiesett csatolás.
-- A kezdeti tesztelők hozzáférését VPN-nel vagy a hálózati belépési ponton korlátozd. Az alkalmazás regisztrációja jelenleg nyitott, e-mail-megerősítés és elfelejtettjelszó-folyamat még nincs.
+- A kezdeti tesztelők hozzáférését VPN-nel vagy a hálózati belépési ponton korlátozd. A regisztráció elérhető. Az e-mailes fiókfolyamatokhoz és a flottaemlékeztetőkhöz az [SMTP-beállításokat](../teamcity/README.md#e-mail-küldés-és-flottaemlékeztetők) kell megadni.
 
 Docker által publikált portoknál a szolgáltató tűzfalát és a Docker hálózati szabályait is vedd figyelembe; önmagában egy UFW-szabály nem feltétlenül korlátozza a konténerek elérését. [Docker Debian telepítési dokumentáció](https://docs.docker.com/engine/install/debian/).
 

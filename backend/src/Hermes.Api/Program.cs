@@ -59,6 +59,8 @@ if (!maintenanceMode)
     builder.Services.AddScoped<SystemUserDirectory>();
     builder.Services.AddScoped<OrganizationManagement>();
     builder.Services.AddScoped<FleetManagement>();
+    builder.Services.AddScoped<FleetReminders>();
+    builder.Services.AddHostedService<FleetReminderWorker>();
     builder.Services.AddScoped<DashboardManagement>();
     builder.Services.AddScoped<IMemberManagement, MemberManagement>();
     builder.Services.AddScoped<IGroupManagement, GroupManagement>();
@@ -172,6 +174,7 @@ app.MapGroupEndpoints();
 app.MapSystemEndpoints();
 app.MapOrganizationEndpoints();
 app.MapFleetManagementEndpoints();
+app.MapFleetOperations();
 app.MapDocumentEndpoints();
 app.MapPeopleAndMediaEndpoints();
 

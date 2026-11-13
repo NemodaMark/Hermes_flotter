@@ -48,7 +48,7 @@ public static class PeopleAndMediaEndpoints
             => Results.Ok(new { current = await service.AssignUser(id, body, ct) })).RequireAuthorization(Permissions.VehiclesAssignUsers);
     }
 
-    private static IResult Image(HttpContext h, byte[] bytes)
+    internal static IResult Image(HttpContext h, byte[] bytes)
     {
         h.Response.Headers.CacheControl = "private, no-store";
         h.Response.Headers["X-Content-Type-Options"] = "nosniff";

@@ -109,8 +109,16 @@ public sealed partial class FleetManagement
     public Task<VehicleAssignee?> AssignUser(Guid id, AssignUserInput input, CancellationToken ct) => Scoped<VehicleAssignee?>(Permissions.VehiclesAssignUsers, async access =>
     {
         var car = await Car(id, access, Permissions.VehiclesAssignUsers, ct, write: true); FleetValidation.Revision(car.Version, input.Version);
+        var result = await ChangeAssignee(car, input.UserId, DateTimeOffset.UtcNow, ct);
+        await db.SaveChangesAsync(ct);
+        return result;
+    }, ct);
+
+    private async Task<VehicleAssignee?> ChangeAssignee(Vehicle car, string? userId, DateTimeOffset changedAt, CancellationToken ct)
+    {
+        var id = car.Id;
         ApplicationUser? user = null;
-        if (input.UserId is { } userId)
+        if (userId is not null)
         {
             var member = await db.Memberships.AsNoTracking().WithAccess().SingleOrDefaultAsync(x => x.TenantId == TenantId && x.UserSubject == userId && x.IsActive, ct);
             if (member?.HasCompanyAccess != true || await db.AccountLifecycles.AnyAsync(x => x.UserId == userId && x.IsArchived, ct))
@@ -118,13 +126,12 @@ public sealed partial class FleetManagement
             user = await db.Users.SingleAsync(x => x.Id == userId, ct);
         }
         var current = await db.VehicleUserAssignments.SingleOrDefaultAsync(x => x.VehicleId == id && x.ReleasedAt == null, ct);
-        if (current?.UserId == input.UserId) return current is null ? null : new(current.UserId, user!.DisplayName, current.AssignedAt);
-        var changedAt = DateTimeOffset.UtcNow;
+        if (current?.UserId == userId) return current is null ? null : new(current.UserId, user!.DisplayName, current.AssignedAt);
         if (current is not null) { current.ReleasedAt = changedAt; current.ReleasedBy = Actor; await db.SaveChangesAsync(ct); }
         var next = user is null ? null : new VehicleUserAssignment { TenantId = TenantId, VehicleId = id, UserId = user.Id, AssignedBy = Actor, AssignedAt = changedAt };
         if (next is not null) db.VehicleUserAssignments.Add(next);
         car.Version++;
-        Audit("vehicle.user_assigned", id, current?.UserId, user?.Id, id); await db.SaveChangesAsync(ct);
+        Audit("vehicle.user_assigned", id, current?.UserId, user?.Id, id);
         return next is null ? null : new(next.UserId, user!.DisplayName, next.AssignedAt);
-    }, ct);
+    }
 }

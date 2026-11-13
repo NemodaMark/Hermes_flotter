@@ -30,7 +30,7 @@ jobs:
               bash deploy/debian13/install-debian13.sh --no-start
               apt-get install -y shellcheck nodejs systemd
               git config --global --add safe.directory "$PWD"
-              shellcheck deploy/debian13/*.sh deploy/debian13/tests/*.sh
+              shellcheck deploy/debian13/*.sh deploy/debian13/tests/*.sh deploy/teamcity/*.sh
               for unit in deploy/debian13/systemd/*; do
                 sed -e "s|@ROOT@|$PWD|g" -e "s|@CONFIG@|$HERMES_CI_TEMP/config/staging.env|g" "$unit" > "/tmp/$(basename "$unit")"
               done

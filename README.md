@@ -1,5 +1,7 @@
 # HERMES
 
+[Részletes műszaki dokumentáció és fejlesztési dátumok](docs/HERMES_MUSZAKI_DOKUMENTACIO.md) · [Egyszeri Debian telepítés és TeamCity-frissítés](deploy/teamcity/README.md)
+
 Projektátadás és áttekintés: [az elkészült funkciók, technológiák és fő működési szabályok összefoglalója](PROJEKT_OSSZEFOGLALO.md).
 
 Debian 13 tesztszerverhez: [HTTPS-es telepítés, titkosított automatikus mentés és visszaállítás](deploy/debian13/README.md). Ez külön konfigurációt használ a lent bemutatott helyi fejlesztői indítástól.

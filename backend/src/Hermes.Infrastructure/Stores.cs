@@ -154,8 +154,37 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
         var registrations = await db.VehicleRegistrations.AsNoTracking().Where(x => ids.Contains(x.VehicleId))
             .Select(x => new { x.VehicleId, x.Registration }).Distinct().ToArrayAsync(ct);
         var previous = registrations.ToLookup(x => x.VehicleId, x => x.Registration);
+        var permitted = rows.Where(x => access.Allows(Permissions.BookingsRead, x.SiteId) && x.Vehicle.Status == VehicleStatus.Active)
+            .Select(x => x.Vehicle.Id).ToArray();
+        var availability = await ReadBookingAvailability(permitted, ct);
         return rows.Select(x => Summary(x.Vehicle, access, x.SiteId, x.SiteName) with
-            { PreviousRegistrations = previous[x.Vehicle.Id].Where(p => p != x.Vehicle.Registration).ToArray() }).ToArray();
+            { PreviousRegistrations = previous[x.Vehicle.Id].Where(p => p != x.Vehicle.Registration).ToArray(),
+                BookingAvailability = availability.GetValueOrDefault(x.Vehicle.Id) }).ToArray();
+    }
+
+    private async Task<Dictionary<Guid, VehicleBookingAvailability>> ReadBookingAvailability(Guid[] permitted, CancellationToken ct)
+    {
+        if (permitted.Length == 0) return [];
+        var bookable = await db.VehicleBookingSettings.Where(x => x.Enabled && permitted.Contains(x.VehicleId)).Select(x => x.VehicleId).ToArrayAsync(ct);
+        if (bookable.Length == 0) return [];
+        var zone = await db.Tenants.Where(x => x.Id == TenantId).Select(x => x.TimeZone).SingleAsync(ct);
+        var today = FleetManagement.LocalDay(DateTimeOffset.UtcNow, zone);
+        var reservations = await db.VehicleBookings.Where(x => bookable.Contains(x.VehicleId) && x.CancelledAt == null && x.EndsOn >= today)
+            .OrderBy(x => x.StartsOn).ToArrayAsync(ct);
+        var byCar = reservations.ToLookup(x => x.VehicleId);
+        var currentUsers = await db.VehicleUserAssignments.Where(x => bookable.Contains(x.VehicleId) && x.ReleasedAt == null)
+            .Join(db.Users, x => x.UserId, u => u.Id, (x, u) => new { x.VehicleId, Name = u.DisplayName ?? u.Id })
+            .ToDictionaryAsync(x => x.VehicleId, x => x.Name, ct);
+        return bookable.ToDictionary(id => id, id =>
+        {
+            var firstAvailable = today;
+            foreach (var reservation in byCar[id])
+            {
+                if (reservation.StartsOn > firstAvailable) break;
+                firstAvailable = reservation.EndsOn.AddDays(1);
+            }
+            return new VehicleBookingAvailability(currentUsers.GetValueOrDefault(id), firstAvailable);
+        });
     }
     private Task<T> Authorized<T>(string permission, Func<ResourceAccess, Task<T>> action, CancellationToken ct) => TenantTransaction.RunAsync(db, TenantId, async () =>
     {

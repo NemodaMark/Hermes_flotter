@@ -3,6 +3,8 @@ import * as T from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
+import studioLight from './assets/vehicles/studio-small-03.hdr?url'
 import { disposeVehicleModel, prepareVehicleModel, setVehiclePaint } from './vehicleSceneModel'
 import type { VehicleShape } from './vehicleSceneModel'
 import { vehiclePaint } from './vehicleAppearance'
@@ -16,6 +18,22 @@ type CameraAction = 'home' | 'left' | 'right' | 'closer' | 'farther'
 export type StudioAction = { key: StudioSection | CameraAction; sequence: number }
 export type StudioMenu = { key: StudioSection; label: string }
 const isSection = (key: StudioAction['key']): key is StudioSection => !['home', 'left', 'right', 'closer', 'farther'].includes(key)
+
+function contactShadow() {
+  const width = 96, pixels = new Uint8Array(width * width * 4)
+  for (let y = 0; y < width; y++) for (let x = 0; x < width; x++) {
+    const radius = Math.hypot((x + .5) / width * 2 - 1, (y + .5) / width * 2 - 1)
+    const index = (y * width + x) * 4
+    pixels.set([18, 29, 38, Math.round(85 * Math.max(0, 1 - radius ** 2) ** 2)], index)
+  }
+  const texture = new T.DataTexture(pixels, width, width)
+  texture.magFilter = T.LinearFilter
+  texture.needsUpdate = true
+  const shadow = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }))
+  shadow.rotation.x = -Math.PI / 2
+  shadow.position.y = .012
+  return shadow
+}
 
 export default function VehicleStudio({ model, color, menus, action, onSelect, onFocused, onCancelled, paused = false }: {
   model: VehicleModel; color: string | null; menus: StudioMenu[]; action: StudioAction | null; paused?: boolean
@@ -31,7 +49,10 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [attempt, setAttempt] = useState(0)
   const paint = vehiclePaint(color).hex, paintRef = useRef(paint), loadedModel = useRef<T.Group | null>(null)
-  useEffect(() => { paintRef.current = paint; if (loadedModel.current) setVehiclePaint(loadedModel.current, paint) }, [paint])
+  useEffect(() => {
+    paintRef.current = paint
+    if (loadedModel.current) setVehiclePaint(loadedModel.current, paint, model.paintMaterials)
+  }, [paint, model.paintMaterials])
 
   useEffect(() => {
     const container = host.current!
@@ -43,24 +64,29 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     let disposed = false, contextLost = false
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6))
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap
-    renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = .98
+    renderer.toneMapping = T.NeutralToneMapping; renderer.toneMappingExposure = 1.02
     renderer.domElement.setAttribute('aria-label', 'Forgatható 3D járműmodell')
     renderer.domElement.setAttribute('role', 'img')
     container.prepend(renderer.domElement)
-    const scene = new T.Scene(); scene.background = new T.Color('#dce4e5'); scene.fog = new T.Fog('#dce4e5', 18, 42)
+    const scene = new T.Scene(); scene.background = new T.Color('#d6dde0'); scene.fog = new T.Fog('#d6dde0', 14, 34)
     const pmrem = new T.PMREMGenerator(renderer), room = new RoomEnvironment(), environment = pmrem.fromScene(room, .04)
     scene.environment = environment.texture; room.dispose(); pmrem.dispose()
-    const floor = new T.Mesh(new T.PlaneGeometry(150, 150), new T.MeshStandardMaterial({ color: '#c8d2d4', roughness: .64, metalness: .14 }))
+    let lighting: T.DataTexture | undefined
+    void new HDRLoader().loadAsync(studioLight).then(texture => {
+      if (disposed || contextLost) { texture.dispose(); return }
+      texture.mapping = T.EquirectangularReflectionMapping
+      scene.environment = lighting = texture
+      scene.environmentIntensity = .8
+      scene.environmentRotation.y = Math.PI * .25
+    }).catch(() => { /* The local room environment remains available. */ })
+    const floor = new T.Mesh(new T.PlaneGeometry(150, 150), new T.MeshStandardMaterial({ color: '#cbd4d9', roughness: .86, metalness: 0, envMapIntensity: .4 }))
     floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor)
-    const platform = new T.Mesh(new T.CylinderGeometry(4.1, 4.15, .045, 96), new T.MeshStandardMaterial({ color: '#b5c3c6', roughness: .65, metalness: .2 }))
-    platform.position.y = -.008; platform.receiveShadow = true; scene.add(platform)
-    const ring = new T.Mesh(new T.TorusGeometry(4.07, .009, 8, 96), new T.MeshBasicMaterial({ color: '#93a9ac' }))
-    ring.rotation.x = Math.PI / 2; ring.position.y = .025; scene.add(ring)
-    scene.add(new T.HemisphereLight('#ffffff', '#9baeb6', 1))
-    const key = new T.DirectionalLight('#fff8ed', 2.8); key.position.set(3, 7, 4); key.castShadow = true
-    key.shadow.mapSize.set(1024, 1024); key.shadow.camera.left = -7; key.shadow.camera.right = 7; key.shadow.camera.top = 7; key.shadow.camera.bottom = -7; key.shadow.normalBias = .025; scene.add(key)
-    const fill = new T.DirectionalLight('#d5ecf8', 1.6); fill.position.set(-4, 3, -5); scene.add(fill)
-    const camera = new T.PerspectiveCamera(32, 1, .1, 80), home = new T.Vector3(4.6, 2.4, 4.8), homeTarget = new T.Vector3(0, .75, 0)
+    scene.add(new T.HemisphereLight('#ffffff', '#9baeb6', .45))
+    const key = new T.DirectionalLight('#fff9f0', 1.7); key.position.set(3, 7, 4); key.castShadow = true
+    key.shadow.mapSize.set(1024, 1024); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6
+    key.shadow.normalBias = .015; key.shadow.radius = 3; scene.add(key)
+    const fill = new T.DirectionalLight('#e5efff', .7); fill.position.set(-4, 3, -5); scene.add(fill)
+    const camera = new T.PerspectiveCamera(32, 1, .1, 80), home = new T.Vector3(4.3, 2.1, 5.4), homeTarget = new T.Vector3(0, .75, 0)
     camera.position.copy(home)
     const orbit = new OrbitControls(camera, renderer.domElement); orbit.target.copy(homeTarget)
     orbit.enableDamping = true; orbit.dampingFactor = .075; orbit.enablePan = false; orbit.minDistance = 4.5; orbit.maxDistance = 16
@@ -99,7 +125,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       homeTarget.y = roof * .48
       const distance = Math.max(6.95, length * 1.42, length * .65 / (Math.tan(T.MathUtils.degToRad(16)) * camera.aspect), roof * 2.5)
       orbit.maxDistance = Math.max(16, distance * 1.5)
-      home.set(4.6, 2.4, 4.8).normalize().multiplyScalar(distance).add(homeTarget)
+      home.set(4.3, 2.1, 5.4).normalize().multiplyScalar(distance).add(homeTarget)
       if (!flight) { camera.position.copy(home); orbit.target.copy(homeTarget); orbit.update() }
     }
     const resize = new ResizeObserver(fit); resize.observe(container)
@@ -110,6 +136,9 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       catch (error) { disposeVehicleModel(gltf.scene); throw error }
       loadedModel.current = vehicle.model; shape = vehicle.shape; scene.add(vehicle.model)
       const { length, width, roof, frontAxle } = shape
+      const shadow = contactShadow()
+      shadow.scale.set(length * 1.16, width * 1.5, 1)
+      scene.add(shadow)
       hotspots = vehicleHotspots(vehicle.model, length)
       const anchor = (x: number, y: number, z: number, nx: number, ny: number, nz: number) => hotspots!.anchor(new T.Vector3(x, y, z), new T.Vector3(nx, ny, nz))
       const cameraScale = Math.max(1, length / 4.8, roof / 2)
@@ -164,7 +193,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     return () => {
       disposed = true; loadedModel.current = null; cancelAnimationFrame(frame); resize.disconnect(); orbit.dispose(); controls.current = null
       renderer.domElement.removeEventListener('pointerdown', cancelFlight, true); renderer.domElement.removeEventListener('webglcontextlost', lost)
-      disposeVehicleModel(scene); environment.dispose(); renderer.dispose(); renderer.domElement.remove()
+      disposeVehicleModel(scene); environment.dispose(); lighting?.dispose(); renderer.dispose(); renderer.domElement.remove()
     }
   }, [attempt, model])
   useEffect(() => {

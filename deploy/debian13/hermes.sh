@@ -75,8 +75,12 @@ PY
     install -d -m 0700 "$HERMES_DATA_DIR" "$HERMES_WORK_DIR"
 }
 lock() {
-    exec 9>"$HERMES_DATA_DIR/operations.lock"
+    # TeamCity holds the same lock across checkout, migration and the HTTPS check.
+    if [[ ! /proc/$$/fd/9 -ef $HERMES_DATA_DIR/operations.lock ]]; then
+        exec 9>"$HERMES_DATA_DIR/operations.lock"
+    fi
     flock -w 5 9 || die 'Another deploy/backup/restore operation is running. Try again after it finishes.'
+    load_config
 }
 workdir() { temporary_dir=$(mktemp -d "$HERMES_WORK_DIR/operation.XXXXXXXX"); }
 write_setting() {

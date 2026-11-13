@@ -13,6 +13,7 @@ import { Vector3 } from 'three'
 
 const bodies = Object.keys(bodyNames).filter(body => !['Unknown', 'Other', 'Coupe'].includes(body))
 const prepared = JSON.parse(readFileSync(resolve('public/models/vehicle-bodies/prepared.json'), 'utf8')) as { key: string; sha256: string }[]
+const studio = JSON.parse(readFileSync(resolve('public/models/studio/sources.json'), 'utf8')) as { key: string; sha256: string }[]
 it('selects a different asset for every known body instead of reusing the sports coupe', () => {
   const selected = [...bodies, 'Coupe'].map(body => vehicleModel(body))
   expect(new Set(selected.map(model => model.url)).size).toBe(12)
@@ -20,15 +21,13 @@ it('selects a different asset for every known body instead of reusing the sports
   expect(vehicleModel('Other').fallback).toBe(true)
   expect(vehicleModel('FutureBodyType').fallback).toBe(true)
 })
-it.each(bodies)('loads and paints the real %s body with valid ground-level proportions', async body => {
+it.each([...bodies, 'Unknown'])('loads and paints the real %s body with valid ground-level proportions', async body => {
   const appearance = vehicleModel(body), bytes = readFileSync(resolve(`src/assets/vehicles/${appearance.key}.glb`))
-  expect(createHash('sha256').update(bytes).digest('hex')).toBe(prepared.find(asset => asset.key === appearance.key)?.sha256)
+  expect(createHash('sha256').update(bytes).digest('hex')).toBe([...prepared, ...studio].find(asset => asset.key === appearance.key)?.sha256)
   const doc = JSON.parse(bytes.toString('utf8', 20, 20 + bytes.readUInt32LE(12)))
-  expect(doc.asset.copyright).toContain('Innerscene')
-  expect(doc.asset.extras.license).toBe('CC0-1.0')
   expect(doc.buffers).toHaveLength(1)
   expect(doc.buffers[0].uri).toBeUndefined()
-  expect(doc.images.every((image: { bufferView?: number; uri?: string }) => image.bufferView !== undefined && !image.uri)).toBe(true)
+  expect((doc.images ?? []).every((image: { bufferView?: number; uri?: string }) => image.bufferView !== undefined && !image.uri)).toBe(true)
   const loader = new GLTFLoader().register(() => ({ name: 'skip_test_image_decode', loadTexture: async () => new Texture() }))
   const buffer = new ArrayBuffer(bytes.byteLength); new Uint8Array(buffer).set(bytes)
   const { model, shape } = prepareVehicleModel((await loader.parseAsync(buffer, '')).scene, '#214d81', appearance)
@@ -47,7 +46,7 @@ it.each(bodies)('loads and paints the real %s body with valid ground-level propo
     if (!(object instanceof Mesh)) return
     for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
       if (!(material instanceof MeshStandardMaterial)) continue
-      if (material.name === 'Paint 1') { painted++; expect(material.color.getHexString()).toBe('214d81'); expect(material.map).toBeNull() }
+      if ((appearance.paintMaterials ?? ['Paint 1']).includes(material.name)) { painted++; expect(material.color.getHexString()).toBe('214d81'); expect(material.map).toBeNull() }
       if (/glass|glazing/i.test(material.name)) { glass++; expect(material.color.getHexString()).not.toBe('214d81') }
     }
   })

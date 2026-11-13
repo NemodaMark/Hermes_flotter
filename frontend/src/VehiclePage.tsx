@@ -1,6 +1,6 @@
 import { Select } from './ui/Select'
 import { Button } from './ui/Button'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
 import type { Session, Tenant } from './api'
@@ -17,6 +17,10 @@ import { VehicleFields } from './VehicleFields'
 import { VehicleAssignmentHistory } from './VehicleAssignmentHistory'
 import { VehicleActions } from './VehicleActions'
 import './fleet.css'
+
+const VehicleBookingCalendar = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleBookingCalendar })))
+const VehicleFuel = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleFuel })))
+const VehicleHandovers = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleHandovers })))
 
 export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data' }: { user: Session; tenant: Tenant; id: string; onBack: () => void; initialTab?: string }) {
   const client = useQueryClient()
@@ -42,6 +46,9 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data' }: {
     ])
   }
   const tabs = [['data', 'Adatlap'], ['site', 'Telephely és használó'], ['photos', 'Képek'], ['assignees', 'Használati előzmények'],
+    ...(can('vehicles.bookings.read') || can('vehicles.bookings.manage') ? [['bookings', 'Foglalások']] : []),
+    ...(can('vehicles.fuel.read') || can('vehicles.fuel.manage') ? [['fuel', 'Tankolások']] : []),
+    ['handovers', 'Átadás-átvétel'],
     ...(can('vehicles.documents.read') || can('vehicles.documents.manage') ? [['documents', 'Dokumentumok']] : []),
     ...(can('vehicles.leasing.read') || can('vehicles.leasing.manage') ? [['leases', 'Lízing']] : []),
     ...(can('vehicles.service.read') || can('vehicles.service.manage') ? [['services', 'Szerviz']] : []),
@@ -73,6 +80,11 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data' }: {
         {activeTab === 'documents' && (can('vehicles.documents.read') || can('vehicles.documents.manage')) && <VehicleDocuments tenantId={tenant.id} vehicleId={id} registration={car!.registration} kind="vehicle" target={{ id, name: 'Járműokmányok', version: car!.version! }} canRead={can('vehicles.documents.read')} canManage={can('vehicles.documents.manage') && car?.status !== 'Archived'} embedded onChanged={changed} onClose={() => setTab('data')} />}
         {activeTab === 'history' && <VehicleHistory tenantId={tenant.id} id={id} />}
         {activeTab === 'assignees' && <VehicleAssignmentHistory tenantId={tenant.id} id={id} />}
+        <Suspense fallback={<p className="notice" role="status">Betöltés…</p>}>
+          {activeTab === 'bookings' && <VehicleBookingCalendar tenant={tenant} car={car!} userId={user.id} onChanged={changed} />}
+          {activeTab === 'fuel' && <VehicleFuel tenant={tenant} car={car!} />}
+          {activeTab === 'handovers' && <VehicleHandovers tenant={tenant} car={car!} onChanged={() => changed('Az átadás elmentve.')} />}
+        </Suspense>
         {activeTab === 'audit' && can('audit.read') && <FleetAudit tenantId={tenant.id} id={id} vehicle />}
       </>}
     </section>

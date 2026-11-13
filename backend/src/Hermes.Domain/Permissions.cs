@@ -16,6 +16,11 @@ public static class Permissions
     public const string ServicesManage = "vehicles.service.manage";
     public const string DocumentsRead = "vehicles.documents.read";
     public const string DocumentsManage = "vehicles.documents.manage";
+    public const string BookingsRead = "vehicles.bookings.read";
+    public const string BookingsCreate = "vehicles.bookings.create";
+    public const string BookingsManage = "vehicles.bookings.manage";
+    public const string FuelRead = "vehicles.fuel.read";
+    public const string FuelManage = "vehicles.fuel.manage";
     public const string PartnersRead = "partners.read";
     public const string PartnersCreate = "partners.create";
     public const string PartnersUpdate = "partners.update";
@@ -43,6 +48,9 @@ public static class Permissions
         new(LeasingRead, "Jármű lízingszerződéseinek megtekintése"), new(LeasingManage, "Jármű lízingszerződéseinek kezelése"),
         new(ServicesRead, "Jármű szervizelőzményeinek megtekintése"), new(ServicesManage, "Jármű szervizbejegyzéseinek kezelése"),
         new(DocumentsRead, "Járműokmányok megtekintése"), new(DocumentsManage, "Járműokmányok kezelése"),
+        new(BookingsRead, "Járműfoglalások megtekintése"), new(BookingsCreate, "Jármű foglalása és saját foglalás lemondása"),
+        new(BookingsManage, "Járműfoglalási beállítás és foglalások kezelése"),
+        new(FuelRead, "Tankolások és elszámolások megtekintése"), new(FuelManage, "Tankolások rögzítése és érvénytelenítése"),
         new(PartnersRead, "Partnerek és kapcsolattartók megtekintése"), new(PartnersCreate, "Partner felvétele"),
         new(PartnersUpdate, "Partneradatok szerkesztése"), new(PartnersArchive, "Partner archiválása és visszaállítása"),
         new(GroupsManage, "Jogosultságcsoportok kezelése"),

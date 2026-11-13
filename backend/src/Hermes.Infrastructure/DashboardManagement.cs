@@ -33,17 +33,19 @@ public sealed class DashboardManagement(HermesDbContext db, TenantContext contex
             var access = new ResourceAccess(accessMember);
             var rows = await (from v in VehicleAccess.Query(db, access, Permissions.VehiclesRead).AsNoTracking()
                 join p in db.VehicleProfiles on v.Id equals p.VehicleId into profiles from p in profiles.DefaultIfEmpty()
+                join ap in db.VehicleServiceAppointments on v.Id equals ap.VehicleId into appointments from appointment in appointments.DefaultIfEmpty()
                 join a in db.VehicleSiteAssignments on v.Id equals a.VehicleId into assignments from a in assignments.DefaultIfEmpty()
                 join s in db.Sites on a.SiteId equals s.Id into sites from s in sites.DefaultIfEmpty()
                 orderby v.Registration
-                select new { Car = v, Profile = p, SiteId = (Guid?)a.SiteId, SiteName = s.Name,
+                select new { Car = v, Profile = p, SiteId = (Guid?)a.SiteId, SiteName = s.Name, Appointment = (DateTimeOffset?)appointment.StartsAt,
                     Mine = db.VehicleUserAssignments.Any(u => u.VehicleId == v.Id && u.UserId == actor && u.ReleasedAt == null) }).ToArrayAsync(ct);
             return new DashboardSummary(mode, priority, source, true, rows.Select(x => new DashboardVehicle(
                 new VehicleSummary(x.Car.Id, x.Car.Registration, x.Car.Make, x.Car.Model, x.Car.Status.ToString())
                 { Version = x.Car.Version, SiteId = x.SiteId, SiteName = x.SiteName, OdometerKm = x.Car.OdometerKm,
                     Permissions = VehicleAccess.PermissionsFor(access, x.SiteId) },
                 x.Profile?.BodyType ?? "Unknown", x.Profile?.Color, x.Profile?.InspectionDueDate, x.Profile?.InsuranceDueDate,
-                x.Profile?.NextServiceDate, x.Profile?.NextServiceKm, x.Mine)).ToArray());
+                x.Profile?.NextServiceDate, x.Profile?.NextServiceKm, x.Mine)
+                { ServiceAppointmentAt = access.Allows(Permissions.ServicesRead, x.SiteId) ? x.Appointment : null }).ToArray());
         }, ct);
     }
 }

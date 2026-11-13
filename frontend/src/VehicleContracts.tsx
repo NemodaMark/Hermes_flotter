@@ -1,6 +1,6 @@
 import { Button } from './ui/Button'
 import { Toggle } from './ui/Toggle'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import type { Tenant, Vehicle } from './api'
@@ -12,6 +12,7 @@ import type { Lease, LeaseInput, Service, ServiceInput } from './fleetApi'
 import { VehicleDocuments } from './VehicleDocuments'
 import type { DocumentTarget } from './VehicleDocuments'
 import { CurrencyField, DateField, NotesField, NumberField, QueryMessage, ReasonDialog, SelectField } from './FleetFields'
+const VehicleAppointment = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleAppointment })))
 
 export function VehicleContracts({ tenant, car, kind, onChanged }: { tenant: Tenant; car: Vehicle; kind: 'leases' | 'services'; onChanged: (message?: string) => Promise<void> }) {
   const [page, setPage] = useState(1)
@@ -27,6 +28,7 @@ export function VehicleContracts({ tenant, car, kind, onChanged }: { tenant: Ten
   const services = useQuery({ queryKey: ['fleet-management', tenant.id, car.id, 'services', page, includeVoided], queryFn: ({ signal }) => fleetApi.services(tenant.id, car.id, page, includeVoided, signal), enabled: !lease && read, retry: false })
   const query = lease ? leases : services
   return <>
+    {!lease && <Suspense fallback={<p className="notice" role="status">Időpont betöltése…</p>}><VehicleAppointment tenant={tenant} car={car} /></Suspense>}
     <div className="org-section-tools"><div>{!lease && <Toggle checked={includeVoided} onChange={value => { setIncludeVoided(value); setPage(1) }}>Érvénytelenített bejegyzések is</Toggle>}</div>
       {manage && <Button className="primary-button" onClick={() => setEdit('new')}><Plus size={17} />{lease ? 'Új lízingszerződés' : 'Új szervizbejegyzés'}</Button>}
     </div>

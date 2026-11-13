@@ -48,6 +48,15 @@ services:
       ConnectionStrings__Database: "Host=db;Database=hermes;Username=hermes_app;Password=${POSTGRES_APP_PASSWORD}"
       DataProtection__KeyPath: /app/keys
       ReverseProxy__KnownProxies__0: ${HERMES_PROXY_IP:-172.30.90.2}
+      FleetReminders__Enabled: "${FLEET_REMINDERS_ENABLED:-false}"
+      Email__Mode: "${HERMES_EMAIL_MODE:-Disabled}"
+      Email__PublicBaseUrl: "https://${HERMES_DOMAIN}"
+      Email__FromAddress: "${HERMES_EMAIL_FROM:-}"
+      Email__Host: "${HERMES_SMTP_HOST:-}"
+      Email__Port: "${HERMES_SMTP_PORT:-587}"
+      Email__Security: "${HERMES_SMTP_SECURITY:-StartTls}"
+      Email__UserName: "${HERMES_SMTP_USERNAME:-}"
+      Email__Password: "${HERMES_SMTP_PASSWORD:-}"
     volumes:
       - ${HERMES_DATA_DIR}/keys:/app/keys
     networks: [database, edge]

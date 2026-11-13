@@ -21,6 +21,7 @@ vi.mock('three', async () => {
   }
 })
 vi.mock('three/addons/loaders/GLTFLoader.js', () => ({ GLTFLoader: class { loadAsync = mocks.load } }))
+vi.mock('three/addons/loaders/HDRLoader.js', () => ({ HDRLoader: class { loadAsync = async () => { throw new Error('HDR unavailable in jsdom') } } }))
 vi.mock('three/addons/controls/OrbitControls.js', () => ({ OrbitControls: class {
   target = new Vector3()
   camera: PerspectiveCamera

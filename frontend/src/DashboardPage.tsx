@@ -18,11 +18,20 @@ import './dashboard.css'
 const VehicleStudio=lazy(()=>import('./VehicleStudio'))
 const daysUntil=(date:string|null,today=new Date())=>date?Math.round((Date.parse(`${date}T12:00:00Z`)-Date.UTC(today.getUTCFullYear(),today.getUTCMonth(),today.getUTCDate(),12))/86400000):null
 function dashboardDeadlines(cars:DashboardCar[]) {
-  return cars.filter(car=>car.vehicle.status!=='Archived').flatMap(car=>[
-    { kind:'inspection',label:'Műszaki vizsga',date:car.inspectionDueDate },
-    { kind:'insurance',label:'Biztosítás',date:car.insuranceDueDate },
-    { kind:'service',label:'Szerviz',date:car.nextServiceDate },
-  ].flatMap(item=>{const days=daysUntil(item.date);return days!==null&&days<=30?[{...item,days,car}]:[]})).sort((a,b)=>a.days-b.days)
+  return cars.filter(car => car.vehicle.status !== 'Archived').flatMap(car => {
+    const dateItems = [
+      { kind: 'inspection', label: 'Műszaki vizsga', date: car.inspectionDueDate },
+      { kind: 'insurance', label: 'Biztosítás', date: car.insuranceDueDate },
+      { kind: 'service', label: 'Szerviz', date: car.nextServiceDate },
+      { kind: 'appointment', label: 'Szervizidőpont', date: car.serviceAppointmentAt?.slice(0, 10) ?? null },
+    ].flatMap(item => {
+      const days = daysUntil(item.date)
+      return days !== null && days <= 30 ? [{ ...item, days, car, distance: null as number | null }] : []
+    })
+    const distance = car.nextServiceKm != null && car.vehicle.odometerKm != null ? car.nextServiceKm - car.vehicle.odometerKm : null
+    if (distance !== null && distance <= 1000) dateItems.push({ kind: 'service-km', label: 'Szerviz kilométerhatára', date: null, days: 0, car, distance })
+    return dateItems
+  }).sort((a, b) => a.days - b.days)
 }
 export function DashboardPage({ user,tenant,siteId,onFleet,onVehicle }: { user:Session;tenant:Tenant;siteId:string;onFleet:(status?:string)=>void;onVehicle:(id:string)=>void }) {
   const dashboard=useQuery({queryKey:['dashboard',user.id,tenant.id],queryFn:({signal})=>dashboardApi.read(tenant.id,signal),retry:false,refetchInterval:30000})
@@ -73,7 +82,7 @@ function Overview({ cars, onFleet, onVehicle }: {
       <section className="dashboard-deadlines" aria-labelledby="dashboard-deadlines-heading">
         <div className="dashboard-section-heading">
           <h3 id="dashboard-deadlines-heading">Határidők <span>({deadlines.length})</span></h3>
-          <span>Lejárt és 30 napon belüli</span>
+          <span>Lejárt és közelgő határidők</span>
         </div>
         {deadlines.length ? <ul>
           {deadlines.slice(0, visibleDeadlines).map(item => <li key={`${item.car.vehicle.id}-${item.kind}`}>
@@ -81,10 +90,13 @@ function Overview({ cars, onFleet, onVehicle }: {
               aria-label={`${item.car.vehicle.registration} · ${item.label}`}>
               <strong>{item.car.vehicle.registration}</strong>
               <span className="dashboard-deadline-detail"><span>{item.label}</span>
-                <time dateTime={item.date ?? undefined}>{new Date(`${item.date}T12:00:00`).toLocaleDateString('hu-HU')}</time>
+                {item.date && <time dateTime={item.kind === 'appointment' ? item.car.serviceAppointmentAt ?? item.date : item.date}>
+                  {item.kind === 'appointment' && item.car.serviceAppointmentAt ? new Date(item.car.serviceAppointmentAt).toLocaleString('hu-HU') : new Date(`${item.date}T12:00:00`).toLocaleDateString('hu-HU')}
+                </time>}
               </span>
-              <Badge dot={false} tone={item.days < 0 ? 'danger' : item.days === 0 ? 'warning' : 'neutral'}>
-                {item.days < 0 ? `${-item.days} napja lejárt` : item.days === 0 ? 'Ma esedékes' : `${item.days} nap múlva`}
+              <Badge dot={false} tone={item.days < 0 || (item.distance ?? 0) < 0 ? 'danger' : item.days === 0 ? 'warning' : 'neutral'}>
+                {item.distance !== null ? item.distance < 0 ? `${-item.distance} km túllépés` : item.distance === 0 ? 'Esedékes' : `${item.distance} km hátra`
+                  : item.days < 0 ? `${-item.days} napja lejárt` : item.days === 0 ? 'Ma esedékes' : `${item.days} nap múlva`}
               </Badge>
             </Button>
           </li>)}

@@ -2,17 +2,25 @@ import * as T from 'three'
 
 export type VehicleShape = { length: number; width: number; roof: number; frontAxle: number; rearAxle: number }
 
-export function setVehiclePaint(model: T.Object3D, color: string) {
+export function setVehiclePaint(model: T.Object3D, color: string, paintMaterials: readonly string[] = ['Paint 1', 'Paint 2']) {
   model.traverse(object => {
     if (!(object instanceof T.Mesh)) return
     for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
       // Only exterior paint changes; preserve clearcoat, normals, glass and cabin.
-      if (material instanceof T.MeshStandardMaterial && /^Paint [12]$/.test(material.name)) material.color.set(color)
+      if (!(material instanceof T.MeshStandardMaterial) || !paintMaterials.includes(material.name)) continue
+      material.color.set(color)
+      // Automotive paint is predominantly dielectric, with a separate glossy coat.
+      if (!material.metalnessMap) material.metalness = Math.min(material.metalness, .28)
+      if (!material.roughnessMap) material.roughness = T.MathUtils.clamp(material.roughness, .2, .38)
+      if (material instanceof T.MeshPhysicalMaterial && !material.clearcoatMap) {
+        material.clearcoat = Math.max(material.clearcoat, .6)
+        material.clearcoatRoughness = Math.max(material.clearcoatRoughness, .17)
+      }
     }
   })
 }
 
-export function prepareVehicleModel(source: T.Group, color: string, appearance = { rotation: Math.PI / 2, length: 4.8 }): { model: T.Group; shape: VehicleShape } {
+export function prepareVehicleModel(source: T.Group, color: string, appearance: { rotation: number; length: number; paintMaterials?: readonly string[] } = { rotation: Math.PI / 2, length: 4.8 }): { model: T.Group; shape: VehicleShape } {
   const model = new T.Group()
   model.name = 'HermesVehicle'
   // Assets have different forward axes; the studio always uses +X.
@@ -24,7 +32,7 @@ export function prepareVehicleModel(source: T.Group, color: string, appearance =
   model.scale.setScalar(scale)
   model.position.set(-center.x * scale, -bounds.min.y * scale + .025, -center.z * scale)
   model.traverse(object => { if (object instanceof T.Mesh) { object.castShadow = true; object.receiveShadow = true } })
-  setVehiclePaint(model, color)
+  setVehiclePaint(model, color, appearance.paintMaterials)
   model.updateMatrixWorld(true)
   return { model, shape: { length: appearance.length, width: size.z * scale, roof: size.y * scale + .025, frontAxle: appearance.length * .29, rearAxle: -appearance.length * .3 } }
 }

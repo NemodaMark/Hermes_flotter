@@ -42,7 +42,7 @@ it('normalizes the real model to the floor, centers it and keeps passenger-car p
   expect(model.getObjectByName('BodyHood')).toBeDefined()
   expect(model.getObjectByName('BodyDoorLColor1')).toBeDefined()
 })
-it('recolors only the two exterior paints, retaining optical properties and all other materials', () => {
+it('recolors exterior paints with a glossy coat while preserving glass and cabin materials', () => {
   const model = new Group()
   const paint = new MeshPhysicalMaterial({ color: '#ff0000', clearcoat: 1, metalness: .7, roughness: .25 }); paint.name = 'Paint 1'
   const secondary = paint.clone(); secondary.name = 'Paint 2'
@@ -51,7 +51,7 @@ it('recolors only the two exterior paints, retaining optical properties and all 
   model.add(new Mesh(new BoxGeometry(), [paint, secondary, glass, cabin]))
   setVehiclePaint(model, '#214d81')
   expect(paint.color.getHexString()).toBe('214d81'); expect(secondary.color.getHexString()).toBe('214d81')
-  expect(paint.clearcoat).toBe(1); expect(paint.roughness).toBe(.25); expect(paint.metalness).toBe(.7)
+  expect(paint.clearcoat).toBe(1); expect(paint.roughness).toBe(.25); expect(paint.metalness).toBe(.28)
   expect(glass.color.equals(new Color('#112233'))).toBe(true); expect(glass.transmission).toBe(.8)
   expect(cabin.color.getHexString()).toBe('aa0000')
   setVehiclePaint(model, '#d5ae31')

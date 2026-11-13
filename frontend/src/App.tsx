@@ -46,6 +46,7 @@ import { peopleApi } from './peopleApi'
 import { ProtectedImage } from './ProtectedImage'
 import { initials } from './peopleDisplay'
 import { DashboardPage } from './DashboardPage'
+import { dateText } from './fleetApi'
 
 const statuses: Record<string, string> = {
   Active: 'Aktív',
@@ -63,7 +64,12 @@ function profileFromHash() {
 const workspacePaths: Record<Exclude<WorkspaceView, 'profile'>, string> = { dashboard: '/dashboard', fleet: '/vehicles', members: '/users', invitations: '/invitations', groups: '/permission-groups', organization: '/companies', partners: '/partners', system: '/system' }
 function viewFromHash(): WorkspaceView {
   if (profileFromHash()) return 'profile'
+  if (vehicleLinkFromHash()) return 'fleet'
   return (Object.entries(workspacePaths).find(([, path]) => window.location.hash === `#${path}`)?.[0] as WorkspaceView | undefined) ?? 'dashboard'
+}
+function vehicleLinkFromHash() {
+  const match = /^#\/vehicles\/([0-9a-f-]{36})\/([0-9a-f-]{36})$/i.exec(window.location.hash)
+  return match ? { tenantId: match[1], id: match[2] } : null
 }
 
 function FleetTable({
@@ -97,6 +103,10 @@ function FleetTable({
                   <Button type="button" className="row-title" tabIndex={-1} aria-label={`Jármű adatlapja: ${vehicle.registration}`} onClick={() => onOpen(vehicle.id)}>{vehicle.registration}</Button>
                 </span>
                 {vehicle.siteName && <span className="member-email">{vehicle.siteName}</span>}
+                {vehicle.bookingAvailability && <span className="member-email">
+                  {vehicle.bookingAvailability.currentUser && `Használó: ${vehicle.bookingAvailability.currentUser} · `}
+                  Foglalható: {dateText(vehicle.bookingAvailability.availableFrom)}
+                </span>}
               </td>
               <td data-label="Gyártó / modell">
                 <span className="vehicle-make">{vehicle.make}</span>
@@ -131,10 +141,11 @@ function FleetWorkspace({
   initialTenantId: string | null
 }) {
   const queryClient = useQueryClient()
-  const [tenantId, setTenantId] = useState<string | null>(initialTenantId)
+  const [tenantId, setTenantId] = useState<string | null>(() => vehicleLinkFromHash()?.tenantId ?? initialTenantId)
   const [view, setView] = useState<WorkspaceView>(viewFromHash)
   const [settingsOpen, setSettingsOpen] = useState(() => ['invitations', 'groups', 'system'].includes(view))
   const [profileId, setProfileId] = useState<string | null>(profileFromHash)
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(() => vehicleLinkFromHash()?.id ?? null)
   const profileReturn = useRef<WorkspaceView>('members')
   const [busy, setBusy] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -142,6 +153,8 @@ function FleetWorkspace({
     const read = () => {
       setMobileNavOpen(false)
       const id = profileFromHash(); setProfileId(id)
+      const link = vehicleLinkFromHash()
+      if (link) { setTenantId(link.tenantId); setSelectedVehicleId(link.id) }
       if (id) setView(current => { if (current !== 'profile') profileReturn.current = current; return 'profile' })
       else setView(viewFromHash())
       if (['invitations', 'groups', 'system'].includes(viewFromHash())) setSettingsOpen(true)
@@ -158,7 +171,6 @@ function FleetWorkspace({
     setView(next)
   }
   function openProfile(id: string) { if (!busy) { setMobileNavOpen(false); window.location.hash = `/profile/${encodeURIComponent(id)}` } }
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   const canManageSystem = user.systemPermissions?.includes('system.manage') ?? false
   const [search, setSearch] = useState('')
   const [vehicleQuery, setVehicleQuery] = useState({ search: '', page: 1 })
@@ -418,7 +430,7 @@ function FleetWorkspace({
           ) : !tenant.permissions.includes('vehicles.read') ? (
             <section className="access-panel" aria-label="Járművek"><ListToolbar label="Járművek műveletei" actions={canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>} /><p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p></section>
           ) : selectedVehicleId ? (
-            <VehiclePage key={`${tenant.id}:${selectedVehicleId}`} user={user} tenant={tenant} id={selectedVehicleId} onBack={() => setSelectedVehicleId(null)} />
+            <VehiclePage key={`${tenant.id}:${selectedVehicleId}`} user={user} tenant={tenant} id={selectedVehicleId} onBack={() => { setSelectedVehicleId(null); if (vehicleLinkFromHash()) changeView('fleet') }} />
           ) : (
             <section className="fleet-panel" aria-label="Járműlista" aria-busy={vehicles.isFetching}>
               <ListToolbar label="Járművek keresése és műveletei" actions={canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>}>
