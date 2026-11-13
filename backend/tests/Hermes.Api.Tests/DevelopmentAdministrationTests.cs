@@ -24,19 +24,19 @@ public sealed class DevelopmentAdministrationTests(FleetFixture fixture) : IClas
         using var retiredSession = await fixture.ClientAsync("bela");
         using var unassigned = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(unassigned);
-        Assert.Equal(HttpStatusCode.Created, (await unassigned.PostAsJsonAsync("/api/v1/auth/register", new { userName = "without.company", email = "none@example.test", displayName = "Cég nélküli", password = FleetFixture.Password })).StatusCode);
-        await FleetFixture.RefreshCsrfAsync(unassigned);
+        Assert.Equal(HttpStatusCode.Created, (await owner.PostAsJsonAsync("/api/v1/auth/register", new { userName = "without.company", email = "none@example.test", displayName = "Cég nélküli", password = FleetFixture.Password })).StatusCode);
+        await FleetFixture.SignInAsync(unassigned, "without.company");
         // The ordinary registration policy stays unchanged for all users.
-        Assert.Equal(HttpStatusCode.BadRequest, (await unassigned.PostAsJsonAsync("/api/v1/auth/register", new { userName = "short.password", email = "short@example.test", displayName = "Rövid", password = "tiny" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await owner.PostAsJsonAsync("/api/v1/auth/register", new { userName = "short.password", email = "short@example.test", displayName = "Rövid", password = "tiny" })).StatusCode);
 
-        var cleanup = new DevelopmentCleanup(["bela"], [company.Id]);
+        var cleanup = new DevelopmentCleanup(["bela", "test.registrar"], [company.Id]);
         await using (var db = FleetFixture.CreateContext(fixture.MigrationConnection, new TenantContext()))
         {
             await Assert.ThrowsAsync<InvalidOperationException>(() => DevelopmentSetup.Run(db, false, "admin", cleanup, default));
             Assert.False(await db.Users.AnyAsync(x => x.Id == "admin"));
             Assert.Throws<InvalidOperationException>(() => DevelopmentSetup.Validate(true, "Host=database.example;Database=hermes"));
             var result = await DevelopmentSetup.Run(db, true, "admin", cleanup, default);
-            Assert.Equal(1, result.ArchivedUsers);
+            Assert.Equal(2, result.ArchivedUsers);
             Assert.Equal(1, result.ArchivedCompanies);
             Assert.Equal(new[] { "admin" }, await db.SystemPermissionGrants.Where(x => x.Code == SystemPermissions.Manage).Select(x => x.UserId).ToArrayAsync());
             Assert.Equal(new[] { "admin" }, await db.GroupUsers.Where(x => db.PermissionGroups.Any(g => g.Id == x.GroupId && g.AllPermissions)).Select(x => x.UserId).ToArrayAsync());

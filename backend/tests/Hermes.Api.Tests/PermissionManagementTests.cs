@@ -22,11 +22,12 @@ public sealed partial class PermissionManagementTests(FleetFixture fixture) : IC
     {
         var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
-        var response = await client.PostAsJsonAsync("/api/v1/auth/register", new
+        var response = await fixture.RegisterAsync(new
         { displayName = "Jogosultság Teszt", email = $"access-{Guid.NewGuid():N}@example.test", password = FleetFixture.Password, userName = $"access-{Guid.NewGuid():N}" });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var user = (await response.Content.ReadFromJsonAsync<User>())!;
         await FleetFixture.RefreshCsrfAsync(client);
+        await FleetFixture.SignInAsync(client, user.Id);
         return new(client, user);
     }
     private static void Select(Account account, Guid tenant)

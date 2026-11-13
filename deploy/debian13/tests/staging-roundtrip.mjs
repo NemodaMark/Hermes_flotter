@@ -47,11 +47,16 @@ function pdf() {
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 
 if (phase === 'seed') {
-  const owner = client(), other = client()
+  const owner = client(), other = client(), registrar = client()
+  assert.ok(process.env.HERMES_INITIAL_ADMIN_PASSWORD)
+  await registrar.refresh()
+  await registrar.request('/api/v1/auth/login', { body: { userName: 'ci.registrar', password: process.env.HERMES_INITIAL_ADMIN_PASSWORD } })
+  await registrar.refresh()
   const password = randomBytes(32).toString('hex')
   for (const [actor, userName] of [[owner, 'restore.owner'], [other, 'restore.other']]) {
     await actor.refresh()
-    await actor.request('/api/v1/auth/register', { method: 'POST', status: 201, body: { userName, displayName: userName, email: `${userName}@example.test`, password } })
+    await registrar.request('/api/v1/auth/register', { method: 'POST', status: 201, body: { userName, displayName: userName, email: `${userName}@example.test`, password } })
+    await actor.request('/api/v1/auth/login', { body: { userName, password } })
     await actor.refresh()
   }
   const company = await owner.request('/api/v1/tenants', { method: 'POST', status: 201, body: { name: 'Restore test company' } })

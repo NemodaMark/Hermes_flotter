@@ -11,7 +11,7 @@ export function EntraConnection({ userId }: { userId: string }) {
   const client = useQueryClient()
   const [leaving, setLeaving] = useState(false)
   const key = ['entra-connection', userId]
-  const connection = useQuery({ queryKey: key, queryFn: ({ signal }) => request<{ enabled: boolean; linked: boolean }>(path, { signal }), retry: false })
+  const connection = useQuery({ queryKey: key, queryFn: ({ signal }) => request<{ enabled: boolean; linked: boolean; canDisconnect: boolean }>(path, { signal }), retry: false })
   const connect = useMutation({ mutationFn: (password: string) => startEntra('connect', password), onSuccess: () => setLeaving(true) })
   const disconnect = useMutation({
     mutationFn: () => request<void>(path, { method: 'DELETE' }),
@@ -25,7 +25,7 @@ export function EntraConnection({ userId }: { userId: string }) {
     <QueryMessage pending={connection.isPending} error={connection.error} retry={() => void connection.refetch()} />
     {connection.data && (connection.data.linked ? <>
       <p>A munkahelyi Microsoft-fiókod össze van kapcsolva.</p>
-      <Button variant="outline" disabled={pending} onClick={() => disconnect.mutate()}>Kapcsolat bontása</Button>
+      {connection.data.canDisconnect && <Button variant="outline" disabled={pending} onClick={() => disconnect.mutate()}>Kapcsolat bontása</Button>}
     </> : connection.data.enabled ? <form className="account-form" onSubmit={event => {
       event.preventDefault()
       connect.mutate(String(new FormData(event.currentTarget).get('password')))

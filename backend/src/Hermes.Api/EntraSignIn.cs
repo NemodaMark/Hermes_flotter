@@ -82,7 +82,7 @@ public static class EntraSignIn
             var user = await users.GetUserAsync(context.User);
             if (user is null) return Results.Unauthorized();
             var linked = (await users.GetLoginsAsync(user)).Any(login => login.LoginProvider == Scheme);
-            return Results.Ok(new { enabled = Available(context, options), linked });
+            return Results.Ok(new { enabled = Available(context, options), linked, canDisconnect = linked && await users.HasPasswordAsync(user) });
         }).RequireAuthorization();
         group.MapDelete("/connection", async (HttpContext context, UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, HermesDbContext db) =>
         {
@@ -121,7 +121,7 @@ public static class EntraSignIn
     internal static string? ProviderKey(ClaimsPrincipal? principal, Guid tenantId)
         => Guid.TryParse(principal?.FindFirstValue("tid"), out var tid) && tid == tenantId
             && Guid.TryParse(principal?.FindFirstValue("oid"), out var oid) && oid != Guid.Empty
-            ? $"{tid:D}:{oid:D}" : null;
+            ? AccountRegistration.EntraKey(tid, oid) : null;
 
     private static Task LockUser(HermesDbContext db, string userId, CancellationToken ct)
         => db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({userId}, 171840121))", ct);

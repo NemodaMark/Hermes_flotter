@@ -96,7 +96,11 @@ jobs:
       - run: docker compose up --build -d --wait --wait-timeout 180
       - run: |
           curl --fail --retry 20 --retry-all-errors --retry-delay 2 http://localhost:8080/health/ready
-      - run: node scripts/smoke-auth.mjs
+      - name: Verify account provisioning and company access
+        run: |
+          export HERMES_INITIAL_ADMIN_PASSWORD="$(openssl rand -hex 24)"
+          docker compose run --rm --no-deps -e HERMES_INITIAL_ADMIN_PASSWORD migrate --initialize-system-admin ci.registrar ci.registrar@example.test
+          node scripts/smoke-auth.mjs
         env:
           HERMES_SMOKE_ISOLATED: "true"
       - run: node scripts/smoke-document-preview.mjs

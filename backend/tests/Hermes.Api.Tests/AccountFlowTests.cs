@@ -33,24 +33,30 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
     {
         var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
-        var response = await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt Felhasználó", email = email ?? NewEmail(), password = FleetFixture.Password, userName = NewUserName() });
+        var response = await fixture.RegisterAsync(new { displayName = "Teszt Felhasználó", email = email ?? NewEmail(), password = FleetFixture.Password, userName = NewUserName() });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var user = await response.Content.ReadFromJsonAsync<UserResponse>();
-        await FleetFixture.RefreshCsrfAsync(client);
-        return (client, user!);
+        await FleetFixture.SignInAsync(client, user!.Id);
+        return (client, user);
     }
 
     [Fact]
-    public async Task Registration_creates_a_session_and_stores_only_a_password_hash()
+    public async Task Registration_requires_system_access_and_does_not_change_sessions()
     {
         using var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
         var email = NewEmail();
-        var registration = await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Új Felhasználó", email, password = FleetFixture.Password, userName = NewUserName() });
+        var id = NewUserName();
+        var input = new { displayName = "Új Felhasználó", email, password = FleetFixture.Password, userName = id };
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/v1/auth/register", input)).StatusCode);
+        using var ordinary = await fixture.ClientAsync("bela");
+        Assert.Equal(HttpStatusCode.Forbidden, (await ordinary.PostAsJsonAsync("/api/v1/auth/register", input)).StatusCode);
+        using var registrar = await fixture.ClientAsync("test.registrar");
+        var registration = await registrar.PostAsJsonAsync("/api/v1/auth/register", input);
         Assert.Equal(HttpStatusCode.Created, registration.StatusCode);
-        var cookie = Assert.Single(registration.Headers.GetValues("Set-Cookie"), value => value.StartsWith("Hermes.Session="));
-        Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("samesite=lax", cookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("test.registrar", (await registrar.GetFromJsonAsync<UserResponse>("/api/v1/auth/session"))!.Id);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/auth/session")).StatusCode);
+        await FleetFixture.SignInAsync(client, id);
         var session = await client.GetFromJsonAsync<UserResponse>("/api/v1/auth/session");
         Assert.Equal(email, session!.Email);
         await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, new Infrastructure.TenantContext());
@@ -117,8 +123,9 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
     [Fact]
     public async Task Registration_and_authenticated_writes_require_csrf_tokens()
     {
-        using var anonymous = await fixture.ClientAsync(null);
-        Assert.Equal(HttpStatusCode.BadRequest, (await anonymous.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt", email = NewEmail(), password = FleetFixture.Password })).StatusCode);
+        using var registrar = await fixture.ClientAsync("test.registrar");
+        registrar.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
+        Assert.Equal(HttpStatusCode.BadRequest, (await registrar.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt", email = NewEmail(), password = FleetFixture.Password })).StatusCode);
         var (client, _) = await RegisterAsync();
         using (client)
         {
@@ -132,7 +139,7 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
     {
         using var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
-        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt", email = NewEmail(), password = FleetFixture.Password, userName = NewUserName() })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/auth/login", new { userName = "anna", password = FleetFixture.Password })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/tenants", new { name = "Elavult token" })).StatusCode);
         await FleetFixture.RefreshCsrfAsync(client);
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/tenants", new { name = "Friss token" })).StatusCode);
@@ -147,8 +154,8 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
         await FleetFixture.RefreshCsrfAsync(first);
         await FleetFixture.RefreshCsrfAsync(second);
         var responses = await Task.WhenAll(
-            first.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Egy", email, password = FleetFixture.Password, userName = NewUserName() }),
-            second.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Kettő", email = email.ToUpperInvariant(), password = FleetFixture.Password, userName = NewUserName() }));
+            fixture.RegisterAsync(new { displayName = "Egy", email, password = FleetFixture.Password, userName = NewUserName() }),
+            fixture.RegisterAsync(new { displayName = "Kettő", email = email.ToUpperInvariant(), password = FleetFixture.Password, userName = NewUserName() }));
         Assert.Single(responses, response => response.StatusCode == HttpStatusCode.Created);
         Assert.Single(responses, response => response.StatusCode == HttpStatusCode.BadRequest);
     }
@@ -161,7 +168,7 @@ public sealed class AccountFlowTests(FleetFixture fixture) : IClassFixture<Fleet
     {
         using var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Teszt", email = NewEmail(), password, userName = NewUserName() })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await fixture.RegisterAsync(new { displayName = "Teszt", email = NewEmail(), password, userName = NewUserName() })).StatusCode);
     }
 
     [Fact]

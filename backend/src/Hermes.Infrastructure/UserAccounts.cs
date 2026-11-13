@@ -99,6 +99,8 @@ public sealed class UserAccounts(HermesDbContext db, UserManager<ApplicationUser
         {
             var user = await LockUser(id, ct);
             CheckVersion(user, version);
+            if (!await users.HasPasswordAsync(user))
+                throw Error(409, "external_account", "A Microsoft-fiók jelszavát a Microsoft kezeli.");
             user.PasswordChangeRequired = true;
             user.PasswordChangeRequestedAt = DateTimeOffset.UtcNow;
             user.ProfileVersion++;

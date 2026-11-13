@@ -24,22 +24,11 @@ it('requests a reset email with the generic response and does not sign in', asyn
   expect(authenticated).not.toHaveBeenCalled()
 })
 
-it('keeps a confirmation-required registration out of the workspace', async () => {
-  vi.spyOn(api, 'accountOptions').mockResolvedValue({ emailEnabled: true, requireEmailConfirmation: true })
-  vi.spyOn(api, 'register').mockResolvedValue({ requiresEmailConfirmation: true, message: 'Erősítsd meg az e-mail-címedet.' })
-  const authenticated = vi.fn()
-  render(<AuthScreen onAuthenticated={authenticated} />)
-  const user = userEvent.setup()
-  await user.click(screen.getByRole('button', { name: 'Regisztráció' }))
-  await user.type(screen.getByLabelText('Felhasználónév'), 'anna')
-  await user.type(screen.getByLabelText('Teljes név'), 'Kovács Anna')
-  await user.type(screen.getByLabelText('E-mail-cím'), token.email)
-  await user.type(screen.getByLabelText('Jelszó', { exact: true }), 'Long-passphrase-123')
-  await user.type(screen.getByLabelText('Jelszó megerősítése'), 'Long-passphrase-123')
-  await user.click(screen.getByRole('button', { name: 'Fiók létrehozása' }))
-  expect(await screen.findByRole('status')).toHaveTextContent('Erősítsd meg')
-  expect(authenticated).not.toHaveBeenCalled()
-  expect(screen.getByRole('heading', { name: 'E-mail-cím megerősítése' })).toBeInTheDocument()
+it('offers Microsoft sign-in when configured and has no public registration', async () => {
+  vi.spyOn(api, 'accountOptions').mockResolvedValue({ emailEnabled: true, requireEmailConfirmation: true, entraEnabled: true })
+  render(<AuthScreen onAuthenticated={vi.fn()} />)
+  expect(await screen.findByRole('button', { name: 'Bejelentkezés Microsofttal' })).toBeInTheDocument()
+  expect(screen.queryByText('Regisztráció')).not.toBeInTheDocument()
 })
 
 it('validates both new passwords and allows retry after an expired token error', async () => {

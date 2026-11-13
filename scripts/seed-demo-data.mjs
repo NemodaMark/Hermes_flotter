@@ -167,11 +167,10 @@ async function seed() {
         assert.equal(existing.email, person.email)
         await account.login(person.userName, credential.password)
       } else {
-        await account.csrf()
-        await account.request('/api/v1/auth/register', { method: 'POST', status: 201, body: {
+        await admin.request('/api/v1/auth/register', { method: 'POST', status: 201, body: {
           userName: person.userName, displayName: person.displayName, email: person.email, password: credential.password,
         } })
-        await account.csrf()
+        await account.login(person.userName, credential.password)
       }
       await account.logout()
       return { id: person.userName }

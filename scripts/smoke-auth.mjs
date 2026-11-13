@@ -26,24 +26,31 @@ function createClient() {
     return text && response.headers.get('content-type')?.includes('json') ? JSON.parse(text) : undefined
   }
   async function refreshCsrf() { csrfToken = (await request('/api/v1/auth/csrf')).requestToken }
-  async function register() {
+  async function register(registrar) {
     const email = `smoke-${randomUUID()}@example.test`
     const password = randomBytes(32).toString('base64url')
     await refreshCsrf()
     const userName = email.split('@')[0]
-    const user = await request('/api/v1/auth/register', { method: 'POST', body: { displayName: 'CI ellenőrzés', userName, email, password }, status: 201 })
+    const user = await registrar.request('/api/v1/auth/register', { method: 'POST', body: { displayName: 'CI ellenőrzés', userName, email, password }, status: 201 })
     assert.equal(user.id, userName)
+    await request('/api/v1/auth/login', { body: { userName, password } })
     await refreshCsrf()
     return { ...user, password }
   }
   return { request, refreshCsrf, register }
 }
 
+const registrar = createClient()
+const registrarPassword = process.env.HERMES_INITIAL_ADMIN_PASSWORD
+assert.ok(registrarPassword, 'Initialize the isolated administrator before running the smoke test.')
+await registrar.refreshCsrf()
+await registrar.request('/api/v1/auth/login', { body: { userName: 'ci.registrar', password: registrarPassword } })
+await registrar.refreshCsrf()
 const owner = createClient()
 const member = createClient()
 const { request } = owner
 await request('/api/v1/auth/session', { status: 401 })
-const user = await owner.register()
+const user = await owner.register(registrar)
 assert.equal((await request('/api/v1/auth/session')).id, user.id)
 const first = await request('/api/v1/tenants', { method: 'POST', body: { name: 'CI első cég' }, status: 201 })
 const second = await request('/api/v1/tenants', { method: 'POST', body: { name: 'CI második cég' }, status: 201 })
@@ -59,7 +66,7 @@ await owner.refreshCsrf()
 await request('/api/v1/auth/login', { method: 'POST', body: { userName: user.id.toUpperCase(), password: user.password } })
 await owner.refreshCsrf()
 assert.equal((await request('/api/v1/tenants')).length, 2)
-const recipient = await member.register()
+const recipient = await member.register(registrar)
 const invitation = await request('/api/v1/invitations', { method: 'POST', tenantId: first.id, body: { email: recipient.email, permissions: ['vehicles.read'] }, status: 201 })
 await member.request('/api/v1/invitations/accept', { method: 'POST', body: invitation.acceptance })
 assert.equal((await member.request('/api/v1/vehicles', { tenantId: first.id })).length, 1)

@@ -25,7 +25,8 @@ builder.Services.ConfigureHermesProxy(builder.Configuration);
 var migrationMode = args.Contains("--migrate", StringComparer.Ordinal);
 var bootstrapIndex = Array.IndexOf(args, "--bootstrap-system-admin");
 var developmentSetupIndex = Array.IndexOf(args, "--configure-development-admin");
-var maintenanceMode = migrationMode || bootstrapIndex >= 0 || developmentSetupIndex >= 0;
+var initializeIndex = Array.IndexOf(args, "--initialize-system-admin");
+var maintenanceMode = migrationMode || bootstrapIndex >= 0 || developmentSetupIndex >= 0 || initializeIndex >= 0;
 if (developmentSetupIndex >= 0) DevelopmentSetup.Validate(builder.Environment.IsDevelopment(), builder.Configuration.GetConnectionString("Migrations") ?? "");
 
 builder.Services.AddProblemDetails();
@@ -44,8 +45,23 @@ builder.Services.AddDbContext<HermesDbContext>((services, options) =>
 builder.Services.AddScoped<ITenantDirectory, TenantDirectory>();
 builder.Services.AddScoped<IVehicleStore, VehicleStore>();
 
+var identity = builder.Services.AddIdentityCore<ApplicationUser>(options =>
+{
+    options.ClaimsIdentity.UserIdClaimType = "sub";
+    options.User.RequireUniqueEmail = true;
+    options.Password.RequiredLength = 12;
+    options.Password.RequireDigit = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+}).AddEntityFrameworkStores<HermesDbContext>();
+builder.Services.AddScoped<AccountRegistration>();
 if (!maintenanceMode)
 {
+    identity.AddSignInManager().AddDefaultTokenProviders()
+        .AddTokenProvider<EmailConfirmationTokenProvider>("Hermes.EmailConfirmation");
     builder.Services.AddOptions<EmailOptions>().BindConfiguration("Email").ValidateOnStart();
     builder.Services.AddSingleton<IValidateOptions<EmailOptions>, EmailOptionsValidator>();
     builder.Services.AddOptions<AccountOptions>().BindConfiguration("Accounts")
@@ -64,19 +80,6 @@ if (!maintenanceMode)
     builder.Services.AddScoped<DashboardManagement>();
     builder.Services.AddScoped<IMemberManagement, MemberManagement>();
     builder.Services.AddScoped<IGroupManagement, GroupManagement>();
-    builder.Services.AddIdentityCore<ApplicationUser>(options =>
-    {
-        options.ClaimsIdentity.UserIdClaimType = "sub";
-        options.User.RequireUniqueEmail = true;
-        options.Password.RequiredLength = 12;
-        options.Password.RequireDigit = false;
-        options.Password.RequireNonAlphanumeric = false;
-        options.Password.RequireUppercase = false;
-        options.Password.RequireLowercase = false;
-        options.Lockout.MaxFailedAccessAttempts = 5;
-        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-    }).AddEntityFrameworkStores<HermesDbContext>().AddSignInManager().AddDefaultTokenProviders()
-        .AddTokenProvider<EmailConfirmationTokenProvider>("Hermes.EmailConfirmation");
     builder.Services.Configure<IdentityOptions>(options => options.Tokens.EmailConfirmationTokenProvider = "Hermes.EmailConfirmation");
     builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(1));
     builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
@@ -148,6 +151,13 @@ if (maintenanceMode)
             var password = Environment.GetEnvironmentVariable("HERMES_DEVELOPMENT_ADMIN_PASSWORD") ?? "";
             var report = await DevelopmentSetup.Run(scope.ServiceProvider.GetRequiredService<HermesDbContext>(), builder.Environment.IsDevelopment(), password, cleanup, CancellationToken.None);
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(report));
+        }
+        if (initializeIndex >= 0)
+        {
+            if (initializeIndex + 2 >= args.Length) throw new InvalidOperationException("Specify a username and email address.");
+            var password = Environment.GetEnvironmentVariable("HERMES_INITIAL_ADMIN_PASSWORD");
+            await scope.ServiceProvider.GetRequiredService<AccountRegistration>().InitializeAdmin(
+                new("Rendszergazda", args[initializeIndex + 2], password, args[initializeIndex + 1]), CancellationToken.None);
         }
         if (bootstrapIndex >= 0)
         {

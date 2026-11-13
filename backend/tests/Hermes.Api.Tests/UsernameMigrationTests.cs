@@ -159,9 +159,9 @@ public sealed class UsernameMigrationTests(FleetFixture fixture) : IClassFixture
             Assert.Equal("{}", companyAudit.Details);
             using var futureUser = factory.CreateClient();
             await FleetFixture.RefreshCsrfAsync(futureUser);
-            var registration = await futureUser.PostAsJsonAsync("/api/v1/auth/register", new { userName = "future.user", displayName = "Meghívott", email = "future@example.test", password = FleetFixture.Password });
+            var registration = await current.PostAsJsonAsync("/api/v1/auth/register", new { userName = "future.user", displayName = "Meghívott", email = "future@example.test", password = FleetFixture.Password });
             Assert.Equal(HttpStatusCode.Created, registration.StatusCode);
-            await FleetFixture.RefreshCsrfAsync(futureUser);
+            await FleetFixture.SignInAsync(futureUser, "future.user");
             Assert.Equal(HttpStatusCode.OK, (await futureUser.PostAsJsonAsync("/api/v1/invitations/accept", pending.Acceptance)).StatusCode);
             await using (var db = FleetFixture.CreateContext(runtime.ConnectionString, new TenantContext()))
             {

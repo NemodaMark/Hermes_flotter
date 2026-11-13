@@ -67,6 +67,11 @@ public sealed class FleetFixture : IAsyncLifetime
             var result = await users.CreateAsync(new ApplicationUser { Id = name, UserName = name, Email = $"{name}@example.test", DisplayName = name == "anna" ? "Kovács Anna" : "Nagy Béla" }, Password);
             if (!result.Succeeded) throw new InvalidOperationException("Could not create the test identity.");
         }
+        var registrar = new ApplicationUser { Id = "test.registrar", UserName = "test.registrar", Email = "test.registrar@example.test", DisplayName = "Test Registrar" };
+        if (!(await users.CreateAsync(registrar, Password)).Succeeded) throw new InvalidOperationException("Could not create the test registrar.");
+        var registry = userScope.ServiceProvider.GetRequiredService<HermesDbContext>();
+        registry.SystemPermissionGrants.Add(new() { UserId = registrar.Id, Code = Hermes.Domain.SystemPermissions.Manage });
+        await registry.SaveChangesAsync();
     }
 
     public WebApplicationFactory<Program> CreateFactory(string environment = "Development")
@@ -87,6 +92,20 @@ public sealed class FleetFixture : IAsyncLifetime
         }
         if (tenantId is not null) client.DefaultRequestHeaders.Add("X-Tenant-Id", tenantId.ToString());
         return client;
+    }
+
+    internal async Task<HttpResponseMessage> RegisterAsync(object input, WebApplicationFactory<Program>? factory = null)
+    {
+        using var registrar = (factory ?? Factory).CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
+        await SignInAsync(registrar, "test.registrar");
+        return await registrar.PostAsJsonAsync("/api/v1/auth/register", input);
+    }
+
+    internal static async Task SignInAsync(HttpClient client, string userName)
+    {
+        await RefreshCsrfAsync(client);
+        (await client.PostAsJsonAsync("/api/v1/auth/login", new { userName, password = Password })).EnsureSuccessStatusCode();
+        await RefreshCsrfAsync(client);
     }
 
     public static async Task RefreshCsrfAsync(HttpClient client)

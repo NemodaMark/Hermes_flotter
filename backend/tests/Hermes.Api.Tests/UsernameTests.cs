@@ -24,7 +24,7 @@ public sealed class UsernameTests(FleetFixture fixture) : IClassFixture<FleetFix
     {
         using var client = await Anonymous();
         var name = $"name-{Guid.NewGuid():N}";
-        var response = await client.PostAsJsonAsync("/api/v1/auth/register", Registration($" {name.ToUpperInvariant()} "));
+        var response = await fixture.RegisterAsync(Registration($" {name.ToUpperInvariant()} "));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var session = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(name, session.GetProperty("id").GetString());
@@ -37,7 +37,7 @@ public sealed class UsernameTests(FleetFixture fixture) : IClassFixture<FleetFix
             db.SystemPermissionGrants.Add(new() { UserId = name, Code = Domain.SystemPermissions.Manage });
             await db.SaveChangesAsync();
         }
-        await FleetFixture.RefreshCsrfAsync(client);
+        await FleetFixture.SignInAsync(client, name);
         var profile = (await client.GetFromJsonAsync<UserProfile>($"/api/v1/system/users/{name}"))!;
         var email = $"changed-{Guid.NewGuid():N}@example.test";
         Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/v1/system/users/{name}", new { displayName = "Másik Név", email, version = profile.Version, id = "replacement", userName = "replacement" })).StatusCode);
@@ -58,14 +58,14 @@ public sealed class UsernameTests(FleetFixture fixture) : IClassFixture<FleetFix
         using var first = await Anonymous();
         using var second = await Anonymous();
         var name = $"same-{Guid.NewGuid():N}";
-        var responses = await Task.WhenAll(first.PostAsJsonAsync("/api/v1/auth/register", Registration(name)), second.PostAsJsonAsync("/api/v1/auth/register", Registration(name.ToUpperInvariant())));
+        var responses = await Task.WhenAll(fixture.RegisterAsync(Registration(name)), fixture.RegisterAsync(Registration(name.ToUpperInvariant())));
         Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Created);
         var rejected = Assert.Single(responses, x => x.StatusCode == HttpStatusCode.BadRequest);
         Assert.True((await rejected.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").TryGetProperty("userName", out _));
         await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, new TenantContext());
         Assert.Equal(1, await db.Users.CountAsync(x => x.Id == name));
         Assert.Equal(1, await db.UserIdentityHistory.CountAsync(x => x.PreviousId == name));
-        Assert.Equal(1, await db.SystemAuditEvents.CountAsync(x => x.ActorSubject == name && x.Action == "user.registered"));
+        Assert.Equal(1, await db.SystemAuditEvents.CountAsync(x => x.ActorSubject == "test.registrar" && x.TargetSubject == name && x.Action == "user.registered"));
     }
 
     [Theory]
@@ -81,7 +81,7 @@ public sealed class UsernameTests(FleetFixture fixture) : IClassFixture<FleetFix
     public async Task Invalid_names_are_rejected_without_creating_an_account(string? name)
     {
         using var client = await Anonymous();
-        var response = await client.PostAsJsonAsync("/api/v1/auth/register", Registration(name!));
+        var response = await fixture.RegisterAsync(Registration(name!));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.True((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").TryGetProperty("userName", out _));
     }
@@ -91,7 +91,7 @@ public sealed class UsernameTests(FleetFixture fixture) : IClassFixture<FleetFix
     {
         using var client = await Anonymous();
         var name = $"permanent-{Guid.NewGuid():N}";
-        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/auth/register", Registration(name))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await fixture.RegisterAsync(Registration(name))).StatusCode);
         await using var connection = new NpgsqlConnection(fixture.ApplicationConnection);
         await connection.OpenAsync();
         await using (var rename = new NpgsqlCommand("UPDATE identity_users SET \"Id\" = 'another-name', \"UserName\" = 'another-name', \"NormalizedUserName\" = 'ANOTHER-NAME' WHERE \"Id\" = @name", connection))
@@ -103,7 +103,7 @@ public sealed class UsernameTests(FleetFixture fixture) : IClassFixture<FleetFix
         await using (var reserve = new NpgsqlCommand("INSERT INTO user_identity_history (\"PreviousId\", \"UserId\") VALUES (@name, NULL)", connection))
         { reserve.Parameters.AddWithValue("name", reserved); await reserve.ExecuteNonQueryAsync(); }
         using var stranger = await Anonymous();
-        Assert.Equal(HttpStatusCode.BadRequest, (await stranger.PostAsJsonAsync("/api/v1/auth/register", Registration(reserved))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await fixture.RegisterAsync(Registration(reserved))).StatusCode);
         await using var erase = new NpgsqlCommand("DELETE FROM user_identity_history WHERE \"PreviousId\" = @name", connection);
         erase.Parameters.AddWithValue("name", reserved);
         Assert.Equal("55000", (await Assert.ThrowsAsync<PostgresException>(() => erase.ExecuteNonQueryAsync())).SqlState);

@@ -3,7 +3,7 @@ import { request } from './api'
 const returnKey = 'hermes.entra.return-fragment'
 const callbackMessages = {
   failed: 'A Microsoft-művelet nem sikerült. Próbáld újra a megfelelő munkahelyi fiókkal.',
-  unlinked: 'Először lépj be a HERMES-fiókodba, majd a saját profilodban kapcsold össze a Microsoft-fiókodat.',
+  unlinked: 'Ehhez a Microsoft-fiókhoz még nincs HERMES-hozzáférés. Kérd a HERMES rendszergazdájától, vagy kapcsold össze a meglévő HERMES-fiókoddal.',
   connected: 'A Microsoft-fiókod össze van kapcsolva.',
 }
 

@@ -10,7 +10,7 @@ Több céget kiszolgáló flottakezelő SaaS: React + TypeScript frontend, ASP.N
 
 ## Elkészült funkciók
 
-- Regisztráció névvel, e-mail-címmel és jelszóval; választható e-mail-megerősítés az új fiókokhoz, alapbeállítással automatikus belépés.
+- Naplózott fióklétrehozás a rendszerkezelői felületen. Helyi fiókokhoz választható e-mail-megerősítés, céges Microsoft-fiókokhoz Entra ID-belépés.
 - E-mailes jelszó-visszaállítás és automatikus meghívóküldés; [SMTP és helyi tesztlevelek beállítása](docs/EMAIL.md).
 - Bejelentkezés, kijelentkezés és oldalfrissítést túlélő, sütialapú munkamenet.
 - Első cég létrehozása a belépés után, majd további cégek létrehozása és cégváltás.
@@ -43,7 +43,7 @@ docker compose up --build
 - OpenAPI fejlesztéskor: http://localhost:5080/openapi/v1.json
 - PostgreSQL: localhost:5432, adatbázis: `hermes`
 
-Nyisd meg az alkalmazást, válaszd a **Regisztráció** lehetőséget, majd hozd létre a cégedet. Nincs előre létrehozott felhasználó vagy közös alapértelmezett belépési jelszó.
+Üres adatbázisnál állítsd be a `HERMES_INITIAL_ADMIN_PASSWORD` környezeti változót, majd futtasd a `docker compose run --rm --no-deps -e HERMES_INITIAL_ADMIN_PASSWORD migrate --initialize-system-admin sajat.felhasznalonev sajat@pelda.hu` parancsot. Ezután lépj be, és a **Beállítások → Rendszerkezelés → Új felhasználó** menüpontból hozd létre a további fiókokat.
 
 A Compose inicializálja a PostgreSQL-szerepköröket, külön folyamattal lefuttatja a migrációkat, majd indítja az API-t. Az API a korlátozott `hermes_app`, a migráció a `hermes_migrator` szerepkört használja. Az adatbázis a `postgres-data`, a munkamenetek védelméhez használt kulcsok a `data-protection-keys` kötetben maradnak meg.
 
@@ -374,7 +374,7 @@ A metaadatok a `vehicle_documents`, a tartalom a `vehicle_document_contents` Pos
 | Művelet | Végpont |
 |---|---|
 | CSRF-token kérése | `GET /api/v1/auth/csrf` |
-| Regisztráció, automatikus belépéssel | `POST /api/v1/auth/register` |
+| Fióklétrehozás (`system.manage`) | `POST /api/v1/auth/register` |
 | Bejelentkezés | `POST /api/v1/auth/login` |
 | Aktuális felhasználó | `GET /api/v1/auth/session` |
 | Saját megjelenített név módosítása | `PUT /api/v1/auth/profile` |

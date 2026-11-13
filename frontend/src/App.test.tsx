@@ -304,15 +304,11 @@ it('logs in and offers company creation to a user without memberships', async ()
   ).toBeInTheDocument()
 })
 
-it('takes a newly registered user through creating their first company', async () => {
+it('takes an invited account through creating its first company after sign-in', async () => {
   mountApp({ signedIn: false })
-  await userEvent.click(await screen.findByRole('button', { name: 'Regisztráció' }))
-  await userEvent.type(screen.getByLabelText('Felhasználónév', { exact: true }), 'teszt.elek')
-  await userEvent.type(screen.getByLabelText('Teljes név'), 'Teszt Elek')
-  await userEvent.type(screen.getByLabelText('E-mail-cím'), 'elek@example.test')
+  await userEvent.type(await screen.findByLabelText('Felhasználónév vagy e-mail-cím'), 'anna')
   await userEvent.type(screen.getByLabelText('Jelszó', { exact: true }), 'test-password-123')
-  await userEvent.type(screen.getByLabelText('Jelszó megerősítése'), 'test-password-123')
-  await userEvent.click(screen.getByRole('button', { name: 'Fiók létrehozása' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Belépés' }))
   await screen.findByRole('heading', { name: 'Hozd létre az első cégedet' })
   await userEvent.type(screen.getByLabelText('Cégnév'), 'Saját Flotta Kft.')
   await userEvent.click(screen.getByRole('button', { name: 'Cég létrehozása' }))

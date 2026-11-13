@@ -16,6 +16,8 @@ Checksums for the checked-in GLBs are listed in [sources.json](sources.json).
 
 The login image is a HERMES render of ANDREO12's Volkswagen Passat with adapted paint, framing and lighting, under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
+CC BY 4.0 permits commercial reuse and adaptation with creator credit, license link and a note about modifications. Manufacturer badges, logos and other third-party rights are outside the copyright license. The five source licenses are recorded in the GLB metadata and source list above.
+
 ## Lighting and superseded assets
 
 | Asset | Creator and source | License | HERMES adaptation |

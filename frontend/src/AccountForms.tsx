@@ -16,7 +16,7 @@ export function AuthScreen({
   invitationPending?: boolean
   entraError?: string | null
 }) {
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'resend'>('login')
+  const [mode, setMode] = useState<'login' | 'forgot' | 'resend'>('login')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(entraError)
   const [notice, setNotice] = useState<string | null>(null)
@@ -45,10 +45,6 @@ export function AuthScreen({
     const values = new FormData(event.currentTarget)
     const email = String(values.get('email')).trim()
     const password = String(values.get('password'))
-    if (mode === 'register' && password !== values.get('confirmation')) {
-      setError('A két jelszó nem egyezik meg.')
-      return
-    }
     setError(null)
     setNotice(null)
     setPending(true)
@@ -57,19 +53,7 @@ export function AuthScreen({
         setNotice((await api.requestAccountEmail(email, mode === 'resend')).message)
         return
       }
-      const user =
-        mode === 'login'
-          ? await api.login(email, password)
-          : await api.register({
-              userName: String(values.get('userName')).trim(),
-              displayName: String(values.get('displayName')).trim(),
-              email,
-              password,
-            })
-      if ('requiresEmailConfirmation' in user) {
-        setNotice(user.message)
-        setMode('resend')
-      } else await onAuthenticated(user)
+      await onAuthenticated(await api.login(email, password))
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'A kérés nem sikerült.')
     } finally {
@@ -87,40 +71,14 @@ export function AuthScreen({
       <div className="fleet-auth-controls">
       {invitationPending && (
         <p className="invitation-context">
-          Céges meghívó elfogadásához lépj be vagy regisztrálj a meghívott e-mail-címmel. Belépés
+          Céges meghívó elfogadásához lépj be a meghívott e-mail-címhez tartozó fiókkal. Belépés
           után itt folytathatod a csatlakozást.
         </p>
       )}
       <section className="account-panel" aria-labelledby="account-title">
-        <div className="account-tabs" aria-label="Fiókműveletek">
-          <Button
-            type="button"
-            className={mode === 'login' ? 'selected' : ''}
-            aria-pressed={mode === 'login'}
-            disabled={pending}
-            onClick={() => {
-              setMode('login')
-              setError(null)
-              setNotice(null)
-            }}
-          >
-            Bejelentkezés
-          </Button>
-          <Button
-            type="button"
-            className={mode === 'register' ? 'selected' : ''}
-            aria-pressed={mode === 'register'}
-            disabled={pending}
-            onClick={() => {
-              setMode('register')
-              setError(null)
-              setNotice(null)
-            }}
-          >
-            Regisztráció
-          </Button>
-        </div>
-        <h1 id="account-title">{mode === 'login' ? 'Bejelentkezés' : mode === 'register' ? 'Hozd létre a fiókodat' : mode === 'forgot' ? 'Elfelejtett jelszó' : 'E-mail-cím megerősítése'}</h1>
+        {mode !== 'login' && <Button type="button" variant="link" disabled={pending}
+          onClick={() => { setMode('login'); setError(null); setNotice(null) }}>Vissza a bejelentkezéshez</Button>}
+        <h1 id="account-title">{mode === 'login' ? 'Bejelentkezés' : mode === 'forgot' ? 'Elfelejtett jelszó' : 'E-mail-cím megerősítése'}</h1>
         {mode === 'login' && entraEnabled && <div className="entra-entry">
           <Button type="button" variant="outline" disabled={pending} onClick={() => void microsoft()}>
             <span className="microsoft-mark" aria-hidden="true"><i /><i /><i /><i /></span>
@@ -133,35 +91,6 @@ export function AuthScreen({
         </p>}
         {notice && <p role="status" className="access-success">{notice}</p>}
         <form key={mode} onSubmit={submit} className="account-form">
-          {mode === 'register' && (
-            <>
-              <label htmlFor="userName">Felhasználónév</label>
-              <input
-                id="userName"
-                name="userName"
-                autoComplete="username"
-                required
-                minLength={3}
-                maxLength={64}
-                pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,63}"
-                disabled={pending}
-                aria-describedby="username-hint"
-              />
-              <p className="field-hint" id="username-hint">
-                Egyedi, állandó azonosító. 3–64 karakter: angol betű, szám, pont, kötőjel vagy
-                aláhúzás. A kis- és nagybetű azonosnak számít.
-              </p>
-              <label htmlFor="displayName">Teljes név</label>
-              <input
-                id="displayName"
-                name="displayName"
-                autoComplete="name"
-                required
-                maxLength={120}
-                disabled={pending}
-              />
-            </>
-          )}
           <label htmlFor="email">
             {mode === 'login' ? 'Felhasználónév vagy e-mail-cím' : 'E-mail-cím'}
           </label>
@@ -174,37 +103,17 @@ export function AuthScreen({
             maxLength={254}
             disabled={pending}
           />
-          {(mode === 'login' || mode === 'register') && <>
+          {mode === 'login' && <>
           <label htmlFor="password">Jelszó</label>
           <input
             id="password"
             name="password"
             type="password"
-            autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+            autoComplete="current-password"
             required
-            minLength={mode === 'register' ? 12 : undefined}
             maxLength={128}
             disabled={pending}
-            aria-describedby={mode === 'register' ? 'password-hint' : undefined}
           />
-          {mode === 'register' && (
-            <>
-              <p className="field-hint" id="password-hint">
-                Legalább 12 karakter. Használhatsz egy hosszabb jelmondatot is.
-              </p>
-              <label htmlFor="confirmation">Jelszó megerősítése</label>
-              <input
-                id="confirmation"
-                name="confirmation"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={12}
-                maxLength={128}
-                disabled={pending}
-              />
-            </>
-          )}
           </>}
           {error && (
             <p className="form-error" role="alert">
@@ -213,7 +122,7 @@ export function AuthScreen({
           )}
           <Button className="primary-button account-submit" disabled={pending}>
             {pending ? <LoaderCircle size={18} className="spinning" /> : <ArrowRight size={18} />}
-            {mode === 'login' ? 'Belépés' : mode === 'register' ? 'Fiók létrehozása' : 'Hivatkozás kérése'}
+            {mode === 'login' ? 'Belépés' : 'Hivatkozás kérése'}
           </Button>
         </form>
         {emailEnabled && <div className="dialog-actions">

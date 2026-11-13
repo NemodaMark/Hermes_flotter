@@ -18,12 +18,11 @@ public sealed class UserProfileTests(FleetFixture fixture) : IClassFixture<Fleet
         var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
         var email = $"profile-{Guid.NewGuid():N}@example.test";
-        var response = await client.PostAsJsonAsync("/api/v1/auth/register", new { displayName = "Profil Teszt", email, password = FleetFixture.Password, userName = email.Split('@')[0], systemPermissions = new[] { SystemPermissions.Manage } });
+        var response = await fixture.RegisterAsync(new { displayName = "Profil Teszt", email, password = FleetFixture.Password, userName = email.Split('@')[0], systemPermissions = new[] { SystemPermissions.Manage } });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var user = await response.Content.ReadFromJsonAsync<JsonElement>();
         var id = user.GetProperty("id").GetString()!;
         Assert.Equal(email.Split('@')[0], id);
-        Assert.Empty(user.GetProperty("systemPermissions").EnumerateArray());
         if (system)
         {
             await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, new TenantContext());
@@ -31,6 +30,7 @@ public sealed class UserProfileTests(FleetFixture fixture) : IClassFixture<Fleet
             await db.SaveChangesAsync();
         }
         await FleetFixture.RefreshCsrfAsync(client);
+        await FleetFixture.SignInAsync(client, id);
         return new(client, id, email);
     }
     private static string Path(Account target) => $"/api/v1/system/users/{target.Id}";
@@ -272,6 +272,8 @@ public sealed class UserProfileTests(FleetFixture fixture) : IClassFixture<Fleet
         Assert.Contains(audit.Items, x => x.Action == "user.system_access_changed" && x.TargetSubject == target.Id && x.ActorSubject == admin.Id);
         await using var check = FleetFixture.CreateContext(fixture.ApplicationConnection, new TenantContext());
         Assert.Equal(2, await check.SystemAuditEvents.CountAsync(x => x.Action == "user.system_access_changed" && x.ActorSubject == admin.Id));
+        check.SystemPermissionGrants.Add(new() { UserId = "test.registrar", Code = SystemPermissions.Manage });
+        await check.SaveChangesAsync();
     }
 
     [Fact]
@@ -298,5 +300,7 @@ public sealed class UserProfileTests(FleetFixture fixture) : IClassFixture<Fleet
         Assert.Equal(SystemPermissions.Manage, (await db.SystemPermissionGrants.SingleAsync()).Code);
         await Assert.ThrowsAsync<InvalidOperationException>(() => UserAccounts.Bootstrap(db, first.Id, default));
         Assert.Equal("bootstrap:database-operator", (await db.SystemAuditEvents.SingleAsync(x => x.TargetSubject == first.Id && x.Action == "user.system_access_bootstrapped")).ActorSubject);
+        db.SystemPermissionGrants.Add(new() { UserId = "test.registrar", Code = SystemPermissions.Manage });
+        await db.SaveChangesAsync();
     }
 }

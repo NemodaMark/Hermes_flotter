@@ -22,7 +22,7 @@ bash deploy/debian13/install-hermes.sh flotta.example.hu uzemelteto@example.hu \
 
 A telepítő beállítja a Docker Engine-t, a Compose-t, a Caddyt és a PostgreSQL szerepköreit. Létrehozza az elkülönített jelszavakat, telepíti és ellenőrzi az első kiadást, elkészíti a titkosított mentést, és visszaállítási próbát futtat. Siker után engedélyezi a napi mentést és a heti próbát, majd felveszi a TeamCity telepítőkulcsát. A konfiguráció `/etc/hermes/staging.env`, a mentési jelszó `/etc/hermes/restic-password`. A jelszó külön megőrzendő. Megszakadt első telepítésnél az elkészült lépés után a megfelelő [üzemeltetési paranccsal](../debian13/README.md) folytatható az inicializálás. A szkript meglévő példány mellett hibával tér vissza.
 
-Az első rendszerszintű kezelő a saját regisztrációját követően a `hermes.sh bootstrap-admin KANONIKUS_FELHASZNALONEV` paranccsal állítható be. Már futó, korábban kézzel telepített példány TeamCityhez kapcsolásakor az ellenőrzött checkout `install-teamcity-access.sh` parancsa telepíti az SSH-hozzáférést a teljes telepítés megismétlése nélkül. A kiadási belépési pont az alapértelmezett staging konfigurációt használja.
+Az első rendszerszintű kezelőt a `hermes.sh initialize-admin KANONIKUS_FELHASZNALONEV EMAIL` karbantartási parancs hozza létre a `HERMES_INITIAL_ADMIN_PASSWORD` környezeti változóval. Már futó, korábban kézzel telepített példány TeamCityhez kapcsolásakor az ellenőrzött checkout `install-teamcity-access.sh` parancsa telepíti az SSH-hozzáférést. A kiadási belépési pont az alapértelmezett staging konfigurációt használja.
 
 ## TeamCity projekt beállítása
 

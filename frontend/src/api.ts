@@ -5,7 +5,7 @@ export type Session = {
   passwordChangeRequired?: boolean
   systemPermissions?: string[]
 }
-export type RegistrationResult = Session | { requiresEmailConfirmation: true; message: string }
+export type RegistrationResult = { id: string; displayName: string; email: string; requiresEmailConfirmation: boolean }
 export type AccountToken = { userId: string; email: string; token: string }
 export type UserProfile = {
   avatarRevision?: string | null
@@ -103,7 +103,8 @@ export type RegisterInput = {
   userName: string
   displayName: string
   email: string
-  password: string
+  password?: string
+  entraObjectId?: string
 }
 export type Permission = { code: string; name: string }
 export type Page<T> = {
@@ -287,11 +288,7 @@ export const api = {
       throw error
     }
   },
-  register: async (input: RegisterInput) => {
-    const result = await request<RegistrationResult>('/api/v1/auth/register', { body: input })
-    resetCsrfToken()
-    return result
-  },
+  register: (input: RegisterInput) => request<RegistrationResult>('/api/v1/auth/register', { body: input }),
   accountOptions: () => request<{ emailEnabled: boolean; requireEmailConfirmation: boolean; entraEnabled?: boolean }>('/api/v1/auth/options'),
   requestAccountEmail: (email: string, confirmation: boolean) => request<{ message: string }>(
     `/api/v1/auth/${confirmation ? 'resend-confirmation' : 'forgot-password'}`, { body: { email } }),

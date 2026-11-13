@@ -38,15 +38,17 @@ export function DashboardPage({ user,tenant,siteId,onFleet,onVehicle }: { user:S
   const [override,setOverride]=useState<'Overview'|'Vehicle'|null>(null)
   const cars=(dashboard.data?.vehicles??[]).filter(car=>siteId==='all'||(siteId==='none'?!car.vehicle.siteId:car.vehicle.siteId===siteId))
   const mode=override??dashboard.data?.mode??'Overview'
-  return <section className="dashboard-page" aria-label="Kezdőlap">
+  const fullStudio=mode==='Vehicle' && dashboard.data?.canReadVehicles && cars.some(car=>car.vehicle.status!=='Archived')
+  const viewSwitch=<div className="dashboard-view-switch" role="group" aria-label="Dashboard nézete"><Button aria-pressed={mode==='Overview'} onClick={()=>setOverride('Overview')}><LayoutDashboard size={16}/>Áttekintő</Button><Button aria-pressed={mode==='Vehicle'} onClick={()=>setOverride('Vehicle')}><CarFront size={17}/>Autós</Button></div>
+  return <section className={fullStudio ? 'dashboard-page dashboard-studio' : 'dashboard-page'} aria-label="Kezdőlap">
     <QueryMessage pending={dashboard.isPending} error={dashboard.error} retry={()=>void dashboard.refetch()}/>
     {dashboard.data&&<>
-      <div className="dashboard-heading"><h2 className="sr-only">{mode==='Vehicle'?'Járműközpont':'Flotta áttekintés'}</h2>
-        <div className="dashboard-view-switch" role="group" aria-label="Dashboard nézete"><Button aria-pressed={mode==='Overview'} onClick={()=>setOverride('Overview')}><LayoutDashboard size={16}/>Áttekintő</Button><Button aria-pressed={mode==='Vehicle'} onClick={()=>setOverride('Vehicle')}><CarFront size={17}/>Autós</Button></div>
+      <h2 className="sr-only">{mode==='Vehicle'?'Járműközpont':'Flotta áttekintés'}</h2>
+      {!fullStudio && <div className="dashboard-heading">{viewSwitch}
         {mode === 'Overview' && dashboard.data.canReadVehicles && <Button className="secondary-button" aria-label="Járműlista megnyitása" onClick={() => onFleet()}>Járműlista<ArrowRight size={16} aria-hidden="true" /></Button>}
-      </div>
+      </div>}
       {!dashboard.data.canReadVehicles?<p className="notice">Nincs jogosultságod járműadatok megtekintéséhez.</p>:
-        mode==='Overview'?<Overview cars={cars} onFleet={onFleet} onVehicle={onVehicle}/>:<CarDashboard key={`${tenant.id}:${siteId}`} cars={cars} user={user} tenant={tenant} onFleet={onFleet}/>}
+        mode==='Overview'?<Overview cars={cars} onFleet={onFleet} onVehicle={onVehicle}/>:<CarDashboard key={`${tenant.id}:${siteId}`} cars={cars} user={user} tenant={tenant} onFleet={onFleet} viewSwitch={viewSwitch}/>}
     </>}
   </section>
 }
@@ -115,7 +117,7 @@ function Overview({ cars, onFleet, onVehicle }: {
   </section>
 }
 const icons={data:CarFront,history:Gauge,services:Wrench,documents:FileText,leases:FileText,site:MapPin,photos:Camera}
-function CarDashboard({cars,user,tenant,onFleet}:{cars:DashboardCar[];user:Session;tenant:Tenant;onFleet:()=>void}) {
+function CarDashboard({cars,user,tenant,onFleet,viewSwitch}:{cars:DashboardCar[];user:Session;tenant:Tenant;onFleet:()=>void;viewSwitch:React.ReactNode}) {
   const eligible=cars.filter(car=>car.vehicle.status!=='Archived')
   const [selected,setSelected]=useState<string|null>(null)
   const [action,setAction]=useState<StudioAction|null>(null)
@@ -135,7 +137,10 @@ function CarDashboard({cars,user,tenant,onFleet}:{cars:DashboardCar[];user:Sessi
   const model=vehicleModel(car.bodyType)
   return <>
     <section className="car-dashboard" aria-label="Autós dashboard">
-      <div className="car-dashboard-toolbar"><div><span className="car-registration">{car.vehicle.registration}</span><span className="car-dashboard-model">{car.vehicle.make} {car.vehicle.model}</span></div><label className="car-picker"><span>Jármű kiválasztása</span><Select value={car.vehicle.id} onChange={event=>{setSelected(event.target.value);setAction(null);setOpened(null);setFlight(false)}}>{eligible.map(item=><option key={item.vehicle.id} value={item.vehicle.id}>{item.vehicle.registration}{item.isAssignedToMe?' · Nálam lévő jármű':''}</option>)}</Select></label></div>
+      <div className="car-dashboard-toolbar">
+        <div className="car-identity"><h3 className="car-registration">{car.vehicle.registration}</h3><span className="car-dashboard-model">{car.vehicle.make} {car.vehicle.model}</span></div>
+        <div className="car-dashboard-actions">{viewSwitch}<label className="car-picker"><span className="sr-only">Jármű kiválasztása</span><Select value={car.vehicle.id} onChange={event=>{setSelected(event.target.value);setAction(null);setOpened(null);setFlight(false)}}>{eligible.map(item=><option key={item.vehicle.id} value={item.vehicle.id}>{item.vehicle.registration}{item.isAssignedToMe?' · Nálam lévő jármű':''}</option>)}</Select></label></div>
+      </div>
       <div className="car-stage-wrap">
         <Suspense fallback={<div className="vehicle-studio studio-loading" role="status">3D nézet betöltése…</div>}><VehicleStudio key={`${car.vehicle.id}:${model.key}`} model={model} color={car.color} menus={menus} action={action} onSelect={focus} onFocused={focused} onCancelled={cancelled} paused={opened !== null}/></Suspense>
         <div className="car-stage-meta"><span>{bodyNames[car.bodyType]??'Egyéb karosszéria'}<i style={{backgroundColor:paint.hex}}/>{car.color??'Szín nincs megadva'}</span><Button className="studio-reset" aria-label="Kamera alaphelyzetbe" onClick={()=>{setFlight(false);setOpened(null);setAction(previous=>({key:'home',sequence:(previous?.sequence??0)+1}))}}><RotateCcw size={16}/>Alapnézet</Button></div>

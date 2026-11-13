@@ -342,7 +342,7 @@ command=${1:-help}
 shift || true
 if [[ $command == init ]]; then init "$@"; exit; fi
 if [[ $command == help ]]; then
-    echo 'Commands: init DOMAIN EMAIL REPOSITORY | init-repository | deploy | start | stop | status | backup | snapshots | check | restore-drill [SNAPSHOT] | recover SNAPSHOT SOURCE DATA CONFIG | bootstrap-admin USERNAME | install-systemd'
+    echo 'Commands: init DOMAIN EMAIL REPOSITORY | init-repository | deploy | start | stop | status | backup | snapshots | check | restore-drill [SNAPSHOT] | recover SNAPSHOT SOURCE DATA CONFIG | initialize-admin USERNAME EMAIL | bootstrap-admin USERNAME | install-systemd'
     exit
 fi
 load_config
@@ -355,6 +355,12 @@ case $command in
     restore-drill) lock; restore_drill "$@" ;;
     install-systemd) lock; install_systemd ;;
     stop) lock; dc down --remove-orphans ;;
+    initialize-admin)
+        [[ $# == 2 && -n ${HERMES_INITIAL_ADMIN_PASSWORD:-} ]] || die 'Specify a username, email and HERMES_INITIAL_ADMIN_PASSWORD.'
+        export HERMES_INITIAL_ADMIN_PASSWORD
+        lock
+        dc --profile maintenance run --rm --no-deps -e HERMES_INITIAL_ADMIN_PASSWORD migrate --initialize-system-admin "$1" "$2"
+        ;;
     bootstrap-admin) [[ $# == 1 && $1 =~ ^[a-z0-9][a-z0-9._-]+$ ]] || die 'Specify one canonical username.'; lock; dc --profile maintenance run --rm --no-deps migrate --bootstrap-system-admin "$1" ;;
     *) die "Unknown command: $command" ;;
 esac

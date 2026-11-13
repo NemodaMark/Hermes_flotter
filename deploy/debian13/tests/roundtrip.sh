@@ -36,9 +36,12 @@ done
 export NODE_EXTRA_CA_CERTS="$HERMES_DATA_DIR/caddy-data/caddy/pki/authorities/local/root.crt"
 export HERMES_BASE_URL=https://hermes.test:18443
 curl --fail --retry 15 --retry-all-errors --retry-delay 2 --cacert "$NODE_EXTRA_CA_CERTS" "$HERMES_BASE_URL/health/ready"
+export HERMES_INITIAL_ADMIN_PASSWORD
+HERMES_INITIAL_ADMIN_PASSWORD=$(openssl rand -hex 24)
+bash "$tool" initialize-admin ci.registrar ci.registrar@example.test
 node "$root/scripts/smoke-auth.mjs"
 node "$root/deploy/debian13/tests/staging-roundtrip.mjs" seed "$HERMES_CI_TEMP/state.json"
-bash "$tool" bootstrap-admin restore.owner
+unset HERMES_INITIAL_ADMIN_PASSWORD
 dc exec -T db psql -U postgres -d hermes -At < "$root/deploy/debian13/tests/fingerprint.sql" > "$HERMES_CI_TEMP/before.txt"
 bash "$tool" backup
 bash "$tool" snapshots

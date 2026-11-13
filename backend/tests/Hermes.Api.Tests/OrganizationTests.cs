@@ -19,8 +19,9 @@ public sealed class OrganizationTests(FleetFixture fixture) : IClassFixture<Flee
         var client = await fixture.ClientAsync(null);
         await FleetFixture.RefreshCsrfAsync(client);
         var id = $"org-{Guid.NewGuid():N}";
-        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/auth/register", new { userName = id, email = $"{id}@example.test", displayName = "Céges teszt", password = FleetFixture.Password })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await fixture.RegisterAsync(new { userName = id, email = $"{id}@example.test", displayName = "Céges teszt", password = FleetFixture.Password })).StatusCode);
         await FleetFixture.RefreshCsrfAsync(client);
+        await FleetFixture.SignInAsync(client, id);
         var tenant = company ? (await (await client.PostAsJsonAsync("/api/v1/tenants", new { name = "Cég és telephely teszt" })).Content.ReadFromJsonAsync<TenantSummary>())!.Id : Guid.Empty;
         if (company) Select(client, tenant);
         return new(client, id, tenant);

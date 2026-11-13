@@ -46,7 +46,7 @@ public sealed class AccountRecovery(
         await using (var transaction = await db.Database.BeginTransactionAsync(ct))
         {
             user = await accounts.LockUser(user.Id, ct);
-            if (!await Usable(user.Id, ct) || confirmation && user.EmailConfirmed
+            if (!await Usable(user.Id, ct) || !await users.HasPasswordAsync(user) || confirmation && user.EmailConfirmed
                 || user.AccountEmailSentAt > DateTimeOffset.UtcNow.AddMinutes(-1)) return;
             var token = confirmation ? await users.GenerateEmailConfirmationTokenAsync(user) : await users.GeneratePasswordResetTokenAsync(user);
             var query = new Dictionary<string, string?>
@@ -79,7 +79,7 @@ public sealed class AccountRecovery(
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (user is null || !await Usable(user.Id, ct)) throw InvalidToken();
         user = await accounts.LockUser(user.Id, ct);
-        if (user.NormalizedEmail != users.NormalizeEmail(email!.Trim()) || !await Usable(user.Id, ct)) throw InvalidToken();
+        if (user.NormalizedEmail != users.NormalizeEmail(email!.Trim()) || !await Usable(user.Id, ct) || !await users.HasPasswordAsync(user)) throw InvalidToken();
         return user;
     }
 

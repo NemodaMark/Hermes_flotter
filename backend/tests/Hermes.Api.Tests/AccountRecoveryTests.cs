@@ -40,14 +40,14 @@ public sealed class AccountRecoveryTests(FleetFixture fixture) : IClassFixture<F
 
     private static HttpClient Client(WebApplicationFactory<Program> factory) => factory.CreateClient(new()
     { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
-    private static async Task<(string Id, string Email)> Register(HttpClient client, HttpStatusCode status = HttpStatusCode.Created)
+    private async Task<(string Id, string Email)> Register(HttpClient client, WebApplicationFactory<Program> factory, bool confirmation = false)
     {
         await FleetFixture.RefreshCsrfAsync(client);
         var id = $"recovery-{Guid.NewGuid():N}";
         var email = $"{id}@example.test";
-        var response = await client.PostAsJsonAsync("/api/v1/auth/register", new { userName = id, email, displayName = "Levél teszt", password = FleetFixture.Password });
-        Assert.Equal(status, response.StatusCode);
-        await FleetFixture.RefreshCsrfAsync(client);
+        var response = await fixture.RegisterAsync(new { userName = id, email, displayName = "Levél teszt", password = FleetFixture.Password }, factory);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        if (!confirmation) await FleetFixture.SignInAsync(client, id);
         return (id, email);
     }
     private static Uri Link(EmailMessage message) => new(message.Text.Split('\n').Single(x => x.StartsWith("https://", StringComparison.Ordinal)));
@@ -67,7 +67,7 @@ public sealed class AccountRecoveryTests(FleetFixture fixture) : IClassFixture<F
         await using var factory = Factory(mail, confirmation: true);
         using var client = Client(factory);
         client.DefaultRequestHeaders.Host = "untrusted.example.test";
-        var (id, email) = await Register(client, HttpStatusCode.Accepted);
+        var (id, email) = await Register(client, factory, confirmation: true);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/auth/session")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = FleetFixture.Password })).StatusCode);
         var token = Token(Assert.Single(mail.Messages));
@@ -86,7 +86,7 @@ public sealed class AccountRecoveryTests(FleetFixture fixture) : IClassFixture<F
         var mail = new Mailbox();
         await using var factory = Factory(mail);
         using var original = Client(factory);
-        var (id, email) = await Register(original);
+        var (id, email) = await Register(original, factory);
         var company = await original.PostAsJsonAsync("/api/v1/tenants", new { name = "Jelszó tesztcég" });
         Assert.Equal(HttpStatusCode.Created, company.StatusCode);
         var access = await original.GetStringAsync("/api/v1/tenants");
@@ -114,7 +114,7 @@ public sealed class AccountRecoveryTests(FleetFixture fixture) : IClassFixture<F
         var mail = new Mailbox();
         await using var factory = Factory(mail);
         using var client = Client(factory);
-        var (_, email) = await Register(client);
+        var (_, email) = await Register(client, factory);
         var valid = await client.PostAsJsonAsync("/api/v1/auth/forgot-password", new { email });
         var unknown = await client.PostAsJsonAsync("/api/v1/auth/forgot-password", new { email = "unknown@example.test" });
         var repeated = await client.PostAsJsonAsync("/api/v1/auth/forgot-password", new { email });
@@ -130,7 +130,7 @@ public sealed class AccountRecoveryTests(FleetFixture fixture) : IClassFixture<F
         var mail = new Mailbox();
         await using var factory = Factory(mail);
         using var client = Client(factory);
-        var (_, email) = await Register(client);
+        var (_, email) = await Register(client, factory);
         await client.PostAsJsonAsync("/api/v1/auth/forgot-password", new { email });
         var token = Token(Assert.Single(mail.Messages));
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/auth/confirm-email", token)).StatusCode);
@@ -151,7 +151,7 @@ public sealed class AccountRecoveryTests(FleetFixture fixture) : IClassFixture<F
             services.Configure<EmailConfirmationTokenOptions>(options => options.TokenLifespan = TimeSpan.FromSeconds(-1));
         }));
         using var client = Client(factory);
-        await Register(client, HttpStatusCode.Accepted);
+        await Register(client, factory, confirmation: true);
         var token = Token(Assert.Single(mail.Messages));
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/auth/confirm-email", token)).StatusCode);
         using var scope = factory.Services.CreateScope();
@@ -171,7 +171,7 @@ public sealed class AccountRecoveryTests(FleetFixture fixture) : IClassFixture<F
         var mail = new Mailbox();
         await using var factory = Factory(mail);
         using var client = Client(factory);
-        var (id, email) = await Register(client);
+        var (id, email) = await Register(client, factory);
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<HermesDbContext>();
@@ -195,7 +195,7 @@ public sealed class AccountRecoveryTests(FleetFixture fixture) : IClassFixture<F
         var mail = new Mailbox { Fail = failure };
         await using var factory = Factory(mail);
         using var client = Client(factory);
-        await Register(client);
+        await Register(client, factory);
         var company = (await (await client.PostAsJsonAsync("/api/v1/tenants", new { name = "Meghívó tesztcég" })).Content.ReadFromJsonAsync<TenantSummary>())!;
         client.DefaultRequestHeaders.Add("X-Tenant-Id", company.Id.ToString());
         var response = await client.PostAsJsonAsync("/api/v1/invitations", new { email = "invitee@example.test", permissions = new[] { "vehicles.read" } });
@@ -215,7 +215,7 @@ public sealed class AccountRecoveryTests(FleetFixture fixture) : IClassFixture<F
         Assert.Equal(acceptance.InvitationId, Assert.Single(list!.Items).Id);
         // A stranger cannot cause an invitation email in this company.
         using var stranger = Client(factory);
-        await Register(stranger);
+        await Register(stranger, factory);
         stranger.DefaultRequestHeaders.Add("X-Tenant-Id", company.Id.ToString());
         var count = mail.Messages.Count;
         Assert.Equal(HttpStatusCode.Forbidden, (await stranger.PostAsJsonAsync("/api/v1/invitations", new { email = "other@example.test", permissions = Array.Empty<string>() })).StatusCode);

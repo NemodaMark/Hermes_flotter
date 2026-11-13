@@ -5,12 +5,11 @@ using Hermes.Infrastructure;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using Microsoft.Extensions.Options;
 
 namespace Hermes.Api;
 
-public sealed record RegisterRequest(string DisplayName, string Email, string Password, string UserName);
+public sealed record RegisterRequest(string DisplayName, string Email, string? Password, string UserName, Guid? EntraObjectId = null);
 public sealed record LoginRequest(string? Email, string Password, string? UserName = null);
 public sealed record SessionResponse(string Id, string DisplayName, string Email, bool PasswordChangeRequired, string[] SystemPermissions);
 public sealed record UpdateProfileRequest(string DisplayName);
@@ -37,58 +36,24 @@ public static class AccountEndpoints
             return Results.Ok(await ToSession(user, accounts, ct));
         }).RequireAuthorization();
 
-        accounts.MapPost("/register", async (RegisterRequest request, UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, UserAccounts accounts, HermesDbContext db, AccountRecovery recovery, IOptions<AccountOptions> options, CancellationToken ct) =>
+        accounts.MapPost("/register", async (RegisterRequest request, HttpContext context, UserAccounts accounts,
+            AccountRegistration registration, AccountRecovery recovery, IOptions<AccountOptions> options, CancellationToken ct) =>
         {
-            var errors = new Dictionary<string, string[]>();
-            if (string.IsNullOrWhiteSpace(request.DisplayName) || request.DisplayName.Trim().Length > 120)
-                errors["displayName"] = ["Adj meg egy legfeljebb 120 karakteres nevet."];
-            if (!ValidEmail(request.Email)) errors["email"] = ["Adj meg egy érvényes e-mail-címet."];
-            if (!UserNames.IsValid(request.UserName)) errors["userName"] = ["A felhasználónév 3–64 karakter: a–z, 0–9, pont, kötőjel vagy aláhúzás; betűvel vagy számmal kezdődjön."];
-            if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length is < 12 or > 128)
-                errors["password"] = ["A jelszó 12–128 karakter hosszú legyen."];
-            if (errors.Count != 0) return Results.ValidationProblem(errors);
-
-            var userName = UserNames.Normalize(request.UserName);
-            await using var transaction = await db.Database.BeginTransactionAsync(ct);
-            // Identity's validator treats an existing matching primary key as the same
-            // user. Serialize registrations per name and reject it before Identity tracks it.
-            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({userName}, 157422991))", ct);
-            if (await db.UserIdentityHistory.AnyAsync(x => x.ReservedName == userName, ct)
-                || await db.Users.AnyAsync(x => x.Id == userName, ct)) return DuplicateUserName();
-            var user = new ApplicationUser
+            var actor = context.User.FindFirst("sub")!.Value;
+            ApplicationUser user;
+            try
             {
-                Id = userName,
-                UserName = userName,
-                Email = request.Email.Trim(),
-                DisplayName = request.DisplayName.Trim(),
-                EmailConfirmationRequired = options.Value.RequireEmailConfirmation
-            };
-            IdentityResult result;
-            try { result = await users.CreateAsync(user, request.Password!); }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-            {
-                return exception.InnerException is PostgresException { ConstraintName: "EmailIndex" } ? DuplicateEmail() : DuplicateUserName();
+                user = await accounts.SystemOperation(actor,
+                    () => registration.Create(request, actor, options.Value.RequireEmailConfirmation, ct), ct);
             }
-            if (!result.Succeeded)
+            catch (ManagementException error) when (error.Code is "invalid_user_name" or "duplicate_username")
             {
-                if (result.Errors.Any(error => error.Code == "DuplicateUserName")) return DuplicateUserName();
-                if (result.Errors.Any(error => error.Code == "DuplicateEmail")) return DuplicateEmail();
-                return Results.ValidationProblem(new Dictionary<string, string[]> { ["account"] = ["A fiók nem hozható létre a megadott adatokkal."] });
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["userName"] = [error.Message] });
             }
-            db.UserIdentityHistory.Add(new() { PreviousId = user.Id, UserId = user.Id });
-            UserAccounts.Audit(db, user.Id, user.Id, "user.registered", new { userName = user.Id });
-            await db.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-            await transaction.DisposeAsync();
-            if (user.EmailConfirmationRequired)
-            {
-                await recovery.Request(user.Email, true, ct);
-                return Results.Accepted(value: new { requiresEmailConfirmation = true,
-                    message = "A fiókod elkészült. A bejelentkezés előtt erősítsd meg az e-mail-címedet a levélben kapott hivatkozással. Ha nem érkezik meg, kérj új megerősítő levelet." });
-            }
-            await signIn.SignInAsync(user, isPersistent: false);
-            return Results.Created("/api/v1/auth/session", await ToSession(user, accounts, ct));
-        }).AllowAnonymous().RequireRateLimiting("accounts");
+            if (user.EmailConfirmationRequired) await recovery.Request(user.Email, true, ct);
+            return Results.Created($"/api/v1/system/users/{user.Id}",
+                new { user.Id, user.DisplayName, user.Email, requiresEmailConfirmation = user.EmailConfirmationRequired });
+        }).RequireAuthorization(SystemPermissions.Manage).RequireRateLimiting("accounts");
 
         accounts.MapPost("/login", async (LoginRequest request, UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, UserAccounts accounts, HermesDbContext db, CancellationToken ct) =>
         {
@@ -123,7 +88,5 @@ public static class AccountEndpoints
 
     private static async Task<SessionResponse> ToSession(ApplicationUser user, UserAccounts accounts, CancellationToken ct)
         => new(user.Id, user.DisplayName, user.Email!, user.PasswordChangeRequired, await accounts.SystemPermissionsFor(user.Id, ct));
-    private static IResult InvalidLogin() => Results.Problem(statusCode: 401, title: "Hibás felhasználónév, e-mail-cím vagy jelszó. Próbáld újra később, ha többször sikertelenül próbálkoztál.");
-    private static IResult DuplicateEmail() => Results.ValidationProblem(new Dictionary<string, string[]> { ["email"] = ["Ezzel az e-mail-címmel már létezik fiók."] });
-    private static IResult DuplicateUserName() => Results.ValidationProblem(new Dictionary<string, string[]> { ["userName"] = ["Ez a felhasználónév már foglalt vagy fenntartott."] });
+    private static IResult InvalidLogin() => Results.Problem(statusCode: 401, title: "HibĂˇs felhasznĂˇlĂłnĂ©v, e-mail-cĂ­m vagy jelszĂł. PrĂłbĂˇld Ăşjra kĂ©sĹ‘bb, ha tĂ¶bbszĂ¶r sikertelenĂĽl prĂłbĂˇlkoztĂˇl.");
 }

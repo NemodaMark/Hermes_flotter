@@ -42,18 +42,26 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
 }) {
   const host = useRef<HTMLDivElement>(null), overlay = useRef<HTMLDivElement>(null)
   const controls = useRef<{ focus: (key: StudioAction['key']) => void } | null>(null)
+  const invalidate = useRef<(() => void) | null>(null)
   const callbacks = useRef({ onFocused, onCancelled })
   useEffect(() => { callbacks.current = { onFocused, onCancelled } }, [onFocused, onCancelled])
   const pausedRef = useRef(paused)
-  useEffect(() => { pausedRef.current = paused }, [paused])
+  useEffect(() => {
+    pausedRef.current = paused
+    if (!paused) invalidate.current?.()
+  }, [paused])
   const [unavailable, setUnavailable] = useState(() => !window.WebGL2RenderingContext)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [attempt, setAttempt] = useState(0)
   const paint = vehiclePaint(color).hex, paintRef = useRef(paint), loadedModel = useRef<T.Group | null>(null)
   useEffect(() => {
     paintRef.current = paint
-    if (loadedModel.current) setVehiclePaint(loadedModel.current, paint, model.paintMaterials)
+    if (loadedModel.current) {
+      setVehiclePaint(loadedModel.current, paint, model.paintMaterials)
+      invalidate.current?.()
+    }
   }, [paint, model.paintMaterials])
+  useEffect(() => { invalidate.current?.() }, [menus])
 
   useEffect(() => {
     const container = host.current!
@@ -63,6 +71,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     try { renderer = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'low-power' }) }
     catch { queueMicrotask(() => setUnavailable(true)); return }
     let disposed = false, contextLost = false
+    let renderNeeded = true
+    invalidate.current = () => { renderNeeded = true }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6))
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap
     renderer.toneMapping = T.NeutralToneMapping; renderer.toneMappingExposure = 1.02
@@ -79,6 +89,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       scene.environment = lighting = texture
       scene.environmentIntensity = .8
       scene.environmentRotation.y = Math.PI * .25
+      renderNeeded = true
     }).catch(() => { /* The local room environment remains available. */ })
     const floor = new T.Mesh(new T.PlaneGeometry(150, 150), new T.MeshStandardMaterial({ color: '#dcd8cc', roughness: .86, metalness: 0, envMapIntensity: .4 }))
     floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor)
@@ -124,10 +135,11 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height)
       const length = shape?.length ?? model.length, roof = shape?.roof ?? 1.5
       homeTarget.y = roof * .48
-      const distance = Math.max(6.95, length * 1.42, length * .65 / (Math.tan(T.MathUtils.degToRad(16)) * camera.aspect), roof * 2.5)
+      const distance = Math.max(length * 1.23, length * .65 / (Math.tan(T.MathUtils.degToRad(16)) * camera.aspect), roof * 2.7)
       orbit.maxDistance = Math.max(16, distance * 1.5)
       home.set(4.3, 2.1, 5.4).normalize().multiplyScalar(distance).add(homeTarget)
       if (!flight) { camera.position.copy(home); orbit.target.copy(homeTarget); orbit.update() }
+      renderNeeded = true
       renderer.render(scene, camera)
     }
     const resize = new ResizeObserver(fit); resize.observe(container)
@@ -162,13 +174,17 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       if (time - last < 30) return; last = time
       if (container.ownerDocument.hidden || pausedRef.current) return
       if (flight) {
+        renderNeeded = true
         const t = reduceMotion.matches ? 1 : Math.min(1, (time - flight.started) / 850), ease = t * t * (3 - 2 * t)
         camera.position.lerpVectors(flight.from, flight.to, ease); orbit.target.lerpVectors(flight.targetFrom, flight.targetTo, ease)
         if (t === 1) { const section = flight.key; flight = null; orbit.enabled = true; if (isSection(section)) callbacks.current.onFocused(section) }
       }
-      orbit.update(); renderer.render(scene, camera)
+      orbit.update()
       camera.updateMatrixWorld()
       const cameraChanged = !lastCamera.equals(camera.matrixWorld) || !lastProjection.equals(camera.projectionMatrix)
+      if (!renderNeeded && !cameraChanged) return
+      renderNeeded = false
+      renderer.render(scene, camera)
       for (const button of overlay.current?.querySelectorAll<HTMLButtonElement>('[data-hotspot]') ?? []) {
         const section = button.dataset.hotspot as StudioSection, hotspot = positions[section]
         if (!hotspot || !hotspots) continue
@@ -193,7 +209,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     const lost = (event: Event) => { event.preventDefault(); contextLost = true; cancelAnimationFrame(frame); cancelFlight(); setUnavailable(true) }
     renderer.domElement.addEventListener('webglcontextlost', lost)
     return () => {
-      disposed = true; loadedModel.current = null; cancelAnimationFrame(frame); resize.disconnect(); orbit.dispose(); controls.current = null
+      disposed = true; loadedModel.current = null; cancelAnimationFrame(frame); resize.disconnect(); orbit.dispose(); controls.current = null; invalidate.current = null
       renderer.domElement.removeEventListener('pointerdown', cancelFlight, true); renderer.domElement.removeEventListener('webglcontextlost', lost)
       disposeVehicleModel(scene); environment.dispose(); lighting?.dispose(); renderer.dispose(); renderer.domElement.remove()
     }

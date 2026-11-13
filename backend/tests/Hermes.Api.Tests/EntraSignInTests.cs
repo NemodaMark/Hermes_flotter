@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Hermes.Api;
 using Hermes.Domain;
+using Hermes.Infrastructure;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -77,6 +78,40 @@ public sealed class EntraSignInTests(FleetFixture fixture) : IClassFixture<Fleet
         Assert.Equal("/?entra=unlinked", await Complete(nextLogin, await nextLogin.PostAsync(Root + "/login", null), provider));
     }
 
+    [Fact]
+    public async Task OnlyProvisionedMicrosoftIdentityCanSignInWithoutLocalPassword()
+    {
+        using var provider = new TestProvider();
+        using var factory = EnabledFactory(provider);
+        var result = await fixture.RegisterAsync(new
+        {
+            userName = "microsoft.employee", displayName = "Microsoft Employee", email = "employee@example.test",
+            entraObjectId = provider.ObjectId
+        }, factory);
+        Assert.Equal(HttpStatusCode.Created, result.StatusCode);
+        var duplicate = await fixture.RegisterAsync(new
+        {
+            userName = "another.employee", displayName = "Another Employee", email = "another@example.test",
+            entraObjectId = provider.ObjectId
+        }, factory);
+        Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+
+        using var visitor = CreateClient(factory);
+        await FleetFixture.RefreshCsrfAsync(visitor);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await visitor.PostAsJsonAsync("/api/v1/auth/login",
+            new { userName = "microsoft.employee", password = FleetFixture.Password })).StatusCode);
+        Assert.Equal("/?entra=signed-in", await Complete(visitor, await visitor.PostAsync(Root + "/login", null), provider));
+        Assert.Equal("microsoft.employee", (await visitor.GetFromJsonAsync<SessionResponse>("/api/v1/auth/session"))!.Id);
+        Assert.Empty((await visitor.GetFromJsonAsync<JsonElement>("/api/v1/tenants")).EnumerateArray());
+        await FleetFixture.RefreshCsrfAsync(visitor);
+        Assert.Equal(HttpStatusCode.Forbidden, (await visitor.DeleteAsync(Root + "/connection")).StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        Assert.Null(await users.FindByIdAsync("another.employee"));
+        Assert.False(await users.HasPasswordAsync((await users.FindByIdAsync("microsoft.employee"))!));
+    }
+
     private WebApplicationFactory<Program> EnabledFactory(TestProvider provider) =>
         fixture.Factory.WithWebHostBuilder(builder => builder
             .UseSetting("Entra:Enabled", "true").UseSetting("Entra:TenantId", TenantId.ToString())
@@ -111,7 +146,7 @@ public sealed class EntraSignInTests(FleetFixture fixture) : IClassFixture<Fleet
     private sealed class TestProvider : HttpMessageHandler
     {
         private readonly RSA rsa = RSA.Create(2048);
-        private readonly Guid objectId = Guid.NewGuid();
+        public Guid ObjectId { get; } = Guid.NewGuid();
         private string token = "";
         private string challenge = "";
         private const string Issuer = "https://login.microsoftonline.com/";
@@ -134,7 +169,7 @@ public sealed class EntraSignInTests(FleetFixture fixture) : IClassFixture<Fleet
             var signing = new SigningCredentials(Configuration.SigningKeys.Single(), SecurityAlgorithms.RsaSha256);
             // The mailbox matches another user. Only the linked Entra object may identify the local account.
             token = new JwtSecurityTokenHandler().WriteToken(new JwtSecurityToken(Configuration.Issuer, ClientId.ToString(),
-                [new("sub", "provider-subject"), new("oid", objectId.ToString()), new("tid", tenant.ToString()),
+                [new("sub", "provider-subject"), new("oid", ObjectId.ToString()), new("tid", tenant.ToString()),
                     new("preferred_username", "anna@example.test"), new("email", "anna@example.test"), new("nonce", nonce),
                     new("roles", "system.manage"), new("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)],
                 DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow.AddMinutes(15), signing));

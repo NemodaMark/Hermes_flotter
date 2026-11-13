@@ -123,6 +123,18 @@
 .app-shell .studio-hotspot > i { background: var(--control-border); }
 .app-shell .studio-hotspot strong { color: var(--ink); border-color: var(--line); }
 
+.page-content.page-content-compact:has(.dashboard-studio) { max-width: none; padding: 0; }
+.app-shell .dashboard-studio { gap: 0; }
+.app-shell .dashboard-studio .car-dashboard { border: 0; border-radius: 0; }
+.dashboard-studio .car-dashboard-toolbar {
+  padding: 12px clamp(16px, 3vw, 44px);
+}
+.dashboard-studio .car-registration { margin: 0; }
+.dashboard-studio .car-dashboard-toolbar > .car-dashboard-actions { gap: 10px; align-items: center; }
+.dashboard-studio .vehicle-studio { height: max(420px, calc(100dvh - 300px)); }
+.dashboard-studio .car-menu button { min-height: 50px; }
+.dashboard-studio .car-dashboard-footer, .dashboard-studio .studio-credit { padding-inline: clamp(16px, 3vw, 44px); }
+
 @media (min-width: 701px) {
   .sidebar .admin-navigation { position: relative; }
   .sidebar .admin-navigation[open] { padding-bottom: 4px; }
@@ -144,4 +156,8 @@
   .sidebar #main-navigation.is-open { grid-area: 3 / 1 / 4 / -1; }
   .sidebar .admin-navigation { width: 100%; }
   .sidebar .settings-links { display: flex; flex-wrap: wrap; }
+  .dashboard-studio .car-dashboard-actions { width: 100%; }
+  .dashboard-studio .car-picker { flex: 1 1 130px; width: auto; }
+  .dashboard-studio .vehicle-studio { height: clamp(300px, 45dvh, 440px); }
+  .dashboard-studio .studio-credit { text-align: start; }
 }
