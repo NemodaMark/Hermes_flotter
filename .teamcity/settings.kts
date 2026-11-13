@@ -2,21 +2,12 @@ import jetbrains.buildServer.configs.kotlin.*
 import jetbrains.buildServer.configs.kotlin.buildFeatures.sshAgent
 import jetbrains.buildServer.configs.kotlin.buildSteps.script
 import jetbrains.buildServer.configs.kotlin.triggers.vcs
-import jetbrains.buildServer.configs.kotlin.vcs.GitVcsRoot
 
 version = "2025.11"
 
 project {
-    vcsRoot(HermesSource)
     buildType(Release)
 }
-
-object HermesSource : GitVcsRoot({
-    id("HermesSource")
-    name = "Hermes_flotter main"
-    url = "https://github.com/NemodaMark/Hermes_flotter.git"
-    branch = "refs/heads/main"
-})
 
 object Release : BuildType({
     id("HermesRelease")
@@ -24,7 +15,7 @@ object Release : BuildType({
     maxRunningBuilds = 1
     enablePersonalBuilds = false
     vcs {
-        root(HermesSource)
+        root(DslContext.settingsRoot)
         checkoutMode = CheckoutMode.ON_AGENT
     }
     params {
