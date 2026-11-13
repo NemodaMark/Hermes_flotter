@@ -14,7 +14,8 @@ const directory = new URL('../.local/demo-data/', import.meta.url)
 const statePath = new URL('state.json', directory)
 const credentialsPath = new URL('bejelentkezesek.json', directory)
 const verifyOnly = process.argv.includes('--verify-only')
-assert.ok(process.argv.slice(2).every(arg => arg === '--verify-only'), 'Ismeretlen kapcsoló.')
+const bookingsOnly = process.argv.includes('--bookings-only')
+assert.ok(process.argv.slice(2).length <= 1 && process.argv.slice(2).every(arg => ['--verify-only', '--bookings-only'].includes(arg)), 'Ismeretlen vagy ismételt kapcsoló.')
 const adminPassword = process.env.HERMES_SEED_ADMIN_PASSWORD
 assert.ok(adminPassword, 'Add meg a HERMES_SEED_ADMIN_PASSWORD környezeti változót.')
 
@@ -313,10 +314,81 @@ async function verify() {
   console.log('Ellenőrizve: teljes céges és mindhárom telephelyre korlátozott hozzáférés, idegen cég és telephely nélküli jármű kizárása, felfüggesztett tagság tiltása.')
   console.log(`Demó bejelentkezések: ${fileURLToPath(credentialsPath)}`)
 }
+async function seedBookings() {
+  const tenantId = state.done.company.id
+  const request = (path, options = {}) => admin.request(path, { ...options, tenantId })
+  assert.equal((await request('/api/v1/company')).data.name, companyName)
+  const accounts = [people[0], people[1]].map(person => ({ ...person, account: client() }))
+  const plan = [
+    { index: 1, slots: [[0, 1, 3], [1, 7, 10]] },
+    { index: 2, slots: [[1, 0, 2], [0, 5, 11]] },
+    { index: 3, slots: [[0, 2, 2], [1, 10, 13]] },
+    { index: 5, slots: [[1, 4, 6], [0, 16, 22]] },
+  ]
+  const settings = await admin.request('/api/v1/permission-groups')
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Budapest', dateStyle: 'short' }).format(new Date())
+  const base = state.bookingDate ?? today
+  const samples = vehicles(state.date)
+  const calendar = (account, id, date) => account.request(`/api/v1/vehicles/${id}/bookings?month=${date.slice(0, 7)}-01`, { tenantId })
+  const calendars = async (account, id, start, end) => Promise.all(
+    [...new Set([start.slice(0, 7), end.slice(0, 7)])].map(month => calendar(account, id, month)),
+  )
+
+  try {
+    for (const person of accounts) await person.account.login(person.userName, state.users[person.userName].password)
+    for (const [i, person] of accounts.entries()) {
+      const group = settings.find(g => g.id === state.done[`group-${person.group}`].id)
+      assert.ok(group && !group.isAdmin && !group.allPermissions && group.companies.length === 1 && group.companies[0].id === tenantId)
+      const company = group.companies[0]
+      const permissions = [...new Set([...group.permissions, 'vehicles.bookings.read', 'vehicles.bookings.create',
+        ...(i === 0 ? ['vehicles.bookings.manage'] : [])])]
+      if (permissions.length !== group.permissions.length) await admin.request(`/api/v1/permission-groups/${group.id}`, {
+        method: 'PUT', body: { name: group.name, permissions, version: group.version, companyIds: [tenantId],
+          siteScopes: [{ companyId: tenantId, allSites: company.allSites, siteIds: company.sites.map(site => site.id) }] },
+      })
+    }
+    const schedule = []
+    for (const { index, slots } of plan) {
+      const { id, registration } = state.done[`vehicle-${index}`]
+      const path = `/api/v1/vehicles/${id}`
+      const detail = await request(`${path}/details`)
+      const sample = samples[index]
+      assert.equal(detail.vehicle.registration, sample.registration)
+      assert.equal(detail.vehicle.status, 'Active')
+      assert.equal(detail.data.vin, sample.data.vin)
+      for (const [person, first, last] of slots) {
+        const startsOn = day(base, first), endsOn = day(base, last)
+        const existing = await calendars(admin, id, startsOn, endsOn)
+        assert.ok(existing.every(month => month.today === today), 'A demó cég dátuma eltér a helyi naptárétól.')
+        const conflicts = existing.flatMap(month => month.items).filter(row => row.startsOn <= endsOn && row.endsOn >= startsOn)
+        const actor = accounts[person]
+        const match = conflicts.find(row => row.userId === actor.userName && row.startsOn === startsOn && row.endsOn === endsOn)
+        assert.ok(match || (conflicts.length === 0 && startsOn >= today), `A mintaidőszak nem foglalható: ${registration}, ${startsOn}.`)
+        schedule.push({ id, path, registration, startsOn, endsOn, actor, match, enabled: existing[0].enabled })
+      }
+    }
+    state.bookingDate = base
+    await privateJson(statePath, state)
+    const verified = []
+    for (const { id, path, registration, startsOn, endsOn, actor, match, enabled } of schedule) {
+      if (!enabled && !verified.some(row => row.id === id)) await request(`${path}/booking-settings`, { method: 'PUT', body: { enabled: true } })
+      const booking = match ?? await actor.account.request(`${path}/bookings`, { method: 'POST', tenantId, body: { startsOn, endsOn } })
+      for (const data of await calendars(actor.account, id, startsOn, endsOn)) {
+        assert.ok(data.enabled)
+        assert.ok(data.items.some(row => row.id === booking.id && row.name === actor.displayName && row.startsOn === startsOn && row.endsOn === endsOn))
+      }
+      verified.push({ id, registration, name: booking.name, startsOn, endsOn })
+    }
+    console.table(verified)
+  } finally {
+    await Promise.allSettled(accounts.map(({ account }) => account.logout()))
+  }
+}
 try {
-  if (!verifyOnly && !state.completedAt) await seed()
+  if (!verifyOnly && !bookingsOnly && !state.completedAt) await seed()
   assert.ok(state.completedAt, 'A betöltés még nem fejeződött be; futtasd --verify-only nélkül.')
-  await verify()
+  if (bookingsOnly) await seedBookings()
+  else await verify()
 } finally {
   await admin.logout()
 }

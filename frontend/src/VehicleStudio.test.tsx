@@ -20,7 +20,12 @@ vi.mock('three', async () => {
     PMREMGenerator: class { fromScene() { return { texture: new actual.Texture(), dispose() {} } } dispose() {} },
   }
 })
-vi.mock('three/addons/loaders/GLTFLoader.js', () => ({ GLTFLoader: class { loadAsync = mocks.load } }))
+vi.mock('three/addons/loaders/GLTFLoader.js', () => ({
+  GLTFLoader: class {
+    setMeshoptDecoder() { return this }
+    loadAsync = mocks.load
+  },
+}))
 vi.mock('three/addons/loaders/HDRLoader.js', () => ({ HDRLoader: class { loadAsync = async () => { throw new Error('HDR unavailable in jsdom') } } }))
 vi.mock('three/addons/controls/OrbitControls.js', () => ({ OrbitControls: class {
   target = new Vector3()

@@ -349,6 +349,7 @@ Elkészült és korábban betöltésre került a külön **Demo Flotta** adathal
 | Partner | 5 |
 | Lízing-/bérleti szerződés | 18 |
 | Szervizbejegyzés | 60 |
+| Foglalható demójármű / mintafoglalás | 4 / 8 |
 
 A készletben telephelykorlátos hozzáférések, felfüggesztett tagság, telephely nélküli autók, eltérő állapotok, határidők és használati előzmények is szerepelnek. A fiókokhoz egyedi demójelszó készül; a céges tagság felfüggesztése és a globális bejelentkezés külön szabály marad.
 

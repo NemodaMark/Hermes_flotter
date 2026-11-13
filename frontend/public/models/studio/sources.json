@@ -10,5 +10,40 @@
   {
     "key": "studio-small-03.hdr",
     "sha256": "30933d55e45f0795daf49f3cbefbe0e5ebcb821ee04fb0a2818c02ffc3938817"
+  },
+  {
+    "key": "renault-megane",
+    "sha256": "30077584321d2ab4c1691333cf3f7a165b88265e1a8c272c13c5663f617981bc",
+    "title": "Renault Megane Sedan",
+    "author": "Mona x Supercars (https://sketchfab.com/Car2022)",
+    "source": "https://sketchfab.com/3d-models/renault-megane-sedan-0c0d6c54a2424feb95447400a5c5e50e"
+  },
+  {
+    "key": "vw-golf",
+    "sha256": "fc9efae6e4d418909d45832ec5b3cb4f84cf75c121e9867aa04a4ee130a2e2ad",
+    "title": "Volkswagen Golf 8. GTI (A8)",
+    "author": "GT Cars: Hyperspeed (https://sketchfab.com/Car2022)",
+    "source": "https://sketchfab.com/3d-models/volkswagen-golf-8-gti-a8-e87d7c0f8937481db236529beb5ecab7"
+  },
+  {
+    "key": "volkswagen-passat",
+    "sha256": "b631423e1b17e56e19df3d68c4aff0e7543fcaef3121bda272b15216d25d3964",
+    "title": "Volkswagen Passat Variant R- Line2016",
+    "author": "ANDREO12 (https://sketchfab.com/ANDREO12)",
+    "source": "https://sketchfab.com/3d-models/volkswagen-passat-variant-r-line2016-f946c79a2e534137a5ffd30aa0173566"
+  },
+  {
+    "key": "toyota-rav4",
+    "sha256": "5c92bb6757e0668ac966e6517d02327d99ff4e769ff54e72209940aa6a826fb6",
+    "title": "2021 Toyota RAV4 Hybrid",
+    "author": "tonielpro520 (https://sketchfab.com/tonielpro520)",
+    "source": "https://sketchfab.com/3d-models/2021-toyota-rav4-hybrid-de74fe4e98004c92b1103947597d1b53"
+  },
+  {
+    "key": "fiat-ducato",
+    "sha256": "d16b2ffa214f0cb0ca7628b796137525f632d035bda9f178fbbfc4df1b534818",
+    "title": "2014 Fiat Ducato",
+    "author": "razor24 (https://sketchfab.com/razor24)",
+    "source": "https://sketchfab.com/3d-models/2014-fiat-ducato-8a651ad182414bb0a8b6c6d8d5bd7c01"
   }
 ]

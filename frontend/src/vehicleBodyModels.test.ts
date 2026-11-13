@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { expect, it } from 'vitest'
 import { Box3, Mesh, MeshStandardMaterial, Texture } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { vehicleModel } from './vehicleModels'
 import { bodyNames } from './vehicleAppearance'
 import { disposeVehicleModel, prepareVehicleModel } from './vehicleSceneModel'
@@ -25,10 +26,11 @@ it.each([...bodies, 'Unknown'])('loads and paints the real %s body with valid gr
   const appearance = vehicleModel(body), bytes = readFileSync(resolve(`src/assets/vehicles/${appearance.key}.glb`))
   expect(createHash('sha256').update(bytes).digest('hex')).toBe([...prepared, ...studio].find(asset => asset.key === appearance.key)?.sha256)
   const doc = JSON.parse(bytes.toString('utf8', 20, 20 + bytes.readUInt32LE(12)))
-  expect(doc.buffers).toHaveLength(1)
-  expect(doc.buffers[0].uri).toBeUndefined()
+  expect(doc.buffers.length).toBeGreaterThanOrEqual(1)
+  expect(doc.buffers.every((buffer: { uri?: string }) => buffer.uri === undefined)).toBe(true)
   expect((doc.images ?? []).every((image: { bufferView?: number; uri?: string }) => image.bufferView !== undefined && !image.uri)).toBe(true)
-  const loader = new GLTFLoader().register(() => ({ name: 'skip_test_image_decode', loadTexture: async () => new Texture() }))
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
+    .register(() => ({ name: 'skip_test_image_decode', loadTexture: async () => new Texture() }))
   const buffer = new ArrayBuffer(bytes.byteLength); new Uint8Array(buffer).set(bytes)
   const { model, shape } = prepareVehicleModel((await loader.parseAsync(buffer, '')).scene, '#214d81', appearance)
   const bounds = new Box3().setFromObject(model, true)

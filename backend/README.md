@@ -71,6 +71,8 @@ A teljes HTTP-s regisztrációs és céges folyamatot a [smoke teszt](../scripts
 
 ## Helyi mintaadatok
 
+A demó betöltése után a `node scripts/seed-demo-data.mjs --bookings-only` parancs ugyanazzal a jelszóváltozóval foglalhatóvá teszi a DEMO-002, DEMO-003, DEMO-004 és DEMO-006 járművet. Nagy Anna és Kovács Bence között nyolc mintafoglalást oszt el. Az első futás napjához igazítja a dátumokat, és azonos adatokkal újrafuttatva megtartja a meglévő foglalásokat.
+
 A projekt gyökeréből, futó fejlesztői API mellett, Node.js 22 vagy újabb verzióval:
 
 ```powershell

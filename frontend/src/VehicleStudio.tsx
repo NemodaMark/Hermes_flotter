@@ -3,6 +3,7 @@ import * as T from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
 import studioLight from './assets/vehicles/studio-small-03.hdr?url'
 import { disposeVehicleModel, prepareVehicleModel, setVehiclePaint } from './vehicleSceneModel'
@@ -129,7 +130,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       if (!flight) { camera.position.copy(home); orbit.target.copy(homeTarget); orbit.update() }
     }
     const resize = new ResizeObserver(fit); resize.observe(container)
-    void new GLTFLoader().loadAsync(model.url).then(gltf => {
+    void new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(model.url).then(gltf => {
       if (disposed || contextLost) { disposeVehicleModel(gltf.scene); return }
       let vehicle: ReturnType<typeof prepareVehicleModel>
       try { vehicle = prepareVehicleModel(gltf.scene, paintRef.current, model) }
