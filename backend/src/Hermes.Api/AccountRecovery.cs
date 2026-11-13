@@ -122,8 +122,8 @@ public static class AccountRecoveryEndpoints
     public static void MapAccountRecovery(this WebApplication app)
     {
         var group = app.MapGroup("/api/v1/auth").AllowAnonymous().RequireRateLimiting("accounts").WithMetadata(new PasswordChangeAllowed());
-        group.MapGet("/options", (EmailDelivery mail, IOptions<AccountOptions> options) => Results.Ok(new
-        { emailEnabled = mail.Enabled, requireEmailConfirmation = options.Value.RequireEmailConfirmation }));
+        group.MapGet("/options", (EmailDelivery mail, IOptions<AccountOptions> options, EntraOptions entra, HttpContext context) => Results.Ok(new
+        { emailEnabled = mail.Enabled, requireEmailConfirmation = options.Value.RequireEmailConfirmation, entraEnabled = entra.Enabled && context.Request.IsHttps }));
         group.MapPost("/forgot-password", async (AccountEmailRequest request, AccountRecovery recovery, CancellationToken ct) =>
         {
             await recovery.Request(request.Email, false, ct);

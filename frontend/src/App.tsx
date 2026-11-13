@@ -47,6 +47,9 @@ import { ProtectedImage } from './ProtectedImage'
 import { initials } from './peopleDisplay'
 import { DashboardPage } from './DashboardPage'
 import { dateText } from './fleetApi'
+import { consumeEntraResult } from './entra'
+
+const entraResult = consumeEntraResult()
 
 const statuses: Record<string, string> = {
   Active: 'Aktív',
@@ -133,12 +136,14 @@ function FleetWorkspace({
   loggingOut,
   logoutError,
   initialTenantId,
+  accountNotice,
 }: {
   user: Session
   onLogout: () => void
   loggingOut: boolean
   logoutError: string | null
   initialTenantId: string | null
+  accountNotice?: { message: string; error: boolean } | null
 }) {
   const queryClient = useQueryClient()
   const [tenantId, setTenantId] = useState<string | null>(() => vehicleLinkFromHash()?.tenantId ?? initialTenantId)
@@ -337,9 +342,11 @@ function FleetWorkspace({
           </Button>
           {(canManageSystem || canInvite || canReadGroups) && <details className="admin-navigation" open={settingsOpen} onToggle={event => setSettingsOpen(event.currentTarget.open)}>
             <summary><Settings size={16} aria-hidden="true" />Beállítások<ChevronDown size={14} aria-hidden="true" /></summary>
+            <div className="settings-links">
             {canInvite && <Button className={view === 'invitations' ? 'nav-item active' : 'nav-item'} aria-current={view === 'invitations' ? 'page' : undefined} onClick={() => changeView('invitations')}><MailPlus size={17} /><span>Meghívások</span></Button>}
             {canReadGroups && <Button className={view === 'groups' ? 'nav-item active' : 'nav-item'} aria-label="Jogosultságcsoportok" aria-current={view === 'groups' ? 'page' : undefined} onClick={() => changeView('groups')}><ShieldCheck size={17} /><span>Jogosultság<wbr />csoportok</span></Button>}
             {canManageSystem && <Button className={view === 'system' ? 'nav-item active' : 'nav-item'} aria-current={view === 'system' ? 'page' : undefined} onClick={() => changeView('system')}><Users size={17} /><span>Rendszerkezelés</span></Button>}
+            </div>
           </details>}
         </nav>
         <div className="sidebar-bottom">
@@ -365,6 +372,7 @@ function FleetWorkspace({
           </Button>
         </header>
         <div className="page-content page-content-compact">
+          {accountNotice && <p className={accountNotice.error ? 'notice error' : 'notice'} role={accountNotice.error ? 'alert' : 'status'}>{accountNotice.message}</p>}
           {logoutError && (
             <p className="notice error" role="alert">
               {logoutError}
@@ -669,9 +677,10 @@ export default function App() {
         loggingOut={loggingOut}
         logoutError={logoutError}
         initialTenantId={acceptedTenantId}
+        accountNotice={entraResult}
       />
     )
   ) : (
-    <AuthScreen onAuthenticated={async user => { if (!invitation) window.location.hash = '/dashboard'; await changeSession(user) }} invitationPending={!!invitation} />
+    <AuthScreen onAuthenticated={async user => { if (!invitation) window.location.hash = '/dashboard'; await changeSession(user) }} invitationPending={!!invitation} entraError={entraResult?.error ? entraResult.message : null} />
   )
 }

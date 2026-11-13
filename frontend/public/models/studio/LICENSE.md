@@ -14,6 +14,8 @@ The five current studio vehicles are licensed under [CC BY 4.0](https://creative
 
 Checksums for the checked-in GLBs are listed in [sources.json](sources.json).
 
+The login image is a HERMES render of ANDREO12's Volkswagen Passat with adapted paint, framing and lighting, under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
 ## Lighting and superseded assets
 
 | Asset | Creator and source | License | HERMES adaptation |

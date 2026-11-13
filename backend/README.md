@@ -69,6 +69,23 @@ A tesztek alapértelmezésben Dockerrel indítanak PostgreSQL-t. Docker nélkül
 
 A teljes HTTP-s regisztrációs és céges folyamatot a [smoke teszt](../scripts/smoke-auth.mjs) ellenőrzi. Ez tesztadatokat hoz létre, ezért fejlesztői vagy CI-környezeten futtasd. A részletes végpontlista és az éles környezet beállításai a [projekt README-jében](../README.md) találhatók.
 
+## Microsoft Entra ID-bejelentkezés
+
+A HERMES egy Entra-címtár munkahelyi fiókjait fogadja. Az Entra admin centerben a regisztráció fióktípusa **Accounts in this organizational directory only** legyen. Az **Authentication** részen a **Web** platformhoz add meg a `https://<hermes-domain>/api/v1/auth/entra/callback` átirányítási címet. A meglévő regisztrációhoz is hozzáadható a Web platform. A bejelentkezéshez az `openid` és `profile` hatókör elegendő.
+
+| API-beállítás | Telepítési környezeti változó | Érték |
+|---|---|---|
+| `Entra__Enabled` | `HERMES_ENTRA_ENABLED` | `true` |
+| `Entra__TenantId` | `HERMES_ENTRA_TENANT_ID` | Directory (tenant) ID |
+| `Entra__ClientId` | `HERMES_ENTRA_CLIENT_ID` | Application (client) ID |
+| `Entra__ClientSecret` | `HERMES_ENTRA_CLIENT_SECRET` | A kliens titkos értéke a szerver védett konfigurációjában |
+
+A kapcsoló HTTPS-en jelenik meg. Helyi ellenőrzéshez HTTPS-es proxyt vagy közvetlen HTTPS API-t használj, és ugyanennek a címnek a visszahívási útvonalát regisztráld az Entrában. A Microsoft jóváhagyás után a böngészőt ugyanerre a HERMES-példányra irányítja vissza.
+
+Az első összekapcsoláshoz lépj be helyi HERMES-fiókkal, nyisd meg a **Saját profil → Fiókbiztonság** fület, és a HERMES-jelszó megerősítése után válaszd ki a munkahelyi Microsoft-fiókot. A hozzárendelést a címtár- és objektumazonosító párja alapján tárolja az ASP.NET Identity. Az összekapcsolás és a bontás naplózott. A Microsoft-belépés ugyanahhoz a HERMES-fiókhoz és ugyanazokhoz a műveleti jogokhoz vezet. A kijelentkezés a HERMES munkamenetét zárja le.
+
+[Microsoft Entra OIDC](https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols-oidc), [ASP.NET Core OpenID Connect](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-oidc-web-authentication?view=aspnetcore-10.0).
+
 ## Helyi mintaadatok
 
 A demó betöltése után a `node scripts/seed-demo-data.mjs --bookings-only` parancs ugyanazzal a jelszóváltozóval foglalhatóvá teszi a DEMO-002, DEMO-003, DEMO-004 és DEMO-006 járművet. Nagy Anna és Kovács Bence között nyolc mintafoglalást oszt el. Az első futás napjához igazítja a dátumokat, és azonos adatokkal újrafuttatva megtartja a meglévő foglalásokat.

@@ -4,24 +4,41 @@ import type { FormEvent } from 'react'
 import { ArrowRight, Building2, LoaderCircle, X } from 'lucide-react'
 import { api } from './api'
 import type { Session } from './api'
+import { startEntra } from './entra'
+import loginVehicle from './assets/hermes-login-studio.webp'
 
 export function AuthScreen({
   onAuthenticated,
   invitationPending = false,
+  entraError = null,
 }: {
   onAuthenticated: (user: Session) => Promise<void>
   invitationPending?: boolean
+  entraError?: string | null
 }) {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'resend'>('login')
   const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(entraError)
   const [notice, setNotice] = useState<string | null>(null)
   const [emailEnabled, setEmailEnabled] = useState(false)
+  const [entraEnabled, setEntraEnabled] = useState(false)
   useEffect(() => {
     let active = true
-    void api.accountOptions().then(options => { if (active) setEmailEnabled(options.emailEnabled) }).catch(() => {})
+    void api.accountOptions().then(options => {
+      if (active) { setEmailEnabled(options.emailEnabled); setEntraEnabled(!!options.entraEnabled) }
+    }).catch(() => {})
     return () => { active = false }
   }, [])
+
+  async function microsoft() {
+    setError(null)
+    setPending(true)
+    try { await startEntra('login') }
+    catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'A Microsoft-bejelentkezés nem indítható.')
+      setPending(false)
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -61,13 +78,13 @@ export function AuthScreen({
   }
 
   return (
-    <main className="account-page">
-      <header className="account-brand">
-        <span className="brand-mark">H</span>
-        <span>
-          HERMES<small>Flottakezelés</small>
-        </span>
-      </header>
+    <main className="account-page fleet-auth">
+      <div className="fleet-auth-visual">
+        <header className="fleet-wordmark">HERMES <small>Flottakezelés</small></header>
+        <picture><source media="(min-width: 701px)" srcSet={loginVehicle} /><img alt="" width="1080" height="820" /></picture>
+        <a className="fleet-auth-credit" href={`${import.meta.env.BASE_URL}models/studio/LICENSE.md`}>Volkswagen Passat · ANDREO12 · CC BY 4.0</a>
+      </div>
+      <div className="fleet-auth-controls">
       {invitationPending && (
         <p className="invitation-context">
           Céges meghívó elfogadásához lépj be vagy regisztrálj a meghívott e-mail-címmel. Belépés
@@ -104,6 +121,13 @@ export function AuthScreen({
           </Button>
         </div>
         <h1 id="account-title">{mode === 'login' ? 'Bejelentkezés' : mode === 'register' ? 'Hozd létre a fiókodat' : mode === 'forgot' ? 'Elfelejtett jelszó' : 'E-mail-cím megerősítése'}</h1>
+        {mode === 'login' && entraEnabled && <div className="entra-entry">
+          <Button type="button" variant="outline" disabled={pending} onClick={() => void microsoft()}>
+            <span className="microsoft-mark" aria-hidden="true"><i /><i /><i /><i /></span>
+            Bejelentkezés Microsofttal
+          </Button>
+          <p>vagy HERMES-fiókkal</p>
+        </div>}
         {(mode === 'forgot' || mode === 'resend') && <p className="account-description">
           Add meg a fiókod e-mail-címét. A levélben kapott hivatkozással folytathatod.
         </p>}
@@ -193,10 +217,11 @@ export function AuthScreen({
           </Button>
         </form>
         {emailEnabled && <div className="dialog-actions">
-          <Button type="button" disabled={pending} onClick={() => { setMode('forgot'); setError(null); setNotice(null) }}>Elfelejtett jelszó</Button>
-          <Button type="button" disabled={pending} onClick={() => { setMode('resend'); setError(null); setNotice(null) }}>Megerősítő levél kérése</Button>
+          <Button type="button" variant="link" disabled={pending} onClick={() => { setMode('forgot'); setError(null); setNotice(null) }}>Elfelejtett jelszó</Button>
+          <Button type="button" variant="link" disabled={pending} onClick={() => { setMode('resend'); setError(null); setNotice(null) }}>Megerősítő levél kérése</Button>
         </div>}
       </section>
+      </div>
     </main>
   )
 }

@@ -292,7 +292,7 @@ export const api = {
     resetCsrfToken()
     return result
   },
-  accountOptions: () => request<{ emailEnabled: boolean; requireEmailConfirmation: boolean }>('/api/v1/auth/options'),
+  accountOptions: () => request<{ emailEnabled: boolean; requireEmailConfirmation: boolean; entraEnabled?: boolean }>('/api/v1/auth/options'),
   requestAccountEmail: (email: string, confirmation: boolean) => request<{ message: string }>(
     `/api/v1/auth/${confirmation ? 'resend-confirmation' : 'forgot-password'}`, { body: { email } }),
   confirmEmail: (token: AccountToken) => request<{ message: string }>('/api/v1/auth/confirm-email', { body: token }),

@@ -57,6 +57,10 @@ services:
       Email__Security: "${HERMES_SMTP_SECURITY:-StartTls}"
       Email__UserName: "${HERMES_SMTP_USERNAME:-}"
       Email__Password: "${HERMES_SMTP_PASSWORD:-}"
+      Entra__Enabled: "${HERMES_ENTRA_ENABLED:-false}"
+      Entra__TenantId: "${HERMES_ENTRA_TENANT_ID:-}"
+      Entra__ClientId: "${HERMES_ENTRA_CLIENT_ID:-}"
+      Entra__ClientSecret: "${HERMES_ENTRA_CLIENT_SECRET:-}"
     volumes:
       - ${HERMES_DATA_DIR}/keys:/app/keys
     networks: [database, edge]

@@ -80,6 +80,7 @@ if (!maintenanceMode)
     builder.Services.Configure<IdentityOptions>(options => options.Tokens.EmailConfirmationTokenProvider = "Hermes.EmailConfirmation");
     builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(1));
     builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
+    builder.Services.AddEntraSignIn(builder.Configuration);
     builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
     builder.Services.ConfigureApplicationCookie(options =>
     {
@@ -168,6 +169,7 @@ app.UseAuthorization();
 app.UseRateLimiter();
 app.UseMiddleware<CsrfProtectionMiddleware>();
 app.MapAccountEndpoints();
+app.MapEntraSignIn();
 app.MapAccountRecovery();
 app.MapMemberEndpoints();
 app.MapGroupEndpoints();

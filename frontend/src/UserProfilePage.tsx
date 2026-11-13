@@ -12,6 +12,7 @@ import { GroupAssignmentDialog } from './PermissionGroups'
 import { QueryMessage } from './FleetFields'
 import { ProfileCompanyAccess } from './ProfileCompanyAccess'
 import { TabButton } from './ui/TabButton'
+import { EntraConnection } from './EntraConnection'
 import './profiles.css'
 
 export function UserProfilePage({ id, actor, tenant, onBack, onVehicle }: {
@@ -33,6 +34,7 @@ export function UserProfilePage({ id, actor, tenant, onBack, onVehicle }: {
   const person = profile.data?.person
   const systemManager = actor.systemPermissions?.includes('system.manage') ?? false
   const canManageAccount = systemManager && !!profile.data?.canManageAccount
+  const ownProfile = id === actor.id
   const canManageGroups = systemManager || !!tenant?.permissions.includes('permissions.manage')
   const canManageAccess = canManageGroups || !!(tenant?.permissions.includes('members.update') && tenant.permissions.includes('members.read'))
   return <section className="profile-page" aria-label="Felhasználói profil">
@@ -72,7 +74,10 @@ export function UserProfilePage({ id, actor, tenant, onBack, onVehicle }: {
         </div>
         {tenant && <ProfileCompanyAccess key={tenant.id} user={actor} tenant={tenant} id={id} onChanged={refresh} />}
       </section> }] : []),
-      ...(canManageAccount ? [{ id: 'security', label: 'Fiókbiztonság', content: (active: boolean) => <section className="profile-section"><UserProfileEditor id={id} actor={actor} section="security" active={active} /></section> }] : []),
+      ...(canManageAccount || ownProfile ? [{ id: 'security', label: 'Fiókbiztonság', content: (active: boolean) => <section className="profile-section">
+        {canManageAccount && <UserProfileEditor id={id} actor={actor} section="security" active={active} />}
+        {ownProfile && active && <EntraConnection userId={id} />}
+      </section> }] : []),
     ]} />}
     {groups && <GroupAssignmentDialog user={actor} userId={id} onClose={() => { setGroups(false); void refresh() }} />}
   </section>

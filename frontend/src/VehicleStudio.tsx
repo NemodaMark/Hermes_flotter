@@ -69,7 +69,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     renderer.domElement.setAttribute('aria-label', 'Forgatható 3D járműmodell')
     renderer.domElement.setAttribute('role', 'img')
     container.prepend(renderer.domElement)
-    const scene = new T.Scene(); scene.background = new T.Color('#d6dde0'); scene.fog = new T.Fog('#d6dde0', 14, 34)
+    const scene = new T.Scene(); scene.background = new T.Color('#e6e2d6'); scene.fog = new T.Fog('#e6e2d6', 14, 34)
     const pmrem = new T.PMREMGenerator(renderer), room = new RoomEnvironment(), environment = pmrem.fromScene(room, .04)
     scene.environment = environment.texture; room.dispose(); pmrem.dispose()
     let lighting: T.DataTexture | undefined
@@ -80,7 +80,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       scene.environmentIntensity = .8
       scene.environmentRotation.y = Math.PI * .25
     }).catch(() => { /* The local room environment remains available. */ })
-    const floor = new T.Mesh(new T.PlaneGeometry(150, 150), new T.MeshStandardMaterial({ color: '#cbd4d9', roughness: .86, metalness: 0, envMapIntensity: .4 }))
+    const floor = new T.Mesh(new T.PlaneGeometry(150, 150), new T.MeshStandardMaterial({ color: '#dcd8cc', roughness: .86, metalness: 0, envMapIntensity: .4 }))
     floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor)
     scene.add(new T.HemisphereLight('#ffffff', '#9baeb6', .45))
     const key = new T.DirectionalLight('#fff9f0', 1.7); key.position.set(3, 7, 4); key.castShadow = true
@@ -128,6 +128,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       orbit.maxDistance = Math.max(16, distance * 1.5)
       home.set(4.3, 2.1, 5.4).normalize().multiplyScalar(distance).add(homeTarget)
       if (!flight) { camera.position.copy(home); orbit.target.copy(homeTarget); orbit.update() }
+      renderer.render(scene, camera)
     }
     const resize = new ResizeObserver(fit); resize.observe(container)
     void new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(model.url).then(gltf => {
