@@ -4,6 +4,8 @@
 
 Projektátadás és áttekintés: [az elkészült funkciók, technológiák és fő működési szabályok összefoglalója](PROJEKT_OSSZEFOGLALO.md).
 
+[Állapotfelmérés és teendők](docs/ALLAPOTFELMERES.md) · [Helyi telepítés Windowsra és Linuxra](docs/MUNKAALLOMAS_TELEPITES.md)
+
 Debian 13 tesztszerverhez: [HTTPS-es telepítés, titkosított automatikus mentés és visszaállítás](deploy/debian13/README.md). Ez külön konfigurációt használ a lent bemutatott helyi fejlesztői indítástól.
 
 Több céget kiszolgáló flottakezelő SaaS: React + TypeScript frontend, ASP.NET Core 10 API és PostgreSQL 18.

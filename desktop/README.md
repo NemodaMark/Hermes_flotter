@@ -2,6 +2,8 @@
 
 Natív Windows-alkalmazás .NET 10 és WPF alapon a helyi fejlesztői környezethez. A backend, a Vite frontend és a helyi PostgreSQL figyelhető és újraindítható belőle. A vezérlő külön projekt, a webes frontend működésétől független.
 
+A [munkaállomás-telepítők](../docs/MUNKAALLOMAS_TELEPITES.md) a teljes projektet és az asztali indítót is előkészítik. Linuxon a terminálos indító ugyanazt a .NET-es állapotellenőrzést használja.
+
 ## Indítás
 
 A projekt gyökerében:

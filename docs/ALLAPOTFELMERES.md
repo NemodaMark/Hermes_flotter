@@ -1,0 +1,24 @@
+# HERMES – állapotfelmérés
+
+**2026. november 16.** A felmérés a `f320a8b` revíziót, a helyi tesztfuttatások eredményeit és a jelenlegi üzemeltetési dokumentációt vette alapul. [Megvizsgált revízió](https://github.com/NemodaMark/Hermes_flotter/commit/f320a8be884c0071cc833a737083c785081fc105) · [Műszaki dokumentáció](HERMES_MUSZAKI_DOKUMENTACIO.md)
+
+## Tesztszerver előtt ellenőrizendő
+
+| Sorrend | Terület | Teendő és elfogadási feltétel |
+| --- | --- | --- |
+| 1 | Microsoft Entra ID | A bejelentkezés és az előre létrehozott fiókhoz kötés elkészült, a valódi céges tenanttal végzett próba nyitott. A tesztszerver HTTPS-visszahívásával próbálj végig egy hozzárendelt, előre létrehozott fiókot, egy alkalmazáshoz hozzá nem rendelt fiókot és egy Entra-hozzáféréssel rendelkező, de a HERMES-ben még létre nem hozott fiókot. Csak az első léphessen be. [Beállítás](../backend/README.md#microsoft-entra-id-bejelentkezés) |
+| 2 | E-mail és emlékeztetők | Az SMTP, a meghívók, az e-mail-megerősítés, a jelszó-visszaállítás és a flottaemlékeztetők működését a tényleges szolgáltatóval kell kipróbálni. Ellenőrizendő a kézbesítés, a HTTPS-hivatkozás, az egyszeri felhasználás és a szolgáltatói hiba utáni újrapróbálás. [E-mail dokumentáció](EMAIL.md) |
+| 3 | TeamCity, HTTPS és helyreállítás | A telepítő, a mentés, a próbavisszaállítás és a TeamCity kiadási útvonala megvan. Az adott tesztszerveren rögzíteni kell az induló telepítést, a következő automatikus Git-revíziót és az előző kiadás visszaállítását. Külön üres célra visszatöltve nyíljon meg legalább egy csatolmány, és sikerüljön egy belépés. Jegyezd fel a RPO-t és a mért helyreállítási időt. [TeamCity](../deploy/teamcity/README.md) · [Mentés és helyreállítás](../deploy/debian13/README.md) |
+| 4 | Jogosultsági átvételi próba | Az API automatizált tesztjei mellé kell egy végigkattintott forgatókönyv rendszergazdával, cégkezelővel és telephelyhez kötött dolgozóval. Ugyanazzal az adatkészlettel ellenőrizendő a járműlisták, foglalások, előnézetek és a közvetlen adatlaplinkek hozzáférése két külön cégnél és a telephely nélküli járműveknél. [Jogosultsági modell](HERMES_MUSZAKI_DOKUMENTACIO.md#4-hozzáférési-modell-és-adatbiztonság) |
+| 5 | Üzemeltetési riasztások | A helyi állapotellenőrzés és a mentési naplók rendelkezésre állnak. A tesztszerverhez rendelj felelőst és riasztást tartós readiness-hibára, kimaradt mentésre vagy visszaállítási próbára, valamint fogyó tárhelyre. Az átvételnél próbariasztás érkezzen meg a kijelölt címzetthez. [Üzemeltetési parancsok](../deploy/debian13/README.md) |
+
+## Fejlesztési lista
+
+- **Foglalás, átadás és szerviz összehangolása.** A foglalási naptár és a legfeljebb hét napos foglalás működik. Dönteni kell arról, hogy a szervizidőpont és a késve visszaadott jármű mikor zárja ki a foglalást, és mikor elegendő a figyelmeztetés. [Flottaműveletek](HERMES_MUSZAKI_DOKUMENTACIO.md#5-foglalás-és-naptár)
+- **Céges költségriport.** A lízing, a szerviz és a tankolás adatai rendelkezésre állnak. Közös időszaki összesítés és export kell cég, telephely és jármű szerint. A különböző devizák összevonásához rögzíteni kell az átváltási szabályt. [Projektösszefoglaló](../PROJEKT_OSSZEFOGLALO.md#45-partnerek-lízing-és-szerviz)
+- **Menetlevél és magánhasználati keret.** Külön rögzítendő az út üzleti vagy magán célja, a használó, az időszak és a kilométer. A már működő tankolási és kilométer-adatok kapcsolhatók a menetekhez. [További fejlesztési pontok](HERMES_MUSZAKI_DOKUMENTACIO.md#11-további-fejlesztési-pontok)
+- **Pontosabb 3D modellválasztás.** Az öt jelenlegi stúdiómodell karosszériatípust szemléltet a tárolt színnel. A pontos járműképhez gyártó, modell és évjárat szerinti hozzárendelés, valamint a hiányzó modellekhez dokumentált forrás és licenc kell. A mostani öt stúdiómodell CC BY 4.0 alatt szerepel, a szerzők és a módosítások fel vannak tüntetve. [Modellválasztás](../frontend/src/vehicleModels.ts) · [Jelenlegi modelllicencek](../frontend/public/models/studio/LICENSE.md)
+- **Stabil frontend tesztfuttatás.** Az utolsó teljes helyi futásból 177/179 teszt ment át, két felületi teszt időtúllépést adott. Az érintett teszteket is tartalmazó külön futás 55/55 sikeres volt. Ellenőrizendő egy normál CI-futás, és ismétlődésnél a két teszt várakozási feltétele. Az utolsó teljes helyi backendfutás 211/211 tesztet adott. [CI](../.github/workflows/ci.yml)
+- **Függőségek frissítése.** A november 16-i `npm audit` és a közvetett csomagokat is vizsgáló NuGet-ellenőrzés nem jelzett ismert sérülékenységet. A telepítők és a szerver eltérő csomagforrásai miatt a verziók és a biztonsági frissítések ellenőrzése kiadásonként ismétlendő. [Helyi csomagforrások](MUNKAALLOMAS_TELEPITES.md) · [Szerveres kiadás](../deploy/teamcity/README.md)
+
+Az új [munkaállomás-telepítők](MUNKAALLOMAS_TELEPITES.md) helyi fejlesztői példányt hoznak létre. Az itt felsorolt szerveres elfogadási próbák a célkörnyezetben futtathatók le.

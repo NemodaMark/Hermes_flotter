@@ -78,7 +78,7 @@ Egy tipikus járműmódosítás folyamata:
 
 ### 4.1. Fiókok, bejelentkezés és profilok
 
-- Regisztráció, belépés felhasználónévvel vagy e-maillel, kijelentkezés és oldalfrissítést túlélő munkamenet.
+- Fióklétrehozás rendszerszintű kezelővel, helyi és céges Microsoft-bejelentkezés, kijelentkezés és oldalfrissítést túlélő munkamenet.
 - Az egyedi, kanonikus **felhasználónév maga a belső felhasználói azonosító**; a név és az e-mail ettől külön adat. A korábbi azonosítók történeti feloldáshoz megmaradnak.
 - A jelszavakat Identity kezeli sózott hashként. A normál jelszókövetelmény 12–128 karakter; ismételt hibás belépésre fiókzárolás és belépési sebességkorlát működik.
 - Teljes oldalas felhasználói adatlap külön **Profiladatok**, **Céges hozzáférések** és **Fiókbiztonság** fülekkel, joghoz igazodó eléréssel.
@@ -91,7 +91,7 @@ Egy tipikus járműmódosítás folyamata:
 
 - [x] E-mail-cím megerősítése regisztráció után, újrakérhető, 24 órás hivatkozással. Új regisztrációkra bekapcsolható; a meglévő fiókokat nem zárja ki.
 - [x] Elfelejtett jelszó és biztonságos jelszó-visszaállítás: egyórás, egyszer használható hivatkozás, régi munkamenetek érvénytelenítése, naplózás és fiókonkénti levélküldési korlát.
-- [ ] Javaslat: a regisztrációs mód beállíthatóvá tétele, például nyitott vagy csak meghívásos működés. A jelenlegi regisztráció nyitott.
+- [x] A fiókok létrehozása belépett, `system.manage` jogosultságú kezelőhöz kötött. A céges Microsoft-belépés előzetesen létrehozott fiókhoz kapcsolódik. [Entra-beállítások](backend/README.md#microsoft-entra-id-bejelentkezés)
 
 A levélküldés alapértelmezésben kikapcsolt. Az SMTP és a fejlesztői tesztlevél beállítását, az API-végpontokat és a hivatkozások védelmét az [e-mailes működés leírása](docs/EMAIL.md) tartalmazza. Valódi levelezőszolgáltatóval végzett kézbesítési próba még szükséges az éles bekapcsolás előtt.
 

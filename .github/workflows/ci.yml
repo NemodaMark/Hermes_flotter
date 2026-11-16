@@ -57,6 +57,45 @@ jobs:
       - run: dotnet test desktop/tests/Hermes.ControlCenter.Tests/Hermes.ControlCenter.Tests.csproj -c Release
       - run: dotnet publish desktop/src/Hermes.ControlCenter/Hermes.ControlCenter.csproj -c Release -r win-x64 --self-contained true -o .local/control-center-ci
 
+  workstation-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install a separate checkout, start and check the services
+        env:
+          PROJECT: ${{ runner.temp }}/HERMES workstation
+        run: |
+          set -euo pipefail
+          repository="$RUNNER_TEMP/hermes-upstream.git"
+          git clone --bare . "$repository"
+          git --git-dir="$repository" update-ref refs/heads/main "$(git rev-parse HEAD)"
+          export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="url.file://$repository.insteadOf"
+          export GIT_CONFIG_VALUE_0=https://github.com/NemodaMark/Hermes_flotter.git
+          shellcheck scripts/install-workstation.sh
+          bash scripts/install-workstation.sh "$PROJECT"
+          test -x "$HOME/Desktop/HERMES.desktop"
+          cli="$PROJECT/.local/workstation/launcher/Hermes.Workstation.dll"
+          trap 'dotnet "$cli" stop "$PROJECT"' EXIT
+          dotnet "$cli" start "$PROJECT"
+          dotnet "$cli" status "$PROJECT"
+      - name: Show workstation logs
+        if: failure()
+        env:
+          PROJECT: ${{ runner.temp }}/HERMES workstation
+        run: |
+          for log in "$PROJECT"/.local/control-center/logs/*.log; do
+            if [[ -f "$log" ]]; then tail -n 80 "$log"; fi
+          done
+
   frontend:
     runs-on: ubuntu-latest
     steps:
