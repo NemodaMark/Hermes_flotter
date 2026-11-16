@@ -83,12 +83,19 @@ fi
 git_path=$(command -v git)
 
 project=${1:-}
-if [[ -z "$project" ]]; then
-    read -r -e -p 'Project directory (Enter for ~/HERMES): ' project
-fi
-project=${project:-"$HOME/HERMES"}
-if [[ "$project" == \~/* ]]; then project="$HOME/${project:2}"; fi
-project=$(realpath -m -- "$project")
+while true; do
+    if [[ -z "$project" ]]; then
+        read -r -e -p 'Project directory (Enter for ~/HERMES): ' project
+    fi
+    project=${project:-"$HOME/HERMES"}
+    if [[ "$project" == \~/* ]]; then project="$HOME/${project:2}"; fi
+    project=$(realpath -m -- "$project")
+    if [[ "$project" != *%* ]]; then break; fi
+    message='Vite cannot serve a project path containing %. Choose another directory.'
+    if [[ -n "${1:-}" ]]; then die "$message"; fi
+    printf '%s\n' "$message" >&2
+    project=
+done
 if [[ -e "$project/.git" ]]; then
     origin=$("$git_path" -C "$project" config --get remote.origin.url)
     case "$origin" in

@@ -10,11 +10,12 @@ if [[ ${1:-} == --desktop-session ]]; then
     printf 'Desktop shortcut opened an XTerm window (%s).\n' "$window"
 
     wait_for_health() {
-        local expected=$1 status count attempt
+        local expected=$1 expected_result=$2 status result count attempt
         for ((attempt = 0; attempt < 35; attempt++)); do
-            status=$(dotnet "$cli" status "$project") || true
+            result=0
+            status=$(dotnet "$cli" status "$project") || result=$?
             count=$(awk -v expected="$expected" '$0 ~ ("[[:space:]]" expected "[[:space:]]") { count++ } END { print count+0 }' <<< "$status")
-            if [[ "$count" == 4 ]]; then
+            if [[ "$count" == 4 && "$result" == "$expected_result" ]]; then
                 printf '%s\n' "$status"
                 return 0
             fi
@@ -24,17 +25,18 @@ if [[ ${1:-} == --desktop-session ]]; then
         return 1
     }
 
-    wait_for_health OK
-    xdotool windowfocus --sync "$window"
+    wait_for_health OK 0
+    timeout 10s xdotool windowfocus --sync "$window"
     xdotool type S
     xdotool key Return
-    wait_for_health HIBA
+    wait_for_health HIBA 1
     exit 0
 fi
 
 # A clean Debian container supplies the desktop tools, but the installer provisions the project tools.
-project="$HOME/HERMES workstation 100%"
-desktop="$HOME/HERMES Desktop"
+project="$HOME/HERMES munkaállomás"
+invalid_path="$HOME/HERMES workstation 100%"
+desktop="$HOME/HERMES Desktop 100%"
 mkdir -p "$desktop"
 xdg-user-dirs-update --set DESKTOP "$desktop"
 test "$(xdg-user-dir DESKTOP)" = "$desktop"
@@ -49,7 +51,8 @@ show_logs_on_failure() {
 }
 trap show_logs_on_failure EXIT
 
-printf '%s\n' "$project" | bash /hermes-scripts/install-workstation.sh
+printf '%s\n' "$invalid_path" "$project" | bash /hermes-scripts/install-workstation.sh
+test ! -e "$invalid_path"
 shortcut="$desktop/HERMES.desktop"
 test -x "$shortcut"
 desktop-file-validate "$shortcut"

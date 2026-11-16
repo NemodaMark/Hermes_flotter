@@ -34,6 +34,7 @@ dotnet .local/workstation/launcher/Hermes.Workstation.dll stop "$PWD"
 
 ## Első belépés és újrafuttatás
 
+- A projekt teljes elérési útja legyen `%` jel nélküli. A Vite fejlesztői szervere ilyen útvonalon hibát ad. Interaktív futtatáskor a telepítő másik mappát kér.
 - Az interaktív telepítő kérésre létrehozza az első rendszergazdát a megadott felhasználónévvel, e-mail-címmel és rejtve bekért jelszóval. Ha kihagytad, a projekt gyökerében a `dotnet .local/workstation/launcher/Hermes.Workstation.dll admin . FELHASZNALONEV EMAIL` paranccsal hozhatod létre. Ehhez a telepítéskor kiválasztott .NET 10 SDK szükséges.
 - Az adatbázis az adott projektben a `.local/workstation/postgres` mappában marad. A `.env` helyi, véletlenszerű jelszavakat tartalmaz, a vezérlő beállításai és a szolgáltatásnaplók a `.local/control-center` mappába kerülnek. A három szolgáltatás a loopback interfészen indul. A preferált portok 55432, 5080 és 5173, foglalt portnál a telepítő szabad portot választ.
 - Meglévő munkapéldánynál válassz tiszta, `main` ágon lévő HERMES checkoutot. A szkript `git pull --ff-only` paranccsal frissít, és megőrzi a saját adatbázist. Ha a munkapéldányhoz már más adatbázis vagy kézi konfiguráció tartozik, válassz külön mappát. Fordítás előtt állítsd le az adott checkoutban futó fejlesztői szolgáltatásokat.

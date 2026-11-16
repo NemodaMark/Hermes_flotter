@@ -113,9 +113,17 @@ if (!(Test-Path -LiteralPath (Join-Path $postgres 'pg_ctl.exe'))) {
 $env:PATH = "$(Split-Path -Parent $dotnet);$(Split-Path -Parent $node);$env:PATH"
 $env:DOTNET_ROOT = Split-Path -Parent $dotnet
 
-if (!$ProjectPath) { $ProjectPath = Read-Host 'Project directory (Enter for Documents\HERMES)' }
-if (!$ProjectPath) { $ProjectPath = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'HERMES' }
-$ProjectPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ProjectPath.Trim().Trim('"'))
+$pathSupplied = ![string]::IsNullOrWhiteSpace($ProjectPath)
+while ($true) {
+    if (!$ProjectPath) { $ProjectPath = Read-Host 'Project directory (Enter for Documents\HERMES)' }
+    if ([string]::IsNullOrWhiteSpace($ProjectPath)) { $ProjectPath = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'HERMES' }
+    $ProjectPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ProjectPath.Trim().Trim('"'))
+    if (!$ProjectPath.Contains('%')) { break }
+    $message = 'Vite cannot serve a project path containing %. Choose another directory.'
+    if ($pathSupplied) { throw $message }
+    Write-Warning $message
+    $ProjectPath = ''
+}
 if (Test-Path -LiteralPath (Join-Path $ProjectPath '.git')) {
     $origin = Invoke-Checked $git @('-C', $ProjectPath, 'config', '--get', 'remote.origin.url')
     if ($origin -notin @($repository, ($repository -replace '\.git$', ''), 'git@github.com:NemodaMark/Hermes_flotter.git',
