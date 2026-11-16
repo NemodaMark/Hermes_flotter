@@ -96,6 +96,36 @@ jobs:
             if [[ -f "$log" ]]; then tail -n 80 "$log"; fi
           done
 
+  workstation-debian13:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install and start from the desktop shortcut on Debian 13
+        run: |
+          set -euo pipefail
+          repository="$RUNNER_TEMP/hermes-debian-upstream.git"
+          git clone --bare . "$repository"
+          git --git-dir="$repository" update-ref refs/heads/main "$(git rev-parse HEAD)"
+          docker run --rm \
+            --volume "$repository:/hermes-upstream.git:ro" \
+            --volume "$GITHUB_WORKSPACE/scripts:/hermes-scripts:ro" \
+            debian:13-slim bash -euc '
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+                sudo dbus-daemon desktop-file-utils libglib2.0-bin xauth xdg-user-dirs \
+                xdotool xfonts-base xterm xvfb
+              useradd --create-home --shell /bin/bash hermes
+              printf "hermes ALL=(root) NOPASSWD: ALL\n" > /etc/sudoers.d/hermes
+              chmod 0440 /etc/sudoers.d/hermes
+              sudo -Hu hermes env \
+                GIT_CONFIG_COUNT=2 \
+                GIT_CONFIG_KEY_0=url.file:///hermes-upstream.git.insteadOf \
+                GIT_CONFIG_VALUE_0=https://github.com/NemodaMark/Hermes_flotter.git \
+                GIT_CONFIG_KEY_1=safe.directory GIT_CONFIG_VALUE_1=/hermes-upstream.git \
+                bash /hermes-scripts/tests/workstation-debian13.sh
+            '
+
   frontend:
     runs-on: ubuntu-latest
     steps:
