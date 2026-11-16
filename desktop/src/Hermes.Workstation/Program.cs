@@ -3,7 +3,7 @@ using Hermes.ControlCenter.Core;
 
 try
 {
-    if (args.Length < 2) throw new ArgumentException("Használat: prepare|admin|start|stop|status|desktop <projektmappa>");
+    if (args.Length < 2) throw new ArgumentException("Használat: prepare|admin|import-csv|start|stop|status|desktop <projektmappa>");
     var root = ControlCenterSettings.FindRoot(args[1]);
     if (args is ["prepare", _, var postgres, var dotnet, var node, var git])
     {
@@ -12,6 +12,11 @@ try
     }
 
     var installation = LocalInstallation.Open(root);
+    if (args is ["import-csv", _, var package, .. var switches])
+    {
+        await installation.ImportCsvAsync(Path.GetFullPath(package), switches);
+        return 0;
+    }
     if (args is ["admin", _, var username, var email])
     {
         await installation.CreateAdminAsync(username, email);

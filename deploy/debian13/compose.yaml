@@ -30,6 +30,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Migrations: "Host=db;Database=hermes;Username=hermes_migrator;Password=${POSTGRES_MIGRATOR_PASSWORD}"
+      Entra__Enabled: "${HERMES_ENTRA_ENABLED:-false}"
+      Entra__TenantId: "${HERMES_ENTRA_TENANT_ID:-}"
     networks: [database]
     profiles: [maintenance]
     restart: "no"

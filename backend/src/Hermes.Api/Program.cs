@@ -20,13 +20,15 @@ if (args is ["--health-check"])
     return;
 }
 
-var builder = WebApplication.CreateBuilder(args);
+var importMode = args.Contains("--import-csv", StringComparer.Ordinal);
+var builder = WebApplication.CreateBuilder(importMode ? [] : args);
+if (importMode) builder.Logging.SetMinimumLevel(LogLevel.Warning);
 builder.Services.ConfigureHermesProxy(builder.Configuration);
 var migrationMode = args.Contains("--migrate", StringComparer.Ordinal);
 var bootstrapIndex = Array.IndexOf(args, "--bootstrap-system-admin");
 var developmentSetupIndex = Array.IndexOf(args, "--configure-development-admin");
 var initializeIndex = Array.IndexOf(args, "--initialize-system-admin");
-var maintenanceMode = migrationMode || bootstrapIndex >= 0 || developmentSetupIndex >= 0 || initializeIndex >= 0;
+var maintenanceMode = importMode || migrationMode || bootstrapIndex >= 0 || developmentSetupIndex >= 0 || initializeIndex >= 0;
 if (developmentSetupIndex >= 0) DevelopmentSetup.Validate(builder.Environment.IsDevelopment(), builder.Configuration.GetConnectionString("Migrations") ?? "");
 
 builder.Services.AddProblemDetails();
@@ -143,6 +145,12 @@ if (maintenanceMode)
 {
     await using (var scope = app.Services.CreateAsyncScope())
     {
+        if (importMode)
+        {
+            Environment.ExitCode = await CsvImportCommand.RunAsync(scope.ServiceProvider.GetRequiredService<HermesDbContext>(),
+                app.Configuration, args, CancellationToken.None);
+            return;
+        }
         await scope.ServiceProvider.GetRequiredService<HermesDbContext>().Database.MigrateAsync();
         if (developmentSetupIndex >= 0)
         {

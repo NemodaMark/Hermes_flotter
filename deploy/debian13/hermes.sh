@@ -342,7 +342,7 @@ command=${1:-help}
 shift || true
 if [[ $command == init ]]; then init "$@"; exit; fi
 if [[ $command == help ]]; then
-    echo 'Commands: init DOMAIN EMAIL REPOSITORY | init-repository | deploy | start | stop | status | backup | snapshots | check | restore-drill [SNAPSHOT] | recover SNAPSHOT SOURCE DATA CONFIG | initialize-admin USERNAME EMAIL | bootstrap-admin USERNAME | install-systemd'
+    echo 'Commands: init DOMAIN EMAIL REPOSITORY | init-repository | deploy | start | stop | status | backup | snapshots | check | restore-drill [SNAPSHOT] | recover SNAPSHOT SOURCE DATA CONFIG | initialize-admin USERNAME EMAIL | bootstrap-admin USERNAME | import-csv PACKAGE [--owner USERNAME] [--apply] | install-systemd'
     exit
 fi
 load_config
@@ -362,5 +362,15 @@ case $command in
         dc --profile maintenance run --rm --no-deps -e HERMES_INITIAL_ADMIN_PASSWORD migrate --initialize-system-admin "$1" "$2"
         ;;
     bootstrap-admin) [[ $# == 1 && $1 =~ ^[a-z0-9][a-z0-9._-]+$ ]] || die 'Specify one canonical username.'; lock; dc --profile maintenance run --rm --no-deps migrate --bootstrap-system-admin "$1" ;;
+    import-csv)
+        [[ $# -ge 1 ]] || die 'Specify a ZIP package or an export directory.'
+        package=$(realpath -e -- "$1") || die 'The import package could not be located.'
+        shift
+        [[ "$package" != *:* && ( -d "$package" || -f "$package" ) ]] || die 'Specify a readable directory or ZIP with a path without colons.'
+        destination=/hermes-import
+        if [[ -f "$package" ]]; then destination=/hermes-import.zip; fi
+        lock
+        dc --profile maintenance run --rm --no-deps -T --user 0 --volume "$package:$destination:ro" migrate --import-csv "$destination" "$@"
+        ;;
     *) die "Unknown command: $command" ;;
 esac

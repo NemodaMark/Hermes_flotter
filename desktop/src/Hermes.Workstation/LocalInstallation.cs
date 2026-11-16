@@ -254,6 +254,20 @@ internal sealed class LocalInstallation
         }
     }
 
+    public async Task ImportCsvAsync(string package, string[] switches)
+    {
+        using var installationLock = AcquireLock();
+        var started = await StartDatabaseAsync();
+        try
+        {
+            await RunMaintenanceAsync(["--import-csv", package, .. switches], showOutput: true);
+        }
+        finally
+        {
+            if (started) await StopDatabaseAsync();
+        }
+    }
+
     private static string ReadPassword()
     {
         if (Console.IsInputRedirected)
@@ -271,7 +285,7 @@ internal sealed class LocalInstallation
         return password.ToString();
     }
 
-    private async Task RunMaintenanceAsync(string[] arguments, string? password = null)
+    private async Task RunMaintenanceAsync(string[] arguments, string? password = null, bool showOutput = false)
     {
         var apiDirectory = Path.Combine(Root, "backend", "src", "Hermes.Api");
         var variables = new Dictionary<string, string>
@@ -282,12 +296,14 @@ internal sealed class LocalInstallation
         };
         if (password is not null) variables["HERMES_INITIAL_ADMIN_PASSWORD"] = password;
         var result = await runner.RunAsync(new(Settings.DotnetPath,
-            [Path.Combine(apiDirectory, "bin", "Debug", "net10.0", "Hermes.Api.dll"), .. arguments], apiDirectory, variables), TimeSpan.FromMinutes(3));
+            [Path.Combine(apiDirectory, "bin", "Debug", "net10.0", "Hermes.Api.dll"), .. arguments], apiDirectory, variables),
+            showOutput ? TimeSpan.FromMinutes(30) : TimeSpan.FromMinutes(3));
         if (result.ExitCode != 0)
         {
             var details = new EventJournal(Root).Redact(result.Error + result.Output);
             throw new InvalidOperationException($"A HERMES adatbázis-művelete sikertelen.\n{details}");
         }
+        if (showOutput) Console.Write(result.Output);
     }
 
     public async Task StopAsync()

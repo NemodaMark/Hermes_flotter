@@ -23,7 +23,7 @@ pg_dump --host="$PGHOST" --port="$PGPORT" --username="$PGUSER" \
 pg_restore --list hermes.dump
 ```
 
-**Ha a forrás másik rendszer**, az alábbi oszlopnevek javasolt átadási mezők. A forrás oszlopnevei maradhatnak, ha melléjük kerül a megfeleltetés. A HERMES jelenleg egyedi rögzítést és fájlfeltöltést tud. A CSV-csomag tömeges betöltéséhez a forrás ismeretében importáló szükséges.
+**Ha a forrás másik rendszer**, az alábbi oszlopneveket használd az átadáshoz. A forrás eltérő oszlopneveit az export összeállításakor feleltesd meg ezeknek a mezőknek. A HERMES üzemeltetői CSV-importálója ZIP-ből vagy mappából ellenőrzi és tölti be a csomagot, a `files.csv` szerint csatolva a fájlokat. A próbaimport a `--apply` nélküli futtatás, a tényleges betöltéshez a `--apply` kapcsoló szükséges.
 
 ### Fájlformátum és azonosítók
 
@@ -143,7 +143,7 @@ Egy dokumentumnak egy szülője lehet. A dokumentumfeltöltés PDF-, JPG/JPEG-, 
 
 1. **Először 5–10 összefüggő jármű mintája.** A mintához kerüljön legalább egy telephely, felhasználó, partner, csatolmány és előzmény. A mintához írd oda, mely forrástábla és mező szolgáltatja az egyes oszlopokat.
 2. **Betöltés előtt ellenőrzés.** Készüljön tétellista a hiányzó kapcsolatokról, a cégen belüli duplikációkról, az érvénytelen mezőkről, az átfedő foglalásokról és az elérhetetlen fájlokról. A betöltéshez a régi és a célbeli ID-k megfeleltetését külön kell megőrizni. Az élő rendszer exportját és csatolmányait jóváhagyott, hozzáférés-védett csatornán add át.
-3. **Elkülönített cél és mentés.** A szokásos létrehozás és feltöltés a HERMES felületén vagy API-ján végezhető. A régi időbélyegek, naplóbejegyzések, korábbi lezárt foglalások és eredeti rögzítők változatlan átviteléhez célzott migráció szükséges, mert a szokásos műveletek a mostani felhasználót és időpontot használják. A táblák közvetlen, soronkénti CSV-feltöltése kihagyná az API üzleti és jogosultsági ellenőrzéseit.
+3. **Elkülönített próba és mentés.** Futtasd le a HERMES ellenőrző importját, és javítsd a jelentett eltéréseket. Az importáló átveszi a csomagban megadott történeti dátumokat és rögzítőket. A tényleges betöltés egy adatbázis-tranzakcióban menti a cégeket és a hozzájuk tartozó csatolmányokat.
 4. **Darabszámok és mintavétel.** Hasonlítsd össze cégenként és adattípusonként az exportált, betöltött és egyeztetésre maradt sorokat. Ellenőrizd a rendszámváltást, a járműhasználat előzményeit, a foglalási naptárt, a tankolási összegzést, a fájlok lenyomatát és előnézetét. A cégek és telephelyek elválasztását próba-fiókokkal ellenőrizd. Archiválás és felfüggesztés a kapcsolt rekordok rendezése után következzen.
 
 ## Értékkódok
