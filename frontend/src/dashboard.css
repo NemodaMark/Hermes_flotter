@@ -54,60 +54,256 @@
 .dashboard-preferences legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .dashboard-preferences label { display: block; margin: 8px 0; }
 .dashboard-preferences label input, .dashboard-preferences label .choice { margin-top: 6px; }
-.car-dashboard { background: #fff; border: 1px solid #c9d7dc; border-radius: 11px; overflow: hidden; min-width: 0; }
-.car-dashboard-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 19px 24px; border-bottom: 1px solid #d2dfe3; }
-.car-dashboard-toolbar > div { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.car-registration { font-size: 24px; font-weight: 600; letter-spacing: -.5px; }
-.car-dashboard-model { font-size: 13px; color: #5d7781; }
-.car-picker { display: flex; align-items: center; gap: var(--space-2); font-size: 14px; min-width: 0; }
-.car-picker .choice { width: 220px; max-width: 100%; }
-.car-attention { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px clamp(12px, 3vw, 44px); border-bottom: 1px solid var(--line); background: var(--surface-subtle); }
-.car-attention > p { margin: 4px 0; color: var(--muted); font-size: 13px; }
-.car-attention .car-attention-notice { display: inline-flex; align-items: center; justify-content: start; flex-wrap: wrap; gap: 8px; min-height: 42px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); background: var(--surface); font-size: 13px; text-align: left; }
-.car-attention button.car-attention-notice:hover { background: var(--primary-soft); }
-.car-attention-notice .member-actions .secondary-button { min-height: 36px; }
-.car-stage-wrap { position: relative; overflow: hidden; background: #3e372e; container-type: inline-size; }
-.vehicle-studio { position: relative; width: 100%; height: clamp(380px,50vh,580px); isolation: isolate; }
+.car-dashboard {
+  --garage-inset: clamp(16px, 2.65vw, 44px);
+  --garage-ink: #faf8ee;
+  --garage-muted: #dddcd2;
+  --garage-panel: #171b19ee;
+  --garage-line: #eeeee337;
+  --garage-dock: 58px;
+  min-width: 0;
+  min-height: 0;
+  isolation: isolate;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  position: relative;
+  color: var(--garage-ink);
+  background: #202622;
+}
+.car-dashboard > .car-stage-wrap, .car-dashboard > .car-menu { grid-area: 1 / 1; }
+.car-stage-wrap { position: relative; min-width: 0; min-height: 0; background: #202622; container-type: inline-size; }
+.car-dashboard > .car-stage-wrap { overflow: hidden; }
+.vehicle-studio { position: relative; width: 100%; height: clamp(360px, 57svh, 630px); isolation: isolate; }
+.car-dashboard .vehicle-studio { height: 100%; }
 .vehicle-studio canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; }
 .vehicle-studio canvas:active { cursor: grabbing; }
-.studio-hotspots { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.studio-hotspot { pointer-events: auto; position: absolute; transform: translate(-15px,-15px); display: inline-flex; gap: 8px; align-items: center; border: 0; padding: 5px; border-radius: 5px; background: transparent; color: #173f46; font: inherit; cursor: pointer; visibility: hidden; }
-.studio-hotspot > span { width: 24px; height: 24px; flex: 0 0 24px; border: 5px solid #fff; border-radius: 50%; background: #287e75; box-shadow: 0 1px 8px #21444b55; }
-.studio-hotspot strong { position: absolute; left: var(--label-x); top: var(--label-y); transform: translate(-50%,-50%); font-size: 12px; font-weight: 500; padding: 7px 10px; border: 1px solid #b6c9cc; background: #fffffff5; border-radius: 4px; box-shadow: 0 2px 6px #24485113; white-space: nowrap; }
-.studio-hotspot > i { position: absolute; left: 17px; top: 17px; width: var(--leader-length); height: 1px; background: #668d95aa; transform: rotate(var(--leader-angle)); transform-origin: 0 0; pointer-events: none; z-index: -1; }
-.studio-hotspot:hover > span, .studio-hotspot:focus-visible > span { background: #124b47; box-shadow: 0 0 0 5px #358a7860; }
-.car-stage-meta { position: absolute; top: 15px; left: 22px; right: 18px; display: flex; align-items: start; justify-content: space-between; gap: 12px; pointer-events: none; font-size: 12px; }
-.car-stage-meta > span { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 9px; }
-.car-stage-meta > span, .car-stage-instrument, .studio-flight-status { padding: 7px 11px; border-radius: var(--radius-control); background: #231f1be8; color: var(--surface); }
-.car-stage-meta i { width: 14px; height: 14px; border: 1px solid #8da1aa; border-radius: 50%; }
-.studio-reset { pointer-events: auto; display: flex; align-items: center; gap: 6px; border: 1px solid #a9bdc2; border-radius: 5px; padding: 7px 9px; background: #edf3f3dc; color: #3a5c66; font-size: 12px; }
-.car-stage-instrument { position: absolute; bottom: 20px; left: 24px; display: flex; align-items: center; gap: 9px; pointer-events: none; }
-.car-stage-instrument strong { font-size: 24px; font-variant-numeric: tabular-nums; font-weight: 500; }
-.car-stage-instrument > span { font-size: 12px; }
-.studio-flight-status { position: absolute; right: 24px; bottom: 66px; font-size: 12px; }
-.studio-camera-controls { position: absolute; right: 20px; bottom: 17px; display: flex; border: 1px solid #abc0c6; background: #f9fcfce8; border-radius: 6px; z-index: 2; }
-.studio-camera-controls button { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; background: transparent; border: 0; color: #335760; cursor: pointer; }
-.studio-camera-controls button + button { border-left: 1px solid #c8d7dc; }
-.studio-camera-controls button:hover { background: #e6f2ef; }
-.car-menu { display: flex; flex-wrap: wrap; padding: 0 12px; border-top: 1px solid #c6d5da; }
-.car-menu button { flex: 1 1 130px; display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 67px; border: 0; border-bottom: 2px solid transparent; color: #325967; background: transparent; font-size: 12px; }
-.car-menu button > svg:last-child { width: 12px; color: #85a1aa; }
-.car-menu button:hover { border-bottom-color: #267c72; background: #f0f7f5; }
-.car-dashboard-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 12px 22px; border-top: 1px solid #e1e9eb; color: #617f89; background: #f6f9f9; font-size: 12px; }
-.car-dashboard-footer > span { display: flex; align-items: center; gap: 5px; }
-.studio-unavailable, .studio-loading { display: grid; min-height: 100%; place-content: center; text-align: center; padding: 40px; gap: 10px; color: var(--surface); }
+.car-dashboard .vehicle-studio::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(180deg, #101512d9, #1015123d 20%, transparent 42%, transparent 65%, #101512a6 88%, #101512ed);
+}
+.car-stage-overlay {
+  position: absolute;
+  z-index: 2;
+  inset: var(--garage-inset) var(--garage-inset) auto;
+  display: grid;
+  align-items: start;
+  justify-items: start;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+.car-dashboard-toolbar { display: flex; align-items: start; justify-content: space-between; gap: 12px; width: 100%; }
+.car-identity { display: grid; gap: 3px; min-width: 0; }
+.car-registration { margin: 0; color: var(--garage-ink); font-size: clamp(23px, 3.1vw, 48px); font-weight: 600; line-height: 1.05; letter-spacing: -.045em; overflow-wrap: anywhere; }
+.car-dashboard-model { color: var(--garage-ink); font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+.car-location { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; color: var(--garage-muted); font-size: 12px; margin-top: 5px; }
+.car-location .sera-badge { margin-inline-start: 4px; }
+.car-dashboard-actions { display: flex; align-items: start; gap: var(--space-2); pointer-events: auto; }
+.car-dashboard-actions .dashboard-view-switch { flex: none; }
+.car-picker { min-width: 0; width: clamp(118px, 15vw, 200px); }
+.app-shell .car-picker .choice { width: 100%; background: var(--garage-panel); border-color: var(--garage-line); color: var(--garage-ink); }
+.car-picker .choice input, .car-picker .choice .choice-arrow { color: inherit; }
+.car-picker .choice:focus-within { outline-color: #b6d1bb; outline-offset: 1px; }
+.car-attention {
+  display: grid;
+  justify-items: stretch;
+  gap: 4px;
+  width: max-content;
+  max-width: min(100%, 310px);
+  max-height: min(23svh, 186px);
+  overflow: auto;
+  scrollbar-width: thin;
+  border-radius: var(--radius-control);
+  pointer-events: auto;
+}
+.car-attention .car-attention-notice {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 36px;
+  padding: 5px 8px;
+  border: 1px solid var(--garage-line);
+  border-radius: var(--radius-control);
+  color: var(--garage-ink);
+  background: var(--garage-panel);
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: left;
+}
+.car-attention-notice > svg { flex: 0 0 15px; }
+.car-attention-notice .sera-badge { margin-inline-start: auto; flex-shrink: 0; }
+.car-attention button.car-attention-notice:hover { background: #354439; }
+.car-attention-notice .member-actions .secondary-button { min-height: 34px; }
+.studio-hotspots { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
+.studio-hotspot { pointer-events: auto; position: absolute; transform: translate(-50%, -50%); display: grid; place-items: center; width: 36px; height: 36px; border: 0; padding: 0; border-radius: 50%; background: transparent; color: var(--garage-ink, var(--ink)); font: inherit; cursor: pointer; visibility: hidden; }
+.studio-hotspot > span { width: 17px; height: 17px; border: 3px solid #fff; border-radius: 50%; background: var(--primary); box-shadow: 0 1px 8px #101512b3; }
+.studio-hotspot strong { position: absolute; left: var(--label-x); top: var(--label-y); transform: translate(-50%, -50%); font-size: 12px; font-weight: 500; padding: 6px 9px; border: 1px solid #eeeee362; background: #171b19ed; border-radius: var(--radius-control); white-space: nowrap; }
+.studio-hotspot > i { position: absolute; left: 50%; top: 50%; width: var(--leader-length); height: 1px; background: #ececda91; transform: rotate(var(--leader-angle)); transform-origin: 0 0; pointer-events: none; z-index: -1; }
+.studio-hotspot:is(:hover, :focus-visible) > span { background: var(--primary-hover); box-shadow: 0 0 0 5px #e8ede55c; }
+.car-stage-meta {
+  position: absolute;
+  z-index: 2;
+  inset: auto 16px 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap-reverse;
+  gap: 7px 14px;
+  width: max-content;
+  max-width: calc(100% - 250px);
+  color: var(--garage-muted, var(--surface));
+  pointer-events: none;
+  font-size: 12px;
+}
+.car-dashboard .car-stage-meta { inset-inline-start: var(--garage-inset); bottom: calc(var(--garage-dock) + 36px); }
+.car-stage-meta > span { display: inline-flex; align-items: center; gap: 5px; }
+.car-stage-meta i { width: 11px; height: 11px; border: 1px solid #dddcd2aa; border-radius: 50%; }
+.car-stage-instrument { display: flex; align-items: center; gap: 5px; color: var(--garage-ink, var(--surface)); }
+.car-stage-instrument strong { font-size: 21px; font-variant-numeric: tabular-nums; font-weight: 600; line-height: 1; }
+.studio-flight-status { position: absolute; right: var(--garage-inset, 16px); bottom: calc(var(--garage-dock, 0px) + 87px); color: var(--garage-ink, var(--surface)); font-size: 12px; pointer-events: none; }
+.studio-camera-controls { position: absolute; right: 16px; bottom: 16px; display: flex; border: 1px solid #eeeee34d; background: #171b19ee; border-radius: var(--radius-control); z-index: 3; }
+.car-dashboard .studio-camera-controls { right: var(--garage-inset); bottom: calc(var(--garage-dock) + 27px); }
+.studio-camera-controls button { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; background: transparent; border: 0; color: #faf8ee; cursor: pointer; }
+.studio-camera-controls button + button { border-left: 1px solid #eeeee337; }
+.studio-camera-controls button:hover { background: #354439; }
+.studio-camera-controls button:focus-visible, .car-menu :focus-visible, .car-attention :focus-visible { outline-color: #b6d1bb; outline-offset: -3px; }
+.car-menu {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  justify-self: center;
+  align-self: end;
+  width: min(650px, calc(100% - 2 * var(--garage-inset)));
+  margin-block-end: max(12px, env(safe-area-inset-bottom));
+  gap: 0;
+  border: 1px solid var(--garage-line);
+  border-radius: var(--radius-panel);
+  background: var(--garage-panel);
+}
+.car-menu > button, .car-menu-more > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: calc(var(--garage-dock) - 2px);
+  padding: 5px;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--garage-ink);
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+}
+.car-menu button:hover, .car-menu-more > summary:hover, .car-menu-more[open] > summary { color: var(--garage-ink); background: #354439; }
+.car-menu-more > summary::-webkit-details-marker { display: none; }
+.car-menu-more > div {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: grid;
+  min-width: min(220px, 100%);
+  max-height: calc(100dvh - 160px);
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--garage-line);
+  border-radius: var(--radius-control);
+  background: var(--garage-panel);
+}
+.car-menu-more > div .sera-button { justify-content: start; color: var(--garage-ink); min-height: 44px; text-align: left; }
+.studio-unavailable, .studio-loading { display: grid; min-height: 100%; place-content: center; text-align: center; padding: 28px; gap: 6px; color: var(--surface); }
 .studio-unavailable p { margin: 0; font-weight: 600; }
 .studio-unavailable span { font-size: 13px; }
-.studio-model-status { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 36px; background: #342f29ed; color: var(--surface); font-size: 13px; text-align: center; }
-.studio-model-status p { max-width: 380px; margin: 0; }
-.studio-model-status button { border: 1px solid #91acb4; border-radius: 5px; background: #fff; padding: 8px 12px; color: #244d58; }
-.studio-credit { padding: 8px 22px; border-top: 1px solid var(--line); background: var(--surface-subtle); font-size: 12px; text-align: right; }
-.studio-credit a { color: #617f89; text-underline-offset: 3px; }
-.studio-vehicle-dialog.access-dialog { width: min(1050px,95vw); max-width: 1050px; max-height: 90dvh; margin-left: auto; margin-right: 24px; }
-.studio-vehicle-dialog > .vehicle-detail-panel { border: 0; }
-.studio-vehicle-dialog > .org-back { display: none; }
-.studio-vehicle-dialog::backdrop { background: #16343d40; backdrop-filter: none; }
-@media(max-width:1100px) { .car-dashboard-toolbar { flex-wrap: wrap; } }
+.studio-model-status { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 28px; background: #202622; color: var(--surface); font-size: 13px; text-align: center; }
+.studio-model-status p { max-width: 350px; margin: 0; }
+.studio-model-status button { border: 1px solid var(--control-border); border-radius: var(--radius-control); background: var(--surface); padding: 8px 12px; color: var(--ink); }
+.studio-credit { padding: 8px 16px; font-size: 12px; text-align: right; }
+.studio-credit a { color: inherit; text-underline-offset: 3px; }
+.studio-credit .studio-credit-compact { display: none; }
+.car-dashboard > .studio-credit { position: absolute; z-index: 2; inset: auto var(--garage-inset) max(24px, env(safe-area-inset-bottom)) auto; padding: 0; color: var(--garage-muted); }
+.studio-vehicle-dialog.access-dialog {
+  width: min(920px, 61vw);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0 0 0 auto;
+  padding: 0;
+  border-radius: 0;
+  background: var(--surface);
+  overscroll-behavior: contain;
+}
+.studio-vehicle-dialog > .dialog-heading {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  margin: 0;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.studio-vehicle-dialog > .dialog-heading h2 { font-size: 18px; }
+.studio-vehicle-dialog > .vehicle-detail-panel { border: 0; border-radius: 0; box-shadow: none; }
+.studio-vehicle-dialog::backdrop { background: #10151280; }
+.studio-vehicle-dialog .vehicle-detail-panel .vehicle-detail-header { align-items: center; padding-block: 8px; }
+.studio-vehicle-dialog .vehicle-detail-panel .vehicle-current-user { padding-block: 8px; }
+@media (max-width: 1100px) {
+  .car-dashboard > .studio-credit { bottom: calc(var(--garage-dock) + 14px); font-size: 11px; }
+}
+@media (max-width: 1370px) {
+  .studio-credit .studio-credit-compact { display: inline; }
+  .studio-credit .studio-credit-compact + span { display: none; }
+}
+@media (max-width: 800px) {
+  .studio-vehicle-dialog.access-dialog { width: 100%; }
+  .studio-vehicle-dialog > .dialog-heading { padding: 8px 16px; }
+}
+@media (max-width: 600px) {
+  .car-dashboard { --garage-dock: 54px; --garage-inset: 12px; }
+  .car-dashboard-toolbar { gap: 6px; }
+  .car-dashboard-actions { align-items: end; flex-direction: column-reverse; }
+  .car-dashboard-actions .dashboard-view-switch { padding: 2px; }
+  .car-dashboard-actions .dashboard-view-switch button { padding: 5px; min-height: 30px; font-size: 12px; }
+  .car-dashboard-actions .dashboard-view-switch button svg { display: none; }
+  .car-picker { width: 118px; }
+  .car-picker .choice.choice input[role=combobox] { padding-inline: 8px 27px; }
+  .car-registration { font-size: 28px; }
+  .car-dashboard-model { font-size: 13px; }
+  .car-location { margin-top: 2px; font-size: 11px; }
+  .car-location .sera-badge { margin: 0; }
+  .car-stage-overlay { gap: 8px; }
+  .car-attention .car-attention-notice { font-size: 12px; min-height: 34px; }
+  .car-dashboard .car-stage-meta { bottom: calc(var(--garage-dock) + 86px); max-width: calc(100% - 24px); }
+  .profile-garage .car-stage-meta { bottom: 67px; max-width: calc(100% - 32px); }
+  .car-stage-instrument strong { font-size: 18px; }
+  .studio-camera-controls button { width: 44px; height: 40px; }
+  .car-menu > button, .car-menu-more > summary { flex-direction: column; gap: 3px; font-size: 11px; line-height: 1; }
+  .studio-hotspot { width: 44px; height: 44px; }
+  .studio-hotspot > span { width: 14px; height: 14px; border-width: 2px; }
+  .profile-garage .vehicle-studio { height: clamp(300px, 53svh, 430px); }
+}
+@media (max-height: 490px) and (orientation: landscape) {
+  .car-dashboard { --garage-inset: 12px; --garage-dock: 44px; }
+  .car-registration { font-size: 26px; }
+  .car-stage-overlay { gap: 8px; }
+  .car-attention { max-width: min(33vw, 240px); max-height: 25svh; }
+  .car-attention .car-attention-notice { flex-wrap: wrap; }
+  .car-dashboard .car-stage-meta { bottom: calc(var(--garage-dock) + 27px); }
+  .studio-hotspot strong, .studio-hotspot > i { display: none; }
+  .studio-vehicle-dialog.access-dialog { width: 100%; }
+  .studio-vehicle-dialog .vehicle-detail-navigation nav { display: none; }
+  .studio-vehicle-dialog .vehicle-detail-picker { display: flex; }
+  .studio-vehicle-dialog .vehicle-detail-navigation { padding-block: 8px; }
+}
+@container (max-width: 690px) {
+  .studio-hotspot strong, .studio-hotspot > i { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .studio-vehicle-dialog[open] { animation: garage-sheet-in 200ms ease-out both; }
+  @keyframes garage-sheet-in { from { translate: 24px 0; opacity: 0; } }
+}
 @media(max-width:860px) {
   .fleet-overview-grid { grid-template-columns: minmax(0, 1fr); }
 }
@@ -123,23 +319,4 @@
   .dashboard-deadline .sera-badge { grid-column: 2; grid-row: 1 / 3; }
   .dashboard-sites dl { grid-template-columns: 1fr; padding-inline: var(--space-4); }
   .dashboard-empty { padding: var(--space-5) var(--space-4); }
-  .car-dashboard-toolbar { padding: var(--space-4); gap: var(--space-3); }
-  .car-dashboard-toolbar > .car-identity { display: grid; grid-template-columns: minmax(0, 1fr) auto; width: 100%; gap: 2px 8px; }
-  .car-identity .sera-badge { grid-area: 1 / 2; }
-  .car-dashboard-model { grid-column: 1 / -1; }
-  .car-picker { width: 100%; }
-  .car-picker .choice { flex: 1; width: auto; }
-  .vehicle-studio { height: 370px; }
-  .studio-hotspot strong, .studio-hotspot > i { display: none; }
-  .studio-hotspot { min-width: 44px; min-height: 44px; }
-  .car-menu { padding: 0 6px; }
-  .car-menu button { flex-basis: 40%; min-height: 56px; }
-  .car-stage-meta { left: 16px; right: 12px; }
-  .car-stage-instrument { left: 16px; bottom: 14px; }
-  .car-stage-meta > span { max-width: 55%; }
-  .studio-camera-controls { right: 12px; bottom: 14px; }
-  .studio-camera-controls button { width: 44px; height: 44px; }
-  .studio-vehicle-dialog.access-dialog { width: calc(100vw - 16px); margin: auto; padding: var(--space-4); }
 }
-@media(prefers-reduced-motion:reduce) { .studio-hotspot { transition: none; } }
-@container(max-width:600px) { .studio-hotspot strong, .studio-hotspot > i { display: none; } }

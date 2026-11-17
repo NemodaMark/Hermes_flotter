@@ -13,7 +13,7 @@ import type { VehicleModel } from './vehicleModels'
 import { vehicleHotspots } from './vehicleHotspots'
 import type { VehicleHotspot } from './vehicleHotspots'
 import { buildStudioGarage } from './studioGarageScene'
-import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Maximize, Minimize, Minus, Plus, RotateCcw } from 'lucide-react'
 
 export type StudioSection = 'data' | 'history' | 'services' | 'documents' | 'leases' | 'site' | 'photos'
 type CameraAction = 'home' | 'left' | 'right' | 'closer' | 'farther'
@@ -37,9 +37,10 @@ function contactShadow() {
   return shadow
 }
 
-export default function VehicleStudio({ model, color, menus, action, onSelect, onFocused, onCancelled, paused = false }: {
-  model: VehicleModel; color: string | null; menus: StudioMenu[]; action: StudioAction | null; paused?: boolean
+export default function VehicleStudio({ model, color, menus, action, onSelect, onFocused, onCancelled, onReset, immersive = false, paused = false }: {
+  model: VehicleModel; color: string | null; menus: StudioMenu[]; action: StudioAction | null; paused?: boolean; immersive?: boolean
   onSelect: (key: StudioSection) => void; onFocused: (key: StudioSection) => void; onCancelled: () => void
+  onReset?: () => void
 }) {
   const host = useRef<HTMLDivElement>(null), overlay = useRef<HTMLDivElement>(null)
   const controls = useRef<{ focus: (key: StudioAction['key']) => void; cancel: () => void } | null>(null)
@@ -55,6 +56,19 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
   const [unavailable, setUnavailable] = useState(() => !window.WebGL2RenderingContext)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [attempt, setAttempt] = useState(0)
+  const [fullscreen, setFullscreen] = useState(() => !!document.fullscreenElement)
+  useEffect(() => {
+    if (!immersive) return
+    const sync = () => setFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', sync)
+    return () => document.removeEventListener('fullscreenchange', sync)
+  }, [immersive])
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen()
+      else await document.documentElement.requestFullscreen()
+    } catch { /* The garage already fills the browser viewport when fullscreen is unavailable. */ }
+  }
   const paint = vehiclePaint(color).hex, paintRef = useRef(paint), loadedModel = useRef<T.Group | null>(null)
   useEffect(() => {
     paintRef.current = paint
@@ -77,14 +91,14 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     invalidate.current = () => { renderNeeded = true }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6))
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap
-    renderer.toneMapping = T.NeutralToneMapping; renderer.toneMappingExposure = 1.02
+    renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.13
     renderer.domElement.setAttribute('aria-label', 'Forgatható 3D járműmodell')
     renderer.domElement.setAttribute('role', 'img')
     container.prepend(renderer.domElement)
     const garageScale = Math.max(1, model.length / 4.8)
     const scene = new T.Scene()
-    scene.background = new T.Color('#37322c')
-    scene.fog = new T.Fog('#37322c', 22 * garageScale, 69 * garageScale)
+    scene.background = new T.Color('#171a19')
+    scene.fog = new T.FogExp2('#171a19', .032 / garageScale)
     scene.add(buildStudioGarage(garageScale))
     const pmrem = new T.PMREMGenerator(renderer), room = new RoomEnvironment(), environment = pmrem.fromScene(room, .04)
     scene.environment = environment.texture; room.dispose(); pmrem.dispose()
@@ -93,21 +107,22 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       if (disposed || contextLost) { texture.dispose(); return }
       texture.mapping = T.EquirectangularReflectionMapping
       scene.environment = lighting = texture
-      scene.environmentIntensity = .62
+      scene.environmentIntensity = .8
       scene.environmentRotation.y = Math.PI * .25
       renderNeeded = true
     }).catch(() => { /* The local room environment remains available. */ })
-    scene.add(new T.HemisphereLight('#faf1e0', '#7f8588', .62))
-    const key = new T.DirectionalLight('#fff0da', 1.55); key.position.set(3, 7, 4); key.castShadow = true
+    scene.add(new T.HemisphereLight('#e6e9e3', '#414b49', .5))
+    const key = new T.DirectionalLight('#fff1df', 2.05); key.position.set(3, 7, 4); key.castShadow = true
     key.shadow.mapSize.set(1024, 1024); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6
     key.shadow.normalBias = .015; key.shadow.radius = 3; scene.add(key)
-    const fill = new T.DirectionalLight('#e2edff', .82); fill.position.set(-4, 3, -5); scene.add(fill)
-    const camera = new T.PerspectiveCamera(32, 1, .1, 80), home = new T.Vector3(4.3, 1.35, 5.4), homeTarget = new T.Vector3(0, .75, 0)
+    const fill = new T.DirectionalLight('#d3e4eb', 1.25); fill.position.set(-4, 3, -5); scene.add(fill)
+    const camera = new T.PerspectiveCamera(35, 1, .1, 100), home = new T.Vector3(5, 1.95, 6.1), homeTarget = new T.Vector3(0, .75, 0)
+    const homeDirection = home.clone().normalize()
     camera.position.copy(home)
     const orbit = new OrbitControls(camera, renderer.domElement); orbit.target.copy(homeTarget)
-    renderer.domElement.style.touchAction = 'pan-y'
+    renderer.domElement.style.touchAction = immersive ? 'none' : 'pan-y'
     orbit.enableDamping = true; orbit.dampingFactor = .075; orbit.enablePan = false; orbit.minDistance = 4.5; orbit.maxDistance = 16
-    orbit.minPolarAngle = .72; orbit.maxPolarAngle = Math.PI / 2 - .035; orbit.update()
+    orbit.minPolarAngle = 1.06; orbit.maxPolarAngle = Math.PI / 2 - .075; orbit.update()
     let shape: VehicleShape | null = null
     const positions: Partial<Record<StudioSection, VehicleHotspot>> = {}
     let hotspots: ReturnType<typeof vehicleHotspots> | null = null
@@ -115,8 +130,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       data: new T.Vector3(5.2, 2.8, 5.2), history: new T.Vector3(3.2, 1.1, 5.5), services: new T.Vector3(6.1, 2.3, 2.5),
       documents: new T.Vector3(3.5, 2.1, 5), leases: new T.Vector3(-5.8, 2.1, 4.2), site: new T.Vector3(-.5, 1.6, 6.2), photos: new T.Vector3(-5.8, 2.1, 4.8),
     }
-    const labels: Record<StudioSection, [number, number]> = { data: [.3, .2], history: [.76, .78], services: [.85, .4], documents: [.69, .19], leases: [.14, .43], site: [.4, .83], photos: [.13, .68] }
-    let flight: { key: StudioAction['key']; started: number; from: T.Vector3; targetFrom: T.Vector3; to: T.Vector3; targetTo: T.Vector3 } | null = null
+    const labels: Record<StudioSection, [number, number]> = { data: [.36, .25], history: [.79, .69], services: [.85, .4], documents: [.69, .23], leases: [.22, .42], site: [.38, .73], photos: [.21, .63] }
+    let flight: { key: StudioAction['key']; started: number; from: T.Spherical; to: T.Spherical; targetFrom: T.Vector3; targetTo: T.Vector3 } | null = null
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
     controls.current = { cancel: cancelFlight, focus: section => {
       if (!loadedModel.current) { if (isSection(section)) callbacks.current.onFocused(section); return }
@@ -131,23 +146,39 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         else offset.setLength(T.MathUtils.clamp(offset.length() * (section === 'closer' ? .82 : 1.22), orbit.minDistance, orbit.maxDistance))
         to = offset.add(targetTo)
       } else { to = targets[section]; targetTo = positions[section]!.point.clone().lerp(homeTarget, .35) }
-      flight = { key: section, started: performance.now(), from: camera.position.clone(), targetFrom: orbit.target.clone(), to, targetTo }
+      const from = new T.Spherical().setFromVector3(camera.position.clone().sub(orbit.target))
+      const destination = new T.Spherical().setFromVector3(to.clone().sub(targetTo))
+      destination.theta = from.theta + T.MathUtils.euclideanModulo(destination.theta - from.theta + Math.PI, 2 * Math.PI) - Math.PI
+      flight = { key: section, started: performance.now(), from, to: destination, targetFrom: orbit.target.clone(), targetTo }
     } }
     function cancelFlight() { if (flight) callbacks.current.onCancelled(); flight = null; orbit.enabled = true }
     renderer.domElement.addEventListener('pointerdown', cancelFlight, true)
-    const fit = () => {
+    let lastFit = 0
+    const fit = (reset = false) => {
       const width = container.clientWidth, height = container.clientHeight; if (!width || !height) return
-      camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height)
-      const length = shape?.length ?? model.length, roof = shape?.roof ?? 1.5
+      camera.aspect = width / height
+      camera.setViewOffset(width, height, 0, immersive && camera.aspect < 1 ? height * .016 : 0, width, height)
+      renderer.setSize(width, height)
+      const length = shape?.length ?? model.length, roof = shape?.roof ?? 1.5, bodyWidth = shape?.width ?? 1.8
+      const halfFov = Math.tan(T.MathUtils.degToRad(camera.fov / 2))
+      const wide = length * homeDirection.z + bodyWidth * homeDirection.x
+      const deep = length * homeDirection.x + bodyWidth * homeDirection.z
+      const tall = roof + deep * homeDirection.y
+      const distance = Math.max(wide / (2 * halfFov * camera.aspect * .81), tall / (2 * halfFov * .65)) + deep * .19
       homeTarget.y = roof * .48
-      const distance = Math.max(length * 1.38, length * .65 / (Math.tan(T.MathUtils.degToRad(16)) * camera.aspect), roof * 2.85)
-      orbit.maxDistance = 15 * garageScale
-      home.set(4.3, 1.35, 5.4).normalize().multiplyScalar(distance).add(homeTarget)
-      if (!flight) { camera.position.copy(home); orbit.target.copy(homeTarget); orbit.update() }
+      orbit.maxDistance = 16 * garageScale
+      const fitted = T.MathUtils.clamp(distance, orbit.minDistance, orbit.maxDistance)
+      home.copy(homeDirection).multiplyScalar(fitted).add(homeTarget)
+      if (!flight) {
+        if (reset || !lastFit) { camera.position.copy(home); orbit.target.copy(homeTarget) }
+        else camera.position.sub(orbit.target).multiplyScalar(fitted / lastFit).add(orbit.target)
+        orbit.update()
+      }
+      lastFit = fitted
       renderNeeded = true
       renderer.render(scene, camera)
     }
-    const resize = new ResizeObserver(fit); resize.observe(container)
+    const resize = new ResizeObserver(() => fit()); resize.observe(container)
     void new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(model.url).then(gltf => {
       if (disposed || contextLost) { disposeVehicleModel(gltf.scene); return }
       let vehicle: ReturnType<typeof prepareVehicleModel>
@@ -168,7 +199,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         services: anchor(length * .29, roof * .43, 0, 0, 1, 0), documents: anchor(.08 * length, roof * .73, width * .34, 0, 0, 1),
         leases: anchor(-length * .4, roof * .55, 0, -1, 0, 0), site: anchor(-length * .08, roof * .5, width * .44, 0, 0, 1), photos: anchor(-length * .38, roof * .3, width * .42, 0, 0, 1),
       })
-      fit(); setLoadState('ready')
+      fit(true); setLoadState('ready')
     }).catch(() => { if (!disposed && !contextLost) setLoadState('error') })
     let frame = 0, last = 0
     const projected = new T.Vector3()
@@ -181,7 +212,10 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       if (flight) {
         renderNeeded = true
         const t = reduceMotion.matches ? 1 : Math.min(1, (time - flight.started) / 850), ease = t * t * (3 - 2 * t)
-        camera.position.lerpVectors(flight.from, flight.to, ease); orbit.target.lerpVectors(flight.targetFrom, flight.targetTo, ease)
+        const { from, to, targetFrom, targetTo } = flight
+        const mix = T.MathUtils.lerp
+        orbit.target.lerpVectors(targetFrom, targetTo, ease)
+        camera.position.setFromSphericalCoords(mix(from.radius, to.radius, ease), mix(from.phi, to.phi, ease), mix(from.theta, to.theta, ease)).add(orbit.target)
         if (t === 1) { const section = flight.key; flight = null; orbit.enabled = true; if (isSection(section)) callbacks.current.onFocused(section) }
       }
       orbit.update()
@@ -198,9 +232,11 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         projected.copy(point).project(camera)
         button.style.left = `${(projected.x * .5 + .5) * 100}%`; button.style.top = `${(-projected.y * .5 + .5) * 100}%`
         const [labelX, labelY] = labels[section]
-        const dx = (labelX - (projected.x * .5 + .5)) * container.clientWidth + 15, dy = (labelY - (-projected.y * .5 + .5)) * container.clientHeight + 15
+        const deltaX = (labelX - (projected.x * .5 + .5)) * container.clientWidth
+        const deltaY = (labelY - (-projected.y * .5 + .5)) * container.clientHeight
+        const dx = deltaX + button.offsetWidth / 2, dy = deltaY + button.offsetHeight / 2
         button.style.setProperty('--label-x', `${dx}px`); button.style.setProperty('--label-y', `${dy}px`)
-        button.style.setProperty('--leader-length', `${Math.hypot(dx - 17, dy - 17)}px`); button.style.setProperty('--leader-angle', `${Math.atan2(dy - 17, dx - 17)}rad`)
+        button.style.setProperty('--leader-length', `${Math.hypot(deltaX, deltaY)}px`); button.style.setProperty('--leader-angle', `${Math.atan2(deltaY, deltaX)}rad`)
         const visible = visiblePoints.get(section) && projected.z >= -1 && projected.z <= 1 && Math.abs(projected.x) <= 1.05 && Math.abs(projected.y) <= 1.05
         // One parent controls the dot, leader and label together, including
         // keyboard and assistive-technology access to the hidden button.
@@ -218,7 +254,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       renderer.domElement.removeEventListener('pointerdown', cancelFlight, true); renderer.domElement.removeEventListener('webglcontextlost', lost)
       disposeVehicleModel(scene); environment.dispose(); lighting?.dispose(); renderer.dispose(); renderer.domElement.remove()
     }
-  }, [attempt, model])
+  }, [attempt, immersive, model])
   useEffect(() => {
     if (!action) return
     if (unavailable) { if (isSection(action.key)) callbacks.current.onFocused(action.key); return }
@@ -233,6 +269,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         <button type="button" aria-label="Forgatás jobbra" onClick={() => controls.current?.focus('right')}><ChevronRight size={17} /></button>
         <button type="button" aria-label="Kamera közelítése" onClick={() => controls.current?.focus('closer')}><Plus size={17} /></button>
         <button type="button" aria-label="Kamera távolítása" onClick={() => controls.current?.focus('farther')}><Minus size={17} /></button>
+        <button type="button" aria-label="Kamera alaphelyzetbe" title="Alapnézet" onClick={onReset ?? (() => controls.current?.focus('home'))}><RotateCcw size={16} /></button>
+        {immersive && document.fullscreenEnabled && <button type="button" aria-label={fullscreen ? 'Kilépés a teljes képernyőből' : 'Teljes képernyő'} onClick={() => void toggleFullscreen()}>{fullscreen ? <Minimize size={17} /> : <Maximize size={17} />}</button>}
       </div>}
     </>}
   </div>

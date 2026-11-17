@@ -125,7 +125,11 @@ A GLB-k helyi, Vite által tartalomhash-sel ellátott build-assetek (típusonké
 
 Az Innerscene eredeti, márkajelzés nélküli modelljei CC0 1.0 licencűek. Forrásoldalak, letöltési URL-ek, SHA-256 ellenőrzőösszegek és módosítások: `public/models/vehicle-bodies/`. Újragenerálás a projekt gyökeréből: `node scripts/prepare-vehicle-bodies.mjs` (előtte `npm ci` a frontendben). A rögzített ellenőrzőösszeg eltérésnél megáll; normál buildhez nem kell letölteni semmit. A kupé szerzője Eric Chadwick, © 2024 Darmstadt Graphics Group GmbH, CC BY 4.0; külön forrás és módosítási jegyzék: `public/models/khronos-car/`, előkészítése: `node scripts/prepare-khronos-car.mjs`. A stúdió alatti szerzői hivatkozás mindig a ténylegesen megjelenített modellhez tartozik.
 
-A 3D garázsban a járműpontok a kamera átfordulása után nyitják meg az adatlap megfelelő részét. A gyorsmenü közvetlenül ugyanezeket a műveleteket nyitja meg, WebGL2 nélkül is. A jármű saját műveleti jogai szabják meg az elérhető lapokat. Ugyanez a modell az adatlap **3D garázs** fülén is megnyitható. A `prefers-reduced-motion` beállítással a kamera azonnal vált.
+A kezdőlap 3D garázsa kitölti az egysoros fejléc alatti böngészőterületet. A **Teljes képernyő** gomb a böngésző támogatása esetén a böngészőkeretet is elrejti. A teendők a rendszám alatt, a járműműveletek az alsó gyorsmenüben jelennek meg. A műveleti lapok asztali nézetben jobbról, keskeny vagy alacsony nézetben a teljes képernyőn nyílnak meg.
+
+A garázs közös megvilágítást és felületkezelést alkalmaz minden karosszériára. A modellek saját geometriáját és festékszínét használja, a fényezés fényességét, az üveg és a gumi megjelenését a jelenethez igazítja. A járműpontok a kamera átfordulása után nyitják meg az adatlap megfelelő részét. A gyorsmenü WebGL2 nélkül is használható. A jármű saját műveleti jogai szabják meg az elérhető lapokat. Ugyanez a modell az adatlap **3D garázs** fülén is megnyitható.
+
+A bejelentkezési kép és a munkaterület oldalai rövid belépő átmenetet használnak. A `prefers-reduced-motion` beállítással ezek az átmenetek kikapcsolnak, és a kamera azonnal vált.
 
 A pontok a modell tényleges külső felületére illeszkednek. A túloldali vagy a karosszéria által takart pont a vonalával és feliratával együtt rejtett, és billentyűzettel sem aktiválható. A kamera visszafordításakor ismét megjelenik. A takarásvizsgálat csak kameramozgáskor vagy új pont megjelenésekor fut; az alsó gyorsmenü mindig használható marad.
 

@@ -119,6 +119,7 @@ it('changes the selected car, body and operation menus without reusing the previ
   await chooseOption(picker,'second')
   expect(await screen.findByText(/Furgon/)).toBeInTheDocument()
   const menu=screen.getByRole('navigation',{name:'Jármű gyorsmenü'})
+  await userEvent.click(within(menu).getByText('Továbbiak'))
   expect(within(menu).getByRole('button',{name:'Szerviz'})).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button',{name:'Áttekintő'}))
   expect(await screen.findByRole('heading',{name:'Flotta áttekintés'})).toBeInTheDocument()

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, CalendarClock, CalendarDays, Camera, CarFront, FileText, Fuel, Gauge, Handshake, LayoutDashboard, MapPin, Wrench } from 'lucide-react'
+import { ArrowRight, CalendarClock, CalendarDays, Camera, CarFront, Ellipsis, FileText, Fuel, Gauge, Handshake, LayoutDashboard, MapPin, Wrench } from 'lucide-react'
 import { dashboardApi } from './dashboardApi'
 import type { DashboardCar } from './dashboardApi'
 import { dashboardDeadlines, deadlineState } from './dashboardDeadlines'
@@ -11,6 +11,7 @@ import type { StudioAction, StudioMenu, StudioSection } from './VehicleStudio'
 import { Button } from './ui/Button'
 import { Select } from './ui/Select'
 import { Badge } from './ui/Badge'
+import { Disclosure } from './ui/Disclosure'
 import { QueryMessage } from './FleetFields'
 import { VehiclePage } from './VehiclePage'
 import { VehicleActions } from './VehicleActions'
@@ -53,6 +54,7 @@ export function DashboardPage({ user, tenant, siteId, onFleet, onVehicle }: {
 const icons = { data: CarFront, history: Gauge, services: Wrench, documents: FileText, leases: FileText,
   site: MapPin, photos: Camera, bookings: CalendarDays, fuel: Fuel, handovers: Handshake }
 type VehicleTab = keyof typeof icons
+const quickLabels: Partial<Record<VehicleTab, string>> = { data: 'Adatlap', history: 'Km-állás', site: 'Telephely', photos: 'Képek' }
 
 function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
   cars: DashboardCar[]; user: Session; tenant: Tenant; today: string; onFleet: () => void; viewSwitch: ReactNode
@@ -98,60 +100,70 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
   }
   return <>
     <section className="car-dashboard" aria-label="Autós dashboard">
-      <div className="car-dashboard-toolbar">
-        <div className="car-identity">
-          <h3 className="car-registration">{car.vehicle.registration}</h3>
-          <span className="car-dashboard-model">{car.vehicle.make} {car.vehicle.model}</span>
-          {car.isAssignedToMe && <Badge tone="success" dot={false}>Hozzám rendelve</Badge>}
-        </div>
-        {(viewSwitch || eligible.length > 1) && <div className="car-dashboard-actions">
-          {viewSwitch}
-          {eligible.length > 1 && <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
-            <Select value={car.vehicle.id} onChange={event => { setSelected(event.target.value); setAction(null); setOpened(null); setFlight(false) }}>
-              {eligible.map(item => <option key={item.vehicle.id} value={item.vehicle.id}>
-                {item.vehicle.registration}{item.isAssignedToMe ? ' · Nálam lévő jármű' : ''}
-              </option>)}
-            </Select>
-          </label>}
-        </div>}
-      </div>
-      <section className="car-attention" aria-label="Jármű teendői">
-        {car.vehicle.status === 'Maintenance' && <div className="car-attention-notice"><Wrench size={17} aria-hidden="true" />Szervizben</div>}
-        {missingOdometer && <div className="car-attention-notice"><Gauge size={17} aria-hidden="true" />
-          <span>Rögzítendő kilométerállás</span><VehicleActions key={car.vehicle.id} user={user} tenant={tenant} vehicle={car.vehicle} allowEditing={false} />
-        </div>}
-        {deadlines.map(item => {
-          const state = deadlineState(item)
-          return <Button key={item.kind} variant="ghost" className="car-attention-notice" onClick={() => openDeadline(item)}>
-            <CalendarClock size={17} aria-hidden="true" /><span>{item.label}</span>
-            {item.kind === 'appointment' && car.serviceAppointmentAt && <time dateTime={car.serviceAppointmentAt}>{car.serviceAppointmentAt.slice(11, 16)}</time>}
-            <Badge tone={state.tone} dot={false}>{state.label}</Badge>
-          </Button>
-        })}
-        {!missingOdometer && !deadlines.length && car.vehicle.status !== 'Maintenance' && <p>Nincs esedékes teendő.</p>}
-      </section>
-      <VehicleGarage car={car.vehicle} bodyType={car.bodyType} color={car.color} menus={points} action={action}
+      <VehicleGarage car={car.vehicle} bodyType={car.bodyType} color={car.color} menus={points} action={action} immersive
         onSelect={focus} onFocused={focused} onCancelled={cancelled} paused={opened !== null} flying={flight}
         onReset={() => {
           setFlight(false); setOpened(null)
           setAction(previous => ({ key: 'home', sequence: (previous?.sequence ?? 0) + 1 }))
-        }}>
-        <nav className="car-menu" aria-label="Jármű gyorsmenü">{menus.map(menu => {
+        }}
+        overlay={<>
+          <div className="car-dashboard-toolbar">
+            <div className="car-identity">
+              <h3 className="car-registration">{car.vehicle.registration}</h3>
+              <span className="car-dashboard-model">{car.vehicle.make} {car.vehicle.model}</span>
+              <span className="car-location"><MapPin size={13} aria-hidden="true" />{car.vehicle.siteName ?? 'Telephely nélkül'}
+                {car.isAssignedToMe && <Badge tone="success" dot={false}>Hozzám rendelve</Badge>}
+                {car.vehicle.status === 'Inactive' && <Badge tone="neutral" dot={false}>Inaktív</Badge>}
+              </span>
+            </div>
+            {(viewSwitch || eligible.length > 1) && <div className="car-dashboard-actions">
+              {viewSwitch}
+              {eligible.length > 1 && <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
+                <Select value={car.vehicle.id} onChange={event => { setSelected(event.target.value); setAction(null); setOpened(null); setFlight(false) }}>
+                  {eligible.map(item => <option key={item.vehicle.id} value={item.vehicle.id}>
+                    {item.vehicle.registration}
+                  </option>)}
+                </Select>
+              </label>}
+            </div>}
+          </div>
+          {(missingOdometer || deadlines.length > 0 || car.vehicle.status === 'Maintenance') && <section className="car-attention" aria-label="Jármű teendői">
+            {car.vehicle.status === 'Maintenance' && <div className="car-attention-notice"><Wrench size={17} aria-hidden="true" />Szervizben</div>}
+            {missingOdometer && <div className="car-attention-notice"><Gauge size={17} aria-hidden="true" />
+              <span>Rögzítendő kilométerállás</span><VehicleActions key={car.vehicle.id} user={user} tenant={tenant} vehicle={car.vehicle} allowEditing={false} />
+            </div>}
+            {deadlines.map(item => {
+              const state = deadlineState(item)
+              return <Button key={item.kind} className="car-attention-notice" onClick={() => openDeadline(item)}>
+                <CalendarClock size={17} aria-hidden="true" /><span>{item.label}</span>
+                {item.kind === 'appointment' && car.serviceAppointmentAt && <time dateTime={car.serviceAppointmentAt}>{car.serviceAppointmentAt.slice(11, 16)}</time>}
+                <Badge tone={state.tone} dot={false}>{state.label}</Badge>
+              </Button>
+            })}
+          </section>}
+        </>}>
+        <nav className="car-menu" aria-label="Jármű gyorsmenü">{menus.filter(menu => quickLabels[menu.key]).map(menu => {
           const Icon = icons[menu.key]
-          return <Button key={menu.key} onClick={() => { setOpened(menu.key); setFlight(false) }}>
-            <Icon size={18} aria-hidden="true" /><span>{menu.label}</span><ArrowRight size={14} aria-hidden="true" />
+          return <Button key={menu.key} aria-label={menu.label} onClick={() => { setOpened(menu.key); setFlight(false) }}>
+            <Icon size={18} aria-hidden="true" /><span>{quickLabels[menu.key]}</span>
           </Button>
-        })}</nav>
-        <div className="car-dashboard-footer">
-          <span><MapPin size={14} aria-hidden="true" />{car.vehicle.siteName ?? 'Telephely nélkül'}</span>
-          <span>{car.vehicle.status === 'Maintenance' ? 'Szervizben' : car.vehicle.status === 'Active' ? 'Aktív' : 'Inaktív'}</span>
-        </div>
+        })}
+          <Disclosure className="car-menu-more" key={car.vehicle.id}
+            trigger={<><Ellipsis size={18} aria-hidden="true" /><span>Továbbiak</span></>}>
+            <div>{menus.filter(menu => !quickLabels[menu.key]).map(menu => {
+              const Icon = icons[menu.key]
+              return <Button key={menu.key} onClick={() => {
+                setOpened(menu.key); setFlight(false)
+              }}><Icon size={17} aria-hidden="true" />{menu.label}</Button>
+            })}</div>
+          </Disclosure>
+        </nav>
       </VehicleGarage>
     </section>
     {opened && <AccessDialog title={`${car.vehicle.registration} · ${menus.find(menu => menu.key === opened)?.label ?? 'Jármű'}`}
       pending={false} onClose={() => setOpened(null)} className="studio-vehicle-dialog">
       <VehiclePage key={`${car.vehicle.id}:${opened}`} user={user} tenant={tenant} id={car.vehicle.id} initialTab={opened}
-        onBack={() => setOpened(null)} showGarage={false} />
+        onBack={() => setOpened(null)} showGarage={false} embedded />
     </AccessDialog>}
   </>
 }

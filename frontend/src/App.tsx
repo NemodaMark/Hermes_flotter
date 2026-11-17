@@ -41,6 +41,7 @@ import './App.css'
 import './accounts.css'
 import { Badge } from './ui/Badge'
 import { ClickableRow, TableFrame } from './ui/Table'
+import { Disclosure } from './ui/Disclosure'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { peopleApi } from './peopleApi'
 import { ProtectedImage } from './ProtectedImage'
@@ -154,6 +155,26 @@ function FleetWorkspace({
   const profileReturn = useRef<WorkspaceView>('members')
   const [busy, setBusy] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const mobileNavButton = useRef<HTMLButtonElement>(null)
+  const navigation = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!mobileNavOpen) return
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (!navigation.current?.contains(target) && !mobileNavButton.current?.contains(target)) setMobileNavOpen(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      setMobileNavOpen(false)
+      mobileNavButton.current?.focus()
+    }
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', outside)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [mobileNavOpen])
   useEffect(() => {
     const read = () => {
       setMobileNavOpen(false)
@@ -175,7 +196,11 @@ function FleetWorkspace({
     window.location.hash = workspacePaths[next]
     setView(next)
   }
-  function openProfile(id: string) { if (!busy) { setMobileNavOpen(false); window.location.hash = `/profile/${encodeURIComponent(id)}` } }
+  function openProfile(id: string) {
+    if (busy) return
+    setMobileNavOpen(false)
+    window.location.assign(`#/profile/${encodeURIComponent(id)}`)
+  }
   const canManageSystem = user.systemPermissions?.includes('system.manage') ?? false
   const [search, setSearch] = useState('')
   const [vehicleQuery, setVehicleQuery] = useState({ search: '', page: 1 })
@@ -252,6 +277,8 @@ function FleetWorkspace({
         : view === 'system'
           ? 'Rendszerkezelés'
           : 'Cégek és telephelyek'
+  const pageKey = view === 'fleet' ? `fleet:${formOpen ? 'create' : selectedVehicleId ?? 'list'}`
+    : view === 'profile' ? `profile:${profileId}` : view
 
   function changeTenant(value: string) {
     setTenantId(value)
@@ -303,8 +330,8 @@ function FleetWorkspace({
             </label>}
           </WorkspaceSwitcher>
         </div>
-        <Button className="secondary-button mobile-nav-toggle" aria-label={mobileNavOpen ? 'Menü bezárása' : 'Menü megnyitása'} aria-expanded={mobileNavOpen} aria-controls="main-navigation" disabled={busy} onClick={() => setMobileNavOpen(open => !open)}><Menu size={18} />Menü</Button>
-        <nav id="main-navigation" aria-label="Fő navigáció" className={mobileNavOpen ? 'is-open' : undefined}>
+        <Button ref={mobileNavButton} className="mobile-nav-toggle" aria-label={mobileNavOpen ? 'Menü bezárása' : 'Menü megnyitása'} aria-expanded={mobileNavOpen} aria-controls="main-navigation" disabled={busy} onClick={() => setMobileNavOpen(open => !open)}><Menu size={21} aria-hidden="true" /></Button>
+        <nav ref={navigation} id="main-navigation" aria-label="Fő navigáció" className={mobileNavOpen ? 'is-open' : undefined}>
           <Button className={view === 'dashboard' ? 'nav-item active' : 'nav-item'} aria-current={view === 'dashboard' ? 'page' : undefined} onClick={() => changeView('dashboard')}><LayoutDashboard size={19}/>Kezdőlap<ArrowRight size={16}/></Button>
           <Button
             className={view === 'fleet' ? 'nav-item active' : 'nav-item'}
@@ -349,29 +376,26 @@ function FleetWorkspace({
             </div>
           </details>}
         </nav>
-        <div className="sidebar-bottom">
-          <Button className="profile profile-button" aria-label="Saját profil megnyitása" onClick={() => openProfile(user.id)} disabled={busy}>
+        <Disclosure className="sidebar-bottom profile-navigation" summaryClassName="profile profile-button" label="Fiókmenü" trigger={<>
             <ProtectedImage path={peopleApi.avatarPath(user.id)} revision={ownProfile.data?.person?.avatarRevision}
               alt="Saját profilkép" className="avatar profile-avatar" fallback={initials(user.displayName)} />
             <span>{user.displayName}</span>
-          </Button>
-        </div>
+          </>}>
+          <div className="profile-navigation-links">
+            <Button onClick={() => openProfile(user.id)} disabled={busy}>Saját profil megnyitása</Button>
+            <Button className="logout-button" onClick={onLogout} disabled={loggingOut || busy || createCompany.isPending}>
+              <LogOut size={16} aria-hidden="true" />{loggingOut ? 'Kilépés…' : 'Kijelentkezés'}
+            </Button>
+          </div>
+        </Disclosure>
       </aside>
       <main id="main-content" tabIndex={-1}>
         <header className="topbar">
           <span className="breadcrumb">
             <strong>{viewTitle}</strong>
           </span>
-          <Button
-            className="logout-button"
-            onClick={onLogout}
-            disabled={loggingOut || busy || createCompany.isPending}
-          >
-            <LogOut size={16} />
-            {loggingOut ? 'Kilépés…' : 'Kijelentkezés'}
-          </Button>
         </header>
-        <div className="page-content page-content-compact">
+        <div className="page-content page-content-compact" key={pageKey} data-view={view}>
           {accountNotice && <p className={accountNotice.error ? 'notice error' : 'notice'} role={accountNotice.error ? 'alert' : 'status'}>{accountNotice.message}</p>}
           {logoutError && (
             <p className="notice error" role="alert">

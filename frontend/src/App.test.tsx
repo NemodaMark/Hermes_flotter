@@ -321,6 +321,7 @@ it('takes an invited account through creating its first company after sign-in', 
 it('clears private data on logout and returns to the login form', async () => {
   const client = mountApp()
   await screen.findByText('DUN-001')
+  await userEvent.click(screen.getByLabelText('Fiókmenü'))
   await userEvent.click(screen.getByRole('button', { name: 'Kijelentkezés' }))
   expect(await screen.findByRole('heading', { name: 'Bejelentkezés' })).toBeInTheDocument()
   expect(screen.queryByText('DUN-001')).not.toBeInTheDocument()

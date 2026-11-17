@@ -71,16 +71,17 @@
 .profile-section:has(.entra-connection) .entra-connection:not(:first-child) { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); }
 
 .app-shell { display: block; min-width: 0; }
+.app-shell > .skip-link { z-index: 20; }
 .app-shell > .sidebar {
   position: sticky;
   top: 0;
   z-index: 12;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(145px, 250px) auto;
   align-items: center;
   height: auto;
-  gap: 8px 20px;
-  padding: 12px clamp(16px, 3vw, 44px) 8px;
+  gap: 8px clamp(8px, 1.5vw, 24px);
+  padding: 8px clamp(12px, 2vw, 36px);
   overflow: visible;
   background: var(--surface-subtle);
   border: 0;
@@ -90,27 +91,46 @@
 .sidebar .brand { grid-area: 1 / 1; margin: 0; color: var(--ink); font-size: 19px; letter-spacing: .14em; }
 .sidebar .brand-mark { width: 32px; height: 32px; border: 0; background: var(--primary); color: white; border-radius: 50%; font-size: 17px; }
 .sidebar .brand-caption { color: var(--muted); letter-spacing: .04em; }
-.sidebar .workspace-selector { grid-area: 1 / 2; justify-self: start; width: min(100%, 330px); margin: 0; }
+.sidebar .workspace-selector { grid-area: 1 / 3; justify-self: end; min-width: 0; width: 100%; margin: 0; }
 .sidebar .workspace-caption { display: none; }
 .sidebar .workspace-trigger { background: var(--surface); color: var(--ink); border-color: var(--control-border); border-radius: 999px; padding-inline: 14px; }
 .sidebar .workspace-trigger:is(:hover:not(:disabled), [aria-expanded=true]) { background: var(--primary-soft); border-color: var(--primary); }
 .sidebar .workspace-separator { color: var(--muted); }
 .workspace-panel { background: var(--surface); border-color: var(--line); color: var(--ink); }
-.sidebar #main-navigation { grid-area: 2 / 1 / 3 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
-.sidebar .nav-item { width: auto; color: var(--muted); min-height: 40px; padding: 8px 12px; }
+.sidebar #main-navigation { grid-area: 1 / 2; display: flex; flex-wrap: wrap; gap: 2px; margin: 0; }
+.sidebar .nav-item { justify-content: start; width: auto; color: var(--muted); min-height: 40px; padding: 8px 9px; }
+.sidebar .nav-item > svg { flex-shrink: 0; }
 .sidebar .nav-item > svg:first-child, .sidebar .nav-item.active > svg:first-child { color: currentColor; }
 .sidebar .nav-item > svg:last-child:not(:first-child) { display: none; }
 .sidebar .nav-item:hover, .sidebar .nav-item.active { background: var(--primary-soft); color: var(--primary-hover); }
 .sidebar .nav-item.active { box-shadow: inset 0 -2px var(--primary); }
-.sidebar .sidebar-bottom { grid-area: 1 / 3; margin: 0; padding: 0; display: block; }
-.sidebar .profile.profile-button { padding: 4px 6px; margin: 0; height: auto; color: var(--ink); }
+.app-shell .sidebar .sidebar-bottom { grid-area: 1 / 4; width: auto; margin: 0; padding: 0; display: block; position: relative; }
+.sidebar .profile.profile-button { display: flex; max-width: 180px; padding: 4px 6px; margin: 0; min-height: 44px; border: 0; border-radius: var(--radius-control); color: var(--ink); list-style: none; cursor: pointer; }
+.sidebar .profile.profile-button::-webkit-details-marker { display: none; }
+.sidebar .profile > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar .profile .avatar { flex-shrink: 0; }
 .sidebar .profile.profile-button:hover { background: var(--fleet-hover); }
+.profile-navigation-links {
+  position: absolute;
+  z-index: 2;
+  inset: calc(100% + 6px) 0 auto auto;
+  display: grid;
+  min-width: 196px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: 0 8px 20px #24282122;
+}
+.profile-navigation-links .sera-button { justify-content: start; color: var(--ink); min-height: 44px; white-space: nowrap; }
+.profile-navigation-links .sera-button:hover { background: var(--primary-soft); }
 .sidebar .avatar { background: var(--primary-soft); color: var(--primary); border-color: var(--line); }
 .sidebar :focus-visible { outline-color: var(--focus-ring); }
 .sidebar .admin-navigation { margin: 0; padding: 0; border: 0; }
 .sidebar .admin-navigation summary { min-height: 40px; color: var(--muted); }
-.app-shell .topbar { min-height: 54px; padding: 8px clamp(16px, 3vw, 44px); background: transparent; }
+.app-shell .topbar { min-height: 43px; padding: 7px clamp(16px, 3vw, 44px); background: transparent; }
 .app-shell .topbar .breadcrumb strong { font-weight: 600; font-size: 18px; }
+.app-shell:has(.page-content[data-view=dashboard]) .topbar { display: none; }
 .app-shell .list-toolbar { background: var(--surface); }
 .app-shell table th { background: var(--surface-subtle); color: var(--muted); }
 .app-shell table td { border-bottom-color: var(--line); }
@@ -124,28 +144,23 @@
 .app-shell .profile-identity a { color: var(--primary-hover); }
 .app-shell .profile-tabs .sera-tab[aria-selected=true] { color: var(--primary-hover); background: var(--primary-soft); }
 .app-shell .admin-navigation .nav-item { margin: 0; width: 100%; }
-.app-shell :is(.fleet-panel, .organization-panel, .access-panel, .profile-summary, .car-dashboard) { background: var(--surface); border-color: var(--line); }
-.app-shell .car-dashboard-toolbar, .app-shell .car-menu, .app-shell .car-dashboard-footer { border-color: var(--line); }
-.app-shell :is(.car-dashboard-model, .car-dashboard-footer, .studio-credit a) { color: var(--muted); }
-.app-shell :is(.studio-camera-controls button, .car-menu button, .studio-reset) { color: var(--primary-hover); }
-.app-shell :is(.studio-reset, .studio-camera-controls) { background: var(--surface-subtle); border-color: var(--control-border); }
-.app-shell .car-menu button:hover { background: var(--primary-soft); border-bottom-color: var(--primary); }
-.app-shell .car-dashboard-footer { background: var(--surface-subtle); }
-.app-shell .studio-hotspot > span { background: var(--primary); }
-.app-shell .studio-hotspot > i { background: var(--control-border); }
-.app-shell .studio-hotspot strong { color: var(--ink); border-color: var(--line); }
+.app-shell :is(.fleet-panel, .organization-panel, .access-panel, .profile-summary) { background: var(--surface); border-color: var(--line); }
+.app-shell:has(.dashboard-studio) { display: grid; grid-template: auto minmax(0, 1fr) / minmax(0, 1fr); height: 100dvh; }
+.app-shell:has(.dashboard-studio) > main { display: flex; min-height: 0; }
+.page-content.page-content-compact:has(.dashboard-studio) { display: flex; flex-direction: column; width: 100%; max-width: none; min-height: 0; margin: 0; padding: 0; }
+.dashboard-page.dashboard-studio { display: flex; flex: 1; flex-direction: column; gap: 0; min-height: 0; }
+.dashboard-studio .car-dashboard { flex: 1; }
 
-.page-content.page-content-compact:has(.dashboard-studio) { max-width: none; padding: 0; }
-.app-shell .dashboard-studio { gap: 0; }
-.app-shell .dashboard-studio .car-dashboard { border: 0; border-radius: 0; }
-.dashboard-studio .car-dashboard-toolbar {
-  padding: 12px clamp(16px, 3vw, 44px);
+@media (prefers-reduced-motion: no-preference) {
+  .page-content[data-view] { animation: workspace-arrival 160ms ease-out; }
+  .page-content:has(.dashboard-studio) { animation-name: garage-arrival; }
+  .fleet-auth-backdrop img { animation: login-camera-arrival 1100ms cubic-bezier(.16, .75, .32, 1) both; }
+  .fleet-auth-controls { animation: workspace-arrival 260ms ease-out; }
+  .fleet-auth .account-form { animation: workspace-arrival 160ms ease-out; }
+  @keyframes workspace-arrival { from { opacity: .55; translate: 0 5px; } }
+  @keyframes garage-arrival { from { opacity: .68; } }
+  @keyframes login-camera-arrival { from { scale: 1.045; filter: brightness(.73); } }
 }
-.dashboard-studio .car-registration { margin: 0; }
-.dashboard-studio .car-dashboard-toolbar > .car-dashboard-actions { gap: 10px; align-items: center; }
-.dashboard-studio .vehicle-studio { height: max(350px, calc(100svh - 352px)); }
-.dashboard-studio .car-menu button { min-height: 50px; }
-.dashboard-studio .car-dashboard-footer, .dashboard-studio .studio-credit { padding-inline: clamp(16px, 3vw, 44px); }
 
 @media (max-width: 900px) {
   .fleet-auth.account-page {
@@ -189,10 +204,12 @@
   }
   .fleet-auth-backdrop { grid-area: 1 / 1 / 3 / 2; }
   .fleet-auth-controls { grid-area: 1 / 2; margin: 0; border-radius: 0; align-self: stretch; align-content: center; }
-  .fleet-auth-footer { grid-area: 2 / 2; }
+  .fleet-auth .account-form label { margin-top: 7px; }
+  .fleet-auth .account-submit { margin-top: 12px; }
+  .fleet-auth-footer { grid-area: 2 / 2; padding-block: 8px; }
 }
 
-@media (min-width: 701px) {
+@media (min-width: 1201px) {
   .sidebar .admin-navigation { position: relative; }
   .sidebar .admin-navigation[open] { padding-bottom: 4px; }
   .sidebar .admin-navigation[open] .settings-links {
@@ -200,17 +217,37 @@
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-panel); box-shadow: 0 10px 28px #2428211a;
   }
 }
-@media (max-width: 700px) {
-  .app-shell > .sidebar { position: relative; gap: 10px; }
-  .sidebar .workspace-selector { grid-area: 2 / 1 / 3 / 3; width: 100%; }
-  .sidebar .mobile-nav-toggle { grid-area: 2 / 3; }
-  .sidebar .mobile-nav-toggle { color: var(--ink); background: var(--surface); border-color: var(--control-border); }
-  .app-shell .sidebar .sidebar-bottom { grid-area: 1 / 2 / 2 / 4; justify-self: end; max-width: 100%; }
-  .sidebar #main-navigation.is-open { grid-area: 3 / 1 / 4 / -1; }
+@media (max-width: 1200px) {
+  .app-shell > .sidebar { grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; padding-block: 5px; }
+  .sidebar .workspace-selector { grid-area: 1 / 2; width: min(100%, 285px); }
+  .sidebar .mobile-nav-toggle { display: inline-flex; grid-area: 1 / 3; width: 44px; height: 44px; padding: 0; color: var(--ink); background: transparent; border: 0; }
+  .sidebar .mobile-nav-toggle:hover { background: var(--primary-soft); }
+  .sidebar #main-navigation:not(.is-open) { display: none; }
+  .sidebar #main-navigation.is-open {
+    position: absolute;
+    inset: calc(100% + 6px) 12px auto auto;
+    display: grid;
+    gap: 2px;
+    min-width: min(280px, calc(100vw - 24px));
+    max-height: calc(100dvh - 72px);
+    overflow: auto;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    background: var(--surface);
+    box-shadow: 0 8px 20px #24282122;
+  }
   .sidebar .admin-navigation { width: 100%; }
-  .sidebar .settings-links { display: flex; flex-wrap: wrap; }
-  .dashboard-studio .car-dashboard-actions { width: 100%; }
-  .dashboard-studio .car-picker { flex: 1 1 130px; width: auto; }
-  .dashboard-studio .vehicle-studio, .profile-garage .vehicle-studio { height: clamp(280px, 40svh, 390px); }
-  .dashboard-studio .studio-credit { text-align: start; }
+  .sidebar .settings-links { display: grid; }
+}
+@media (max-width: 600px) {
+  .sidebar .brand { min-height: 44px; }
+  .sidebar .brand > span:last-child { display: none; }
+  .sidebar .workspace-trigger { padding-inline: 9px; min-height: 44px; font-size: 12px; }
+  .sidebar .workspace-location > span:first-child:not(:last-child) { max-width: 63%; }
+  .sidebar .profile.profile-button { justify-content: center; min-width: 44px; padding-inline: 5px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .app-shell > .sidebar { padding-block: 4px; }
+  .sidebar .brand-caption { display: none; }
 }

@@ -20,6 +20,58 @@ export function setVehiclePaint(model: T.Object3D, color: string, paintMaterials
   })
 }
 
+function applyGarageMaterials(source: T.Group, paintMaterials: readonly string[]) {
+  const prepared = new Map<T.Material, T.Material>()
+  const neutralGlass = new T.Color('#29383b')
+  const finish = (original: T.Material) => {
+    const existing = prepared.get(original)
+    if (existing) return existing
+    if (!(original instanceof T.MeshStandardMaterial)) return original
+    let material = original
+    if (paintMaterials.includes(original.name)) {
+      if (!(original instanceof T.MeshPhysicalMaterial)) {
+        const physical = new T.MeshPhysicalMaterial()
+        const physicalDefines = physical.defines
+        T.MeshStandardMaterial.prototype.copy.call(physical, original)
+        physical.defines = physicalDefines
+        material = physical
+        original.dispose()
+      }
+      const enamel = material as T.MeshPhysicalMaterial
+      enamel.metalness = .18
+      enamel.roughness = .30
+      enamel.clearcoat = .62
+      enamel.clearcoatRoughness = .24
+      enamel.envMapIntensity = .9
+    } else {
+      const name = material.name.toLowerCase()
+      if (/glass|glazing/.test(name) && !name.includes('light')) {
+        material.color.lerp(neutralGlass, .82)
+        material.roughness = .22
+        material.metalness = .06
+        material.envMapIntensity = .65
+        if (material.transparent) material.opacity = .57
+        if (material instanceof T.MeshPhysicalMaterial && material.transmission > 0) material.transmission = .72
+      } else if (/tyre|tire|rubber/.test(name)) {
+        material.roughness = .83
+        material.metalness = 0
+      } else if (/chrome|polished steel|rim/.test(name)) {
+        material.roughness = Math.max(material.roughness, .28)
+        material.envMapIntensity = .7
+      }
+    }
+    material.emissiveIntensity = 0
+    prepared.set(original, material)
+    return material
+  }
+  source.traverse(object => {
+    if (!(object instanceof T.Mesh)) return
+    object.material = Array.isArray(object.material) ? object.material.map(finish) : finish(object.material)
+    object.castShadow = true
+    object.receiveShadow = true
+  })
+}
+
 export function prepareVehicleModel(source: T.Group, color: string, appearance: { rotation: number; length: number; paintMaterials?: readonly string[] } = { rotation: Math.PI / 2, length: 4.8 }): { model: T.Group; shape: VehicleShape } {
   const model = new T.Group()
   model.name = 'HermesVehicle'
@@ -31,7 +83,7 @@ export function prepareVehicleModel(source: T.Group, color: string, appearance: 
   const scale = appearance.length / size.x, center = bounds.getCenter(new T.Vector3())
   model.scale.setScalar(scale)
   model.position.set(-center.x * scale, -bounds.min.y * scale + .025, -center.z * scale)
-  model.traverse(object => { if (object instanceof T.Mesh) { object.castShadow = true; object.receiveShadow = true } })
+  applyGarageMaterials(source, appearance.paintMaterials ?? ['Paint 1', 'Paint 2'])
   setVehiclePaint(model, color, appearance.paintMaterials)
   model.updateMatrixWorld(true)
   return { model, shape: { length: appearance.length, width: size.z * scale, roof: size.y * scale + .025, frontAxle: appearance.length * .29, rearAxle: -appearance.length * .3 } }

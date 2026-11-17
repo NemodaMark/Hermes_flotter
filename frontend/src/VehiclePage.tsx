@@ -23,8 +23,8 @@ const VehicleBookingCalendar = lazy(() => import('./VehicleOperations').then(mod
 const VehicleFuel = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleFuel })))
 const VehicleHandovers = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleHandovers })))
 
-export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', showGarage = true }: {
-  user: Session; tenant: Tenant; id: string; onBack: () => void; initialTab?: string; showGarage?: boolean
+export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', showGarage = true, embedded = false }: {
+  user: Session; tenant: Tenant; id: string; onBack: () => void; initialTab?: string; showGarage?: boolean; embedded?: boolean
 }) {
   const client = useQueryClient()
   const [tab, setTab] = useState(initialTab)
@@ -59,9 +59,9 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', sho
     ['history', 'Rendszám és kilométerelőzmények'], ...(can('audit.read') ? [['audit', 'Módosítási napló']] : [])]
   const activeTab = tabs.some(([key]) => key === tab) ? tab : 'data'
   return <>
-    <Button className="text-button org-back" onClick={onBack}><ArrowLeft size={16} />Vissza a járművekhez</Button>
+    {!embedded && <Button className="text-button org-back" onClick={onBack}><ArrowLeft size={16} />Vissza a járművekhez</Button>}
     <section className="access-panel vehicle-detail-panel" aria-label="Járműadatlap">
-      <div className="org-toolbar vehicle-detail-header"><div><h2>{car?.registration ?? 'Járműadatlap'}</h2>{car && <p>{car.make} {car.model}</p>}</div>
+      <div className="org-toolbar vehicle-detail-header"><div>{!embedded && <h2>{car?.registration ?? 'Járműadatlap'}</h2>}{car && <p>{car.make} {car.model}</p>}</div>
         <div className="member-actions"><Button className="icon-button" aria-label="Járműadatlap frissítése" disabled={record.isFetching} onClick={() => void changed()}><RefreshCw size={17} /></Button>
           {car && <VehicleActions user={user} tenant={tenant} vehicle={car} allowEditing={false} />}
           {car && can('vehicles.archive') && <Button className="secondary-button" onClick={() => setArchiveOpen(true)}>{car.status === 'Archived' ? 'Visszaállítás' : 'Archiválás'}</Button>}
