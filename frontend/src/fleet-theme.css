@@ -80,8 +80,9 @@
   inset: 0;
   z-index: -1;
   overflow: hidden;
+  touch-action: pan-y pinch-zoom;
 }
-.fleet-auth-backdrop img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 36% 48%; }
+.fleet-auth-backdrop img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 36% 48%; pointer-events: none; }
 .fleet-auth-backdrop::after {
   content: '';
   position: absolute;
@@ -200,7 +201,12 @@
 @media (prefers-reduced-motion: no-preference) {
   .page-content[data-view] { animation: workspace-arrival 160ms ease-out; }
   .page-content:has(.dashboard-studio) { animation-name: garage-arrival; }
-  .fleet-auth-backdrop img { animation: login-camera-arrival 1100ms cubic-bezier(.16, .75, .32, 1) both; }
+  .fleet-auth-backdrop img {
+    animation: login-camera-arrival 1100ms cubic-bezier(.16, .75, .32, 1) both;
+    transform: translate(var(--login-camera-x, 0%), var(--login-camera-y, 0%)) scale(var(--login-camera-zoom, 1));
+    transition: transform 560ms cubic-bezier(.2, .65, .32, 1);
+  }
+  .fleet-auth-backdrop[data-camera-active] { --login-camera-zoom: 1.028; }
   .fleet-auth-controls { animation: workspace-arrival 260ms ease-out; }
   .fleet-auth .account-form { animation: workspace-arrival 160ms ease-out; }
   @keyframes workspace-arrival { from { opacity: .55; translate: 0 5px; } }
