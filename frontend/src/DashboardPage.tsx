@@ -18,6 +18,7 @@ import { VehicleActions } from './VehicleActions'
 import { VehicleGarage } from './VehicleGarage'
 import { FleetDashboardOverview } from './FleetDashboardOverview'
 import { AccessDialog } from './AccessDialog'
+import { useVehicleAccent } from './useVehicleAccent'
 import './dashboard.css'
 
 export function DashboardPage({ user, tenant, siteId, onFleet, onVehicle }: {
@@ -65,6 +66,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
   const [opened, setOpened] = useState<VehicleTab | null>(null)
   const [flight, setFlight] = useState(false)
   const car = eligible.find(car => car.vehicle.id === selected) ?? eligible.find(car => car.isAssignedToMe) ?? eligible[0]
+  useVehicleAccent(car?.color ?? null)
   const can = (code: string) => !!car?.vehicle.permissions?.includes(code)
   const canService = can('vehicles.service.read') || can('vehicles.service.manage')
   const canDocuments = can('vehicles.documents.read') || can('vehicles.documents.manage')

@@ -4,14 +4,9 @@
 
 :root {
   font-family: 'IBM Plex Sans', sans-serif;
-  color: #1d303b;
-  background: #f3f6f8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --primary: #16695f;
-  --muted: #637480;
-  --line: #dce3e8;
 }
 * {
   box-sizing: border-box;
@@ -42,13 +37,15 @@ select:disabled {
   opacity: 0.55;
 }
 :focus-visible {
-  outline: 3px solid #34887d;
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 input,
 select {
   color: inherit;
 }
+a { color: var(--primary); }
+dialog { background-color: var(--surface); }
 h1,
 h2,
 p {

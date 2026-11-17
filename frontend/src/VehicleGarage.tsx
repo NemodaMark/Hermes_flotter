@@ -5,6 +5,7 @@ import { bodyNames, vehiclePaint } from './vehicleAppearance'
 import { vehicleModel } from './vehicleModels'
 import type { Vehicle } from './api'
 import type { StudioAction, StudioMenu, StudioSection } from './VehicleStudio'
+import { useVehicleAccent } from './useVehicleAccent'
 import './dashboard.css'
 
 const VehicleStudio = lazy(() => import('./VehicleStudio'))
@@ -44,6 +45,7 @@ export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action
 
 export function ProfileVehicleGarage({ car, bodyType, color }: { car: Vehicle; bodyType: string; color: string | null }) {
   const [action, setAction] = useState<StudioAction | null>(null)
+  useVehicleAccent(color)
   return <section className="profile-garage" aria-label="3D garázs">
     <VehicleGarage car={car} bodyType={bodyType} color={color} action={action}
       onReset={() => setAction(previous => ({ key: 'home', sequence: (previous?.sequence ?? 0) + 1 }))} />

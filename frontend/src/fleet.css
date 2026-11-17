@@ -16,14 +16,14 @@
 .access-tabs.fleet-detail-tabs { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; }
 .fleet-detail-tabs button { flex-shrink: 0; }
 .fleet-record .member-actions { flex-wrap: wrap; }
-.status-archived { background: #edf1f4; color: #526674; }
+.status-archived { background: var(--surface-subtle); color: var(--muted); }
 .document-upload { padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .vehicle-documents { padding: 20px; }
 .vehicle-documents > .access-description { margin-bottom: 20px; }
 .document-upload > .org-field { margin-bottom: 12px; }
 .document-tools { flex-wrap: wrap; }
 .document-tools .org-field { min-width: 200px; }
-.document-category { margin: 6px 0; color: var(--teal, #176c63); font-size: 13px; }
+.document-category { margin: 6px 0; color: var(--primary); font-size: 13px; }
 .document-upload .primary-button { margin-top: 12px; }
 .document-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 16px 0; }
 .access-dialog .document-tools .org-checkbox { display: flex; align-items: center; gap: 8px; margin: 0; }
@@ -42,7 +42,7 @@
 .document-preview-toolbar output { font-size: 13px; min-width: 44px; text-align: center; }
 .document-preview-message { padding: 28px 0; font-size: 14px; }
 .document-preview-message .secondary-button { margin-top: 12px; }
-.document-preview-surface { background: #e7edf0; border: 1px solid var(--line); padding: 16px; height: min(62dvh, 700px); overflow: auto; }
+.document-preview-surface { background: var(--surface-subtle); border: 1px solid var(--line); padding: 16px; height: min(62dvh, 700px); overflow: auto; }
 .document-preview-surface img { display: block; max-width: none; height: auto; margin-inline: auto; }
 .document-preview-surface canvas { display: block; background: white; margin-inline: auto; }
 .document-preview-surface [hidden] { display: none; }

@@ -70,8 +70,8 @@
   appearance: none;
 }
 .select-wrap option {
-  color: #1d303b;
-  background: white;
+  color: var(--ink);
+  background: var(--surface);
 }
 nav {
   display: grid;
@@ -152,7 +152,7 @@ nav {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: #fff;
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
   font-size: 13px;
 }
@@ -200,25 +200,25 @@ h1 {
 }
 .primary-button {
   background: var(--primary);
-  color: white;
+  color: var(--on-primary);
   border: 1px solid var(--primary);
 }
 .primary-button:hover {
-  background: #11574f;
+  background: var(--primary-hover);
 }
 .secondary-button {
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--line);
-  color: #344c59;
+  color: var(--ink);
 }
 .secondary-button:hover {
-  background: #f0f4f6;
+  background: var(--surface-subtle);
 }
 .fleet-panel,
 .organization-panel {
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: white;
+  background: var(--surface);
   overflow: hidden;
 }
 .fleet-summary {
@@ -245,11 +245,11 @@ h1 {
   border-radius: 4px;
   width: 34px;
   height: 34px;
-  color: #627782;
+  color: var(--muted);
   flex-shrink: 0;
 }
 .icon-button:hover {
-  background: #edf2f4;
+  background: var(--surface-subtle);
 }
 .refresh {
   margin-left: auto;
@@ -266,7 +266,7 @@ h1 {
   gap: 10px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  color: #798b95;
+  color: var(--muted);
   padding: 0 11px;
   width: min(360px, 100%);
 }
@@ -282,7 +282,7 @@ h1 {
 .status-filter {
   padding: 8px 30px 8px 11px;
   font-size: 12px;
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 4px;
 }
@@ -297,22 +297,22 @@ table {
 }
 th {
   font-size: 12px;
-  color: #5f7380;
+  color: var(--muted);
   font-weight: 500;
-  background: #f7f9fa;
+  background: var(--surface-subtle);
   border-block: 1px solid var(--line);
   padding: 12px 24px;
 }
 td {
   padding: 22px 24px;
-  border-bottom: 1px solid #e8edf0;
+  border-bottom: 1px solid var(--line);
   font-size: 14px;
 }
 tbody tr:last-child td {
   border-bottom: none;
 }
 tbody tr:hover {
-  background: #fbfcfd;
+  background: var(--surface-subtle);
 }
 .registration {
   display: flex;
@@ -322,7 +322,7 @@ tbody tr:hover {
   letter-spacing: 0.5px;
 }
 .registration svg {
-  color: #7a8b95;
+  color: var(--muted);
 }
 .vehicle-make {
   font-weight: 500;
@@ -348,16 +348,16 @@ tbody tr:hover {
   border-radius: 50%;
 }
 .status-active {
-  color: #1b6d52;
-  background: #eaf5ef;
+  color: var(--success-ink);
+  background: var(--success-surface);
 }
 .status-maintenance {
-  color: #946015;
-  background: #fff4dd;
+  color: var(--warning-ink);
+  background: var(--warning-surface);
 }
 .status-inactive {
-  color: #596a75;
-  background: #edf1f3;
+  color: var(--muted);
+  background: var(--surface-subtle);
 }
 .table-footer {
   border-top: 1px solid var(--line);
@@ -384,7 +384,7 @@ tbody tr:hover {
 }
 .empty-state h2 {
   font-size: 18px;
-  color: #344c59;
+  color: var(--ink);
   font-weight: 500;
   margin-top: 15px;
 }
@@ -406,8 +406,8 @@ tbody tr:hover {
   margin-bottom: 6px;
 }
 .error {
-  background: #fff8f6;
-  color: #8b3c2c;
+  background: var(--danger-surface);
+  color: var(--danger-ink);
   border-radius: 5px;
 }
 .text-button {
@@ -447,10 +447,10 @@ dialog {
   width: min(460px, calc(100% - 32px));
   border-radius: 8px;
   color: inherit;
-  box-shadow: 0 20px 80px #162d3a30;
+  box-shadow: 0 20px 80px var(--shadow-color);
 }
 dialog::backdrop {
-  background: #0b202c70;
+  background: var(--backdrop);
 }
 .dialog-heading {
   display: flex;
@@ -472,7 +472,7 @@ dialog input {
   display: block;
   width: 100%;
   padding: 11px;
-  border: 1px solid #c6d2da;
+  border: 1px solid var(--control-border);
   border-radius: 4px;
 }
 .dialog-actions {
@@ -484,7 +484,7 @@ dialog input {
 .form-error {
   font-size: 13px;
   line-height: 1.5;
-  color: #983e2c;
+  color: var(--danger-ink);
   margin-top: 18px;
 }
 .spinning {

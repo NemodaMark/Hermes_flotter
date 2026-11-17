@@ -8,7 +8,7 @@
   gap: 12px;
   max-width: 1100px;
   margin: 0 auto 48px;
-  color: #162d3a;
+  color: var(--ink);
   font-weight: 600;
   font-size: 22px;
   letter-spacing: 2px;
@@ -26,7 +26,7 @@
 .account-panel {
   max-width: 440px;
   margin: 0 auto;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 32px;
@@ -71,13 +71,13 @@
   width: 100%;
   min-width: 0;
   padding: 11px 12px;
-  border: 1px solid #bdcbd4;
+  border: 1px solid var(--control-border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface);
   font-size: 14px;
 }
 .account-form input:disabled {
-  background: #f5f7f8;
+  background: var(--surface-subtle);
 }
 .account-submit {
   width: 100%;
@@ -101,7 +101,7 @@
   border: 1px solid var(--line);
   padding: 32px;
   border-radius: 6px;
-  background: #fff;
+  background: var(--surface);
 }
 .onboarding-panel > svg {
   color: var(--primary);
@@ -134,12 +134,12 @@
   font-size: 12px;
   background: transparent;
   border: none;
-  color: #506775;
+  color: var(--muted);
   padding: 8px;
   border-radius: 4px;
 }
 .logout-button:hover {
-  background: #eff4f6;
+  background: var(--surface-subtle);
 }
 .profile > span:last-child {
   min-width: 0;
@@ -196,8 +196,8 @@
   padding: 10px;
   font: inherit;
   color: inherit;
-  background: white;
-  border: 1px solid #bdcbd4;
+  background: var(--surface);
+  border: 1px solid var(--control-border);
   border-radius: 4px;
 }
 .group-site-options { max-height: 240px; overflow-y: auto; margin-top: 12px; }

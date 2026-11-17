@@ -1,22 +1,22 @@
-.choice { position: relative; display: flex; align-items: center; width: 100%; min-width: 0; border: 1px solid var(--control-border, #7e909b); border-radius: 7px; background: white; color: #20343e; }
+.choice { position: relative; display: flex; align-items: center; width: 100%; min-width: 0; border: 1px solid var(--control-border, #7e909b); border-radius: 7px; background: var(--surface); color: var(--ink); }
 .choice.choice { padding: 0; border-radius: 7px; }
 .choice:focus-within { outline: 3px solid var(--focus-ring, #278479); outline-offset: 2px; }
 .choice.choice input[role=combobox] { width: 100%; min-width: 0; height: 40px; padding: 9px 34px 9px 12px; border: 0; border-radius: inherit; outline: 0; box-shadow: none; background: transparent; color: inherit; font: inherit; font-size: 14px; text-overflow: ellipsis; cursor: pointer; }
 .choice .choice-arrow { position: absolute; right: 2px; top: 2px; bottom: 2px; width: 30px; padding: 0; border: 0; background: transparent; color: inherit; border-radius: 5px; }
 .choice[data-open] .choice-arrow { rotate: 180deg; }
 .choice.choice select.choice-native { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; border: 0; opacity: 0; pointer-events: none; overflow: hidden; }
-.choice[data-disabled], fieldset:disabled .choice { background: #f5f8f9; border-color: #d3dee3; color: #536b76; }
+.choice[data-disabled], fieldset:disabled .choice { background: var(--surface-subtle); border-color: var(--line); color: var(--muted); }
 .choice[data-disabled] input, fieldset:disabled .choice input { cursor: default; opacity: 1; }
-.choice-popup { position: fixed; z-index: 1000; inset: auto; margin: 0; display: block; padding: 5px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--control-border, #7e909b); border-radius: var(--radius-control, 7px); color: var(--ink, #20343e); background: var(--surface, white); box-shadow: 0 4px 16px #142d3826; font: 14px/1.5 'IBM Plex Sans', sans-serif; }
+.choice-popup { position: fixed; z-index: 1000; inset: auto; margin: 0; display: block; padding: 5px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--control-border, #7e909b); border-radius: var(--radius-control, 7px); color: var(--ink, #20343e); background: var(--surface, white); box-shadow: 0 4px 16px var(--shadow-color); font: 14px/1.5 'IBM Plex Sans', sans-serif; }
 .choice-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 8px 10px; border-radius: 5px; cursor: pointer; overflow-wrap: anywhere; }
-.choice-option[aria-selected=true] { color: #145c50; font-weight: 500; }
-.choice-option[data-active=true] { background: #e9f4f0; box-shadow: inset 2px 0 #277d69; }
+.choice-option[aria-selected=true] { color: var(--primary); font-weight: 500; }
+.choice-option[data-active=true] { background: var(--primary-soft); box-shadow: inset 2px 0 var(--primary); }
 .choice-option[aria-disabled=true] { opacity: .5; cursor: default; }
 .choice-option > svg { flex-shrink: 0; }
-.choice-search-hint { display: flex; gap: 8px; align-items: center; color: #5d707b; padding: 7px 10px 10px; border-bottom: 1px solid #e3eaed; margin-bottom: 4px; font-size: 12px; }
-.choice-empty { padding: 16px 10px; color: #5d707b; }
-.choice[data-invalid] { border-color: #a33434; }
-.choice-error, .app-shell .org-field > .choice-error { color: #a33434; font-size: 12px; font-weight: 400; }
+.choice-search-hint { display: flex; gap: 8px; align-items: center; color: var(--muted); padding: 7px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 12px; }
+.choice-empty { padding: 16px 10px; color: var(--muted); }
+.choice[data-invalid] { border-color: var(--danger-ink); }
+.choice-error, .app-shell .org-field > .choice-error { color: var(--danger-ink); font-size: 12px; font-weight: 400; }
 .sidebar .choice { background: #203e4a; border-color: #506b76; color: white; }
 .sidebar .choice input::placeholder { color: #c1d0d5; }
 .list-toolbar .choice { width: auto; min-width: 155px; max-width: 260px; }

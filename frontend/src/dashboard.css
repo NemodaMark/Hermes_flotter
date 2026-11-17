@@ -54,12 +54,16 @@
 .dashboard-preferences legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .dashboard-preferences label { display: block; margin: 8px 0; }
 .dashboard-preferences label input, .dashboard-preferences label .choice { margin-top: 6px; }
-.car-dashboard {
-  --garage-inset: clamp(16px, 2.65vw, 44px);
+:is(.car-dashboard, .profile-garage) {
   --garage-ink: #faf8ee;
   --garage-muted: #dddcd2;
-  --garage-panel: #171b19ee;
-  --garage-line: #eeeee337;
+  --garage-accent: var(--vehicle-accent-dark, #b6d1bb);
+  --garage-panel: color-mix(in srgb, #171b19ee 92%, var(--garage-accent));
+  --garage-line: color-mix(in srgb, var(--garage-accent) 38%, transparent);
+  --garage-hover: color-mix(in srgb, #171b19 76%, var(--garage-accent));
+}
+.car-dashboard {
+  --garage-inset: clamp(16px, 2.65vw, 44px);
   --garage-dock: 58px;
   min-width: 0;
   min-height: 0;
@@ -106,7 +110,8 @@
 .car-picker { min-width: 0; width: clamp(118px, 15vw, 200px); }
 .app-shell .car-picker .choice { width: 100%; background: var(--garage-panel); border-color: var(--garage-line); color: var(--garage-ink); }
 .car-picker .choice input, .car-picker .choice .choice-arrow { color: inherit; }
-.car-picker .choice:focus-within { outline-color: #b6d1bb; outline-offset: 1px; }
+.car-picker .choice:focus-within { outline-color: var(--garage-accent); outline-offset: 1px; }
+.car-picker .choice .choice-arrow { color: var(--garage-accent); }
 .car-attention {
   display: grid;
   justify-items: stretch;
@@ -136,14 +141,15 @@
 }
 .car-attention-notice > svg { flex: 0 0 15px; }
 .car-attention-notice .sera-badge { margin-inline-start: auto; flex-shrink: 0; }
-.car-attention button.car-attention-notice:hover { background: #354439; }
+.car-attention button.car-attention-notice:hover { background: var(--garage-hover); }
+.car-attention-notice > svg { color: var(--garage-accent); }
 .car-attention-notice .member-actions .secondary-button { min-height: 34px; }
 .studio-hotspots { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
 .studio-hotspot { pointer-events: auto; position: absolute; transform: translate(-50%, -50%); display: grid; place-items: center; width: 36px; height: 36px; border: 0; padding: 0; border-radius: 50%; background: transparent; color: var(--garage-ink, var(--ink)); font: inherit; cursor: pointer; visibility: hidden; }
-.studio-hotspot > span { width: 17px; height: 17px; border: 3px solid #fff; border-radius: 50%; background: var(--primary); box-shadow: 0 1px 8px #101512b3; }
-.studio-hotspot strong { position: absolute; left: var(--label-x); top: var(--label-y); transform: translate(-50%, -50%); font-size: 12px; font-weight: 500; padding: 6px 9px; border: 1px solid #eeeee362; background: #171b19ed; border-radius: var(--radius-control); white-space: nowrap; }
-.studio-hotspot > i { position: absolute; left: 50%; top: 50%; width: var(--leader-length); height: 1px; background: #ececda91; transform: rotate(var(--leader-angle)); transform-origin: 0 0; pointer-events: none; z-index: -1; }
-.studio-hotspot:is(:hover, :focus-visible) > span { background: var(--primary-hover); box-shadow: 0 0 0 5px #e8ede55c; }
+.studio-hotspot > span { width: 17px; height: 17px; border: 3px solid var(--vehicle-paint-edge, #fffefa); border-radius: 50%; background: var(--vehicle-paint, #344b3c); box-shadow: 0 0 0 1px var(--garage-accent), 0 1px 8px #101512b3; }
+.studio-hotspot strong { position: absolute; left: var(--label-x); top: var(--label-y); transform: translate(-50%, -50%); font-size: 12px; font-weight: 500; padding: 6px 9px; border: 1px solid var(--garage-line); background: var(--garage-panel); border-radius: var(--radius-control); white-space: nowrap; }
+.studio-hotspot > i { position: absolute; left: 50%; top: 50%; width: var(--leader-length); height: 1px; background: var(--garage-accent); opacity: .65; transform: rotate(var(--leader-angle)); transform-origin: 0 0; pointer-events: none; z-index: -1; }
+.studio-hotspot:is(:hover, :focus-visible) > span { box-shadow: 0 0 0 4px color-mix(in srgb, var(--garage-accent) 55%, transparent); }
 .car-stage-meta {
   position: absolute;
   z-index: 2;
@@ -164,12 +170,12 @@
 .car-stage-instrument { display: flex; align-items: center; gap: 5px; color: var(--garage-ink, var(--surface)); }
 .car-stage-instrument strong { font-size: 21px; font-variant-numeric: tabular-nums; font-weight: 600; line-height: 1; }
 .studio-flight-status { position: absolute; right: var(--garage-inset, 16px); bottom: calc(var(--garage-dock, 0px) + 87px); color: var(--garage-ink, var(--surface)); font-size: 12px; pointer-events: none; }
-.studio-camera-controls { position: absolute; right: 16px; bottom: 16px; display: flex; border: 1px solid #eeeee34d; background: #171b19ee; border-radius: var(--radius-control); z-index: 3; }
+.studio-camera-controls { position: absolute; right: 16px; bottom: 16px; display: flex; border: 1px solid var(--garage-line); background: var(--garage-panel); border-radius: var(--radius-control); z-index: 3; }
 .car-dashboard .studio-camera-controls { right: var(--garage-inset); bottom: calc(var(--garage-dock) + 27px); }
-.studio-camera-controls button { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; background: transparent; border: 0; color: #faf8ee; cursor: pointer; }
-.studio-camera-controls button + button { border-left: 1px solid #eeeee337; }
-.studio-camera-controls button:hover { background: #354439; }
-.studio-camera-controls button:focus-visible, .car-menu :focus-visible, .car-attention :focus-visible { outline-color: #b6d1bb; outline-offset: -3px; }
+.studio-camera-controls button { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; background: transparent; border: 0; color: var(--garage-accent); cursor: pointer; }
+.studio-camera-controls button + button { border-left: 1px solid var(--garage-line); }
+.studio-camera-controls button:hover { background: var(--garage-hover); }
+.studio-camera-controls button:focus-visible, .studio-hotspot:focus-visible, .car-menu :focus-visible, .car-attention :focus-visible { outline-color: var(--garage-accent); outline-offset: -3px; }
 .car-menu {
   position: relative;
   z-index: 4;
@@ -198,7 +204,8 @@
   font-size: 13px;
   cursor: pointer;
 }
-.car-menu button:hover, .car-menu-more > summary:hover, .car-menu-more[open] > summary { color: var(--garage-ink); background: #354439; }
+.car-menu svg { color: var(--garage-accent); }
+.car-menu button:hover, .car-menu-more > summary:hover, .car-menu-more[open] > summary { color: var(--garage-ink); background: var(--garage-hover); }
 .car-menu-more > summary::-webkit-details-marker { display: none; }
 .car-menu-more > div {
   position: absolute;
@@ -214,10 +221,10 @@
   background: var(--garage-panel);
 }
 .car-menu-more > div .sera-button { justify-content: start; color: var(--garage-ink); min-height: 44px; text-align: left; }
-.studio-unavailable, .studio-loading { display: grid; min-height: 100%; place-content: center; text-align: center; padding: 28px; gap: 6px; color: var(--surface); }
+.studio-unavailable, .studio-loading { display: grid; min-height: 100%; place-content: center; text-align: center; padding: 28px; gap: 6px; color: var(--garage-ink); }
 .studio-unavailable p { margin: 0; font-weight: 600; }
 .studio-unavailable span { font-size: 13px; }
-.studio-model-status { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 28px; background: #202622; color: var(--surface); font-size: 13px; text-align: center; }
+.studio-model-status { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 28px; background: #202622; color: var(--garage-ink); font-size: 13px; text-align: center; }
 .studio-model-status p { max-width: 350px; margin: 0; }
 .studio-model-status button { border: 1px solid var(--control-border); border-radius: var(--radius-control); background: var(--surface); padding: 8px 12px; color: var(--ink); }
 .studio-credit { padding: 8px 16px; font-size: 12px; text-align: right; }

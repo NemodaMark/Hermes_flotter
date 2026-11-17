@@ -116,13 +116,18 @@ it('chooses an assigned active vehicle and keeps unauthorized menus hidden even 
 it('changes the selected car, body and operation menus without reusing the previous car permissions',async()=>{
   mount({mode:'Vehicle',vehicles:[car,{...car,vehicle:{...car.vehicle,id:'second',registration:'SECOND-002',permissions:['vehicles.read','vehicles.service.read']},bodyType:'Van',color:'#cc1122'}]})
   const picker=await screen.findByRole('combobox',{name:'Jármű kiválasztása'})
+  const styles = document.documentElement.style
+  expect(styles.getPropertyValue('--vehicle-paint')).toBe('#214d81')
   await chooseOption(picker,'second')
+  expect(styles.getPropertyValue('--vehicle-paint')).toBe('#cc1122')
+  expect(styles.getPropertyValue('--vehicle-accent-light')).not.toBe(styles.getPropertyValue('--vehicle-accent-dark'))
   expect(await screen.findByText(/Furgon/)).toBeInTheDocument()
   const menu=screen.getByRole('navigation',{name:'Jármű gyorsmenü'})
   await userEvent.click(within(menu).getByText('Továbbiak'))
   expect(within(menu).getByRole('button',{name:'Szerviz'})).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button',{name:'Áttekintő'}))
   expect(await screen.findByRole('heading',{name:'Flotta áttekintés'})).toBeInTheDocument()
+  expect(styles.getPropertyValue('--vehicle-paint')).toBe('')
 })
 it('shows no vehicle summary or studio when vehicle reading is forbidden',async()=>{
   mount({mode:'Vehicle',canReadVehicles:false,vehicles:[]})

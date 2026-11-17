@@ -1,6 +1,6 @@
 .access-panel {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -75,8 +75,8 @@
 .profile-confirmation {
   margin-top: 20px;
   padding: 16px;
-  background: #fff5ef;
-  border: 1px solid #e2c6b8;
+  background: var(--danger-surface);
+  border: 1px solid var(--danger-line);
   border-radius: 4px;
   font-size: 14px;
 }
@@ -85,7 +85,7 @@
   max-width: 460px;
   flex: 1;
   padding: 10px 12px;
-  border: 1px solid #bdcbd4;
+  border: 1px solid var(--control-border);
   border-radius: 4px;
 }
 .system-users-table {
@@ -119,7 +119,7 @@
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface);
 }
 .audit-table {
   min-width: 760px;
@@ -209,19 +209,19 @@
   font-size: 12px;
 }
 .danger-text {
-  color: #983e2c;
+  color: var(--danger-ink);
 }
 .danger-button {
-  border: 1px solid #983e2c;
-  background: #983e2c;
-  color: #fff;
+  border: 1px solid var(--destructive);
+  background: var(--destructive);
+  color: var(--on-destructive);
   min-height: 41px;
   padding: 10px 16px;
   border-radius: 4px;
   font-size: 13px;
 }
 .danger-button:hover {
-  background: #803323;
+  background: color-mix(in srgb, var(--destructive) 88%, #000);
 }
 .access-pagination {
   gap: 12px;
@@ -247,7 +247,7 @@
   width: min(550px, calc(100% - 32px));
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
-  box-shadow: 0 2px 8px #162d3a14;
+  box-shadow: 0 2px 8px var(--shadow-color);
 }
 .access-dialog .dialog-heading {
   align-items: flex-start;
@@ -266,7 +266,7 @@
   margin-top: 12px;
 }
 .access-description strong {
-  color: #1d303b;
+  color: var(--ink);
   font-weight: 500;
 }
 .permission-fields {
@@ -349,7 +349,7 @@
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: white;
+  background: var(--surface);
 }
 @media (max-width: 700px) {
   .sidebar nav {

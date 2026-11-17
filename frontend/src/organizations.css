@@ -77,16 +77,16 @@
   width: 100%;
   min-width: 0;
   padding: 10px 12px;
-  border: 1px solid #bdcbd4;
+  border: 1px solid var(--control-border);
   border-radius: 4px;
-  background: white;
+  background: var(--surface);
   font: inherit;
   color: inherit;
 }
 .org-field input:disabled,
 .org-field select:disabled {
-  background: #f7f9fa;
-  color: #526674;
+  background: var(--surface-subtle);
+  color: var(--muted);
   opacity: 1;
   cursor: default;
 }

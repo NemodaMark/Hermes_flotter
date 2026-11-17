@@ -1,26 +1,26 @@
 .field-sections > .field-picker { display: none; }
 .field-sections { display: grid; gap: 20px; }
 .field-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: start; }
-.field-tabs button { min-height: 40px; padding: 8px 12px; border: 1px solid #728491; border-radius: 4px; background: white; color: #354f5d; font-size: 13px; text-align: left; }
-.field-tabs button:hover { background: #f1f6f5; }
-.field-tabs button[aria-selected=true] { border-color: var(--primary); color: var(--primary); background: #e7f2ef; font-weight: 500; }
+.field-tabs button { min-height: 40px; padding: 8px 12px; border: 1px solid var(--control-border); border-radius: 4px; background: var(--surface); color: var(--ink); font-size: 13px; text-align: left; }
+.field-tabs button:hover { background: var(--surface-subtle); }
+.field-tabs button[aria-selected=true] { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); font-weight: 500; }
 .field-panels { min-width: 0; container-type: inline-size; container-name: detail-fields; }
 .field-panels [hidden] { display: none; }
 .field-sections .field-panels fieldset { margin-bottom: 0; }
 .field-sections .field-panels legend { padding-bottom: 16px; }
 .field-panels .org-form-grid { gap: 16px; }
-.field-panels .org-field input, .field-panels .org-field select, .field-panels .org-field textarea { border-color: #728491; }
+.field-panels .org-field input, .field-panels .org-field select, .field-panels .org-field textarea { border-color: var(--control-border); }
 .field-panels input, .field-panels select, .field-panels textarea { scroll-margin-block: 100px; }
 @container detail-fields (min-width: 660px) { .field-panels .org-form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (min-width: 1250px) {
   .field-sections { grid-template-columns: 170px minmax(0, 1fr); gap: 24px; }
   .field-tabs { flex-direction: column; gap: 4px; align-items: stretch; border-right: 1px solid var(--line); padding-right: 16px; }
   .field-tabs button { border-color: transparent; justify-content: flex-start; }
-  .field-tabs button[aria-selected=true] { border-color: #c0d9d3; }
+  .field-tabs button[aria-selected=true] { border-color: var(--line); }
 }
 @media (max-width: 1000px) {
   .field-tabs { display: none; }
   .field-sections > .field-picker { display: flex; }
-  .field-picker select { border-color: #728491; }
+  .field-picker select { border-color: var(--control-border); }
 }
 @media (max-width: 700px) { .field-sections { gap: 16px; } }

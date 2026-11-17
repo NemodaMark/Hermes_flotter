@@ -2,7 +2,7 @@
 .people-search .search-field { flex: 1 1 240px; max-width: 420px; }
 .compact-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .compact-filter select { width: auto; min-height: 34px; }
-.compact-filter select, .vehicle-assignee select { border: 1px solid #c7d7e0; border-radius: 4px; background: white; color: #233c49; padding: 8px 10px; font: inherit; }
+.compact-filter select, .vehicle-assignee select { border: 1px solid var(--control-border); border-radius: 4px; background: var(--surface); color: var(--ink); padding: 8px 10px; font: inherit; }
 .people-table { width: 100%; table-layout: fixed; }
 .people-table th:first-child { width: 70%; }
 .people-table th:last-child { width: 30%; }
@@ -12,18 +12,18 @@
 .person-cell { display: flex; align-items: center; gap: 12px; }
 .person-cell > div { min-width: 0; }
 .people-table .person-cell .member-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.person-role { display: inline-block; margin-left: 8px; color: #506570; font-size: 12px; }
+.person-role { display: inline-block; margin-left: 8px; color: var(--muted); font-size: 12px; }
 .person-name.text-button { font-weight: 600; text-align: left; text-decoration: none; }
 .person-avatar { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex: 0 0 38px; }
-.image-fallback { display: inline-flex; align-items: center; justify-content: center; background: #e4eeef; color: #28505a; font-size: 13px; font-weight: 600; }
+.image-fallback { display: inline-flex; align-items: center; justify-content: center; background: var(--primary-soft); color: var(--primary); font-size: 13px; font-weight: 600; }
 .permission-summary, .people-company-summary { font-size: 13px; line-height: 1.5; }
 .profile-page { display: grid; gap: 20px; }
 .profile-page .org-back { justify-self: start; margin: 0; }
 .profile-tabbed-panel { min-width: 0; overflow: hidden; }
 .profile-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--line); }
-.profile-tabs .sera-tab { min-height: 48px; padding: 12px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: #536c77; background: transparent; font-size: 13px; }
-.profile-tabs .sera-tab:hover { background: #f5f9f8; }
-.profile-tabs .sera-tab[aria-selected=true] { color: #185e52; border-bottom-color: var(--primary); background: #eef6f3; }
+.profile-tabs .sera-tab { min-height: 48px; padding: 12px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: var(--muted); background: transparent; font-size: 13px; }
+.profile-tabs .sera-tab:hover { background: var(--surface-subtle); }
+.profile-tabs .sera-tab[aria-selected=true] { color: var(--primary); border-bottom-color: var(--primary); background: var(--primary-soft); }
 .profile-tab-panel[hidden] { display: none; }
 .profile-tab-panel .profile-columns { gap: 0; }
 .profile-tab-panel .profile-columns > section + section { border-left: 1px solid var(--line); }
@@ -36,12 +36,12 @@
 .profile-identity { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; overflow-wrap: anywhere; }
 .profile-identity h2, .profile-identity p { margin: 0; }
 .profile-identity h2 { font-size: 24px; }
-.profile-identity a { color: #17675f; }
+.profile-identity a { color: var(--primary); }
 .profile-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 340px; }
 .profile-photo-actions .field-hint { flex-basis: 100%; margin: 0; }
 .photo-file-button { display: inline-flex; align-items: center; gap: 7px; position: relative; overflow: hidden; cursor: pointer; }
 .photo-file-button input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-.photo-file-button:focus-within { outline: 3px solid #378d86; outline-offset: 2px; }
+.photo-file-button:focus-within { outline: 3px solid var(--primary); outline-offset: 2px; }
 .profile-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .profile-section { padding: 24px; min-width: 0; }
 .profile-section h3 { margin-top: 0; }
@@ -63,20 +63,20 @@
 .profile.profile-button { border: 0; width: 100%; text-align: left; color: inherit; background: transparent; cursor: pointer; }
 .profile-avatar { object-fit: cover; flex-shrink: 0; }
 .vehicle-photo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 20px 0; }
-.vehicle-photo-grid figure { margin: 0; border: 1px solid #d4e0e7; border-radius: 5px; overflow: hidden; }
+.vehicle-photo-grid figure { margin: 0; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
 .vehicle-photo-grid .vehicle-photo { display: block; width: 100%; height: 170px; object-fit: cover; }
 .vehicle-photo-grid figcaption { padding: 9px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
 .vehicle-photo-preview { width: 100%; height: 150px; object-fit: cover; }
 .vehicle-create-page .org-form { padding: 24px; }
 .vehicle-create-page h2 { margin: 0; }
-.vehicle-assignee { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 16px 24px; border-bottom: 1px solid #d4e0e7; }
+.vehicle-assignee { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 16px 24px; border-bottom: 1px solid var(--line); }
 .vehicle-assignee form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .vehicle-assignee select { min-width: 200px; width: auto; }
 .assignment-history-table { min-width: 760px; }
 .assignment-history-table td { vertical-align: top; }
 .assignment-history-table time { display: block; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .assignment-person { display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
-.vehicle-gallery { padding: 20px 24px; border-bottom: 1px solid #d4e0e7; }
+.vehicle-gallery { padding: 20px 24px; border-bottom: 1px solid var(--line); }
 .vehicle-gallery .org-section-tools { padding: 0; }
 @media (max-width: 768px) { .profile-columns { grid-template-columns: 1fr; } .profile-section { padding: 16px; } .toggle-control { margin-left: 0; } .profile-page { gap: 16px; } }
 @media (max-width: 768px) { .profile-tab-panel .profile-columns > section + section { border-left: 0; border-top: 1px solid var(--line); } .profile-tab-panel .profile-security { grid-template-columns: 1fr; } .profile-tabs { padding-inline: 8px; } .profile-tabs .sera-tab { padding-inline: 10px; } }

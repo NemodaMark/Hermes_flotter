@@ -7,7 +7,7 @@
 .workspace-location > span:not(.workspace-separator) { overflow: hidden; text-overflow: ellipsis; }
 .workspace-location > span:first-child:not(:last-child) { max-width: 45%; flex-shrink: 0; }
 .workspace-separator { color: #aabfc7; flex-shrink: 0; }
-.workspace-panel { position: fixed; z-index: 1000; inset: auto; margin: 0; padding: 16px; overflow: auto; border: 1px solid #b5c8cf; border-radius: 10px; color: #20343e; background: white; box-shadow: 0 8px 28px #142d3826; font: 13px/1.5 'IBM Plex Sans', sans-serif; }
+.workspace-panel { position: fixed; z-index: 1000; inset: auto; margin: 0; padding: 16px; overflow: auto; border: 1px solid var(--control-border); border-radius: 10px; color: var(--ink); background: var(--surface); box-shadow: 0 8px 28px var(--shadow-color); font: 13px/1.5 'IBM Plex Sans', sans-serif; }
 .workspace-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .workspace-panel-heading h2 { margin: 0; font-size: 16px; font-weight: 500; }
 .workspace-panel-fields { display: grid; gap: 16px; }
