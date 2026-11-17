@@ -77,7 +77,7 @@ export function AuthScreen({
   return (
     <main className="account-page fleet-auth">
       <picture className="fleet-auth-backdrop">
-        <source media="(max-width: 900px)" srcSet={garageMobile} width={1008} height={684} />
+        <source media="(max-width: 900px)" srcSet={garageMobile} width={1008} height={960} />
         <img src={garageWide} alt="" width={1920} height={1200} fetchPriority="high" decoding="async" />
       </picture>
       <header className="fleet-wordmark">HERMES <small>Flottakezelés</small></header>
