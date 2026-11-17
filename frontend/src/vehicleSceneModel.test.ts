@@ -29,6 +29,27 @@ it('ships the pinned self-contained asset without logo textures or sample varian
   expect(json.nodes.find((node: { name: string }) => node.name === 'InteriorSteeringEmblem').mesh).toBeUndefined()
   expect(json.extensionsUsed).not.toContain('KHR_materials_variants')
 })
+it('ships the Passat with normal dielectric reflections and non-emissive lamp materials', () => {
+  const asset = readFileSync(resolve('src/assets/vehicles/volkswagen-passat.glb'))
+  const sources = JSON.parse(readFileSync(resolve('public/models/studio/sources.json'), 'utf8')) as { key: string; sha256: string }[]
+  expect(createHash('sha256').update(asset).digest('hex')).toBe(sources.find(({ key }) => key === 'volkswagen-passat')?.sha256)
+  const materials = JSON.parse(asset.toString('utf8', 20, 20 + asset.readUInt32LE(12))).materials as {
+    name: string
+    emissiveFactor?: number[]
+    emissiveTexture?: unknown
+    pbrMetallicRoughness: { baseColorFactor?: number[] }
+    extensions?: { KHR_materials_ior?: { ior: number }; KHR_materials_unlit?: unknown }
+  }[]
+  for (const material of materials) {
+    expect(material.extensions?.KHR_materials_ior?.ior ?? 1.5).toBeCloseTo(1.5)
+    expect(material.extensions?.KHR_materials_unlit).toBeUndefined()
+    expect(material.emissiveTexture).toBeUndefined()
+    expect(material.emissiveFactor ?? [0, 0, 0]).toEqual([0, 0, 0])
+  }
+  const lamps = materials.filter(material => material.name.startsWith('vehiclelights128__spec'))
+  expect(lamps).toHaveLength(5)
+  for (const lamp of lamps) expect(lamp.pbrMetallicRoughness.baseColorFactor).toEqual([.4, .4, .4, 1])
+})
 it('normalizes the real model to the floor, centers it and keeps passenger-car proportions', () => {
   const { model, shape } = prepareVehicleModel(source.clone(true), '#214d81')
   const bounds = new Box3().setFromObject(model, true)

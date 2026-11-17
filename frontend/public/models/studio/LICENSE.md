@@ -8,7 +8,7 @@ The five current studio vehicles are licensed under [CC BY 4.0](https://creative
 |---|---|---|---|
 | Sedan and general fallback | [Renault Megane Sedan · Mona x Supercars](https://sketchfab.com/3d-models/renault-megane-sedan-0c0d6c54a2424feb95447400a5c5e50e) | `renault-megane.glb` | Renamed glazing materials. |
 | Hatchback | [Volkswagen Golf 8. GTI (A8) · GT Cars: Hyperspeed](https://sketchfab.com/3d-models/volkswagen-golf-8-gti-a8-e87d7c0f8937481db236529beb5ecab7) | `vw-golf.glb` | Renamed the glazing material. |
-| Estate | [Volkswagen Passat Variant R-Line2016 · ANDREO12](https://sketchfab.com/3d-models/volkswagen-passat-variant-r-line2016-f946c79a2e534137a5ffd30aa0173566) | `volkswagen-passat.glb` | Removed the display platform and renamed the glazing material. |
+| Estate | [Volkswagen Passat Variant R-Line2016 · ANDREO12](https://sketchfab.com/3d-models/volkswagen-passat-variant-r-line2016-f946c79a2e534137a5ffd30aa0173566) | `volkswagen-passat.glb` | Removed the display platform, renamed the glazing material, normalized the dielectric index of refraction and toned down the lamp and trim materials for the parked vehicle. |
 | SUV | [2021 Toyota RAV4 Hybrid · tonielpro520](https://sketchfab.com/3d-models/2021-toyota-rav4-hybrid-de74fe4e98004c92b1103947597d1b53) | `toyota-rav4.glb` | Removed the source license plate. |
 | Van | [2014 Fiat Ducato · razor24](https://sketchfab.com/3d-models/2014-fiat-ducato-8a651ad182414bb0a8b6c6d8d5bd7c01) | `fiat-ducato.glb` | Runtime changes only. |
 
