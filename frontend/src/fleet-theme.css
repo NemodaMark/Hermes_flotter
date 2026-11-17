@@ -43,9 +43,10 @@
 .fleet-auth .account-tabs { margin-bottom: 22px; }
 .fleet-auth .dialog-actions { justify-content: start; }
 .fleet-auth .dialog-actions button { padding-inline: 0; }
-.entra-entry { display: grid; gap: 16px; margin-top: 20px; }
-.entra-entry p { color: var(--muted); font-size: 13px; }
-.microsoft-mark { display: grid; grid-template-columns: repeat(2, 8px); grid-template-rows: repeat(2, 8px); gap: 2px; }
+.entra-entry { display: grid; gap: 8px; margin-top: 12px; }
+.entra-entry p { margin: 0; color: var(--muted); font-size: 13px; }
+.entra-entry .sera-button:disabled { background: var(--surface-subtle); }
+.microsoft-mark { display: grid; flex-shrink: 0; grid-template-columns: repeat(2, 8px); grid-template-rows: repeat(2, 8px); gap: 2px; }
 .microsoft-mark i:nth-child(1) { background: #f25022; }
 .microsoft-mark i:nth-child(2) { background: #7fba00; }
 .microsoft-mark i:nth-child(3) { background: #00a4ef; }

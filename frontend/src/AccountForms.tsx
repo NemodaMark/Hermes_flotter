@@ -17,26 +17,38 @@ export function AuthScreen({
   entraError?: string | null
 }) {
   const [mode, setMode] = useState<'login' | 'forgot' | 'resend'>('login')
-  const [pending, setPending] = useState(false)
+  const [submission, setSubmission] = useState<'local' | 'microsoft' | null>(null)
+  const pending = submission !== null
   const [error, setError] = useState<string | null>(entraError)
   const [notice, setNotice] = useState<string | null>(null)
   const [emailEnabled, setEmailEnabled] = useState(false)
-  const [entraEnabled, setEntraEnabled] = useState(false)
+  const [entraAvailability, setEntraAvailability] = useState<'loading' | 'ready' | 'unavailable' | 'error'>('loading')
+  const entraHint = {
+    loading: 'A Microsoft-belépés ellenőrzése…',
+    ready: null,
+    unavailable: window.location.protocol === 'https:'
+      ? 'A Microsoft Entra ID ezen a kiszolgálón nincs bekapcsolva.'
+      : 'A Microsoft-belépéshez HTTPS és bekapcsolt Entra ID szükséges.',
+    error: 'A Microsoft-belépés állapota nem ellenőrizhető. Frissítsd az oldalt.',
+  }[entraAvailability]
   useEffect(() => {
     let active = true
     void api.accountOptions().then(options => {
-      if (active) { setEmailEnabled(options.emailEnabled); setEntraEnabled(!!options.entraEnabled) }
-    }).catch(() => {})
+      if (active) {
+        setEmailEnabled(options.emailEnabled)
+        setEntraAvailability(options.entraEnabled ? 'ready' : 'unavailable')
+      }
+    }).catch(() => { if (active) setEntraAvailability('error') })
     return () => { active = false }
   }, [])
 
   async function microsoft() {
     setError(null)
-    setPending(true)
+    setSubmission('microsoft')
     try { await startEntra('login') }
     catch (failure) {
       setError(failure instanceof Error ? failure.message : 'A Microsoft-bejelentkezés nem indítható.')
-      setPending(false)
+      setSubmission(null)
     }
   }
 
@@ -47,7 +59,7 @@ export function AuthScreen({
     const password = String(values.get('password'))
     setError(null)
     setNotice(null)
-    setPending(true)
+    setSubmission('local')
     try {
       if (mode === 'forgot' || mode === 'resend') {
         setNotice((await api.requestAccountEmail(email, mode === 'resend')).message)
@@ -57,7 +69,7 @@ export function AuthScreen({
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'A kérés nem sikerült.')
     } finally {
-      setPending(false)
+      setSubmission(null)
     }
   }
 
@@ -79,13 +91,6 @@ export function AuthScreen({
         {mode !== 'login' && <Button type="button" variant="link" disabled={pending}
           onClick={() => { setMode('login'); setError(null); setNotice(null) }}>Vissza a bejelentkezéshez</Button>}
         <h1 id="account-title">{mode === 'login' ? 'Bejelentkezés' : mode === 'forgot' ? 'Elfelejtett jelszó' : 'E-mail-cím megerősítése'}</h1>
-        {mode === 'login' && entraEnabled && <div className="entra-entry">
-          <Button type="button" variant="outline" disabled={pending} onClick={() => void microsoft()}>
-            <span className="microsoft-mark" aria-hidden="true"><i /><i /><i /><i /></span>
-            Bejelentkezés Microsofttal
-          </Button>
-          <p>vagy HERMES-fiókkal</p>
-        </div>}
         {(mode === 'forgot' || mode === 'resend') && <p className="account-description">
           Add meg a fiókod e-mail-címét. A levélben kapott hivatkozással folytathatod.
         </p>}
@@ -121,10 +126,19 @@ export function AuthScreen({
             </p>
           )}
           <Button className="primary-button account-submit" disabled={pending}>
-            {pending ? <LoaderCircle size={18} className="spinning" /> : <ArrowRight size={18} />}
+            {submission === 'local' ? <LoaderCircle size={18} className="spinning" aria-hidden="true" /> : <ArrowRight size={18} aria-hidden="true" />}
             {mode === 'login' ? 'Belépés' : 'Hivatkozás kérése'}
           </Button>
         </form>
+        {mode === 'login' && <div className="entra-entry">
+          <Button type="button" variant="outline" size="lg" disabled={pending || entraAvailability !== 'ready'}
+            loading={submission === 'microsoft'} aria-describedby={entraHint ? 'entra-entry-hint' : undefined}
+            iconLeft={<span className="microsoft-mark" aria-hidden="true"><i /><i /><i /><i /></span>}
+            onClick={() => void microsoft()}>
+            Bejelentkezés Microsofttal
+          </Button>
+          {entraHint && <p id="entra-entry-hint" aria-live="polite">{entraHint}</p>}
+        </div>}
         {emailEnabled && <div className="dialog-actions">
           <Button type="button" variant="link" disabled={pending} onClick={() => { setMode('forgot'); setError(null); setNotice(null) }}>Elfelejtett jelszó</Button>
           <Button type="button" variant="link" disabled={pending} onClick={() => { setMode('resend'); setError(null); setNotice(null) }}>Megerősítő levél kérése</Button>

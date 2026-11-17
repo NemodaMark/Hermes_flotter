@@ -6,6 +6,7 @@ import { AuthScreen } from './AccountForms'
 import { AccountRecoveryScreen } from './AccountRecoveryScreen'
 import { clearAccountToken, readAccountLink } from './accountLink'
 import { api, ApiError } from './api'
+import * as entra from './entra'
 import App from './App'
 
 const token = { userId: 'anna', email: 'anna@example.test', token: 'secret_token' }
@@ -24,11 +25,29 @@ it('requests a reset email with the generic response and does not sign in', asyn
   expect(authenticated).not.toHaveBeenCalled()
 })
 
-it('offers Microsoft sign-in when configured and has no public registration', async () => {
+it('starts Entra login from the Microsoft button and allows retry after a failure', async () => {
   vi.spyOn(api, 'accountOptions').mockResolvedValue({ emailEnabled: true, requireEmailConfirmation: true, entraEnabled: true })
+  const start = vi.spyOn(entra, 'startEntra').mockRejectedValueOnce(new Error('A Microsoft-belépés átmenetileg nem érhető el.'))
+    .mockResolvedValueOnce(undefined)
   render(<AuthScreen onAuthenticated={vi.fn()} />)
-  expect(await screen.findByRole('button', { name: 'Bejelentkezés Microsofttal' })).toBeInTheDocument()
+  const button = screen.getByRole('button', { name: 'Bejelentkezés Microsofttal' })
+  await waitFor(() => expect(button).toBeEnabled())
+  const user = userEvent.setup()
+  await user.click(button)
+  expect(start).toHaveBeenCalledWith('login')
+  expect(await screen.findByRole('alert')).toHaveTextContent('átmenetileg nem érhető el')
+  await user.click(button)
+  expect(start).toHaveBeenCalledTimes(2)
   expect(screen.queryByText('Regisztráció')).not.toBeInTheDocument()
+})
+
+it('keeps the Microsoft button visible with a reason when it is unavailable', async () => {
+  vi.spyOn(api, 'accountOptions').mockResolvedValue({ emailEnabled: false, requireEmailConfirmation: false, entraEnabled: false })
+  render(<AuthScreen onAuthenticated={vi.fn()} />)
+  const button = screen.getByRole('button', { name: 'Bejelentkezés Microsofttal' })
+  expect(button).toBeDisabled()
+  await waitFor(() => expect(button).toHaveAccessibleDescription(/HTTPS és bekapcsolt Entra ID/))
+  expect(screen.getByRole('button', { name: 'Belépés' })).toBeEnabled()
 })
 
 it('validates both new passwords and allows retry after an expired token error', async () => {
