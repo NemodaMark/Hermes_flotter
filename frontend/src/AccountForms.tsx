@@ -5,7 +5,8 @@ import { ArrowRight, Building2, LoaderCircle, X } from 'lucide-react'
 import { api } from './api'
 import type { Session } from './api'
 import { startEntra } from './entra'
-import loginVehicle from './assets/hermes-login-studio.webp'
+import garageWide from './assets/login-garage-wide.webp'
+import garageMobile from './assets/login-garage-mobile.webp'
 
 export function AuthScreen({
   onAuthenticated,
@@ -75,11 +76,11 @@ export function AuthScreen({
 
   return (
     <main className="account-page fleet-auth">
-      <div className="fleet-auth-visual">
-        <header className="fleet-wordmark">HERMES <small>Flottakezelés</small></header>
-        <picture><source media="(min-width: 701px)" srcSet={loginVehicle} /><img alt="" width="1080" height="820" /></picture>
-        <a className="fleet-auth-credit" href={`${import.meta.env.BASE_URL}models/studio/LICENSE.md`}>Volkswagen Passat · ANDREO12 · CC BY 4.0</a>
-      </div>
+      <picture className="fleet-auth-backdrop">
+        <source media="(max-width: 900px)" srcSet={garageMobile} width={1008} height={684} />
+        <img src={garageWide} alt="" width={1920} height={1200} fetchPriority="high" decoding="async" />
+      </picture>
+      <header className="fleet-wordmark">HERMES <small>Flottakezelés</small></header>
       <div className="fleet-auth-controls">
       {invitationPending && (
         <p className="invitation-context">
@@ -145,6 +146,9 @@ export function AuthScreen({
         </div>}
       </section>
       </div>
+      <footer className="fleet-auth-footer">
+        <a className="fleet-auth-credit" href={`${import.meta.env.BASE_URL}models/studio/LICENSE.md`}>Golf 8 GTI · GT Cars: Hyperspeed · CC BY 4.0</a>
+      </footer>
     </main>
   )
 }

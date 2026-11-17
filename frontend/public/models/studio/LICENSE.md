@@ -14,9 +14,13 @@ The five current studio vehicles are licensed under [CC BY 4.0](https://creative
 
 Checksums for the checked-in GLBs are listed in [sources.json](sources.json).
 
-The login image is a HERMES render of ANDREO12's Volkswagen Passat with adapted paint, framing and lighting, under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-
 CC BY 4.0 permits commercial reuse and adaptation with creator credit, license link and a note about modifications. Manufacturer badges, logos and other third-party rights are outside the copyright license. The five source licenses are recorded in the GLB metadata and source list above.
+
+## Login scene
+
+The garage geometry and composition were created for HERMES. The desktop and mobile renders feature [Volkswagen Golf 8. GTI (A8) by GT Cars: Hyperspeed](https://sketchfab.com/3d-models/volkswagen-golf-8-gti-a8-e87d7c0f8937481db236529beb5ecab7), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The model was posed and repainted, and lamp emission was disabled for this render.
+
+The scene uses [Garage Floor](https://polyhaven.com/a/garage_floor), [Weathered Plank Siding](https://polyhaven.com/a/weathered_plank_siding), [Plaster Grey 04](https://polyhaven.com/a/plaster_grey_04) and [Studio Small 03](https://polyhaven.com/a/studio_small_03) from Poly Haven, released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). These materials and lighting are baked into the login images.
 
 ## Lighting and superseded assets
 
