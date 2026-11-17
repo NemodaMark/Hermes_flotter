@@ -18,7 +18,7 @@ public sealed partial class PermissionManagementTests
     {
         using var owner = await Register(); using var member = await Register();
         var first = await Company(owner); var second = await Company(owner); Select(owner, first.Id);
-        await Join(owner, member, first.Id, Permissions.VehiclesRead);
+        await Join(owner, member, first.Id, Permissions.VehiclesRead, Permissions.FleetOverviewRead);
         var overview = await CompanyGroup(owner, "Áttekintő", [first.Id], Permissions.VehiclesRead);
         var studio = await CompanyGroup(owner, "Autós", [first.Id], Permissions.VehiclesRead);
         var other = await CompanyGroup(owner, "Másik cég", [second.Id], Permissions.VehiclesRead);
@@ -67,6 +67,72 @@ public sealed partial class PermissionManagementTests
         var access = await Access(owner, member.User.Id);
         await owner.Client.PatchAsJsonAsync($"/api/v1/members/{member.User.Id}/status", new { isActive = false, version = access.Version });
         Assert.Equal(HttpStatusCode.Forbidden, (await member.Client.GetAsync("/api/v1/dashboard")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Dashboard_overview_requires_its_own_grant_and_aggregates_only_overlapping_vehicle_sites()
+    {
+        using var owner = await Register(); using var driver = await Register(); using var foreign = await Register();
+        var company = await Company(owner);
+        var a = await ScopeSite(owner, "A"); var b = await ScopeSite(owner, "B"); var c = await ScopeSite(owner, "C");
+        var carA = await ScopeCar(owner, "FLEET-A", a.Id);
+        var carB = await ScopeCar(owner, "FLEET-B", b.Id);
+        var carC = await ScopeCar(owner, "FLEET-C", c.Id);
+        var firstReadingOnly = await ScopeCar(owner, "FLEET-FRESH", b.Id);
+        var unassigned = await ScopeCar(owner, "FLEET-NONE");
+        var foreignCompany = await Company(foreign);
+        var read = await ScopedGroup(owner, "A és B járművei", company.Id, [a.Id, b.Id], Permissions.VehiclesRead);
+        var overview = await ScopedGroup(owner, "B és C áttekintője", company.Id, [b.Id, c.Id], Permissions.FleetOverviewRead);
+        await CompanyAssign(owner, driver.User.Id, read.Id);
+        Select(driver, company.Id);
+        Assert.Equal(HttpStatusCode.Forbidden, (await driver.Client.GetAsync("/api/v1/dashboard/overview")).StatusCode);
+        var personal = (await driver.Client.GetFromJsonAsync<DashboardSummary>("/api/v1/dashboard"))!;
+        Assert.False(personal.CanReadOverview);
+        Assert.Equal("Vehicle", personal.Mode);
+
+        var now = DateTimeOffset.UtcNow;
+        var period = new DateTimeOffset(now.Year, now.Month, 12, 12, 0, 0, TimeSpan.Zero).AddMonths(-2);
+        var before = period.AddMonths(-5);
+        var context = new TenantContext();
+        context.Set(company.Id, owner.User.Id, Permissions.All);
+        await using (var db = FleetFixture.CreateContext(fixture.MigrationConnection, context))
+        {
+            await TenantTransaction.RunAsync(db, company.Id, async () =>
+            {
+                foreach (var (id, km) in new[] { (carA.Id, 1000L), (carB.Id, 350L), (carC.Id, 900L), (unassigned.Id, 800L) })
+                {
+                    db.OdometerReadings.Add(new() { TenantId = company.Id, VehicleId = id, RecordedAt = before, Kilometers = 10000, RecordedBy = owner.User.Id });
+                    db.OdometerReadings.Add(new() { TenantId = company.Id, VehicleId = id, RecordedAt = period, Kilometers = 10000 + km, RecordedBy = owner.User.Id });
+                }
+                db.OdometerReadings.Add(new() { TenantId = company.Id, VehicleId = carB.Id, RecordedAt = period.AddMonths(1), Kilometers = 10500, RecordedBy = owner.User.Id });
+                db.OdometerReadings.Add(new() { TenantId = company.Id, VehicleId = firstReadingOnly.Id, RecordedAt = period, Kilometers = 78231, RecordedBy = owner.User.Id });
+                return await db.SaveChangesAsync();
+            }, CancellationToken.None);
+        }
+
+        await CompanyAssign(owner, driver.User.Id, read.Id, overview.Id);
+        Assert.True((await driver.Client.GetFromJsonAsync<DashboardSummary>("/api/v1/dashboard"))!.CanReadOverview);
+        var result = (await driver.Client.GetFromJsonAsync<DashboardOverview>($"/api/v1/dashboard/overview?site={b.Id}"))!;
+        Assert.Equal(new[] { carB.Id, firstReadingOnly.Id }, result.Vehicles.Select(x => x.Vehicle.Id));
+        Assert.Equal(6, result.MonthlyMileage.Length);
+        Assert.Equal(new long?[] { 350, 150 }, result.MonthlyMileage.Where(x => x.Kilometers.HasValue).Select(x => x.Kilometers));
+        var top = Assert.Single(result.TopVehicles);
+        Assert.Equal(carB.Id, top.VehicleId);
+        Assert.Equal(500, top.Kilometers);
+        var all = (await driver.Client.GetFromJsonAsync<DashboardOverview>("/api/v1/dashboard/overview"))!;
+        Assert.Equal(result.TopVehicles, all.TopVehicles);
+        foreach (var site in new[] { a.Id.ToString(), c.Id.ToString(), "none" })
+        {
+            var empty = (await driver.Client.GetFromJsonAsync<DashboardOverview>($"/api/v1/dashboard/overview?site={site}"))!;
+            Assert.Empty(empty.Vehicles);
+            Assert.Empty(empty.TopVehicles);
+            Assert.All(empty.MonthlyMileage, x => Assert.Null(x.Kilometers));
+        }
+        Select(driver, foreignCompany.Id);
+        Assert.Equal(HttpStatusCode.Forbidden, (await driver.Client.GetAsync("/api/v1/dashboard/overview")).StatusCode);
+        Select(driver, company.Id);
+        await CompanyAssign(owner, driver.User.Id, read.Id);
+        Assert.Equal(HttpStatusCode.Forbidden, (await driver.Client.GetAsync("/api/v1/dashboard/overview")).StatusCode);
     }
 
     [Fact]

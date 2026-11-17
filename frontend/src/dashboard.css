@@ -3,18 +3,38 @@
 .dashboard-view-switch { display: flex; padding: var(--space-1); background: var(--surface-subtle); border: 1px solid var(--line); border-radius: var(--radius-control); }
 .dashboard-view-switch button { display: inline-flex; align-items: center; gap: var(--space-2); padding: 8px 12px; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; font-size: 14px; }
 .dashboard-view-switch button[aria-pressed=true] { color: var(--primary); background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
-.dashboard-overview { overflow: hidden; min-width: 0; }
-.dashboard-overview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--line); }
-.dashboard-summary { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.dashboard-overview .sera-button.dashboard-summary-button { display: flex; align-items: center; gap: var(--space-2); padding: 8px 12px; color: var(--ink); white-space: normal; }
-.dashboard-summary-button strong { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.dashboard-summary-button span { font-size: 13px; font-weight: 400; }
+.fleet-overview { display: grid; gap: var(--space-4); min-width: 0; }
+.fleet-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--surface); overflow: hidden; }
+.fleet-metrics .fleet-metric { display: grid; grid-template-columns: auto minmax(0, 1fr); justify-content: start; align-content: start; align-items: center; gap: 6px 10px; padding: 18px clamp(12px, 2.4vw, 28px); border: 0; border-radius: 0; color: var(--muted); text-align: left; text-decoration: none; font-size: 13px; font-weight: 500; }
+.fleet-metric + .fleet-metric { border-inline-start: 1px solid var(--line); }
+.fleet-metric strong { grid-column: 1 / -1; color: var(--ink); font-size: 32px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.fleet-metrics .fleet-metric:hover { background: var(--primary-soft); }
+.fleet-metrics .fleet-metric:focus-visible { outline-offset: -4px; }
+.fleet-overview-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; gap: var(--space-4); }
+.fleet-overview-grid > section { overflow: hidden; }
+.fleet-mileage-chart { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: clamp(4px, 1vw, 18px); padding: 0 var(--space-5); margin: 0; list-style: none; }
+.fleet-mileage-chart li { display: grid; grid-template-rows: 28px 104px 28px; align-items: end; gap: 6px; min-width: 0; text-align: center; }
+.fleet-mileage-value { color: var(--ink); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fleet-mileage-chart time { align-self: center; color: var(--muted); font-size: 12px; }
+.fleet-mileage-bar { display: flex; align-items: flex-end; justify-content: center; height: 100%; border-bottom: 1px solid var(--line); }
+.fleet-mileage-bar > i { display: block; width: min(68%, 60px); height: 3px; background: var(--line); border-radius: 3px 3px 0 0; }
+.fleet-mileage-bar > i[data-measured=true] { background: var(--primary); }
+.fleet-mileage-note { padding: var(--space-3) var(--space-5) var(--space-4); color: var(--muted); font-size: 12px; }
+.fleet-rank :is(ol, ul) { margin: 0; padding: 0; list-style: none; }
+.fleet-rank li { position: relative; border-top: 1px solid var(--line); }
+.fleet-rank li:has(.fleet-rank-track) { padding-bottom: 7px; }
+.fleet-rank .sera-button { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-2); text-align: left; padding: 9px var(--space-5); border-radius: 0; color: var(--ink); }
+.fleet-rank button small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; overflow-wrap: anywhere; }
+.fleet-rank button > span:nth-child(2) { font-variant-numeric: tabular-nums; }
+.fleet-rank-track { position: absolute; bottom: 6px; height: 3px; inset-inline: var(--space-5); border-radius: 3px; background: var(--primary-soft); pointer-events: none; }
+.fleet-rank-track span { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
+.fleet-rank[id]:focus { outline-offset: -4px; }
 .dashboard-section-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-4) var(--space-5); }
 .dashboard-section-heading h3 { margin: 0; font-size: 16px; }
 .dashboard-section-heading h3 span, .dashboard-section-heading > span { color: var(--muted); font-weight: 400; font-size: 13px; }
 .dashboard-deadlines ul { list-style: none; margin: 0; padding: 0; }
 .dashboard-deadlines li { border-top: 1px solid var(--line); }
-.dashboard-overview .sera-button.dashboard-deadline { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(160px, 2fr) auto; align-items: center; gap: var(--space-4); width: 100%; padding: var(--space-4) var(--space-5); border-radius: 0; text-align: left; color: var(--ink); }
+.dashboard-deadlines .sera-button.dashboard-deadline { display: grid; grid-template-columns: minmax(72px, 1fr) minmax(90px, 1.4fr) auto; align-items: center; gap: var(--space-2); width: 100%; padding: var(--space-3) var(--space-5); border-radius: 0; text-align: left; color: var(--ink); }
 .dashboard-deadline strong { font-weight: 600; }
 .dashboard-deadline-detail { display: flex; flex-wrap: wrap; gap: 4px 16px; font-weight: 400; }
 .dashboard-deadline time { color: var(--muted); font-size: 13px; }
@@ -41,9 +61,14 @@
 .car-dashboard-model { font-size: 13px; color: #5d7781; }
 .car-picker { display: flex; align-items: center; gap: var(--space-2); font-size: 14px; min-width: 0; }
 .car-picker .choice { width: 220px; max-width: 100%; }
-.car-stage-wrap { position: relative; overflow: hidden; background: #dce4e5; container-type: inline-size; }
+.car-attention { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px clamp(12px, 3vw, 44px); border-bottom: 1px solid var(--line); background: var(--surface-subtle); }
+.car-attention > p { margin: 4px 0; color: var(--muted); font-size: 13px; }
+.car-attention .car-attention-notice { display: inline-flex; align-items: center; justify-content: start; flex-wrap: wrap; gap: 8px; min-height: 42px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); background: var(--surface); font-size: 13px; text-align: left; }
+.car-attention button.car-attention-notice:hover { background: var(--primary-soft); }
+.car-attention-notice .member-actions .secondary-button { min-height: 36px; }
+.car-stage-wrap { position: relative; overflow: hidden; background: #3e372e; container-type: inline-size; }
 .vehicle-studio { position: relative; width: 100%; height: clamp(380px,50vh,580px); isolation: isolate; }
-.vehicle-studio canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.vehicle-studio canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; }
 .vehicle-studio canvas:active { cursor: grabbing; }
 .studio-hotspots { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .studio-hotspot { pointer-events: auto; position: absolute; transform: translate(-15px,-15px); display: inline-flex; gap: 8px; align-items: center; border: 0; padding: 5px; border-radius: 5px; background: transparent; color: #173f46; font: inherit; cursor: pointer; visibility: hidden; }
@@ -51,29 +76,29 @@
 .studio-hotspot strong { position: absolute; left: var(--label-x); top: var(--label-y); transform: translate(-50%,-50%); font-size: 12px; font-weight: 500; padding: 7px 10px; border: 1px solid #b6c9cc; background: #fffffff5; border-radius: 4px; box-shadow: 0 2px 6px #24485113; white-space: nowrap; }
 .studio-hotspot > i { position: absolute; left: 17px; top: 17px; width: var(--leader-length); height: 1px; background: #668d95aa; transform: rotate(var(--leader-angle)); transform-origin: 0 0; pointer-events: none; z-index: -1; }
 .studio-hotspot:hover > span, .studio-hotspot:focus-visible > span { background: #124b47; box-shadow: 0 0 0 5px #358a7860; }
-.car-stage-meta { position: absolute; top: 15px; left: 22px; right: 18px; display: flex; align-items: start; justify-content: space-between; gap: 12px; pointer-events: none; color: #526e77; font-size: 12px; }
+.car-stage-meta { position: absolute; top: 15px; left: 22px; right: 18px; display: flex; align-items: start; justify-content: space-between; gap: 12px; pointer-events: none; font-size: 12px; }
 .car-stage-meta > span { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.car-stage-meta > span, .car-stage-instrument, .studio-flight-status { padding: 7px 11px; border-radius: var(--radius-control); background: #231f1be8; color: var(--surface); }
 .car-stage-meta i { width: 14px; height: 14px; border: 1px solid #8da1aa; border-radius: 50%; }
 .studio-reset { pointer-events: auto; display: flex; align-items: center; gap: 6px; border: 1px solid #a9bdc2; border-radius: 5px; padding: 7px 9px; background: #edf3f3dc; color: #3a5c66; font-size: 12px; }
-.car-stage-instrument { position: absolute; bottom: 20px; left: 24px; display: flex; align-items: center; gap: 9px; color: #335760; pointer-events: none; }
+.car-stage-instrument { position: absolute; bottom: 20px; left: 24px; display: flex; align-items: center; gap: 9px; pointer-events: none; }
 .car-stage-instrument strong { font-size: 24px; font-variant-numeric: tabular-nums; font-weight: 500; }
 .car-stage-instrument > span { font-size: 12px; }
-.studio-flight-status { position: absolute; right: 24px; bottom: 24px; font-size: 12px; color: #335760; }
+.studio-flight-status { position: absolute; right: 24px; bottom: 66px; font-size: 12px; }
 .studio-camera-controls { position: absolute; right: 20px; bottom: 17px; display: flex; border: 1px solid #abc0c6; background: #f9fcfce8; border-radius: 6px; z-index: 2; }
 .studio-camera-controls button { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; background: transparent; border: 0; color: #335760; cursor: pointer; }
 .studio-camera-controls button + button { border-left: 1px solid #c8d7dc; }
 .studio-camera-controls button:hover { background: #e6f2ef; }
-.studio-flight-status { bottom: 66px; }
 .car-menu { display: flex; flex-wrap: wrap; padding: 0 12px; border-top: 1px solid #c6d5da; }
 .car-menu button { flex: 1 1 130px; display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 67px; border: 0; border-bottom: 2px solid transparent; color: #325967; background: transparent; font-size: 12px; }
 .car-menu button > svg:last-child { width: 12px; color: #85a1aa; }
 .car-menu button:hover { border-bottom-color: #267c72; background: #f0f7f5; }
 .car-dashboard-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 12px 22px; border-top: 1px solid #e1e9eb; color: #617f89; background: #f6f9f9; font-size: 12px; }
 .car-dashboard-footer > span { display: flex; align-items: center; gap: 5px; }
-.studio-unavailable, .studio-loading { display: grid; place-content: center; text-align: center; padding: 40px; gap: 10px; color: #496873; }
+.studio-unavailable, .studio-loading { display: grid; min-height: 100%; place-content: center; text-align: center; padding: 40px; gap: 10px; color: var(--surface); }
 .studio-unavailable p { margin: 0; font-weight: 600; }
 .studio-unavailable span { font-size: 13px; }
-.studio-model-status { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 36px; background: #dce4e5ed; color: #335760; font-size: 13px; text-align: center; }
+.studio-model-status { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 36px; background: #342f29ed; color: var(--surface); font-size: 13px; text-align: center; }
 .studio-model-status p { max-width: 380px; margin: 0; }
 .studio-model-status button { border: 1px solid #91acb4; border-radius: 5px; background: #fff; padding: 8px 12px; color: #244d58; }
 .studio-credit { padding: 8px 22px; border-top: 1px solid var(--line); background: var(--surface-subtle); font-size: 12px; text-align: right; }
@@ -82,19 +107,26 @@
 .studio-vehicle-dialog > .vehicle-detail-panel { border: 0; }
 .studio-vehicle-dialog > .org-back { display: none; }
 .studio-vehicle-dialog::backdrop { background: #16343d40; backdrop-filter: none; }
-@media(max-width:1100px) { .car-dashboard-toolbar { flex-wrap: wrap; } .dashboard-overview-toolbar { flex-wrap: wrap; } }
+@media(max-width:1100px) { .car-dashboard-toolbar { flex-wrap: wrap; } }
+@media(max-width:860px) {
+  .fleet-overview-grid { grid-template-columns: minmax(0, 1fr); }
+}
 @media(max-width:600px) {
-  .dashboard-overview-toolbar { padding: var(--space-4); }
-  .dashboard-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1); width: 100%; }
-  .dashboard-overview .sera-button.dashboard-summary-button { flex-direction: column; align-items: flex-start; justify-content: flex-start; padding: 8px; gap: 2px; }
-  .dashboard-summary-button span { text-align: left; }
+  .fleet-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fleet-metric:nth-child(odd) { border-inline-start: 0; }
+  .fleet-metric:nth-child(n + 3) { border-block-start: 1px solid var(--line); }
+  .fleet-metrics .fleet-metric { padding: 12px var(--space-4); }
+  .fleet-metric strong { font-size: 26px; }
   .dashboard-section-heading, .dashboard-more, .dashboard-sites summary { padding: var(--space-4); }
-  .dashboard-overview .sera-button.dashboard-deadline { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: var(--space-4); }
+  .dashboard-deadlines .sera-button.dashboard-deadline { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: var(--space-4); }
   .dashboard-deadline-detail { grid-column: 1; gap: 2px; flex-direction: column; }
   .dashboard-deadline .sera-badge { grid-column: 2; grid-row: 1 / 3; }
   .dashboard-sites dl { grid-template-columns: 1fr; padding-inline: var(--space-4); }
   .dashboard-empty { padding: var(--space-5) var(--space-4); }
   .car-dashboard-toolbar { padding: var(--space-4); gap: var(--space-3); }
+  .car-dashboard-toolbar > .car-identity { display: grid; grid-template-columns: minmax(0, 1fr) auto; width: 100%; gap: 2px 8px; }
+  .car-identity .sera-badge { grid-area: 1 / 2; }
+  .car-dashboard-model { grid-column: 1 / -1; }
   .car-picker { width: 100%; }
   .car-picker .choice { flex: 1; width: auto; }
   .vehicle-studio { height: 370px; }
@@ -103,7 +135,7 @@
   .car-menu { padding: 0 6px; }
   .car-menu button { flex-basis: 40%; min-height: 56px; }
   .car-stage-meta { left: 16px; right: 12px; }
-  .car-stage-instrument { left: 16px; bottom: 65px; }
+  .car-stage-instrument { left: 16px; bottom: 14px; }
   .car-stage-meta > span { max-width: 55%; }
   .studio-camera-controls { right: 12px; bottom: 14px; }
   .studio-camera-controls button { width: 44px; height: 44px; }

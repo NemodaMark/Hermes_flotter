@@ -232,6 +232,9 @@ api.MapPost("/tenants", async (CreateTenantRequest request, HttpContext context,
 var vehicles = api.MapGroup("/vehicles").WithMetadata(new TenantRequired());
 api.MapGet("/dashboard", async (DashboardManagement service, CancellationToken ct) => Results.Ok(await service.Read(ct)))
     .WithMetadata(new TenantRequired());
+api.MapGet("/dashboard/overview", async (string? site, DashboardManagement service, CancellationToken ct)
+    => Results.Ok(await service.ReadOverview(site, ct)))
+    .WithMetadata(new TenantRequired()).RequireAuthorization(Permissions.FleetOverviewRead, Permissions.VehiclesRead);
 vehicles.MapGet("/site-options", async (IVehicleStore store, CancellationToken ct)
     => Results.Ok(await store.ReadSiteOptionsAsync(ct))).RequireAuthorization(Permissions.VehiclesRead);
 vehicles.MapGet("/create-options", async (IVehicleStore store, CancellationToken ct)

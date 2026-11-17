@@ -3,6 +3,7 @@ export const permissionNames: Record<string, string> = {
   'vehicles.documents.read': 'Járműokmányok megtekintése',
   'vehicles.documents.manage': 'Járműokmányok kezelése',
   'vehicles.read': 'Járművek megtekintése',
+  'vehicles.overview.read': 'Flottaáttekintő megtekintése',
   'vehicles.create': 'Jármű felvétele',
   'vehicles.update': 'Járműadatok szerkesztése',
   'vehicles.odometer.create': 'Kilométerállás rögzítése',

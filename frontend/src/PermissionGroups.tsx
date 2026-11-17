@@ -180,7 +180,7 @@ function DashboardFields({ mode, priority, onMode, onPriority, disabled }: {
   return <fieldset className="dashboard-preferences" disabled={disabled}><legend>Bejelentkezés utáni kezdőnézet</legend>
     <label>Dashboard típusa<Select value={mode} onChange={event => onMode(event.target.value as 'Overview' | 'Vehicle')}><option value="Overview">Áttekintő – a flotta összegzése</option><option value="Vehicle">Autós – egy jármű 3D nézete</option></Select></label>
     <label>Dashboard prioritása<input type="number" min={0} max={1000} step={1} required value={priority} onChange={event => onPriority(Number(event.target.value))} /></label>
-    <p className="field-hint">A nagyobb szám dönt az adott cégen belüli csoportok között. Eltérő nézetek azonos prioritásánál az áttekintő indul. A kezdőnézet nem ad új jogosultságot.</p>
+    <p className="field-hint">A nagyobb szám dönt a cégen belüli csoportok között. Azonos prioritásnál az Áttekintő indul, ha a felhasználónak van Flottaáttekintő megtekintése joga.</p>
   </fieldset>
 }
 function GroupDashboardDialog({ group, onClose, onChanged }: { group: PermissionGroup; onClose: () => void; onChanged: () => Promise<void> }) {

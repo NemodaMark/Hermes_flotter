@@ -506,6 +506,11 @@ namespace Hermes.Infrastructure.Migrations
                         },
                         new
                         {
+                            Code = "vehicles.overview.read",
+                            Name = "Flottaáttekintő megtekintése"
+                        },
+                        new
+                        {
                             Code = "vehicles.create",
                             Name = "Jármű felvétele"
                         },

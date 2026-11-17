@@ -12,6 +12,7 @@ import { vehiclePaint } from './vehicleAppearance'
 import type { VehicleModel } from './vehicleModels'
 import { vehicleHotspots } from './vehicleHotspots'
 import type { VehicleHotspot } from './vehicleHotspots'
+import { buildStudioGarage } from './studioGarageScene'
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
 
 export type StudioSection = 'data' | 'history' | 'services' | 'documents' | 'leases' | 'site' | 'photos'
@@ -41,14 +42,15 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
   onSelect: (key: StudioSection) => void; onFocused: (key: StudioSection) => void; onCancelled: () => void
 }) {
   const host = useRef<HTMLDivElement>(null), overlay = useRef<HTMLDivElement>(null)
-  const controls = useRef<{ focus: (key: StudioAction['key']) => void } | null>(null)
+  const controls = useRef<{ focus: (key: StudioAction['key']) => void; cancel: () => void } | null>(null)
   const invalidate = useRef<(() => void) | null>(null)
   const callbacks = useRef({ onFocused, onCancelled })
   useEffect(() => { callbacks.current = { onFocused, onCancelled } }, [onFocused, onCancelled])
   const pausedRef = useRef(paused)
   useEffect(() => {
     pausedRef.current = paused
-    if (!paused) invalidate.current?.()
+    if (paused) controls.current?.cancel()
+    else invalidate.current?.()
   }, [paused])
   const [unavailable, setUnavailable] = useState(() => !window.WebGL2RenderingContext)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -79,7 +81,11 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     renderer.domElement.setAttribute('aria-label', 'Forgatható 3D járműmodell')
     renderer.domElement.setAttribute('role', 'img')
     container.prepend(renderer.domElement)
-    const scene = new T.Scene(); scene.background = new T.Color('#e6e2d6'); scene.fog = new T.Fog('#e6e2d6', 14, 34)
+    const garageScale = Math.max(1, model.length / 4.8)
+    const scene = new T.Scene()
+    scene.background = new T.Color('#37322c')
+    scene.fog = new T.Fog('#37322c', 22 * garageScale, 69 * garageScale)
+    scene.add(buildStudioGarage(garageScale))
     const pmrem = new T.PMREMGenerator(renderer), room = new RoomEnvironment(), environment = pmrem.fromScene(room, .04)
     scene.environment = environment.texture; room.dispose(); pmrem.dispose()
     let lighting: T.DataTexture | undefined
@@ -87,22 +93,21 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       if (disposed || contextLost) { texture.dispose(); return }
       texture.mapping = T.EquirectangularReflectionMapping
       scene.environment = lighting = texture
-      scene.environmentIntensity = .8
+      scene.environmentIntensity = .62
       scene.environmentRotation.y = Math.PI * .25
       renderNeeded = true
     }).catch(() => { /* The local room environment remains available. */ })
-    const floor = new T.Mesh(new T.PlaneGeometry(150, 150), new T.MeshStandardMaterial({ color: '#dcd8cc', roughness: .86, metalness: 0, envMapIntensity: .4 }))
-    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor)
-    scene.add(new T.HemisphereLight('#ffffff', '#9baeb6', .45))
-    const key = new T.DirectionalLight('#fff9f0', 1.7); key.position.set(3, 7, 4); key.castShadow = true
+    scene.add(new T.HemisphereLight('#faf1e0', '#7f8588', .62))
+    const key = new T.DirectionalLight('#fff0da', 1.55); key.position.set(3, 7, 4); key.castShadow = true
     key.shadow.mapSize.set(1024, 1024); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6
     key.shadow.normalBias = .015; key.shadow.radius = 3; scene.add(key)
-    const fill = new T.DirectionalLight('#e5efff', .7); fill.position.set(-4, 3, -5); scene.add(fill)
-    const camera = new T.PerspectiveCamera(32, 1, .1, 80), home = new T.Vector3(4.3, 2.1, 5.4), homeTarget = new T.Vector3(0, .75, 0)
+    const fill = new T.DirectionalLight('#e2edff', .82); fill.position.set(-4, 3, -5); scene.add(fill)
+    const camera = new T.PerspectiveCamera(32, 1, .1, 80), home = new T.Vector3(4.3, 1.35, 5.4), homeTarget = new T.Vector3(0, .75, 0)
     camera.position.copy(home)
     const orbit = new OrbitControls(camera, renderer.domElement); orbit.target.copy(homeTarget)
+    renderer.domElement.style.touchAction = 'pan-y'
     orbit.enableDamping = true; orbit.dampingFactor = .075; orbit.enablePan = false; orbit.minDistance = 4.5; orbit.maxDistance = 16
-    orbit.minPolarAngle = .25; orbit.maxPolarAngle = Math.PI / 2 - .035; orbit.update()
+    orbit.minPolarAngle = .72; orbit.maxPolarAngle = Math.PI / 2 - .035; orbit.update()
     let shape: VehicleShape | null = null
     const positions: Partial<Record<StudioSection, VehicleHotspot>> = {}
     let hotspots: ReturnType<typeof vehicleHotspots> | null = null
@@ -113,7 +118,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     const labels: Record<StudioSection, [number, number]> = { data: [.3, .2], history: [.76, .78], services: [.85, .4], documents: [.69, .19], leases: [.14, .43], site: [.4, .83], photos: [.13, .68] }
     let flight: { key: StudioAction['key']; started: number; from: T.Vector3; targetFrom: T.Vector3; to: T.Vector3; targetTo: T.Vector3 } | null = null
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-    controls.current = { focus: section => {
+    controls.current = { cancel: cancelFlight, focus: section => {
       if (!loadedModel.current) { if (isSection(section)) callbacks.current.onFocused(section); return }
       if (!isSection(section)) callbacks.current.onCancelled()
       orbit.enabled = false
@@ -128,16 +133,16 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       } else { to = targets[section]; targetTo = positions[section]!.point.clone().lerp(homeTarget, .35) }
       flight = { key: section, started: performance.now(), from: camera.position.clone(), targetFrom: orbit.target.clone(), to, targetTo }
     } }
-    const cancelFlight = () => { if (flight) callbacks.current.onCancelled(); flight = null; orbit.enabled = true }
+    function cancelFlight() { if (flight) callbacks.current.onCancelled(); flight = null; orbit.enabled = true }
     renderer.domElement.addEventListener('pointerdown', cancelFlight, true)
     const fit = () => {
       const width = container.clientWidth, height = container.clientHeight; if (!width || !height) return
       camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height)
       const length = shape?.length ?? model.length, roof = shape?.roof ?? 1.5
       homeTarget.y = roof * .48
-      const distance = Math.max(length * 1.23, length * .65 / (Math.tan(T.MathUtils.degToRad(16)) * camera.aspect), roof * 2.7)
-      orbit.maxDistance = Math.max(16, distance * 1.5)
-      home.set(4.3, 2.1, 5.4).normalize().multiplyScalar(distance).add(homeTarget)
+      const distance = Math.max(length * 1.38, length * .65 / (Math.tan(T.MathUtils.degToRad(16)) * camera.aspect), roof * 2.85)
+      orbit.maxDistance = 15 * garageScale
+      home.set(4.3, 1.35, 5.4).normalize().multiplyScalar(distance).add(homeTarget)
       if (!flight) { camera.position.copy(home); orbit.target.copy(homeTarget); orbit.update() }
       renderNeeded = true
       renderer.render(scene, camera)
@@ -156,7 +161,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       hotspots = vehicleHotspots(vehicle.model, length)
       const anchor = (x: number, y: number, z: number, nx: number, ny: number, nz: number) => hotspots!.anchor(new T.Vector3(x, y, z), new T.Vector3(nx, ny, nz))
       const cameraScale = Math.max(1, length / 4.8, roof / 2)
-      orbit.minDistance = Math.max(4.5, length * .8); orbit.maxDistance = Math.max(16, length * 3)
+      orbit.minDistance = Math.max(4.5, length * .8)
       for (const target of Object.values(targets)) target.multiplyScalar(cameraScale)
       Object.assign(positions, {
         data: anchor(-.05 * length, roof, 0, 0, 1, 0), history: anchor(frontAxle, .34, width * .43, 0, 0, 1),

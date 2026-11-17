@@ -19,22 +19,51 @@ const user={id:'anna',displayName:'Anna',email:'anna@example.test'}
 const tenant={id:'company',name:'Duna',permissions:['vehicles.read','vehicles.leasing.read']}
 const car:DashboardCar={vehicle:{id:'first',registration:'AAA-001',make:'Ford',model:'Focus',status:'Active',siteId:'bp',siteName:'Budapest',odometerKm:14000,permissions:['vehicles.read','vehicles.odometer.create']},bodyType:'Estate',color:'Kék',inspectionDueDate:'2026-10-15',insuranceDueDate:null,nextServiceDate:null,nextServiceKm:20000,isAssignedToMe:false}
 function mount(data:Partial<Dashboard>={},siteId='all') {
-  vi.spyOn(dashboardApi,'read').mockResolvedValue({mode:'Overview',priority:10,sourceGroup:'Sofőrök',canReadVehicles:true,vehicles:[car],...data})
+  const today = '2026-10-24'
+  const vehicles = data.vehicles ?? [car]
+  vi.spyOn(dashboardApi,'read').mockResolvedValue({ mode:'Overview', priority:10, sourceGroup:'Sofőrök',
+    canReadVehicles:true, canReadOverview:true, today, vehicles, ...data })
+  const loadOverview = vi.spyOn(dashboardApi, 'overview').mockResolvedValue({
+    today, vehicles: vehicles.filter(({ vehicle }) => siteId === 'all' || vehicle.siteId === siteId),
+    monthlyMileage: [{ month: '2026-09-01', kilometers: 214 }, { month: '2026-10-01', kilometers: null }],
+    topVehicles: [{ vehicleId: car.vehicle.id, registration: car.vehicle.registration, make: car.vehicle.make, model: car.vehicle.model, kilometers: 214 }],
+  })
   const client=new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}})
   const onFleet=vi.fn(),onVehicle=vi.fn()
   render(<QueryClientProvider client={client}><DashboardPage user={user} tenant={tenant} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle}/></QueryClientProvider>)
-  return {onFleet,onVehicle}
+  return {onFleet,onVehicle,loadOverview}
 }
 it('summarizes only the selected site and opens a due vehicle through its authorized ID',async()=>{
   vi.setSystemTime(new Date('2026-10-24T09:00:00Z'))
   try {
-    const {onVehicle}=mount({vehicles:[car,{...car,vehicle:{...car.vehicle,id:'other',siteId:'other',registration:'BBB-002'}}]},'bp')
-    await screen.findByRole('heading',{name:'Flotta áttekintés'})
+    const {onVehicle,loadOverview}=mount({vehicles:[car,{...car,vehicle:{...car.vehicle,id:'other',siteId:'other',registration:'BBB-002'}}]},'bp')
+    await screen.findByRole('heading',{name:'Havi futásteljesítmény'})
+    expect(loadOverview).toHaveBeenCalledWith('company', 'bp', expect.any(AbortSignal))
     expect(screen.queryByText('BBB-002')).not.toBeInTheDocument()
     expect(screen.getByText('9 napja lejárt')).toBeInTheDocument()
+    expect(screen.getByRole('listitem', { name: /október · nincs mérhető adat/ })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'AAA-001 · 214 km' }))
+    expect(onVehicle).toHaveBeenLastCalledWith('first')
     await userEvent.click(screen.getByRole('button',{name:'AAA-001 · Műszaki vizsga'}))
     expect(onVehicle).toHaveBeenCalledWith('first')
   } finally { vi.useRealTimers() }
+})
+it('grants a personal garage without ever requesting fleet statistics for an ordinary driver', async () => {
+  const { loadOverview } = mount({ mode: 'Overview', canReadOverview: false })
+  expect(await screen.findByRole('region', { name: 'Autós dashboard' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Áttekintő' })).not.toBeInTheDocument()
+  expect(loadOverview).not.toHaveBeenCalled()
+})
+it('surfaces service deadlines and lets an authorized driver record a missing odometer reading', async () => {
+  mount({ canReadOverview: false, vehicles: [{ ...car, nextServiceDate: '2026-10-27', vehicle: {
+    ...car.vehicle, odometerKm: undefined, version: 4, permissions: ['vehicles.read', 'vehicles.service.read', 'vehicles.odometer.create'],
+  } }] })
+  const tasks = await screen.findByRole('region', { name: 'Jármű teendői' })
+  await userEvent.click(within(tasks).getByRole('button', { name: /Következő szerviz.*3 nap múlva/ }))
+  expect(await screen.findByText('Megnyitott rész: services')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Bezárás' }))
+  await userEvent.click(within(tasks).getByRole('button', { name: 'Kilométerállás: AAA-001' }))
+  expect(await screen.findByRole('dialog', { name: 'Kilométerállás rögzítése' })).toBeInTheDocument()
 })
 it('makes every deadline reachable beyond the compact initial list', async () => {
   vi.setSystemTime(new Date('2026-10-24T09:00:00Z'))

@@ -16,13 +16,16 @@ import { VehiclePhotos, VehicleAssignee } from './VehicleMedia'
 import { VehicleFields } from './VehicleFields'
 import { VehicleAssignmentHistory } from './VehicleAssignmentHistory'
 import { VehicleActions } from './VehicleActions'
+import { ProfileVehicleGarage } from './VehicleGarage'
 import './fleet.css'
 
 const VehicleBookingCalendar = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleBookingCalendar })))
 const VehicleFuel = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleFuel })))
 const VehicleHandovers = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleHandovers })))
 
-export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data' }: { user: Session; tenant: Tenant; id: string; onBack: () => void; initialTab?: string }) {
+export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', showGarage = true }: {
+  user: Session; tenant: Tenant; id: string; onBack: () => void; initialTab?: string; showGarage?: boolean
+}) {
   const client = useQueryClient()
   const [tab, setTab] = useState(initialTab)
   const [archiveOpen, setArchiveOpen] = useState(false)
@@ -45,7 +48,8 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data' }: {
       client.invalidateQueries({ queryKey: ['dashboard'] }),
     ])
   }
-  const tabs = [['data', 'Adatlap'], ['site', 'Telephely és használó'], ['photos', 'Képek'], ['assignees', 'Használati előzmények'],
+  const tabs = [['data', 'Adatlap'], ...(showGarage ? [['garage', '3D garázs']] : []),
+    ['site', 'Telephely és használó'], ['photos', 'Képek'], ['assignees', 'Használati előzmények'],
     ...(can('vehicles.bookings.read') || can('vehicles.bookings.manage') ? [['bookings', 'Foglalások']] : []),
     ...(can('vehicles.fuel.read') || can('vehicles.fuel.manage') ? [['fuel', 'Tankolások']] : []),
     ['handovers', 'Átadás-átvétel'],
@@ -81,6 +85,8 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data' }: {
         {activeTab === 'history' && <VehicleHistory tenantId={tenant.id} id={id} />}
         {activeTab === 'assignees' && <VehicleAssignmentHistory tenantId={tenant.id} id={id} />}
         <Suspense fallback={<p className="notice" role="status">Betöltés…</p>}>
+          {activeTab === 'garage' && <ProfileVehicleGarage key={car!.id} car={car!}
+            bodyType={record.data.data.bodyType ?? 'Unknown'} color={record.data.data.color} />}
           {activeTab === 'bookings' && <VehicleBookingCalendar tenant={tenant} car={car!} userId={user.id} onChanged={changed} />}
           {activeTab === 'fuel' && <VehicleFuel tenant={tenant} car={car!} />}
           {activeTab === 'handovers' && <VehicleHandovers tenant={tenant} car={car!} onChanged={() => changed('Az átadás elmentve.')} />}

@@ -5,6 +5,7 @@ public sealed record PermissionDescription(string Code, string Name);
 public static class Permissions
 {
     public const string VehiclesRead = "vehicles.read";
+    public const string FleetOverviewRead = "vehicles.overview.read";
     public const string VehiclesCreate = "vehicles.create";
     public const string VehiclesUpdate = "vehicles.update";
     public const string VehiclesAssignUsers = "vehicles.users.assign";
@@ -41,7 +42,7 @@ public static class Permissions
     public const string SitesAssignVehicles = "sites.vehicles.assign";
     public static readonly IReadOnlyList<PermissionDescription> Catalog = Array.AsReadOnly(new[]
     {
-        new PermissionDescription(VehiclesRead, "Járművek megtekintése"), new(VehiclesCreate, "Jármű felvétele"),
+        new PermissionDescription(VehiclesRead, "Járművek megtekintése"), new(FleetOverviewRead, "Flottaáttekintő megtekintése"), new(VehiclesCreate, "Jármű felvétele"),
         new(VehiclesUpdate, "Járműadatok szerkesztése"), new(OdometerCreate, "Kilométerállás rögzítése"),
         new(VehiclesAssignUsers, "Jármű felhasználóhoz rendelése"),
         new(VehiclesArchive, "Jármű archiválása és visszaállítása"),

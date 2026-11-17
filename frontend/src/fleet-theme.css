@@ -126,9 +126,8 @@
 .app-shell .admin-navigation .nav-item { margin: 0; width: 100%; }
 .app-shell :is(.fleet-panel, .organization-panel, .access-panel, .profile-summary, .car-dashboard) { background: var(--surface); border-color: var(--line); }
 .app-shell .car-dashboard-toolbar, .app-shell .car-menu, .app-shell .car-dashboard-footer { border-color: var(--line); }
-.app-shell .car-stage-wrap { background: #e9e6dc; }
-.app-shell :is(.car-dashboard-model, .car-stage-meta, .car-dashboard-footer, .studio-credit a) { color: var(--muted); }
-.app-shell :is(.car-stage-instrument, .studio-flight-status, .studio-camera-controls button, .car-menu button, .studio-reset) { color: var(--primary-hover); }
+.app-shell :is(.car-dashboard-model, .car-dashboard-footer, .studio-credit a) { color: var(--muted); }
+.app-shell :is(.studio-camera-controls button, .car-menu button, .studio-reset) { color: var(--primary-hover); }
 .app-shell :is(.studio-reset, .studio-camera-controls) { background: var(--surface-subtle); border-color: var(--control-border); }
 .app-shell .car-menu button:hover { background: var(--primary-soft); border-bottom-color: var(--primary); }
 .app-shell .car-dashboard-footer { background: var(--surface-subtle); }
@@ -144,7 +143,7 @@
 }
 .dashboard-studio .car-registration { margin: 0; }
 .dashboard-studio .car-dashboard-toolbar > .car-dashboard-actions { gap: 10px; align-items: center; }
-.dashboard-studio .vehicle-studio { height: max(420px, calc(100dvh - 300px)); }
+.dashboard-studio .vehicle-studio { height: max(350px, calc(100svh - 352px)); }
 .dashboard-studio .car-menu button { min-height: 50px; }
 .dashboard-studio .car-dashboard-footer, .dashboard-studio .studio-credit { padding-inline: clamp(16px, 3vw, 44px); }
 
@@ -212,6 +211,6 @@
   .sidebar .settings-links { display: flex; flex-wrap: wrap; }
   .dashboard-studio .car-dashboard-actions { width: 100%; }
   .dashboard-studio .car-picker { flex: 1 1 130px; width: auto; }
-  .dashboard-studio .vehicle-studio { height: clamp(300px, 45dvh, 440px); }
+  .dashboard-studio .vehicle-studio, .profile-garage .vehicle-studio { height: clamp(280px, 40svh, 390px); }
   .dashboard-studio .studio-credit { text-align: start; }
 }

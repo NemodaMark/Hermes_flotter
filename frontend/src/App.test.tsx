@@ -51,7 +51,9 @@ function mountApp({
         }
         return json(tenants)
       }
-      if (path === '/api/v1/dashboard') return json({ mode: 'Overview', priority: 0, sourceGroup: null, canReadVehicles: true, vehicles: [] })
+      if (path === '/api/v1/dashboard') return json({ mode: 'Overview', priority: 0, sourceGroup: null,
+        canReadVehicles: true, canReadOverview: true, today: '2026-11-17', vehicles: [] })
+      if (path.startsWith('/api/v1/dashboard/overview?')) return json({ today: '2026-11-17', vehicles: [], monthlyMileage: [], topVehicles: [] })
       if (path.endsWith('/permissions') || path.endsWith('/permission-groups') || path.endsWith('/permission-groups/companies')) return json([])
       if (/\/(members|people|invitations)(\?|$)/.test(path)) return json({ items: [], total: 0, page: 1, pageSize: 25 })
       if (path.endsWith('/vehicles/create-options')) return json({ canCreateUnassigned, sites: [{ id: 'site-a', name: 'Budapest', code: 'BP' }] })
