@@ -7,52 +7,78 @@ import type { SaveVehicle, VehicleSpecification, PartnerOption } from './fleetAp
 import { DateField, NotesField, NumberField, SelectField } from './FleetFields'
 import { request } from './api'
 import { VehicleFieldSections } from './VehicleFieldSections'
+import { bodyNames, vehiclePaint } from './vehicleAppearance'
 import './vehicle-layout.css'
 
-const bodyTypes: Record<string, string> = { Unknown: 'Nincs megadva', Sedan: 'Szedán', Hatchback: 'Ferdehátú', Estate: 'Kombi', Suv: 'SUV / terepjáró', Coupe: 'Kupé', Convertible: 'Kabrió', Minivan: 'Egyterű', Van: 'Furgon', Pickup: 'Pickup', ChassisCab: 'Alvázas', Box: 'Dobozos', Tipper: 'Billencs', Other: 'Egyéb' }
 const baseMakes = ['Audi', 'BMW', 'Citroën', 'Dacia', 'Fiat', 'Ford', 'Hyundai', 'Kia', 'Mercedes-Benz', 'Nissan', 'Opel', 'Peugeot', 'Renault', 'Škoda', 'Suzuki', 'Toyota', 'Volkswagen', 'Volvo']
-export function VehicleFields({ tenantId, data, setData, disabled, serviceOptions = [], preferredServicePartnerName }: {
-  tenantId: string; data: SaveVehicle; setData: (data: SaveVehicle) => void; disabled: boolean; serviceOptions?: PartnerOption[]; preferredServicePartnerName?: string | null
+const paintChoices = ['Fehér', 'Fekete', 'Szürke', 'Ezüst', 'Kék', 'Világoskék', 'Sötétkék', 'Piros', 'Bordó', 'Zöld', 'Sárga', 'Narancs', 'Barna', 'Bézs', 'Lila']
+
+function VehicleValue({ label, value }: { label: string; value: string | null }) {
+  return <div className="org-field"><span>{label}</span><p className="vehicle-read-value">{value || 'Nincs megadva'}</p></div>
+}
+
+export function VehicleFields({ tenantId, data, setData, disabled, readOnly = false, serviceOptions = [], preferredServicePartnerName }: {
+  tenantId: string; data: SaveVehicle; setData: (data: SaveVehicle) => void; disabled: boolean; readOnly?: boolean
+  serviceOptions?: PartnerOption[]; preferredServicePartnerName?: string | null
 }) {
   const [currentYear] = useState(() => new Date().getFullYear())
   const catalog = useQuery({ queryKey: ['vehicle-catalog', tenantId], queryFn: ({ signal }) => request<{ make: string; model: string }[]>('/api/v1/vehicles/catalog', { tenantId, signal }), enabled: !disabled, retry: false })
   const makes = [...new Set([...baseMakes, ...(catalog.data ?? []).map(x => x.make)])].sort((a, b) => a.localeCompare(b, 'hu'))
   const models = [...new Set((catalog.data ?? []).filter(x => x.make.toLocaleLowerCase('hu') === data.make.toLocaleLowerCase('hu')).map(x => x.model))].sort((a, b) => a.localeCompare(b, 'hu'))
   const spec = data.data
+  const paint = vehiclePaint(spec.color)
+  const bodyType = spec.bodyType && Object.hasOwn(bodyNames, spec.bodyType) ? spec.bodyType : 'Unknown'
   const set = (key: keyof VehicleSpecification, value: string | number | null) => setData({ ...data, data: { ...spec, [key]: value } })
   const num = (key: keyof VehicleSpecification, label: string, max = 100000000, step = 1) => <NumberField label={label} value={spec[key] as number | null} onChange={x => set(key, x)} max={max} step={step} disabled={disabled} />
   const date = (key: keyof VehicleSpecification, label: string) => <DateField label={label} value={spec[key] as string | null} onChange={x => set(key, x)} disabled={disabled} />
+  const choice = (label: string, value: string, options: Record<string, string>, onChange: (value: string) => void) =>
+    readOnly ? <VehicleValue label={label} value={options[value] ?? value} />
+      : <SelectField label={label} value={value} options={options} onChange={onChange} disabled={disabled} />
+  const catalogChoice = (label: string, value: string, options: string[], onChange: (value: string) => void) =>
+    readOnly ? <VehicleValue label={label} value={value} />
+      : <label className="org-field"><span>{label}</span><ComboBox label={label} value={value} options={options} onChange={onChange} disabled={disabled} /></label>
   return <VehicleFieldSections>{{
     basic: <fieldset disabled={disabled}><legend>Alapadatok</legend><div className="org-form-grid">
       <TextField label="Rendszám" value={data.registration} onChange={x => setData({ ...data, registration: x })} required maxLength={16} disabled={disabled} />
       <TextField label="Rendszám országkódja" value={spec.registrationCountry} onChange={x => set('registrationCountry', x)} required maxLength={2} disabled={disabled} />
       <TextField label="Alvázszám (VIN)" value={spec.vin} onChange={x => set('vin', x)} maxLength={17} disabled={disabled} />
-      <label className="org-field"><span>Gyártó</span><ComboBox label="Gyártó" value={data.make} options={makes} onChange={x => setData({ ...data, make: x })} disabled={disabled} /></label>
-      <label className="org-field"><span>Modell</span><ComboBox label="Modell" value={data.model} options={models} onChange={x => setData({ ...data, model: x })} disabled={disabled} /></label>
+      {catalogChoice('Gyártó', data.make, makes, x => setData({ ...data, make: x }))}
+      {catalogChoice('Modell', data.model, models, x => setData({ ...data, model: x }))}
       <TextField label="Flottaazonosító" value={spec.fleetNumber} onChange={x => set('fleetNumber', x)} maxLength={40} disabled={disabled} />
-      <SelectField label="Karosszéria" value={spec.bodyType ?? 'Unknown'} options={bodyTypes} onChange={x => set('bodyType', x)} disabled={disabled} />
-      <SelectField label="Járműkategória" value={spec.category} options={categories} onChange={x => set('category', x)} disabled={disabled} />
+      {choice('Karosszéria', bodyType, bodyNames, x => set('bodyType', x))}
+      {choice('Járműkategória', spec.category, categories, x => set('category', x))}
       {num('year', 'Gyártási év', currentYear + 1)}
-      <TextField label="Szín" value={spec.color} onChange={x => set('color', x)} maxLength={40} disabled={disabled} />
+      {readOnly ? <VehicleValue label="Szín" value={spec.color} /> : <div className="org-field">
+        <span>Szín</span>
+        <div className="vehicle-color-field">
+          <ComboBox label="Szín" value={spec.color ?? ''} options={paintChoices} onChange={x => set('color', x || null)}
+            disabled={disabled} required={false} maxLength={40} placeholder="Színnév vagy #HEX" />
+          <input type="color" aria-label="Egyéni szín kiválasztása" title="Egyéni szín kiválasztása" disabled={disabled}
+            value={paint.hex} onChange={event => set('color', event.target.value)} />
+        </div>
+        <small className="field-hint">{spec.color && !paint.matched
+          ? 'A 3D előnézethez válassz színmintát, vagy adj meg HEX-kódot.'
+          : 'Válassz egy színt a listából vagy a színmintára kattintva.'}</small>
+      </div>}
     </div></fieldset>,
     technical: <fieldset disabled={disabled}><legend>Műszaki adatok</legend><div className="org-form-grid">
-      <SelectField label="Üzemanyag / hajtás" value={spec.fuelType} options={fuels} onChange={x => set('fuelType', x)} disabled={disabled} />
-      <SelectField label="Váltó" value={spec.transmission} options={transmissions} onChange={x => set('transmission', x)} disabled={disabled} />
+      {choice('Üzemanyag / hajtás', spec.fuelType, fuels, x => set('fuelType', x))}
+      {choice('Váltó', spec.transmission, transmissions, x => set('transmission', x))}
       {num('powerKw', 'Teljesítmény (kW)', 10000, 0.001)}{num('engineCapacityCc', 'Hengerűrtartalom (cm³)', 100000)}{num('seats', 'Ülések száma', 500)}
       {(['Electric', 'PluginHybrid', 'Hybrid'].includes(spec.fuelType) || spec.batteryKwh !== null) && num('batteryKwh', 'Akkumulátor (kWh)', 10000, 0.001)}
       {num('grossWeightKg', 'Megengedett össztömeg (kg)', 200000)}
       {(['Van', 'Truck', 'Trailer'].includes(spec.category) || spec.payloadKg !== null || spec.cargoVolumeM3 !== null) && <>{num('payloadKg', 'Teherbírás (kg)', 200000)}{num('cargoVolumeM3', 'Raktér (m³)', 1000, 0.001)}</>}
     </div></fieldset>,
     operation: <fieldset disabled={disabled}><legend>Üzemeltetés</legend><div className="org-form-grid">
-      <SelectField label="Állapot" value={data.status} options={data.status === 'Archived' ? vehicleStatuses : { Active: 'Aktív', Maintenance: 'Szervizben', Inactive: 'Inaktív' }} onChange={x => setData({ ...data, status: x })} disabled={disabled} />
-      <SelectField label="Tulajdonlás" value={spec.ownership} options={ownerships} onChange={x => set('ownership', x)} disabled={disabled} />
+      {choice('Állapot', data.status, data.status === 'Archived' ? vehicleStatuses : { Active: 'Aktív', Maintenance: 'Szervizben', Inactive: 'Inaktív' }, x => setData({ ...data, status: x }))}
+      {choice('Tulajdonlás', spec.ownership, ownerships, x => set('ownership', x))}
       {date('firstRegistration', 'Első forgalomba helyezés')}{date('fleetEntryDate', 'Flottába kerülés')}{date('fleetExitDate', 'Flottából kilépés')}
       <div className="vehicle-wide-field"><NotesField value={spec.notes} onChange={x => set('notes', x)} disabled={disabled} /></div>
     </div></fieldset>,
     deadlines: <fieldset disabled={disabled}><legend>Határidők és szerviz</legend><div className="org-form-grid">
       {date('inspectionDueDate', 'Műszaki vizsga lejárata')}{date('insuranceDueDate', 'Biztosítás lejárata')}{date('nextServiceDate', 'Következő szerviz dátuma')}{num('nextServiceKm', 'Következő szerviz (km)')}
-      <SelectField label="Alapértelmezett szervizpartner" value={spec.preferredServicePartnerId ?? ''} onChange={x => set('preferredServicePartnerId', x || null)} disabled={disabled}
-        options={{ '': 'Nincs kijelölve', ...(spec.preferredServicePartnerId ? { [spec.preferredServicePartnerId]: preferredServicePartnerName ?? 'Jelenlegi szervizpartner' } : {}), ...Object.fromEntries((serviceOptions ?? []).map(x => [x.id, x.name])) }} />
+      {choice('Alapértelmezett szervizpartner', spec.preferredServicePartnerId ?? '',
+        { '': 'Nincs kijelölve', ...(spec.preferredServicePartnerId ? { [spec.preferredServicePartnerId]: preferredServicePartnerName ?? 'Jelenlegi szervizpartner' } : {}), ...Object.fromEntries(serviceOptions.map(x => [x.id, x.name])) }, x => set('preferredServicePartnerId', x || null))}
     </div></fieldset>,
   }}</VehicleFieldSections>
 }

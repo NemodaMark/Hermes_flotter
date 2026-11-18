@@ -32,6 +32,8 @@ vi.mock('three/addons/controls/OrbitControls.js', () => ({ OrbitControls: class 
   camera: PerspectiveCamera
   constructor(camera: PerspectiveCamera) { this.camera = camera }
   update() { this.camera.lookAt(this.target) }
+  addEventListener() {}
+  removeEventListener() {}
   dispose() {}
 } }))
 let frames: Map<number, FrameRequestCallback>, sequence: number
@@ -47,7 +49,7 @@ beforeEach(() => {
 const props = () => ({ model: vehicleModel('Coupe'), color: 'Kék', menus: [{ key: 'data' as const, label: 'Járműadatok' }], action: null, onSelect: vi.fn(), onFocused: vi.fn(), onCancelled: vi.fn() })
 function asset() {
   const scene = new Group(), paint = new MeshPhysicalMaterial({ color: '#ff0000' }); paint.name = 'Paint 1'
-  const geometry = new BoxGeometry(2, 1.2, 4.8); scene.add(new Mesh(geometry, paint))
+  const geometry = new BoxGeometry(4.8, 1.2, 2); scene.add(new Mesh(geometry, paint))
   return { gltf: { scene } as GLTF, paint, geometry }
 }
 async function frame(time: number) {
@@ -83,6 +85,25 @@ it('keeps direct menu access after a load failure and can retry the local asset'
   await screen.findByRole('button', { name: 'Forgatás jobbra' })
   expect(mocks.load).toHaveBeenCalledTimes(2)
   expect(callbacks.onFocused).toHaveBeenCalledTimes(1)
+})
+it('renders consecutive 60 Hz camera frames and stops scheduling frames at rest', async () => {
+  mocks.load.mockResolvedValue(asset().gltf)
+  render(<VehicleStudio {...props()} />)
+  await screen.findByRole('button', { name: 'Forgatás jobbra' })
+  await frame(100)
+  await frame(117)
+  expect(frames.size).toBe(0)
+
+  vi.spyOn(performance, 'now').mockReturnValue(200)
+  mocks.render.mockClear()
+  fireEvent.click(screen.getByRole('button', { name: 'Forgatás jobbra' }))
+  await frame(217)
+  await frame(234)
+  expect(mocks.render).toHaveBeenCalledTimes(2)
+
+  await frame(1000)
+  await frame(1017)
+  expect(frames.size).toBe(0)
 })
 it('hides a side hotspot with its label and leader when rotated behind the car, then restores it', async () => {
   mocks.load.mockResolvedValue(asset().gltf)

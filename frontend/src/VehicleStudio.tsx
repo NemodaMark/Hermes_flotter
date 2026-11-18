@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
 import studioLight from './assets/vehicles/studio-small-03.hdr?url'
-import { disposeVehicleModel, prepareVehicleModel, setVehiclePaint } from './vehicleSceneModel'
+import { batchVehicleMeshes, disposeVehicleModel, prepareVehicleModel, setVehiclePaint } from './vehicleSceneModel'
 import type { VehicleShape } from './vehicleSceneModel'
 import { vehiclePaint } from './vehicleAppearance'
 import type { VehicleModel } from './vehicleModels'
@@ -15,7 +15,7 @@ import type { VehicleHotspot } from './vehicleHotspots'
 import { buildStudioGarage } from './studioGarageScene'
 import { ChevronLeft, ChevronRight, Maximize, Minimize, Minus, Plus, RotateCcw } from 'lucide-react'
 
-export type StudioSection = 'data' | 'history' | 'services' | 'documents' | 'leases' | 'site' | 'photos'
+export type StudioSection = 'data' | 'history' | 'services' | 'documents' | 'leases' | 'site' | 'photos' | 'bookings' | 'fuel' | 'handovers' | 'assignees' | 'audit'
 type CameraAction = 'home' | 'left' | 'right' | 'closer' | 'farther'
 export type StudioAction = { key: StudioSection | CameraAction; sequence: number }
 export type StudioMenu = { key: StudioSection; label: string }
@@ -43,15 +43,14 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
   onReset?: () => void
 }) {
   const host = useRef<HTMLDivElement>(null), overlay = useRef<HTMLDivElement>(null)
-  const controls = useRef<{ focus: (key: StudioAction['key']) => void; cancel: () => void } | null>(null)
+  const controls = useRef<{ focus: (key: StudioAction['key']) => void } | null>(null)
   const invalidate = useRef<(() => void) | null>(null)
   const callbacks = useRef({ onFocused, onCancelled })
   useEffect(() => { callbacks.current = { onFocused, onCancelled } }, [onFocused, onCancelled])
   const pausedRef = useRef(paused)
   useEffect(() => {
     pausedRef.current = paused
-    if (paused) controls.current?.cancel()
-    else invalidate.current?.()
+    if (!paused) invalidate.current?.()
   }, [paused])
   const [unavailable, setUnavailable] = useState(() => !window.WebGL2RenderingContext)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -84,13 +83,32 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     if (!window.WebGL2RenderingContext) return
     queueMicrotask(() => setLoadState('loading'))
     let renderer: T.WebGLRenderer
-    try { renderer = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'low-power' }) }
+    try { renderer = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' }) }
     catch { queueMicrotask(() => setUnavailable(true)); return }
     let disposed = false, contextLost = false
-    let renderNeeded = true
-    invalidate.current = () => { renderNeeded = true }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6))
+    let renderNeeded = true, frame = 0, previousFrame = 0
+    let width = 0, height = 0, resolution = 0, quality = 1, slowFrames = 0, fastFrames = 0
+    function requestFrame() {
+      if (!frame && !disposed && !contextLost && !container.ownerDocument.hidden) frame = requestAnimationFrame(animate)
+    }
+    function invalidateFrame() { renderNeeded = true; requestFrame() }
+    invalidate.current = invalidateFrame
+    function setResolution() {
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.35, Math.sqrt(1_100_000 / (width * height))) * quality
+      if (resolution !== pixelRatio) { resolution = pixelRatio; renderer.setPixelRatio(pixelRatio) }
+    }
+    function adjustQuality(elapsed: number) {
+      if (!elapsed) return
+      slowFrames = elapsed > 36 ? slowFrames + 2 : elapsed > 21 ? slowFrames + 1 : 0
+      fastFrames = elapsed < 18 ? fastFrames + 1 : 0
+      if (slowFrames >= 4 && quality > .32) quality = Math.max(.32, quality * (elapsed > 36 ? .72 : .86))
+      else if (fastFrames >= 80 && quality < 1) quality = Math.min(1, quality * 1.12)
+      else return
+      setResolution()
+      slowFrames = fastFrames = 0
+    }
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap
+    renderer.shadowMap.autoUpdate = false
     renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.13
     renderer.domElement.setAttribute('aria-label', 'Forgatható 3D járműmodell')
     renderer.domElement.setAttribute('role', 'img')
@@ -109,7 +127,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       scene.environment = lighting = texture
       scene.environmentIntensity = .8
       scene.environmentRotation.y = Math.PI * .25
-      renderNeeded = true
+      invalidateFrame()
     }).catch(() => { /* The local room environment remains available. */ })
     scene.add(new T.HemisphereLight('#e6e9e3', '#414b49', .5))
     const key = new T.DirectionalLight('#fff1df', 2.05); key.position.set(3, 7, 4); key.castShadow = true
@@ -123,17 +141,22 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     renderer.domElement.style.touchAction = immersive ? 'none' : 'pan-y'
     orbit.enableDamping = true; orbit.dampingFactor = .075; orbit.enablePan = false; orbit.minDistance = 4.5; orbit.maxDistance = 16
     orbit.minPolarAngle = 1.06; orbit.maxPolarAngle = Math.PI / 2 - .075; orbit.update()
+    orbit.addEventListener('change', requestFrame)
     let shape: VehicleShape | null = null
     const positions: Partial<Record<StudioSection, VehicleHotspot>> = {}
     let hotspots: ReturnType<typeof vehicleHotspots> | null = null
     const targets: Record<StudioSection, T.Vector3> = {
       data: new T.Vector3(5.2, 2.8, 5.2), history: new T.Vector3(3.2, 1.1, 5.5), services: new T.Vector3(6.1, 2.3, 2.5),
       documents: new T.Vector3(3.5, 2.1, 5), leases: new T.Vector3(-5.8, 2.1, 4.2), site: new T.Vector3(-.5, 1.6, 6.2), photos: new T.Vector3(-5.8, 2.1, 4.8),
+      bookings: new T.Vector3(5.5, 2.5, -4.8), fuel: new T.Vector3(-5.7, 1.8, -4.1), handovers: new T.Vector3(6.3, 1.7, 2.8),
+      assignees: new T.Vector3(-2.8, 1.9, 6.2), audit: new T.Vector3(-6.2, 2.3, 1.8),
     }
-    const labels: Record<StudioSection, [number, number]> = { data: [.36, .25], history: [.79, .69], services: [.85, .4], documents: [.69, .23], leases: [.22, .42], site: [.38, .73], photos: [.21, .63] }
-    let flight: { key: StudioAction['key']; started: number; from: T.Spherical; to: T.Spherical; targetFrom: T.Vector3; targetTo: T.Vector3 } | null = null
+    const labels: Partial<Record<StudioSection, [number, number]>> = { data: [.36, .25], history: [.79, .69], services: [.85, .4], documents: [.69, .23], leases: [.22, .42], site: [.38, .73], photos: [.21, .63] }
+    let framing = 0
+    let flight: { key: StudioAction['key']; started: number; from: T.Spherical; to: T.Spherical; targetFrom: T.Vector3; targetTo: T.Vector3; frameFrom: number; frameTo: number } | null = null
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-    controls.current = { cancel: cancelFlight, focus: section => {
+    const widescreen = window.matchMedia('(min-width: 1001px) and (min-height: 491px)')
+    controls.current = { focus: section => {
       if (!loadedModel.current) { if (isSection(section)) callbacks.current.onFocused(section); return }
       if (!isSection(section)) callbacks.current.onCancelled()
       orbit.enabled = false
@@ -145,19 +168,38 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         if (section === 'left' || section === 'right') offset.applyAxisAngle(new T.Vector3(0, 1, 0), section === 'left' ? Math.PI / 4 : -Math.PI / 4)
         else offset.setLength(T.MathUtils.clamp(offset.length() * (section === 'closer' ? .82 : 1.22), orbit.minDistance, orbit.maxDistance))
         to = offset.add(targetTo)
-      } else { to = targets[section]; targetTo = positions[section]!.point.clone().lerp(homeTarget, .35) }
+      } else {
+        to = targets[section]
+        targetTo = positions[section]?.point.clone().lerp(homeTarget, .72) ?? homeTarget
+      }
       const from = new T.Spherical().setFromVector3(camera.position.clone().sub(orbit.target))
       const destination = new T.Spherical().setFromVector3(to.clone().sub(targetTo))
       destination.theta = from.theta + T.MathUtils.euclideanModulo(destination.theta - from.theta + Math.PI, 2 * Math.PI) - Math.PI
-      flight = { key: section, started: performance.now(), from, to: destination, targetFrom: orbit.target.clone(), targetTo }
+      const frameTo = isSection(section) && immersive && widescreen.matches ? 1 : 0
+      if (frameTo) {
+        const relativeWidth = (width - drawerWidth()) / height
+        const framingDistance = lastFit * Math.max(1.65, .9 / relativeWidth)
+        destination.radius = Math.min(orbit.maxDistance, Math.max(destination.radius, framingDistance))
+      }
+      flight = { key: section, started: performance.now(), from, to: destination, targetFrom: orbit.target.clone(), targetTo, frameFrom: framing, frameTo }
+      requestFrame()
     } }
     function cancelFlight() { if (flight) callbacks.current.onCancelled(); flight = null; orbit.enabled = true }
     renderer.domElement.addEventListener('pointerdown', cancelFlight, true)
     let lastFit = 0
+    function drawerWidth() { return Math.min(width * .68, 1280) }
+    function projection() {
+      if (!width || !height) return
+      // Reserve the drawer's screen space while keeping the same camera orbit.
+      const drawerOffset = widescreen.matches ? drawerWidth() / 2 * framing : 0
+      camera.setViewOffset(width, height, drawerOffset, immersive && camera.aspect < 1 ? height * .016 : 0, width, height)
+    }
     const fit = (reset = false) => {
-      const width = container.clientWidth, height = container.clientHeight; if (!width || !height) return
+      width = container.clientWidth; height = container.clientHeight
+      if (!width || !height) return
       camera.aspect = width / height
-      camera.setViewOffset(width, height, 0, immersive && camera.aspect < 1 ? height * .016 : 0, width, height)
+      projection()
+      setResolution()
       renderer.setSize(width, height)
       const length = shape?.length ?? model.length, roof = shape?.roof ?? 1.5, bodyWidth = shape?.width ?? 1.8
       const halfFov = Math.tan(T.MathUtils.degToRad(camera.fov / 2))
@@ -175,8 +217,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         orbit.update()
       }
       lastFit = fitted
-      renderNeeded = true
-      renderer.render(scene, camera)
+      invalidateFrame()
     }
     const resize = new ResizeObserver(() => fit()); resize.observe(container)
     void new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(model.url).then(gltf => {
@@ -199,21 +240,24 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         services: anchor(length * .29, roof * .43, 0, 0, 1, 0), documents: anchor(.08 * length, roof * .73, width * .34, 0, 0, 1),
         leases: anchor(-length * .4, roof * .55, 0, -1, 0, 0), site: anchor(-length * .08, roof * .5, width * .44, 0, 0, 1), photos: anchor(-length * .38, roof * .3, width * .42, 0, 0, 1),
       })
-      fit(true); setLoadState('ready')
+      batchVehicleMeshes(vehicle.model)
+      renderer.shadowMap.needsUpdate = true
+      fit(true); invalidateFrame(); setLoadState('ready')
     }).catch(() => { if (!disposed && !contextLost) setLoadState('error') })
-    let frame = 0, last = 0
-    const projected = new T.Vector3()
+    const projected = new T.Vector3(), viewDirection = new T.Vector3()
     const lastCamera = new T.Matrix4(), lastProjection = new T.Matrix4(), visiblePoints = new Map<StudioSection, boolean>()
+    let lastOcclusion = -Infinity
     function animate(time: number) {
-      if (disposed) return
-      frame = requestAnimationFrame(animate)
-      if (time - last < 30) return; last = time
-      if (container.ownerDocument.hidden || pausedRef.current) return
+      frame = 0
+      if (disposed || container.ownerDocument.hidden || (pausedRef.current && !flight && !renderNeeded)) { previousFrame = 0; return }
       if (flight) {
         renderNeeded = true
-        const t = reduceMotion.matches ? 1 : Math.min(1, (time - flight.started) / 850), ease = t * t * (3 - 2 * t)
-        const { from, to, targetFrom, targetTo } = flight
+        const t = reduceMotion.matches || (immersive && !widescreen.matches && isSection(flight.key)) ? 1 : T.MathUtils.clamp((time - flight.started) / 680, 0, 1)
+        const ease = t * t * (3 - 2 * t)
+        const { from, to, targetFrom, targetTo, frameFrom, frameTo } = flight
         const mix = T.MathUtils.lerp
+        const nextFraming = mix(frameFrom, frameTo, ease)
+        if (nextFraming !== framing) { framing = nextFraming; projection() }
         orbit.target.lerpVectors(targetFrom, targetTo, ease)
         camera.position.setFromSphericalCoords(mix(from.radius, to.radius, ease), mix(from.phi, to.phi, ease), mix(from.theta, to.theta, ease)).add(orbit.target)
         if (t === 1) { const section = flight.key; flight = null; orbit.enabled = true; if (isSection(section)) callbacks.current.onFocused(section) }
@@ -221,36 +265,54 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       orbit.update()
       camera.updateMatrixWorld()
       const cameraChanged = !lastCamera.equals(camera.matrixWorld) || !lastProjection.equals(camera.projectionMatrix)
-      if (!renderNeeded && !cameraChanged) return
+      if (!renderNeeded && !cameraChanged) { previousFrame = 0; return }
+      adjustQuality(previousFrame ? time - previousFrame : 0)
       renderNeeded = false
       renderer.render(scene, camera)
+      const checkOcclusion = time - lastOcclusion >= 80 || !cameraChanged
       for (const button of overlay.current?.querySelectorAll<HTMLButtonElement>('[data-hotspot]') ?? []) {
         const section = button.dataset.hotspot as StudioSection, hotspot = positions[section]
-        if (!hotspot || !hotspots) continue
+        const label = labels[section]
+        if (!hotspot || !hotspots || !label) continue
         const { point } = hotspot
-        if (cameraChanged || !visiblePoints.has(section)) visiblePoints.set(section, hotspots.visible(hotspot, camera.position))
         projected.copy(point).project(camera)
-        button.style.left = `${(projected.x * .5 + .5) * 100}%`; button.style.top = `${(-projected.y * .5 + .5) * 100}%`
-        const [labelX, labelY] = labels[section]
-        const deltaX = (labelX - (projected.x * .5 + .5)) * container.clientWidth
-        const deltaY = (labelY - (-projected.y * .5 + .5)) * container.clientHeight
-        const dx = deltaX + button.offsetWidth / 2, dy = deltaY + button.offsetHeight / 2
-        button.style.setProperty('--label-x', `${dx}px`); button.style.setProperty('--label-y', `${dy}px`)
-        button.style.setProperty('--leader-length', `${Math.hypot(deltaX, deltaY)}px`); button.style.setProperty('--leader-angle', `${Math.atan2(deltaY, deltaX)}rad`)
-        const visible = visiblePoints.get(section) && projected.z >= -1 && projected.z <= 1 && Math.abs(projected.x) <= 1.05 && Math.abs(projected.y) <= 1.05
+        const onScreen = projected.z >= -1 && projected.z <= 1 && Math.abs(projected.x) <= 1.05 && Math.abs(projected.y) <= 1.05
+        const facingViewer = viewDirection.subVectors(camera.position, point).normalize().dot(hotspot.outward) > .015
+        const candidate = !pausedRef.current && onScreen && facingViewer
+        if (!candidate) visiblePoints.delete(section)
+        else if (checkOcclusion || !visiblePoints.has(section)) visiblePoints.set(section, hotspots.visible(hotspot, camera.position))
+        const visible = candidate && visiblePoints.get(section) === true
+        if (visible) {
+          const x = (projected.x * .5 + .5) * width, y = (-projected.y * .5 + .5) * height
+          const dx = label[0] * width - x, dy = label[1] * height - y
+          button.style.setProperty('--hotspot-x', `${x}px`); button.style.setProperty('--hotspot-y', `${y}px`)
+          button.style.setProperty('--label-x', `${dx}px`); button.style.setProperty('--label-y', `${dy}px`)
+          button.style.setProperty('--leader-length', `${Math.hypot(dx, dy)}px`); button.style.setProperty('--leader-angle', `${Math.atan2(dy, dx)}rad`)
+        }
         // One parent controls the dot, leader and label together, including
         // keyboard and assistive-technology access to the hidden button.
-        button.style.visibility = visible ? 'visible' : 'hidden'
-        button.disabled = !visible
-        button.setAttribute('aria-hidden', String(!visible))
+        if (!button.style.visibility || button.disabled === visible) {
+          button.style.visibility = visible ? 'visible' : 'hidden'
+          button.disabled = !visible
+          button.setAttribute('aria-hidden', String(!visible))
+        }
       }
+      if (checkOcclusion) lastOcclusion = time
       lastCamera.copy(camera.matrixWorld); lastProjection.copy(camera.projectionMatrix)
+      if (flight || cameraChanged) {
+        previousFrame = time
+        requestFrame()
+      } else previousFrame = 0
     }
-    frame = requestAnimationFrame(animate)
+    requestFrame()
+    const visibilityChanged = () => { previousFrame = 0; invalidateFrame() }
+    container.ownerDocument.addEventListener('visibilitychange', visibilityChanged)
     const lost = (event: Event) => { event.preventDefault(); contextLost = true; cancelAnimationFrame(frame); cancelFlight(); setUnavailable(true) }
     renderer.domElement.addEventListener('webglcontextlost', lost)
     return () => {
       disposed = true; loadedModel.current = null; cancelAnimationFrame(frame); resize.disconnect(); orbit.dispose(); controls.current = null; invalidate.current = null
+      container.ownerDocument.removeEventListener('visibilitychange', visibilityChanged)
+      orbit.removeEventListener('change', requestFrame)
       renderer.domElement.removeEventListener('pointerdown', cancelFlight, true); renderer.domElement.removeEventListener('webglcontextlost', lost)
       disposeVehicleModel(scene); environment.dispose(); lighting?.dispose(); renderer.dispose(); renderer.domElement.remove()
     }

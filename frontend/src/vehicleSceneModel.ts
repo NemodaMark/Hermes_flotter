@@ -1,4 +1,5 @@
 import * as T from 'three'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 
 export type VehicleShape = { length: number; width: number; roof: number; frontAxle: number; rearAxle: number }
 
@@ -51,7 +52,6 @@ function applyGarageMaterials(source: T.Group, paintMaterials: readonly string[]
         material.metalness = .06
         material.envMapIntensity = .65
         if (material.transparent) material.opacity = .57
-        if (material instanceof T.MeshPhysicalMaterial && material.transmission > 0) material.transmission = .72
       } else if (/tyre|tire|rubber/.test(name)) {
         material.roughness = .83
         material.metalness = 0
@@ -59,6 +59,13 @@ function applyGarageMaterials(source: T.Group, paintMaterials: readonly string[]
         material.roughness = Math.max(material.roughness, .28)
         material.envMapIntensity = .7
       }
+    }
+    if (material instanceof T.MeshPhysicalMaterial && material.transmission > 0) {
+      // Smoked glazing retains the interior without a second full-scene render.
+      material.transmission = 0
+      material.transparent = true
+      material.depthWrite = false
+      material.opacity = Math.min(material.opacity, .68)
     }
     material.emissiveIntensity = 0
     prepared.set(original, material)
@@ -87,6 +94,36 @@ export function prepareVehicleModel(source: T.Group, color: string, appearance: 
   setVehiclePaint(model, color, appearance.paintMaterials)
   model.updateMatrixWorld(true)
   return { model, shape: { length: appearance.length, width: size.z * scale, roof: size.y * scale + .025, frontAxle: appearance.length * .29, rearAxle: -appearance.length * .3 } }
+}
+
+export function batchVehicleMeshes(model: T.Group) {
+  const buckets = new Map<string, T.Mesh<T.BufferGeometry, T.Material>[]>()
+  const inverse = model.matrixWorld.clone().invert()
+  const transform = new T.Matrix4()
+  model.traverseVisible(object => {
+    if (!(object instanceof T.Mesh) || Array.isArray(object.material) || object.material.transparent) return
+    const { attributes, index } = object.geometry
+    const layout = Object.keys(attributes).sort().map(name => {
+      const attr = attributes[name]
+      return `${name}:${attr.itemSize}:${attr.normalized}:${attr.array.constructor.name}`
+    })
+    const key = `${object.material.uuid}:${Boolean(index)}:${layout.join(',')}`
+    const bucket = buckets.get(key) ?? []
+    bucket.push(object)
+    buckets.set(key, bucket)
+  })
+  for (const parts of buckets.values()) {
+    if (parts.length < 2) continue
+    const geometries = parts.map(part => part.geometry.clone().applyMatrix4(transform.multiplyMatrices(inverse, part.matrixWorld)))
+    const combined = mergeGeometries(geometries)
+    geometries.forEach(geometry => geometry.dispose())
+    if (!combined) continue
+    const batch = new T.Mesh(combined, parts[0].material)
+    batch.castShadow = batch.receiveShadow = true
+    model.add(batch)
+    // Keep the individual meshes for inexpensive bounds rejection on hotspot rays.
+    parts.forEach(part => { part.visible = false })
+  }
 }
 
 export function disposeVehicleModel(model: T.Object3D) {

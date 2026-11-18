@@ -8,23 +8,23 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { vehicleModel } from './vehicleModels'
 import { bodyNames } from './vehicleAppearance'
-import { disposeVehicleModel, prepareVehicleModel } from './vehicleSceneModel'
+import { batchVehicleMeshes, disposeVehicleModel, prepareVehicleModel } from './vehicleSceneModel'
 import { vehicleHotspots } from './vehicleHotspots'
 import { Vector3 } from 'three'
 
-const bodies = Object.keys(bodyNames).filter(body => !['Unknown', 'Other', 'Coupe'].includes(body))
+const bodies = Object.keys(bodyNames).filter(body => !['Unknown', 'Other'].includes(body))
 const prepared = JSON.parse(readFileSync(resolve('public/models/vehicle-bodies/prepared.json'), 'utf8')) as { key: string; sha256: string }[]
-const studio = JSON.parse(readFileSync(resolve('public/models/studio/sources.json'), 'utf8')) as { key: string; sha256: string }[]
 it('selects a different asset for every known body instead of reusing the sports coupe', () => {
-  const selected = [...bodies, 'Coupe'].map(body => vehicleModel(body))
+  const selected = bodies.map(body => vehicleModel(body))
   expect(new Set(selected.map(model => model.url)).size).toBe(12)
   expect(vehicleModel('Unknown').fallback).toBe(true)
   expect(vehicleModel('Other').fallback).toBe(true)
   expect(vehicleModel('FutureBodyType').fallback).toBe(true)
+  expect(vehicleModel('Unknown', 'Sprinter').key).toBe('van')
 })
 it.each([...bodies, 'Unknown'])('loads and paints the real %s body with valid ground-level proportions', async body => {
   const appearance = vehicleModel(body), bytes = readFileSync(resolve(`src/assets/vehicles/${appearance.key}.glb`))
-  expect(createHash('sha256').update(bytes).digest('hex')).toBe([...prepared, ...studio].find(asset => asset.key === appearance.key)?.sha256)
+  expect(createHash('sha256').update(bytes).digest('hex')).toBe(prepared.find(asset => asset.key === appearance.key)?.sha256)
   const doc = JSON.parse(bytes.toString('utf8', 20, 20 + bytes.readUInt32LE(12)))
   expect(doc.buffers.length).toBeGreaterThanOrEqual(1)
   expect(doc.buffers.every((buffer: { uri?: string }) => buffer.uri === undefined)).toBe(true)
@@ -39,7 +39,7 @@ it.each([...bodies, 'Unknown'])('loads and paints the real %s body with valid gr
   expect(bounds.min.x + bounds.max.x).toBeCloseTo(0, 4)
   expect(bounds.min.z + bounds.max.z).toBeCloseTo(0, 4)
   expect(shape.width).toBeGreaterThan(1.5); expect(shape.width).toBeLessThan(3)
-  expect(shape.roof).toBeGreaterThan(body === 'Convertible' ? 1 : 1.3)
+  expect(shape.roof).toBeGreaterThan(['Convertible', 'Coupe'].includes(body) ? 1 : 1.3)
   expect(shape.roof).toBeLessThan(3.5)
   if (['Van', 'Box', 'Tipper', 'ChassisCab'].includes(body)) expect(shape.roof).toBeGreaterThan(2)
   if (body === 'Estate') expect(shape.roof).toBeLessThan(1.7)
@@ -55,6 +55,10 @@ it.each([...bodies, 'Unknown'])('loads and paints the real %s body with valid gr
   expect(painted).toBeGreaterThan(0); expect(glass).toBeGreaterThan(0)
   const hotspots = vehicleHotspots(model, shape.length)
   const door = hotspots.anchor(new Vector3(-shape.length * .08, shape.roof * .5, shape.width * .44), new Vector3(0, 0, 1))
+  batchVehicleMeshes(model)
+  let draws = 0
+  model.traverseVisible(object => { if (object instanceof Mesh) draws++ })
+  expect(draws).toBeLessThan(60)
   expect(hotspots.visible(door, door.point.clone().add(new Vector3(0, 0, 5)))).toBe(true)
   expect(hotspots.visible(door, door.point.clone().add(new Vector3(0, 0, -5)))).toBe(false)
   if (body === 'ChassisCab') {

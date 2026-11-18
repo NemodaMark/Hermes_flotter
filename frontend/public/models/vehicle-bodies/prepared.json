@@ -1,5 +1,11 @@
 [
   {
+    "key": "coupe",
+    "sha256": "1e83dc4b802b4adbdead791c740dfe77dc9698900c42f0bca1cbc4003f98ed68",
+    "bytes": 4267288,
+    "source": "coupe"
+  },
+  {
     "key": "convertible",
     "sha256": "767a3fc31c236550c285963120817e76ec6f523f6bb357036f4dc1c0e00c3eb3",
     "bytes": 4181448,

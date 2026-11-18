@@ -13,10 +13,10 @@ unused paint images removed; body-specific orientation, framing and hotspots.
 The chassis-cab illustration is derived from the box truck by removing its
 freight enclosure and fittings. Other materials and geometry are preserved.
 
-These are representative body types, not replicas of the vehicle's manufacturer
-or model. Unknown and Other body types use an explicitly labelled generic sedan.
-The separate coupe illustration remains the Khronos Car Concept, with its own
-[CC BY 4.0 notice](../khronos-car/LICENSE.md).
+The garage uses this Innerscene collection for every body type, including the
+generic two-door coupe. These are representative silhouettes. For records with
+an unspecified body type, HERMES uses a generic sedan or a van when it recognizes
+the vehicle model.
 
 No external asset service is contacted when using the application. Prepared GLBs
 are bundled with HERMES; normal builds do not download or regenerate models.

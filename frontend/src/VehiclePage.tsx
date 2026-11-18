@@ -17,14 +17,16 @@ import { VehicleFields } from './VehicleFields'
 import { VehicleAssignmentHistory } from './VehicleAssignmentHistory'
 import { VehicleActions } from './VehicleActions'
 import { ProfileVehicleGarage } from './VehicleGarage'
+import type { StudioSection } from './VehicleStudio'
 import './fleet.css'
 
 const VehicleBookingCalendar = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleBookingCalendar })))
 const VehicleFuel = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleFuel })))
 const VehicleHandovers = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleHandovers })))
 
-export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', showGarage = true, embedded = false }: {
+export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', showGarage = true, embedded = false, onSectionChange }: {
   user: Session; tenant: Tenant; id: string; onBack: () => void; initialTab?: string; showGarage?: boolean; embedded?: boolean
+  onSectionChange?: (tab: StudioSection) => void
 }) {
   const client = useQueryClient()
   const [tab, setTab] = useState(initialTab)
@@ -58,6 +60,12 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', sho
     ...(can('vehicles.service.read') || can('vehicles.service.manage') ? [['services', 'Szerviz']] : []),
     ['history', 'Rendszám és kilométerelőzmények'], ...(can('audit.read') ? [['audit', 'Módosítási napló']] : [])]
   const activeTab = tabs.some(([key]) => key === tab) ? tab : 'data'
+  function selectTab(next: string) {
+    if (next === activeTab || !tabs.some(([key]) => key === next)) return
+    setTab(next)
+    setMessage('')
+    if (next !== 'garage') onSectionChange?.(next as StudioSection)
+  }
   return <>
     {!embedded && <Button className="text-button org-back" onClick={onBack}><ArrowLeft size={16} />Vissza a járművekhez</Button>}
     <section className="access-panel vehicle-detail-panel" aria-label="Járműadatlap">
@@ -72,16 +80,17 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', sho
       {record.data && <>
         <VehicleAssignee tenant={tenant} car={car!} onChanged={changed} readOnly />
         <div className="vehicle-detail-navigation">
-          <nav aria-label="Járműadatlap részei">{tabs.map(([key, label]) => <Button key={key} aria-current={activeTab === key ? 'page' : undefined} onClick={() => { setTab(key); setMessage('') }}>{label}</Button>)}</nav>
-          <label className="org-field vehicle-detail-picker"><span>Járműadatlap részei</span><Select value={activeTab} onChange={event => { setTab(event.target.value); setMessage('') }}>{tabs.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></label>
+          <nav aria-label="Járműadatlap részei">{tabs.map(([key, label]) => <Button key={key} aria-current={activeTab === key ? 'page' : undefined} onClick={() => selectTab(key)}>{label}</Button>)}</nav>
+          <label className="org-field vehicle-detail-picker"><span>Járműadatlap részei</span><Select value={activeTab} onChange={event => selectTab(event.target.value)}>{tabs.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></label>
         </div>
         {message && <p className="notice" role="status">{message}</p>}
         {car?.status === 'Archived' && <p className="notice">Archivált jármű · {record.data.statusReason}. A visszaállítás után szerkeszthető.</p>}
-        <div hidden={activeTab !== 'data'}><VehicleDataForm key={car!.version} tenantId={tenant.id} record={record.data} editable={can('vehicles.update') && car?.status !== 'Archived'} onSaved={() => changed('A jármű adatai elmentve.')} /></div>
+        <div className="vehicle-tab-frame" hidden={activeTab !== 'data'}><VehicleDataForm key={car!.version} tenantId={tenant.id} record={record.data} editable={can('vehicles.update') && car?.status !== 'Archived'} onSaved={() => changed('A jármű adatai elmentve.')} /></div>
+        {activeTab !== 'data' && <div className="vehicle-tab-frame" key={activeTab}>
         {activeTab === 'site' && <><VehicleAssignee tenant={tenant} car={car!} onChanged={changed} /><VehicleSite key={car!.version} tenantId={tenant.id} record={record.data} editable={can('sites.vehicles.assign') && car?.status !== 'Archived'} onSaved={() => changed('A telephely-hozzárendelés elmentve.')} /></>}
         {activeTab === 'photos' && <VehiclePhotos tenant={tenant} car={car!} onChanged={changed} />}
         {(activeTab === 'leases' || activeTab === 'services') && <VehicleContracts key={activeTab} tenant={tenant} car={car!} kind={activeTab} onChanged={changed} />}
-        {activeTab === 'documents' && (can('vehicles.documents.read') || can('vehicles.documents.manage')) && <VehicleDocuments tenantId={tenant.id} vehicleId={id} registration={car!.registration} kind="vehicle" target={{ id, name: 'Járműokmányok', version: car!.version! }} canRead={can('vehicles.documents.read')} canManage={can('vehicles.documents.manage') && car?.status !== 'Archived'} embedded onChanged={changed} onClose={() => setTab('data')} />}
+        {activeTab === 'documents' && (can('vehicles.documents.read') || can('vehicles.documents.manage')) && <VehicleDocuments tenantId={tenant.id} vehicleId={id} registration={car!.registration} kind="vehicle" target={{ id, name: 'Járműokmányok', version: car!.version! }} canRead={can('vehicles.documents.read')} canManage={can('vehicles.documents.manage') && car?.status !== 'Archived'} embedded onChanged={changed} onClose={() => selectTab('data')} />}
         {activeTab === 'history' && <VehicleHistory tenantId={tenant.id} id={id} />}
         {activeTab === 'assignees' && <VehicleAssignmentHistory tenantId={tenant.id} id={id} />}
         <Suspense fallback={<p className="notice" role="status">Betöltés…</p>}>
@@ -92,6 +101,7 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', sho
           {activeTab === 'handovers' && <VehicleHandovers tenant={tenant} car={car!} onChanged={() => changed('Az átadás elmentve.')} />}
         </Suspense>
         {activeTab === 'audit' && can('audit.read') && <FleetAudit tenantId={tenant.id} id={id} vehicle />}
+        </div>}
       </>}
     </section>
     {archiveOpen && car && <ReasonDialog title={car.status === 'Archived' ? 'Jármű visszaállítása inaktív állapotba' : 'Jármű archiválása'} onClose={() => setArchiveOpen(false)} onSave={async reason => { await fleetApi.vehicleStatus(tenant.id, id, car.status !== 'Archived', reason, car.version!); await changed('A jármű állapota megváltozott.') }} />}
@@ -105,7 +115,9 @@ export function VehicleDataForm({ tenantId, record, editable, onSaved }: { tenan
   const save = useMutation({ mutationFn: () => fleetApi.saveVehicle(tenantId, record.vehicle.id, data), onSuccess: onSaved })
   const options = useQuery({ queryKey: ['fleet-management', tenantId, record.vehicle.id, 'preferred-options'], queryFn: ({ signal }) => fleetApi.partnerOptions(tenantId, record.vehicle.id, 'preferred-service', signal), enabled: editable, retry: false })
   return <form className="org-form vehicle-data-form" aria-label="Járműadatok szerkesztése" onSubmit={e => { e.preventDefault(); if (editable && dirty) save.mutate() }}>
-    <VehicleFields tenantId={tenantId} data={data} setData={setData} disabled={!editable || save.isPending} serviceOptions={options.data ?? []} preferredServicePartnerName={record.preferredServicePartnerName} />
+    {!editable && <p className="vehicle-read-notice">{record.vehicle.status === 'Archived' ? 'Archivált jármű · csak megtekintés' : 'Megtekintési mód · a módosításhoz járműszerkesztési jogosultság szükséges.'}</p>}
+    <VehicleFields tenantId={tenantId} data={data} setData={setData} disabled={!editable || save.isPending} readOnly={!editable}
+      serviceOptions={options.data ?? []} preferredServicePartnerName={record.preferredServicePartnerName} />
     {options.error && <p className="form-error" role="alert">{options.error.message}</p>}
     {save.error && <p className="notice error" role="alert">{save.error.message}</p>}
     <div className="org-form-footer"><div>{dirty && <p className="vehicle-draft-status" role="status">Nem mentett módosítások</p>}<MetadataLine version={data.version} updatedAt={record.updatedAt} updatedBy={record.updatedBy} /></div>{editable && <div className="member-actions"><Button type="button" className="secondary-button" disabled={save.isPending || !dirty} onClick={() => { setData(initial); save.reset() }}>Módosítások elvetése</Button><Button className="primary-button" disabled={save.isPending || !dirty}>{save.isPending ? 'Mentés…' : 'Járműadatok mentése'}</Button></div>}</div>

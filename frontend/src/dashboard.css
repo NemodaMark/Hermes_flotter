@@ -145,9 +145,9 @@
 .car-attention-notice > svg { color: var(--garage-accent); }
 .car-attention-notice .member-actions .secondary-button { min-height: 34px; }
 .studio-hotspots { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
-.studio-hotspot { pointer-events: auto; position: absolute; transform: translate(-50%, -50%); display: grid; place-items: center; width: 36px; height: 36px; border: 0; padding: 0; border-radius: 50%; background: transparent; color: var(--garage-ink, var(--ink)); font: inherit; cursor: pointer; visibility: hidden; }
+.studio-hotspot { pointer-events: auto; position: absolute; top: 0; left: 0; transform: translate3d(var(--hotspot-x, 0px), var(--hotspot-y, 0px), 0) translate(-50%, -50%); display: grid; place-items: center; width: 36px; height: 36px; border: 0; padding: 0; border-radius: 50%; background: transparent; color: var(--garage-ink, var(--ink)); font: inherit; cursor: pointer; visibility: hidden; }
 .studio-hotspot > span { width: 17px; height: 17px; border: 3px solid var(--vehicle-paint-edge, #fffefa); border-radius: 50%; background: var(--vehicle-paint, #344b3c); box-shadow: 0 0 0 1px var(--garage-accent), 0 1px 8px #101512b3; }
-.studio-hotspot strong { position: absolute; left: var(--label-x); top: var(--label-y); transform: translate(-50%, -50%); font-size: 12px; font-weight: 500; padding: 6px 9px; border: 1px solid var(--garage-line); background: var(--garage-panel); border-radius: var(--radius-control); white-space: nowrap; }
+.studio-hotspot strong { position: absolute; left: calc(50% + var(--label-x)); top: calc(50% + var(--label-y)); transform: translate(-50%, -50%); font-size: 12px; font-weight: 500; padding: 6px 9px; border: 1px solid var(--garage-line); background: var(--garage-panel); border-radius: var(--radius-control); white-space: nowrap; }
 .studio-hotspot > i { position: absolute; left: 50%; top: 50%; width: var(--leader-length); height: 1px; background: var(--garage-accent); opacity: .65; transform: rotate(var(--leader-angle)); transform-origin: 0 0; pointer-events: none; z-index: -1; }
 .studio-hotspot:is(:hover, :focus-visible) > span { box-shadow: 0 0 0 4px color-mix(in srgb, var(--garage-accent) 55%, transparent); }
 .car-stage-meta {
@@ -169,7 +169,6 @@
 .car-stage-meta i { width: 11px; height: 11px; border: 1px solid #dddcd2aa; border-radius: 50%; }
 .car-stage-instrument { display: flex; align-items: center; gap: 5px; color: var(--garage-ink, var(--surface)); }
 .car-stage-instrument strong { font-size: 21px; font-variant-numeric: tabular-nums; font-weight: 600; line-height: 1; }
-.studio-flight-status { position: absolute; right: var(--garage-inset, 16px); bottom: calc(var(--garage-dock, 0px) + 87px); color: var(--garage-ink, var(--surface)); font-size: 12px; pointer-events: none; }
 .studio-camera-controls { position: absolute; right: 16px; bottom: 16px; display: flex; border: 1px solid var(--garage-line); background: var(--garage-panel); border-radius: var(--radius-control); z-index: 3; }
 .car-dashboard .studio-camera-controls { right: var(--garage-inset); bottom: calc(var(--garage-dock) + 27px); }
 .studio-camera-controls button { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; background: transparent; border: 0; color: var(--garage-accent); cursor: pointer; }
@@ -256,6 +255,10 @@
 .studio-vehicle-dialog::backdrop { background: #10151280; }
 .studio-vehicle-dialog .vehicle-detail-panel .vehicle-detail-header { align-items: center; padding-block: 8px; }
 .studio-vehicle-dialog .vehicle-detail-panel .vehicle-current-user { padding-block: 8px; }
+@media (min-width: 1001px) and (min-height: 491px) {
+  .studio-vehicle-dialog.access-dialog { width: min(1280px, 68vw); }
+  .studio-vehicle-dialog::backdrop { background: #10151245; }
+}
 @media (max-width: 1100px) {
   .car-dashboard > .studio-credit { bottom: calc(var(--garage-dock) + 14px); font-size: 11px; }
 }
@@ -308,8 +311,10 @@
   .studio-hotspot strong, .studio-hotspot > i { display: none; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .studio-vehicle-dialog[open] { animation: garage-sheet-in 200ms ease-out both; }
-  @keyframes garage-sheet-in { from { translate: 24px 0; opacity: 0; } }
+  .studio-vehicle-dialog[open] { animation: garage-sheet-in 360ms cubic-bezier(.2, .72, .24, 1); }
+  .studio-vehicle-dialog .vehicle-tab-frame:not([hidden]) { animation: garage-tab-in 220ms ease-out; }
+  @keyframes garage-sheet-in { from { translate: 52px 0; opacity: .15; } }
+  @keyframes garage-tab-in { from { translate: 10px 0; opacity: .3; } }
 }
 @media(max-width:860px) {
   .fleet-overview-grid { grid-template-columns: minmax(0, 1fr); }

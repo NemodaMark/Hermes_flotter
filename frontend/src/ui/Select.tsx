@@ -121,8 +121,8 @@ export function Select({ children, value, onChange, disabled, required, id, clas
     </select>} />{invalid && <span className="choice-error" id={errorId} role="alert">Válassz egy értéket.</span>}</>
 }
 
-export function ComboBox({ label, value, options, onChange, disabled, required = true, maxLength = 64 }:
-  { label: string; value: string; options: string[]; onChange: (value: string) => void; disabled: boolean; required?: boolean; maxLength?: number }) {
+export function ComboBox({ label, value, options, onChange, disabled, required = true, maxLength = 64, placeholder = 'Válassz vagy írj be új értéket' }:
+  { label: string; value: string; options: string[]; onChange: (value: string) => void; disabled: boolean; required?: boolean; maxLength?: number; placeholder?: string }) {
   return <Choice label={label} value={value} options={options.map(x => ({ value: x, label: x }))} onValue={onChange}
-    disabled={disabled} required={required} maxLength={maxLength} creatable placeholder="Válassz vagy írj be új értéket" />
+    disabled={disabled} required={required} maxLength={maxLength} creatable placeholder={placeholder} />
 }

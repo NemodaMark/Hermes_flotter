@@ -13,27 +13,26 @@ const emptyMenus: StudioMenu[] = []
 const ignore = () => {}
 
 export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action, onSelect = ignore,
-  onFocused = ignore, onCancelled = ignore, onReset, paused = false, flying = false, immersive = false, overlay, children }: {
+  onReset, paused = false, immersive = false, overlay, children }: {
   car: Vehicle; bodyType: string; color: string | null; menus?: StudioMenu[]; action: StudioAction | null
-  onSelect?: (key: StudioSection) => void; onFocused?: (key: StudioSection) => void; onCancelled?: () => void
-  onReset: () => void; paused?: boolean; flying?: boolean; immersive?: boolean; overlay?: ReactNode; children?: ReactNode
+  onSelect?: (key: StudioSection) => void
+  onReset: () => void; paused?: boolean; immersive?: boolean; overlay?: ReactNode; children?: ReactNode
 }) {
-  const model = vehicleModel(bodyType)
+  const model = vehicleModel(bodyType, car.model)
   const paint = vehiclePaint(color)
   return <>
     <div className="car-stage-wrap">
       <Suspense fallback={<div className="vehicle-studio studio-loading" role="status">Garázs betöltése…</div>}>
-        <VehicleStudio key={`${car.id}:${model.key}`} model={model} color={color} menus={menus} action={action}
-          onSelect={onSelect} onFocused={onFocused} onCancelled={onCancelled} onReset={onReset} immersive={immersive} paused={paused} />
+        <VehicleStudio key={model.key} model={model} color={color} menus={menus} action={action}
+          onSelect={onSelect} onFocused={ignore} onCancelled={ignore} onReset={onReset} immersive={immersive} paused={paused} />
       </Suspense>
       {overlay && <div className="car-stage-overlay">{overlay}</div>}
       <div className="car-stage-meta">
-        <span>{bodyNames[bodyType] ?? 'Egyéb karosszéria'}<i style={{ backgroundColor: paint.hex }} />{color ?? 'Szín nincs megadva'}</span>
+        <span>{model.fallback ? 'Becsült karosszéria' : bodyNames[bodyType]}<i style={{ backgroundColor: paint.hex }} />{color ?? 'Szín nincs megadva'}</span>
         {car.odometerKm != null && <div className="car-stage-instrument"><Gauge size={17} aria-hidden="true" />
           <strong>{car.odometerKm.toLocaleString('hu-HU')}</strong><span>km</span>
         </div>}
       </div>
-      {flying && <span className="studio-flight-status" role="status">Nézet beállítása…</span>}
     </div>
     {children}
     <div className="studio-credit">

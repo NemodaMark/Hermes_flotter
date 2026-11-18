@@ -14,6 +14,11 @@
 .vehicle-detail-navigation > .vehicle-detail-picker { display: none; }
 .org-form.vehicle-data-form { padding: 24px; }
 .vehicle-wide-field { grid-column: 1 / -1; }
+.vehicle-read-notice { margin-bottom: var(--space-4); color: var(--muted); font-size: 13px; }
+.vehicle-read-value { padding-block: 9px; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+.vehicle-color-field { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: stretch; gap: var(--space-2); }
+.app-shell .vehicle-color-field input[type=color] { width: 44px; height: 100%; min-height: 44px; background: var(--surface); padding: 5px; cursor: pointer; }
+.vehicle-color-field input[type=color]:disabled { cursor: default; }
 .vehicle-data-form .org-form-footer { margin: 24px -24px -24px; padding: 16px 24px; background: var(--surface); position: sticky; bottom: 0; z-index: 1; border-radius: 0 0 4px 4px; }
 .vehicle-data-form .org-form-footer .member-actions { margin-left: auto; }
 .vehicle-draft-status { font-size: 12px; color: var(--primary); margin-bottom: 4px; }

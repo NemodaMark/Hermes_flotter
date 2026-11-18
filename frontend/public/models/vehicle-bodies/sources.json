@@ -1,5 +1,12 @@
 [
   {
+    "key": "coupe",
+    "slug": "generic-two-door-coupe-f57c8670",
+    "source": "https://www.innerscene.com/api/library/generic-two-door-coupe-f57c8670/download?format=glb",
+    "page": "https://www.innerscene.com/tools/library/3d-parts/generic-two-door-coupe-f57c8670",
+    "sha256": "aea44297251aea187a85c21bd46d214d7b9deb90c1d62475e8e1ee86b4dd5177"
+  },
+  {
     "key": "convertible",
     "slug": "generic-convertible-roadster-05aace60",
     "source": "https://www.innerscene.com/api/library/generic-convertible-roadster-05aace60/download?format=glb",

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, CalendarClock, CalendarDays, Camera, CarFront, Ellipsis, FileText, Fuel, Gauge, Handshake, LayoutDashboard, MapPin, Wrench } from 'lucide-react'
@@ -7,7 +7,7 @@ import type { DashboardCar } from './dashboardApi'
 import { dashboardDeadlines, deadlineState } from './dashboardDeadlines'
 import type { DashboardDeadline } from './dashboardDeadlines'
 import type { Session, Tenant } from './api'
-import type { StudioAction, StudioMenu, StudioSection } from './VehicleStudio'
+import type { StudioAction, StudioSection } from './VehicleStudio'
 import { Button } from './ui/Button'
 import { Select } from './ui/Select'
 import { Badge } from './ui/Badge'
@@ -55,6 +55,7 @@ export function DashboardPage({ user, tenant, siteId, onFleet, onVehicle }: {
 const icons = { data: CarFront, history: Gauge, services: Wrench, documents: FileText, leases: FileText,
   site: MapPin, photos: Camera, bookings: CalendarDays, fuel: Fuel, handovers: Handshake }
 type VehicleTab = keyof typeof icons
+const extraTabNames = { assignees: 'Használati előzmények', audit: 'Módosítási napló' }
 const quickLabels: Partial<Record<VehicleTab, string>> = { data: 'Adatlap', history: 'Km-állás', site: 'Telephely', photos: 'Képek' }
 
 function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
@@ -63,14 +64,13 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
   const eligible = cars.filter(car => car.vehicle.status !== 'Archived')
   const [selected, setSelected] = useState<string | null>(null)
   const [action, setAction] = useState<StudioAction | null>(null)
-  const [opened, setOpened] = useState<VehicleTab | null>(null)
-  const [flight, setFlight] = useState(false)
+  const [opened, setOpened] = useState<StudioSection | null>(null)
   const car = eligible.find(car => car.vehicle.id === selected) ?? eligible.find(car => car.isAssignedToMe) ?? eligible[0]
   useVehicleAccent(car?.color ?? null)
   const can = (code: string) => !!car?.vehicle.permissions?.includes(code)
   const canService = can('vehicles.service.read') || can('vehicles.service.manage')
   const canDocuments = can('vehicles.documents.read') || can('vehicles.documents.manage')
-  const points: StudioMenu[] = [
+  const points: { key: VehicleTab; label: string }[] = [
     { key: 'data', label: 'Járműadatok' }, { key: 'history', label: 'Kilométerállás' },
     ...(canService ? [{ key: 'services' as const, label: 'Szerviz' }] : []),
     ...(canDocuments ? [{ key: 'documents' as const, label: 'Dokumentumok' }] : []),
@@ -84,11 +84,13 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
     { key: 'handovers', label: 'Átadás-átvétel' },
   ]
   const focus = (key: StudioSection) => {
-    setOpened(null); setFlight(true)
+    setOpened(key)
     setAction(previous => ({ key, sequence: (previous?.sequence ?? 0) + 1 }))
   }
-  const focused = useCallback((key: StudioSection) => { setFlight(false); setOpened(key) }, [setFlight, setOpened])
-  const cancelled = useCallback(() => setFlight(false), [setFlight])
+  const closeDrawer = () => {
+    setOpened(null)
+    setAction(previous => ({ key: 'home', sequence: (previous?.sequence ?? 0) + 1 }))
+  }
   if (!car) return <section className="access-panel dashboard-no-car">
     <CarFront size={28} aria-hidden="true" /><h3>Nincs megjeleníthető jármű</h3>
     <Button className="primary-button" onClick={onFleet}>Járműlista</Button>
@@ -97,17 +99,13 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
   const deadlines = dashboardDeadlines([car], today)
   const missingOdometer = car.vehicle.odometerKm == null && can('vehicles.odometer.create')
   const openDeadline = ({ kind }: DashboardDeadline) => {
-    if (kind === 'inspection' || kind === 'insurance') setOpened(canDocuments ? 'documents' : 'data')
-    else setOpened(canService ? 'services' : 'data')
+    if (kind === 'inspection' || kind === 'insurance') focus(canDocuments ? 'documents' : 'data')
+    else focus(canService ? 'services' : 'data')
   }
   return <>
     <section className="car-dashboard" aria-label="Autós dashboard">
       <VehicleGarage car={car.vehicle} bodyType={car.bodyType} color={car.color} menus={points} action={action} immersive
-        onSelect={focus} onFocused={focused} onCancelled={cancelled} paused={opened !== null} flying={flight}
-        onReset={() => {
-          setFlight(false); setOpened(null)
-          setAction(previous => ({ key: 'home', sequence: (previous?.sequence ?? 0) + 1 }))
-        }}
+        onSelect={focus} paused={opened !== null} onReset={closeDrawer}
         overlay={<>
           <div className="car-dashboard-toolbar">
             <div className="car-identity">
@@ -121,7 +119,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
             {(viewSwitch || eligible.length > 1) && <div className="car-dashboard-actions">
               {viewSwitch}
               {eligible.length > 1 && <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
-                <Select value={car.vehicle.id} onChange={event => { setSelected(event.target.value); setAction(null); setOpened(null); setFlight(false) }}>
+                <Select value={car.vehicle.id} onChange={event => { setSelected(event.target.value); closeDrawer() }}>
                   {eligible.map(item => <option key={item.vehicle.id} value={item.vehicle.id}>
                     {item.vehicle.registration}
                   </option>)}
@@ -146,7 +144,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
         </>}>
         <nav className="car-menu" aria-label="Jármű gyorsmenü">{menus.filter(menu => quickLabels[menu.key]).map(menu => {
           const Icon = icons[menu.key]
-          return <Button key={menu.key} aria-label={menu.label} onClick={() => { setOpened(menu.key); setFlight(false) }}>
+          return <Button key={menu.key} aria-label={menu.label} onClick={() => focus(menu.key)}>
             <Icon size={18} aria-hidden="true" /><span>{quickLabels[menu.key]}</span>
           </Button>
         })}
@@ -154,18 +152,16 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
             trigger={<><Ellipsis size={18} aria-hidden="true" /><span>Továbbiak</span></>}>
             <div>{menus.filter(menu => !quickLabels[menu.key]).map(menu => {
               const Icon = icons[menu.key]
-              return <Button key={menu.key} onClick={() => {
-                setOpened(menu.key); setFlight(false)
-              }}><Icon size={17} aria-hidden="true" />{menu.label}</Button>
+              return <Button key={menu.key} onClick={() => focus(menu.key)}><Icon size={17} aria-hidden="true" />{menu.label}</Button>
             })}</div>
           </Disclosure>
         </nav>
       </VehicleGarage>
     </section>
-    {opened && <AccessDialog title={`${car.vehicle.registration} · ${menus.find(menu => menu.key === opened)?.label ?? 'Jármű'}`}
-      pending={false} onClose={() => setOpened(null)} className="studio-vehicle-dialog">
-      <VehiclePage key={`${car.vehicle.id}:${opened}`} user={user} tenant={tenant} id={car.vehicle.id} initialTab={opened}
-        onBack={() => setOpened(null)} showGarage={false} embedded />
+    {opened && <AccessDialog title={`${car.vehicle.registration} · ${opened === 'assignees' || opened === 'audit' ? extraTabNames[opened] : menus.find(menu => menu.key === opened)?.label ?? 'Jármű'}`}
+      pending={false} onClose={closeDrawer} className="studio-vehicle-dialog">
+      <VehiclePage key={car.vehicle.id} user={user} tenant={tenant} id={car.vehicle.id} initialTab={opened}
+        onBack={closeDrawer} showGarage={false} embedded onSectionChange={focus} />
     </AccessDialog>}
   </>
 }
