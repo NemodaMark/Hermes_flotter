@@ -127,7 +127,7 @@ A közúti járműmodellek CC BY 4.0 licenccel érkeznek. A szerzők, források,
 
 A kezdőlap 3D garázsa kitölti az egysoros fejléc alatti böngészőterületet. A **Teljes képernyő** gomb a böngésző támogatása esetén a böngészőkeretet is elrejti. A teendők a rendszám alatt, a járműműveletek az alsó gyorsmenüben jelennek meg. A műveleti lapok asztali nézetben jobbról, keskeny vagy alacsony nézetben a teljes képernyőn nyílnak meg.
 
-A garázs minden karosszériához közös megvilágítást és felületkezelést alkalmaz. A megnyitott laphoz a kamera asztali nézetben a panel nyitásával együtt fordul, és lapváltáskor új nézőpontra áll. A gyorsmenü WebGL2 nélkül is használható. A jármű saját műveleti jogai szabják meg az elérhető lapokat. Ugyanez a modell az adatlap **3D garázs** fülén is megnyitható.
+A garázs minden karosszériához közös megvilágítást és felületkezelést alkalmaz. Asztali nézetben a kamera a panel nyitásakor és lapváltáskor az adott laphoz beállított szögbe fordul. Bezáráskor visszatér a nyitás előtti szöghöz és nagyításhoz. Keskeny nézetben a panel mögött megmarad az aktuális nézőpont. A gyorsmenü WebGL2 nélkül is használható. A jármű saját műveleti jogai szabják meg az elérhető lapokat. Ugyanez a modell az adatlap **3D garázs** fülén is megnyitható.
 
 A kompatibilis, átlátszatlan modellrészeket a megjelenítő összevonja. Álló kameránál csak változásra rajzol új képet, mozgás közben pedig a mért képkockaidő alapján állítja a belső felbontást. A készülék, a böngésző és a képernyőméret befolyásolja a tényleges képkockaszámot.
 

@@ -56,6 +56,11 @@ function asset() {
 async function frame(time: number) {
   await act(async () => { const pending = [...frames.values()]; frames.clear(); for (const callback of pending) callback(time) })
 }
+function renderedPosition() {
+  const camera = mocks.render.mock.lastCall?.[1] as PerspectiveCamera | undefined
+  if (!camera) throw new Error('Expected a rendered camera frame')
+  return camera.position.clone()
+}
 it('loads once, follows color changes and opens the requested menu only after the camera flight', async () => {
   const { gltf, paint } = asset(); mocks.load.mockResolvedValue(gltf)
   const callbacks = props(), view = render(<VehicleStudio {...callbacks} />)
@@ -105,6 +110,53 @@ it('renders consecutive 60 Hz camera frames and stops scheduling frames at rest'
   await frame(1000)
   await frame(1017)
   expect(frames.size).toBe(0)
+})
+it('returns to the user’s orbit and zoom after inspecting multiple desktop sections', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('min-width') }))
+  mocks.load.mockResolvedValue(asset().gltf)
+  const studio = { ...props(), immersive: true }
+  const view = render(<VehicleStudio {...studio} />)
+  await screen.findByRole('button', { name: 'Forgatás jobbra' })
+  const now = vi.spyOn(performance, 'now').mockReturnValue(100)
+  fireEvent.click(screen.getByRole('button', { name: 'Forgatás balra' }))
+  await frame(420)
+  now.mockReturnValue(450)
+  fireEvent.click(screen.getByRole('button', { name: 'Kamera közelítése' }))
+  await frame(800)
+  const original = renderedPosition()
+
+  now.mockReturnValue(900)
+  view.rerender(<VehicleStudio {...studio} paused action={{ key: 'data', sequence: 1 }} />)
+  await frame(1700)
+  const firstSection = renderedPosition()
+  expect(firstSection.distanceTo(original)).toBeGreaterThan(1)
+  now.mockReturnValue(1800)
+  view.rerender(<VehicleStudio {...studio} paused action={{ key: 'photos', sequence: 2 }} />)
+  await frame(2600)
+  expect(renderedPosition().distanceTo(firstSection)).toBeGreaterThan(1)
+  now.mockReturnValue(2700)
+  view.rerender(<VehicleStudio {...studio} action={{ key: 'resume', sequence: 3 }} />)
+  await frame(3500)
+  expect(renderedPosition().distanceTo(original)).toBeLessThan(.0001)
+})
+it('keeps the orbit still while a mobile drawer is open', async () => {
+  mocks.load.mockResolvedValue(asset().gltf)
+  const studio = { ...props(), immersive: true }
+  const view = render(<VehicleStudio {...studio} />)
+  await screen.findByRole('button', { name: 'Forgatás jobbra' })
+  const now = vi.spyOn(performance, 'now').mockReturnValue(100)
+  fireEvent.click(screen.getByRole('button', { name: 'Forgatás jobbra' }))
+  await frame(220)
+  const original = renderedPosition()
+
+  now.mockReturnValue(230)
+  view.rerender(<VehicleStudio {...studio} paused action={{ key: 'photos', sequence: 1 }} />)
+  await frame(1250)
+  expect(renderedPosition().distanceTo(original)).toBeLessThan(.0001)
+  now.mockReturnValue(1300)
+  view.rerender(<VehicleStudio {...studio} action={{ key: 'resume', sequence: 2 }} />)
+  await frame(2100)
+  expect(renderedPosition().distanceTo(original)).toBeLessThan(.0001)
 })
 it('hides a side hotspot with its label and leader when rotated behind the car, then restores it', async () => {
   mocks.load.mockResolvedValue(asset().gltf)

@@ -87,10 +87,11 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
     setOpened(key)
     setAction(previous => ({ key, sequence: (previous?.sequence ?? 0) + 1 }))
   }
-  const closeDrawer = () => {
+  const moveCamera = (key: 'resume' | 'home') => {
     setOpened(null)
-    setAction(previous => ({ key: 'home', sequence: (previous?.sequence ?? 0) + 1 }))
+    setAction(previous => ({ key, sequence: (previous?.sequence ?? 0) + 1 }))
   }
+  const closeDrawer = () => moveCamera('resume')
   if (!car) return <section className="access-panel dashboard-no-car">
     <CarFront size={28} aria-hidden="true" /><h3>Nincs megjeleníthető jármű</h3>
     <Button className="primary-button" onClick={onFleet}>Járműlista</Button>
@@ -105,7 +106,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
   return <>
     <section className="car-dashboard" aria-label="Autós dashboard">
       <VehicleGarage car={car.vehicle} bodyType={car.bodyType} color={car.color} menus={points} action={action} immersive
-        onSelect={focus} paused={opened !== null} onReset={closeDrawer}
+        onSelect={focus} paused={opened !== null} onReset={() => moveCamera('home')}
         overlay={<>
           <div className="car-dashboard-toolbar">
             <div className="car-identity">
@@ -119,7 +120,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch }: {
             {(viewSwitch || eligible.length > 1) && <div className="car-dashboard-actions">
               {viewSwitch}
               {eligible.length > 1 && <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
-                <Select value={car.vehicle.id} onChange={event => { setSelected(event.target.value); closeDrawer() }}>
+                <Select value={car.vehicle.id} onChange={event => { setSelected(event.target.value); moveCamera('home') }}>
                   {eligible.map(item => <option key={item.vehicle.id} value={item.vehicle.id}>
                     {item.vehicle.registration}
                   </option>)}

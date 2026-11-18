@@ -16,10 +16,15 @@ import { buildStudioGarage } from './studioGarageScene'
 import { ChevronLeft, ChevronRight, Maximize, Minimize, Minus, Plus, RotateCcw } from 'lucide-react'
 
 export type StudioSection = 'data' | 'history' | 'services' | 'documents' | 'leases' | 'site' | 'photos' | 'bookings' | 'fuel' | 'handovers' | 'assignees' | 'audit'
-type CameraAction = 'home' | 'left' | 'right' | 'closer' | 'farther'
+type CameraAction = 'home' | 'resume' | 'left' | 'right' | 'closer' | 'farther'
 export type StudioAction = { key: StudioSection | CameraAction; sequence: number }
 export type StudioMenu = { key: StudioSection; label: string }
-const isSection = (key: StudioAction['key']): key is StudioSection => !['home', 'left', 'right', 'closer', 'farther'].includes(key)
+const isSection = (key: StudioAction['key']): key is StudioSection => !['home', 'resume', 'left', 'right', 'closer', 'farther'].includes(key)
+const sectionAngles: Record<StudioSection, [azimuth: number, elevation: number]> = {
+  data: [42, 21], history: [59, 8], services: [83, 15], documents: [25, 25],
+  leases: [-68, 17], site: [-5, 11], photos: [-46, 22], bookings: [52, 20],
+  fuel: [-141, 13], handovers: [111, 13], assignees: [-24, 10], audit: [-125, 23],
+}
 
 function contactShadow() {
   const width = 96, pixels = new Uint8Array(width * width * 4)
@@ -134,59 +139,103 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     key.shadow.mapSize.set(1024, 1024); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6
     key.shadow.normalBias = .015; key.shadow.radius = 3; scene.add(key)
     const fill = new T.DirectionalLight('#e4ebee', .95); fill.position.set(-4, 3, -5); scene.add(fill)
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const widescreen = window.matchMedia('(min-width: 1001px) and (min-height: 491px)')
     const camera = new T.PerspectiveCamera(35, 1, .1, 100), home = new T.Vector3(5, 1.95, 6.1), homeTarget = new T.Vector3(0, .75, 0)
     const homeDirection = home.clone().normalize()
     camera.position.copy(home)
     const orbit = new OrbitControls(camera, renderer.domElement); orbit.target.copy(homeTarget)
     renderer.domElement.style.touchAction = immersive ? 'none' : 'pan-y'
-    orbit.enableDamping = true; orbit.dampingFactor = .075; orbit.enablePan = false; orbit.minDistance = 4.5; orbit.maxDistance = 16
+    orbit.enableDamping = !reduceMotion.matches; orbit.dampingFactor = .075; orbit.enablePan = false; orbit.minDistance = 4.5; orbit.maxDistance = 16
     orbit.minPolarAngle = 1.06; orbit.maxPolarAngle = Math.PI / 2 - .075; orbit.update()
     orbit.addEventListener('change', requestFrame)
     let shape: VehicleShape | null = null
     const positions: Partial<Record<StudioSection, VehicleHotspot>> = {}
     let hotspots: ReturnType<typeof vehicleHotspots> | null = null
-    const targets: Record<StudioSection, T.Vector3> = {
-      data: new T.Vector3(5.2, 2.8, 5.2), history: new T.Vector3(3.2, 1.1, 5.5), services: new T.Vector3(6.1, 2.3, 2.5),
-      documents: new T.Vector3(3.5, 2.1, 5), leases: new T.Vector3(-5.8, 2.1, 4.2), site: new T.Vector3(-.5, 1.6, 6.2), photos: new T.Vector3(-5.8, 2.1, 4.8),
-      bookings: new T.Vector3(5.5, 2.5, -4.8), fuel: new T.Vector3(-5.7, 1.8, -4.1), handovers: new T.Vector3(6.3, 1.7, 2.8),
-      assignees: new T.Vector3(-2.8, 1.9, 6.2), audit: new T.Vector3(-6.2, 2.3, 1.8),
-    }
     const labels: Partial<Record<StudioSection, [number, number]>> = { data: [.36, .25], history: [.79, .69], services: [.85, .4], documents: [.69, .23], leases: [.22, .42], site: [.38, .73], photos: [.21, .63] }
-    let framing = 0
-    let flight: { key: StudioAction['key']; started: number; from: T.Spherical; to: T.Spherical; targetFrom: T.Vector3; targetTo: T.Vector3; frameFrom: number; frameTo: number } | null = null
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const widescreen = window.matchMedia('(min-width: 1001px) and (min-height: 491px)')
-    controls.current = { focus: section => {
-      if (!loadedModel.current) { if (isSection(section)) callbacks.current.onFocused(section); return }
-      if (!isSection(section)) callbacks.current.onCancelled()
-      orbit.enabled = false
-      let to: T.Vector3, targetTo: T.Vector3
-      if (section === 'home') { to = home; targetTo = homeTarget }
-      else if (!isSection(section)) {
-        targetTo = orbit.target.clone()
-        const offset = camera.position.clone().sub(targetTo)
-        if (section === 'left' || section === 'right') offset.applyAxisAngle(new T.Vector3(0, 1, 0), section === 'left' ? Math.PI / 4 : -Math.PI / 4)
-        else offset.setLength(T.MathUtils.clamp(offset.length() * (section === 'closer' ? .82 : 1.22), orbit.minDistance, orbit.maxDistance))
-        to = offset.add(targetTo)
+    let framing = 0, lastFit = 0
+    let section: StudioSection | null = null
+    let freeView: { offset: T.Spherical; target: T.Vector3; fit: number } | null = null
+    let flight: {
+      key: StudioAction['key']; started: number; duration: number; from: T.Spherical; to: T.Spherical
+      targetFrom: T.Vector3; targetTo: T.Vector3; frameFrom: number; frameTo: number; clearance: number
+    } | null = null
+    function stopDamping() {
+      const position = camera.position.clone(), target = orbit.target.clone()
+      orbit.enableDamping = false
+      orbit.update()
+      camera.position.copy(position)
+      orbit.target.copy(target)
+    }
+    function focus(key: StudioAction['key']) {
+      const opensSection = isSection(key)
+      const wasInSection = section !== null
+      section = opensSection ? key : null
+      if (opensSection && (!loadedModel.current || (immersive && !widescreen.matches))) {
+        if (loadedModel.current && !wasInSection) {
+          cancelFlight()
+          stopDamping()
+          orbit.enableDamping = !reduceMotion.matches
+        }
+        callbacks.current.onFocused(key)
+        return
+      }
+      if (!loadedModel.current || (key === 'resume' && !freeView)) return
+      const startTarget = orbit.target.clone()
+      const from = new T.Spherical().setFromVector3(camera.position.clone().sub(startTarget))
+      const frameTo = opensSection && immersive ? 1 : 0
+      let to = from.clone(), targetTo = startTarget
+
+      if (opensSection) {
+        freeView ??= { offset: from, target: startTarget, fit: lastFit }
+        const [azimuth, elevation] = sectionAngles[key]
+        const relativeWidth = height ? (width - drawerWidth()) / height : 1
+        const distance = frameTo ? lastFit * Math.max(1.65, .9 / relativeWidth) : lastFit
+        to.set(distance || from.radius, T.MathUtils.degToRad(90 - elevation), T.MathUtils.degToRad(azimuth))
+        targetTo = homeTarget.clone().lerp(positions[key]?.point ?? homeTarget, .18)
+      } else if (key === 'resume' && freeView) {
+        to = freeView.offset.clone()
+        to.radius *= freeView.fit ? lastFit / freeView.fit : 1
+        targetTo = freeView.target
+      } else if (key === 'home') {
+        freeView = null
+        targetTo = homeTarget.clone()
+        to.setFromVector3(home.clone().sub(targetTo))
+      } else if (key === 'left' || key === 'right') {
+        to.theta += key === 'left' ? Math.PI / 4 : -Math.PI / 4
       } else {
-        to = targets[section]
-        targetTo = positions[section]?.point.clone().lerp(homeTarget, .72) ?? homeTarget
+        to.radius *= key === 'closer' ? .82 : 1.22
       }
-      const from = new T.Spherical().setFromVector3(camera.position.clone().sub(orbit.target))
-      const destination = new T.Spherical().setFromVector3(to.clone().sub(targetTo))
-      destination.theta = from.theta + T.MathUtils.euclideanModulo(destination.theta - from.theta + Math.PI, 2 * Math.PI) - Math.PI
-      const frameTo = isSection(section) && immersive && widescreen.matches ? 1 : 0
-      if (frameTo) {
-        const relativeWidth = (width - drawerWidth()) / height
-        const framingDistance = lastFit * Math.max(1.65, .9 / relativeWidth)
-        destination.radius = Math.min(orbit.maxDistance, Math.max(destination.radius, framingDistance))
-      }
-      flight = { key: section, started: performance.now(), from, to: destination, targetFrom: orbit.target.clone(), targetTo, frameFrom: framing, frameTo }
+      to.radius = T.MathUtils.clamp(to.radius, orbit.minDistance, orbit.maxDistance)
+      const turn = T.MathUtils.euclideanModulo(to.theta - from.theta + Math.PI, 2 * Math.PI) - Math.PI
+      to.theta = from.theta + turn
+      const angle = Math.abs(turn) / Math.PI
+      const duration = opensSection ? 500 + 260 * angle : key === 'resume' ? 430 + 220 * angle : 280
+
+      if (!opensSection) callbacks.current.onCancelled()
+      // Consume any leftover drag inertia before starting a scripted move.
+      orbit.enabled = false
+      stopDamping()
+      flight = { key, started: performance.now(), duration, from, to, targetFrom: startTarget, targetTo,
+        frameFrom: framing, frameTo, clearance: frameTo && framing === 1 ? to.radius * .09 * angle : 0 }
       requestFrame()
-    } }
-    function cancelFlight() { if (flight) callbacks.current.onCancelled(); flight = null; orbit.enabled = true }
+    }
+    controls.current = { focus }
+    function cancelFlight() {
+      if (!flight) return
+      if (flight.key === 'resume') {
+        freeView = null
+        framing = 0
+        projection()
+        invalidateFrame()
+      }
+      callbacks.current.onCancelled()
+      flight = null
+      orbit.enabled = true
+      orbit.enableDamping = !reduceMotion.matches
+    }
     renderer.domElement.addEventListener('pointerdown', cancelFlight, true)
-    let lastFit = 0
+    renderer.domElement.addEventListener('wheel', cancelFlight, { capture: true, passive: true })
     function drawerWidth() { return Math.min(width * .68, 1280) }
     function projection() {
       if (!width || !height) return
@@ -232,9 +281,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       scene.add(shadow)
       hotspots = vehicleHotspots(vehicle.model, length)
       const anchor = (x: number, y: number, z: number, nx: number, ny: number, nz: number) => hotspots!.anchor(new T.Vector3(x, y, z), new T.Vector3(nx, ny, nz))
-      const cameraScale = Math.max(1, length / 4.8, roof / 2)
       orbit.minDistance = Math.max(4.5, length * .8)
-      for (const target of Object.values(targets)) target.multiplyScalar(cameraScale)
       Object.assign(positions, {
         data: anchor(-.05 * length, roof, 0, 0, 1, 0), history: anchor(frontAxle, .34, width * .43, 0, 0, 1),
         services: anchor(length * .29, roof * .43, 0, 0, 1, 0), documents: anchor(.08 * length, roof * .73, width * .34, 0, 0, 1),
@@ -242,7 +289,9 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       })
       batchVehicleMeshes(vehicle.model)
       renderer.shadowMap.needsUpdate = true
-      fit(true); invalidateFrame(); setLoadState('ready')
+      fit(true)
+      if (section && pausedRef.current) focus(section)
+      invalidateFrame(); setLoadState('ready')
     }).catch(() => { if (!disposed && !contextLost) setLoadState('error') })
     const projected = new T.Vector3(), viewDirection = new T.Vector3()
     const lastCamera = new T.Matrix4(), lastProjection = new T.Matrix4(), visiblePoints = new Map<StudioSection, boolean>()
@@ -252,15 +301,22 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       if (disposed || container.ownerDocument.hidden || (pausedRef.current && !flight && !renderNeeded)) { previousFrame = 0; return }
       if (flight) {
         renderNeeded = true
-        const t = reduceMotion.matches || (immersive && !widescreen.matches && isSection(flight.key)) ? 1 : T.MathUtils.clamp((time - flight.started) / 680, 0, 1)
+        const t = reduceMotion.matches ? 1 : T.MathUtils.clamp((time - flight.started) / flight.duration, 0, 1)
         const ease = t * t * (3 - 2 * t)
-        const { from, to, targetFrom, targetTo, frameFrom, frameTo } = flight
+        const { key, from, to, targetFrom, targetTo, frameFrom, frameTo, clearance } = flight
         const mix = T.MathUtils.lerp
         const nextFraming = mix(frameFrom, frameTo, ease)
         if (nextFraming !== framing) { framing = nextFraming; projection() }
         orbit.target.lerpVectors(targetFrom, targetTo, ease)
-        camera.position.setFromSphericalCoords(mix(from.radius, to.radius, ease), mix(from.phi, to.phi, ease), mix(from.theta, to.theta, ease)).add(orbit.target)
-        if (t === 1) { const section = flight.key; flight = null; orbit.enabled = true; if (isSection(section)) callbacks.current.onFocused(section) }
+        const radius = mix(from.radius, to.radius, ease) + Math.sin(Math.PI * ease) * clearance
+        camera.position.setFromSphericalCoords(radius, mix(from.phi, to.phi, ease), mix(from.theta, to.theta, ease)).add(orbit.target)
+        if (t === 1) {
+          if (key === 'resume') freeView = null
+          flight = null
+          orbit.enabled = true
+          orbit.enableDamping = !reduceMotion.matches
+          if (isSection(key)) callbacks.current.onFocused(key)
+        }
       }
       orbit.update()
       camera.updateMatrixWorld()
@@ -313,7 +369,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       disposed = true; loadedModel.current = null; cancelAnimationFrame(frame); resize.disconnect(); orbit.dispose(); controls.current = null; invalidate.current = null
       container.ownerDocument.removeEventListener('visibilitychange', visibilityChanged)
       orbit.removeEventListener('change', requestFrame)
-      renderer.domElement.removeEventListener('pointerdown', cancelFlight, true); renderer.domElement.removeEventListener('webglcontextlost', lost)
+      renderer.domElement.removeEventListener('pointerdown', cancelFlight, true); renderer.domElement.removeEventListener('wheel', cancelFlight, true)
+      renderer.domElement.removeEventListener('webglcontextlost', lost)
       disposeVehicleModel(scene); environment.dispose(); lighting?.dispose(); renderer.dispose(); renderer.domElement.remove()
     }
   }, [attempt, immersive, model])
