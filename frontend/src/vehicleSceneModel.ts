@@ -23,7 +23,7 @@ export function setVehiclePaint(model: T.Object3D, color: string, paintMaterials
 
 function applyGarageMaterials(source: T.Group, paintMaterials: readonly string[]) {
   const prepared = new Map<T.Material, T.Material>()
-  const neutralGlass = new T.Color('#29383b')
+  const neutralGlass = new T.Color('#263136')
   const finish = (original: T.Material) => {
     const existing = prepared.get(original)
     if (existing) return existing
@@ -39,19 +39,22 @@ function applyGarageMaterials(source: T.Group, paintMaterials: readonly string[]
         original.dispose()
       }
       const enamel = material as T.MeshPhysicalMaterial
-      enamel.metalness = .18
-      enamel.roughness = .30
-      enamel.clearcoat = .62
-      enamel.clearcoatRoughness = .24
-      enamel.envMapIntensity = .9
+      enamel.metalness = .1
+      enamel.roughness = .27
+      enamel.clearcoat = .7
+      enamel.clearcoatRoughness = .28
+      enamel.envMapIntensity = .82
     } else {
       const name = material.name.toLowerCase()
-      if (/glass|glazing/.test(name) && !name.includes('light')) {
-        material.color.lerp(neutralGlass, .82)
-        material.roughness = .22
-        material.metalness = .06
-        material.envMapIntensity = .65
-        if (material.transparent) material.opacity = .57
+      if (/glass|glazing|window|windshield|vpc_v1_006_13/.test(name) && !/light|lamp|lens|mirror/.test(name)) {
+        material.color.copy(neutralGlass)
+        material.roughness = .2
+        material.metalness = 0
+        material.envMapIntensity = .75
+        if (material.transparent) {
+          material.opacity = .52
+          material.depthWrite = false
+        }
       } else if (/tyre|tire|rubber/.test(name)) {
         material.roughness = .83
         material.metalness = 0
@@ -101,7 +104,7 @@ export function batchVehicleMeshes(model: T.Group) {
   const inverse = model.matrixWorld.clone().invert()
   const transform = new T.Matrix4()
   model.traverseVisible(object => {
-    if (!(object instanceof T.Mesh) || Array.isArray(object.material) || object.material.transparent) return
+    if (!(object instanceof T.Mesh) || Array.isArray(object.material) || object.material.transparent || object.matrixWorld.determinant() < 0) return
     const { attributes, index } = object.geometry
     const layout = Object.keys(attributes).sort().map(name => {
       const attr = attributes[name]
@@ -114,7 +117,22 @@ export function batchVehicleMeshes(model: T.Group) {
   })
   for (const parts of buckets.values()) {
     if (parts.length < 2) continue
-    const geometries = parts.map(part => part.geometry.clone().applyMatrix4(transform.multiplyMatrices(inverse, part.matrixWorld)))
+    const geometries = parts.map(part => {
+      const geometry = part.geometry.clone()
+      // Baking a node transform into quantized coordinates would round or clip them.
+      for (const name of ['position', 'normal', 'tangent']) {
+        const attribute = geometry.getAttribute(name)
+        if (!attribute || attribute.array instanceof Float32Array) continue
+        const data = new Float32Array(attribute.count * attribute.itemSize)
+        for (let vertex = 0; vertex < attribute.count; vertex++) {
+          for (let component = 0; component < attribute.itemSize; component++) {
+            data[vertex * attribute.itemSize + component] = attribute.getComponent(vertex, component)
+          }
+        }
+        geometry.setAttribute(name, new T.BufferAttribute(data, attribute.itemSize))
+      }
+      return geometry.applyMatrix4(transform.multiplyMatrices(inverse, part.matrixWorld))
+    })
     const combined = mergeGeometries(geometries)
     geometries.forEach(geometry => geometry.dispose())
     if (!combined) continue

@@ -13,17 +13,26 @@ import { vehicleHotspots } from './vehicleHotspots'
 import { Vector3 } from 'three'
 
 const bodies = Object.keys(bodyNames).filter(body => !['Unknown', 'Other'].includes(body))
-const prepared = JSON.parse(readFileSync(resolve('public/models/vehicle-bodies/prepared.json'), 'utf8')) as { key: string; sha256: string }[]
-it('selects a different asset for every known body instead of reusing the sports coupe', () => {
+const prepared = ['vehicle-bodies/prepared.json', 'studio/sources.json'].flatMap(path =>
+  JSON.parse(readFileSync(resolve('public/models', path), 'utf8')) as { key: string; sha256: string }[])
+const matchedModels = [
+  { body: 'Suv', make: 'Dacia', model: 'Duster', key: 'renault-duster' },
+  { body: 'Unknown', make: 'BMW', model: 'a', key: 'bmw-7-series-f01' },
+  { body: 'Van', make: 'Mercedes-Benz', model: 'Sprinter 316 CDI', key: 'mercedes-benz-sprinter' },
+]
+it('selects a different asset for every known body and prefers verified models for matching records', () => {
   const selected = bodies.map(body => vehicleModel(body))
   expect(new Set(selected.map(model => model.url)).size).toBe(12)
-  expect(vehicleModel('Unknown').fallback).toBe(true)
-  expect(vehicleModel('Other').fallback).toBe(true)
-  expect(vehicleModel('FutureBodyType').fallback).toBe(true)
-  expect(vehicleModel('Unknown', 'Sprinter').key).toBe('van')
+  expect(vehicleModel('Unknown').key).toBe('renault-megane')
+  expect(vehicleModel('Unknown', { make: 'Fiat', model: 'Ducato' }).key).toBe('fiat-ducato')
+  for (const { body, make, model, key } of matchedModels) {
+    expect(vehicleModel(body, { make, model }).key).toBe(key)
+  }
+  expect(vehicleModel('Box', { make: 'Mercedes-Benz', model: 'Sprinter' }).key).toBe('box')
 })
-it.each([...bodies, 'Unknown'])('loads and paints the real %s body with valid ground-level proportions', async body => {
-  const appearance = vehicleModel(body), bytes = readFileSync(resolve(`src/assets/vehicles/${appearance.key}.glb`))
+const examples = [...bodies.map(body => ({ body, make: '', model: '', key: vehicleModel(body).key })), ...matchedModels]
+it.each(examples)('loads and paints $key with valid ground-level proportions', async ({ body, make, model: name }) => {
+  const appearance = vehicleModel(body, { make, model: name }), bytes = readFileSync(resolve(`src/assets/vehicles/${appearance.key}.glb`))
   expect(createHash('sha256').update(bytes).digest('hex')).toBe(prepared.find(asset => asset.key === appearance.key)?.sha256)
   const doc = JSON.parse(bytes.toString('utf8', 20, 20 + bytes.readUInt32LE(12)))
   expect(doc.buffers.length).toBeGreaterThanOrEqual(1)
@@ -49,7 +58,7 @@ it.each([...bodies, 'Unknown'])('loads and paints the real %s body with valid gr
     for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
       if (!(material instanceof MeshStandardMaterial)) continue
       if ((appearance.paintMaterials ?? ['Paint 1']).includes(material.name)) { painted++; expect(material.color.getHexString()).toBe('214d81'); expect(material.map).toBeNull() }
-      if (/glass|glazing/i.test(material.name)) { glass++; expect(material.color.getHexString()).not.toBe('214d81') }
+      if (/glass|glazing|window|vpc_v1_006_13/i.test(material.name)) { glass++; expect(material.color.getHexString()).not.toBe('214d81') }
     }
   })
   expect(painted).toBeGreaterThan(0); expect(glass).toBeGreaterThan(0)
@@ -57,8 +66,15 @@ it.each([...bodies, 'Unknown'])('loads and paints the real %s body with valid gr
   const door = hotspots.anchor(new Vector3(-shape.length * .08, shape.roof * .5, shape.width * .44), new Vector3(0, 0, 1))
   batchVehicleMeshes(model)
   let draws = 0
-  model.traverseVisible(object => { if (object instanceof Mesh) draws++ })
-  expect(draws).toBeLessThan(60)
+  const batchedBounds = new Box3()
+  model.traverseVisible(object => {
+    if (!(object instanceof Mesh)) return
+    draws++
+    batchedBounds.union(new Box3().setFromObject(object, true))
+  })
+  expect(draws).toBeLessThan(128)
+  expect(batchedBounds.min.distanceTo(bounds.min)).toBeLessThan(.002)
+  expect(batchedBounds.max.distanceTo(bounds.max)).toBeLessThan(.002)
   expect(hotspots.visible(door, door.point.clone().add(new Vector3(0, 0, 5)))).toBe(true)
   expect(hotspots.visible(door, door.point.clone().add(new Vector3(0, 0, -5)))).toBe(false)
   if (body === 'ChassisCab') {

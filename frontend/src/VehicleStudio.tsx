@@ -109,7 +109,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     }
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap
     renderer.shadowMap.autoUpdate = false
-    renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.13
+    renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08
     renderer.domElement.setAttribute('aria-label', 'Forgatható 3D járműmodell')
     renderer.domElement.setAttribute('role', 'img')
     container.prepend(renderer.domElement)
@@ -129,11 +129,11 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       scene.environmentRotation.y = Math.PI * .25
       invalidateFrame()
     }).catch(() => { /* The local room environment remains available. */ })
-    scene.add(new T.HemisphereLight('#e6e9e3', '#414b49', .5))
-    const key = new T.DirectionalLight('#fff1df', 2.05); key.position.set(3, 7, 4); key.castShadow = true
+    scene.add(new T.HemisphereLight('#e6e9e3', '#414b49', .58))
+    const key = new T.DirectionalLight('#fff1df', 1.85); key.position.set(3, 7, 4); key.castShadow = true
     key.shadow.mapSize.set(1024, 1024); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6
     key.shadow.normalBias = .015; key.shadow.radius = 3; scene.add(key)
-    const fill = new T.DirectionalLight('#d3e4eb', 1.25); fill.position.set(-4, 3, -5); scene.add(fill)
+    const fill = new T.DirectionalLight('#e4ebee', .95); fill.position.set(-4, 3, -5); scene.add(fill)
     const camera = new T.PerspectiveCamera(35, 1, .1, 100), home = new T.Vector3(5, 1.95, 6.1), homeTarget = new T.Vector3(0, .75, 0)
     const homeDirection = home.clone().normalize()
     camera.position.copy(home)

@@ -46,7 +46,8 @@ beforeEach(() => {
   vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id) })
   vi.stubGlobal('matchMedia', () => ({ matches: false }))
 })
-const props = () => ({ model: vehicleModel('Coupe'), color: 'Kék', menus: [{ key: 'data' as const, label: 'Járműadatok' }], action: null, onSelect: vi.fn(), onFocused: vi.fn(), onCancelled: vi.fn() })
+const testModel = { ...vehicleModel('Coupe'), rotation: 0, paintMaterials: ['Paint 1'] }
+const props = () => ({ model: testModel, color: 'Kék', menus: [{ key: 'data' as const, label: 'Járműadatok' }], action: null, onSelect: vi.fn(), onFocused: vi.fn(), onCancelled: vi.fn() })
 function asset() {
   const scene = new Group(), paint = new MeshPhysicalMaterial({ color: '#ff0000' }); paint.name = 'Paint 1'
   const geometry = new BoxGeometry(4.8, 1.2, 2); scene.add(new Mesh(geometry, paint))
@@ -132,7 +133,7 @@ it('switches to the requested body asset and discards a previous body that finis
   let complete!: (gltf: GLTF) => void
   const old = asset(), next = asset(), disposed = vi.spyOn(old.geometry, 'dispose')
   mocks.load.mockImplementationOnce(() => new Promise<GLTF>(resolve => { complete = resolve })).mockResolvedValueOnce(next.gltf)
-  const callbacks = props(), view = render(<VehicleStudio {...callbacks} model={vehicleModel('Estate')} />)
+  const callbacks = props(), view = render(<VehicleStudio {...callbacks} model={{ ...vehicleModel('Estate'), paintMaterials: testModel.paintMaterials }} />)
   view.rerender(<VehicleStudio {...callbacks} model={vehicleModel('Box')} />)
   await screen.findByRole('button', { name: 'Forgatás jobbra' })
   expect(mocks.load.mock.calls.map(call => call[0])).toEqual([vehicleModel('Estate').url, vehicleModel('Box').url])

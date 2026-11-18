@@ -5,7 +5,11 @@ export type VehicleHotspot = { point: Vector3; outward: Vector3 }
 
 export function vehicleHotspots(model: Object3D, extent: number) {
   const surfaces: Mesh[] = []
-  model.traverseVisible(object => { if (object instanceof Mesh) surfaces.push(object) })
+  model.traverseVisible(object => {
+    if (!(object instanceof Mesh)) return
+    if (!object.geometry.boundingBox) object.geometry.computeBoundingBox()
+    surfaces.push(object)
+  })
   const ray = new Raycaster(), direction = new Vector3(), origin = new Vector3()
   const intersections: Intersection[] = [], offset = extent * .002
   return {
@@ -29,8 +33,11 @@ export function vehicleHotspots(model: Object3D, extent: number) {
       direction.negate(); ray.set(eye, direction)
       ray.far = Math.max(0, distance - offset * .5)
       intersections.length = 0
-      ray.intersectObjects(surfaces, false, intersections)
-      return intersections.length === 0
+      for (const surface of surfaces) {
+        ray.intersectObject(surface, false, intersections)
+        if (intersections.length) return false
+      }
+      return true
     },
   }
 }

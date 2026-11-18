@@ -13,10 +13,8 @@ unused paint images removed; body-specific orientation, framing and hotspots.
 The chassis-cab illustration is derived from the box truck by removing its
 freight enclosure and fittings. Other materials and geometry are preserved.
 
-The garage uses this Innerscene collection for every body type, including the
-generic two-door coupe. These are representative silhouettes. For records with
-an unspecified body type, HERMES uses a generic sedan or a van when it recognizes
-the vehicle model.
+The garage uses this collection for the box truck, chassis cab and tipper.
+The road vehicle illustrations are listed in the [studio license](../studio/LICENSE.md).
 
 No external asset service is contacted when using the application. Prepared GLBs
 are bundled with HERMES; normal builds do not download or regenerate models.

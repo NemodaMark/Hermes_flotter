@@ -18,7 +18,7 @@ export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action
   onSelect?: (key: StudioSection) => void
   onReset: () => void; paused?: boolean; immersive?: boolean; overlay?: ReactNode; children?: ReactNode
 }) {
-  const model = vehicleModel(bodyType, car.model)
+  const model = vehicleModel(bodyType, car)
   const paint = vehiclePaint(color)
   return <>
     <div className="car-stage-wrap">
@@ -28,7 +28,7 @@ export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action
       </Suspense>
       {overlay && <div className="car-stage-overlay">{overlay}</div>}
       <div className="car-stage-meta">
-        <span>{model.fallback ? 'Becsült karosszéria' : bodyNames[bodyType]}<i style={{ backgroundColor: paint.hex }} />{color ?? 'Szín nincs megadva'}</span>
+        <span>{bodyType !== 'Unknown' && bodyNames[bodyType]}<i style={{ backgroundColor: paint.hex }} />{color ?? 'Szín nincs megadva'}</span>
         {car.odometerKm != null && <div className="car-stage-instrument"><Gauge size={17} aria-hidden="true" />
           <strong>{car.odometerKm.toLocaleString('hu-HU')}</strong><span>km</span>
         </div>}
@@ -37,7 +37,7 @@ export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action
     {children}
     <div className="studio-credit">
       <a href={`${import.meta.env.BASE_URL}${model.license}`} target="_blank" rel="noreferrer"
-        aria-label={model.credit} title={model.credit}>{immersive && <span className="studio-credit-compact">3D modell forrása</span>}<span>{model.credit}</span></a>
+        aria-label={`3D illusztráció: ${model.credit}`} title={model.credit}>{immersive && <span className="studio-credit-compact">3D illusztráció</span>}<span>3D illusztráció · {model.title}</span></a>
     </div>
   </>
 }

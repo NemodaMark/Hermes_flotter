@@ -45,5 +45,70 @@
     "title": "2014 Fiat Ducato",
     "author": "razor24 (https://sketchfab.com/razor24)",
     "source": "https://sketchfab.com/3d-models/2014-fiat-ducato-8a651ad182414bb0a8b6c6d8d5bd7c01"
+  },
+  {
+    "key": "renault-duster",
+    "sha256": "96253aa272e8c20965400ddbe99608ec3ecc8268f63a2810197c0f1be891247b",
+    "title": "2011 Dacia (Renault) Duster",
+    "author": "razor24 (https://sketchfab.com/razor24)",
+    "source": "https://sketchfab.com/3d-models/2011-dacia-renault-duster-30bc2e09de66426bb67be72c95fa2476",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "download": "https://cdn.jsdelivr.net/gh/pedrosoandre/carros@2d18dfd9db96bbf0d9cffa949deaf7f571388cbf/assets/renault-duster.glb"
+  },
+  {
+    "key": "bmw-7-series-f01",
+    "sha256": "1433f548cd23d5687981c8095d9125a8199d02d0d598747a944288ecfc4b34f4",
+    "title": "BMW 7-series (F01)",
+    "author": "Black Snow (https://sketchfab.com/BlackSnow02)",
+    "source": "https://sketchfab.com/3d-models/bmw-7-series-f01-0806c39847ae42e5996917f50527dda0",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "download": "https://cdn.jsdelivr.net/gh/pedrosoandre/carros@2d18dfd9db96bbf0d9cffa949deaf7f571388cbf/assets/bmw-7-series-f01.glb"
+  },
+  {
+    "key": "mercedes-benz-sprinter",
+    "sha256": "1d3d26f0aeed579270a321a5f75355dbb46d78299b35e3f7fa0f900429fa06e6",
+    "title": "Mercedes-Benz Sprinter",
+    "author": "Savelliy 07 (https://sketchfab.com/savelliy07)",
+    "source": "https://sketchfab.com/3d-models/mercedes-benz-sprinter-152f62800be34652af0545487129ca2e",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "download": "https://cdn.jsdelivr.net/gh/pedrosoandre/carros@2d18dfd9db96bbf0d9cffa949deaf7f571388cbf/assets/mercedes-benz-sprinter.glb",
+    "sourceSha256": "c09010dd11eb83e8dfcb9e0dd7e2c2b2cb2dee6265e63f184c52dde14762c8fb"
+  },
+  {
+    "key": "audi-tt",
+    "sha256": "26f659935f925c8b06b280e348edca1c3b65436d335b249fe6dc29cbe7eb0468",
+    "title": "2015 Audi TT Convertible",
+    "author": "razor24 (https://sketchfab.com/razor24)",
+    "source": "https://sketchfab.com/3d-models/2015-audi-tt-convertible-80cc29628e1b407d8e14d5ae0710f6fe",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "download": "https://cdn.jsdelivr.net/gh/pedrosoandre/carros@2d18dfd9db96bbf0d9cffa949deaf7f571388cbf/assets/audi-tt.glb"
+  },
+  {
+    "key": "kia-carnival",
+    "sha256": "97fd452a8fe998b44e0dab23f8157d8c24f0e1f0d6c22e40be5ae5bd0f7ebab6",
+    "title": "Kia Carnival 2011",
+    "author": "Doz3 (https://sketchfab.com/Doz3)",
+    "source": "https://sketchfab.com/3d-models/kia-carnival-2011-855c464351f244cbaafa8269a5d472df",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "download": "https://cdn.jsdelivr.net/gh/pedrosoandre/carros@2d18dfd9db96bbf0d9cffa949deaf7f571388cbf/assets/kia-carnival.glb"
+  },
+  {
+    "key": "ford-mustang",
+    "sha256": "0a0632a2da8429c416d0500a96a790a6efdced04da48713e5489c9305640ac28",
+    "title": "Ford Mustang Shelby GT500",
+    "author": "Jiaxing (https://sketchfab.com/saitoyang)",
+    "source": "https://sketchfab.com/3d-models/ford-mustang-shelby-gt500-0eaa7a16796540f29461ddae05ecdeb3",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "download": "https://cdn.jsdelivr.net/gh/pedrosoandre/carros@2d18dfd9db96bbf0d9cffa949deaf7f571388cbf/assets/ford-mustang.glb"
+  },
+  {
+    "key": "toyota-hilux",
+    "sha256": "976af35a5d2151a6bbbd21f725499389606b94396f31a43a078b62c1aa0cb331",
+    "title": "Toyota Hilux 2007",
+    "author": "David_Holiday (https://sketchfab.com/David_Holiday)",
+    "source": "https://sketchfab.com/3d-models/toyota-hilux-2007-0234ebed01ee4b87affed0e58673247e",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "download": "https://cdn.jsdelivr.net/gh/pedrosoandre/carros@2d18dfd9db96bbf0d9cffa949deaf7f571388cbf/assets/toyota-hilux.glb",
+    "sourceSha256": "231a8262217c1a16483d1558a79f2811ecec35d4cd0dc7ace959e4710db81c92"
   }
 ]
