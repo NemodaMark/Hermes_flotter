@@ -22,6 +22,8 @@ public static class Permissions
     public const string BookingsManage = "vehicles.bookings.manage";
     public const string FuelRead = "vehicles.fuel.read";
     public const string FuelManage = "vehicles.fuel.manage";
+    public const string MileageRecord = "mileage.record";
+    public const string MileageManage = "mileage.manage";
     public const string PartnersRead = "partners.read";
     public const string PartnersCreate = "partners.create";
     public const string PartnersUpdate = "partners.update";
@@ -42,6 +44,8 @@ public static class Permissions
     public const string SitesAssignVehicles = "sites.vehicles.assign";
     public static readonly IReadOnlyList<PermissionDescription> Catalog = Array.AsReadOnly(new[]
     {
+        new PermissionDescription(MileageRecord, "Saját havi km-elszámolás és magánhasználat rögzítése"),
+        new PermissionDescription(MileageManage, "Céges km-keretek és havi elszámolások kezelése"),
         new PermissionDescription(VehiclesRead, "Járművek megtekintése"), new(FleetOverviewRead, "Flottaáttekintő megtekintése"), new(VehiclesCreate, "Jármű felvétele"),
         new(VehiclesUpdate, "Járműadatok szerkesztése"), new(OdometerCreate, "Kilométerállás rögzítése"),
         new(VehiclesAssignUsers, "Jármű felhasználóhoz rendelése"),

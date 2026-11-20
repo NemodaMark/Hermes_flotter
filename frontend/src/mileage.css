@@ -1,0 +1,26 @@
+.mileage-panel { display: grid; gap: var(--space-4); }
+.access-dialog.mileage-dialog { width: min(760px, calc(100vw - 24px)); }
+.access-dialog.fuel-record-dialog { width: min(620px, calc(100vw - 24px)); }
+.mileage-dialog-tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); }
+.mileage-dialog-tabs [aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); }
+.mileage-capture { margin-block: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--line); }
+.mileage-capture .org-form-grid { margin-top: var(--space-3); }
+.mileage-capture .checkbox-label, .fuel-record-dialog .checkbox-label, .mileage-panel .checkbox-label, .vehicle-operation .operation-form .checkbox-label { display: flex; align-items: center; gap: var(--space-2); margin-block: var(--space-3); }
+.mileage-capture .checkbox-label input, .fuel-record-dialog .checkbox-label input, .mileage-panel .checkbox-label input, .vehicle-operation .operation-form .checkbox-label input { flex: 0 0 18px; width: 18px; height: 18px; min-height: 0; margin: 0; }
+.mileage-toolbar, .mileage-mode, .mileage-section-heading, .mileage-submitted, .mileage-due { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
+.mileage-toolbar .org-field, .mileage-mode .org-field { flex: 1; min-width: min(220px, 100%); margin: 0; }
+.mileage-panel h3 { margin: 0; font-size: 16px; }
+.mileage-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; gap: var(--space-3); padding-block: var(--space-3); border-block: 1px solid var(--line); }
+.mileage-totals dt { color: var(--muted); font-size: 12px; }
+.mileage-totals dd { margin: 4px 0 0; font-weight: 600; font-size: 19px; }
+.mileage-due { border-inline-start: 3px solid var(--danger-ink); padding-inline-start: var(--space-3); }
+.mileage-entries { list-style: none; padding: 0; margin: 0; }
+.mileage-entries li { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
+.mileage-entries li > div:first-child { display: grid; gap: 4px; }
+.mileage-entries small, .mileage-submitted > span { color: var(--muted); font-size: 12px; }
+.mileage-limit-form, .mileage-closing, .mileage-entry-editor { display: grid; gap: var(--space-3); }
+.mileage-entry-editor { padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); }
+.mileage-panel .org-form-grid { gap: var(--space-3); }
+.mileage-panel .dialog-actions { margin-top: 0; }
+.mileage-panel .org-field { min-width: 0; }
+@media (max-width: 600px) { .mileage-panel .org-form-grid { grid-template-columns: minmax(0, 1fr); } }

@@ -15,7 +15,7 @@ import { VehicleDocuments } from './VehicleDocuments'
 import { VehiclePhotos, VehicleAssignee } from './VehicleMedia'
 import { VehicleFields } from './VehicleFields'
 import { VehicleAssignmentHistory } from './VehicleAssignmentHistory'
-import { VehicleActions } from './VehicleActions'
+import { VehicleRecordingActions } from './VehicleActions'
 import { ProfileVehicleGarage } from './VehicleGarage'
 import type { StudioSection } from './VehicleStudio'
 import './fleet.css'
@@ -71,7 +71,7 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', sho
     <section className="access-panel vehicle-detail-panel" aria-label="Járműadatlap">
       <div className="org-toolbar vehicle-detail-header"><div>{!embedded && <h2>{car?.registration ?? 'Járműadatlap'}</h2>}{car && <p>{car.make} {car.model}</p>}</div>
         <div className="member-actions"><Button className="icon-button" aria-label="Járműadatlap frissítése" disabled={record.isFetching} onClick={() => void changed()}><RefreshCw size={17} /></Button>
-          {car && <VehicleActions user={user} tenant={tenant} vehicle={car} allowEditing={false} />}
+          {car && <VehicleRecordingActions key={car.id} user={user} tenant={tenant} vehicle={car} />}
           {car && can('vehicles.archive') && <Button className="secondary-button" onClick={() => setArchiveOpen(true)}>{car.status === 'Archived' ? 'Visszaállítás' : 'Archiválás'}</Button>}
         </div>
         {car && <div className="vehicle-detail-meta"><span className={`status status-${car.status.toLowerCase()}`}>{vehicleStatuses[car.status as keyof typeof vehicleStatuses]}</span><span>{car.siteName ?? 'Telephely nélkül'}</span><span>{car.odometerKm == null ? 'Nincs km-adat' : `${car.odometerKm.toLocaleString('hu-HU')} km`}</span></div>}
@@ -97,7 +97,7 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', sho
           {activeTab === 'garage' && <ProfileVehicleGarage key={car!.id} car={car!}
             bodyType={record.data.data.bodyType ?? 'Unknown'} color={record.data.data.color} />}
           {activeTab === 'bookings' && <VehicleBookingCalendar tenant={tenant} car={car!} userId={user.id} onChanged={changed} />}
-          {activeTab === 'fuel' && <VehicleFuel tenant={tenant} car={car!} />}
+          {activeTab === 'fuel' && <VehicleFuel tenant={tenant} car={car!} userId={user.id} />}
           {activeTab === 'handovers' && <VehicleHandovers tenant={tenant} car={car!} onChanged={() => changed('Az átadás elmentve.')} />}
         </Suspense>
         {activeTab === 'audit' && can('audit.read') && <FleetAudit tenantId={tenant.id} id={id} vehicle />}

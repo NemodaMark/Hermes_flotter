@@ -1,9 +1,62 @@
 import { Button } from './ui/Button'
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { lazy, Suspense, useState } from 'react'
+import { Fuel, Gauge } from 'lucide-react'
+import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, vehicleKey } from './api'
 import type { Session, Tenant, Vehicle } from './api'
 import { AccessDialog } from './AccessDialog'
+import { MileageCaptureFields } from './MileageCapture'
+import { useMileageCapture } from './useMileageCapture'
+import { localMileageDate } from './mileageApi'
+import './vehicle-recording.css'
+
+const VehicleFuelDialog = lazy(() => import('./VehicleOperations').then(module => ({ default: module.VehicleFuelDialog })))
+const MileagePanel = lazy(() => import('./MileagePanel').then(module => ({ default: module.MileagePanel })))
+type VehicleActionProps = { user: Session; tenant: Tenant; vehicle: Vehicle }
+export type VehicleRecordingMode = 'fuel' | 'odometer'
+
+function useVehicleActionRefresh({ user, tenant, vehicle }: VehicleActionProps) {
+  const client = useQueryClient()
+  return async () => {
+    await Promise.all([
+      client.invalidateQueries({ queryKey: vehicleKey(user.id, tenant.id) }),
+      client.invalidateQueries({ queryKey: ['dashboard'] }),
+      client.invalidateQueries({ queryKey: ['fleet-management', tenant.id, vehicle.id] }),
+      client.invalidateQueries({ queryKey: ['mileage', tenant.id] }),
+    ])
+  }
+}
+
+export function VehicleRecordingActions(props: VehicleActionProps & {
+  onModeChange?: (mode: VehicleRecordingMode | null) => void
+}) {
+  const { tenant, vehicle, onModeChange } = props
+  const refresh = useVehicleActionRefresh(props)
+  const [mode, setMode] = useState<VehicleRecordingMode | null>(null)
+  const [message, setMessage] = useState('')
+  const allowed = (code: string) => vehicle.status !== 'Archived' && (vehicle.permissions ?? tenant.permissions).includes(code)
+  const fuel = allowed('vehicles.fuel.manage'), odometer = allowed('vehicles.odometer.create')
+  function select(next: VehicleRecordingMode | null) {
+    setMode(next)
+    if (next) setMessage('')
+    onModeChange?.(next)
+  }
+  if (!fuel && !odometer) return null
+  return <div className="vehicle-recording-actions" role="group" aria-label="Gyors rögzítés">
+    {fuel && <Button type="button" className="primary-button" aria-label={`Tankolás rögzítése: ${vehicle.registration}`} onClick={() => select('fuel')}>
+      <Fuel size={19} aria-hidden="true" /><span>Tankolás</span>
+    </Button>}
+    {odometer && <Button type="button" className="primary-button" aria-label={`Kilométerállás: ${vehicle.registration}`} onClick={() => select('odometer')}>
+      <Gauge size={19} aria-hidden="true" /><span>Km rögzítése</span>
+    </Button>}
+    {message && <span className="vehicle-recording-feedback" role="status">{message}</span>}
+    {mode === 'odometer' && odometer && <VehicleActionDialog key={`${vehicle.id}:${vehicle.version}:odometer`} user={props.user} tenant={tenant} vehicle={vehicle}
+      mode="odometer" onClose={() => select(null)} onChanged={async () => { await refresh(); setMessage('Kilométerállás elmentve.') }} />}
+    {mode === 'fuel' && fuel && <Suspense fallback={<p role="status">Tankolási űrlap betöltése…</p>}>
+      <VehicleFuelDialog tenant={tenant} car={vehicle} userId={props.user.id} onClose={() => select(null)} onSaved={() => { select(null); setMessage('Tankolás elmentve.') }} />
+    </Suspense>}
+  </div>
+}
 
 export function VehicleActions({
   user,
@@ -16,7 +69,7 @@ export function VehicleActions({
   vehicle: Vehicle
   allowEditing?: boolean
 }) {
-  const client = useQueryClient()
+  const refresh = useVehicleActionRefresh({ user, tenant, vehicle })
   const [mode, setMode] = useState<'edit' | 'odometer' | null>(null)
   return (
     <div className="member-actions">
@@ -41,15 +94,12 @@ export function VehicleActions({
       {mode && (
         <VehicleActionDialog
           key={`${vehicle.id}:${vehicle.version}:${mode}`}
+          user={user}
           tenant={tenant}
           vehicle={vehicle}
           mode={mode}
           onClose={() => setMode(null)}
-          onChanged={async () => {
-            await client.invalidateQueries({ queryKey: vehicleKey(user.id, tenant.id) })
-            await client.invalidateQueries({ queryKey: ['dashboard'] })
-            await client.invalidateQueries({ queryKey: ['fleet-management', tenant.id, vehicle.id] })
-          }}
+          onChanged={refresh}
         />
       )}
     </div>
@@ -57,12 +107,14 @@ export function VehicleActions({
 }
 
 function VehicleActionDialog({
+  user,
   tenant,
   vehicle,
   mode,
   onClose,
   onChanged,
 }: {
+  user: Session
   tenant: Tenant
   vehicle: Vehicle
   mode: 'edit' | 'odometer'
@@ -73,21 +125,30 @@ function VehicleActionDialog({
   const [make, setMake] = useState(vehicle.make)
   const [model, setModel] = useState(vehicle.model)
   const [kilometers, setKilometers] = useState(vehicle.odometerKm?.toString() ?? '')
+  const [monthly, setMonthly] = useState(false)
+  const mileagePending = useIsMutating({ mutationKey: ['mileage', tenant.id] }) > 0
+  const capture = useMileageCapture(tenant, user.id, localMileageDate(), mode === 'odometer')
   const save = useMutation({
     mutationFn: () =>
       mode === 'edit'
         ? api.updateVehicle(tenant.id, vehicle, { registration, make, model })
-        : api.recordOdometer(tenant.id, vehicle, Number(kilometers)),
+        : api.recordOdometer(tenant.id, vehicle, Number(kilometers), capture.usage()),
   })
   return (
     <AccessDialog
       title={mode === 'edit' ? 'Járműadatok szerkesztése' : 'Kilométerállás rögzítése'}
-      pending={save.isPending}
+      pending={save.isPending || mileagePending}
       onClose={onClose}
+      className={monthly ? 'mileage-dialog' : ''}
     >
-      <form
+      {mode === 'odometer' && capture.allowed && <div className="mileage-dialog-tabs" role="group" aria-label="Km-rögzítés nézete">
+        <Button className="secondary-button" aria-pressed={!monthly} disabled={save.isPending} onClick={() => setMonthly(false)}>Kilométerállás</Button>
+        <Button className="secondary-button" aria-pressed={monthly} disabled={save.isPending} onClick={() => setMonthly(true)}>Havi elszámolás</Button>
+      </div>}
+      {monthly ? <Suspense fallback={<p role="status">Elszámolás betöltése…</p>}><MileagePanel user={user} tenant={tenant} /></Suspense> : <form
         onSubmit={(e) => {
           e.preventDefault()
+          if (!capture.ready) return
           void save
             .mutateAsync()
             .then(async () => {
@@ -137,6 +198,7 @@ function VehicleActionDialog({
               id="odometer"
               required
               type="number"
+              inputMode="numeric"
               min={vehicle.odometerKm ?? 0}
               max={100000000}
               step={1}
@@ -147,6 +209,7 @@ function VehicleActionDialog({
             <p className="field-hint">
               Előző érték: {vehicle.odometerKm?.toLocaleString('hu-HU') ?? 'még nincs adat'} km.
             </p>
+            <MileageCaptureFields capture={capture} onMonthly={() => setMonthly(true)} />
           </>
         )}
         {save.isError && (
@@ -163,11 +226,11 @@ function VehicleActionDialog({
           >
             Mégse
           </Button>
-          <Button className="primary-button" disabled={save.isPending}>
+          <Button className="primary-button" disabled={save.isPending || !capture.ready}>
             Mentés
           </Button>
         </div>
-      </form>
+      </form>}
     </AccessDialog>
   )
 }

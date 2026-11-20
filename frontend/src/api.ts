@@ -272,10 +272,10 @@ export const api = {
       method: 'PUT',
       body: { ...input, version: vehicle.version },
     }),
-  recordOdometer: (tenantId: string, vehicle: Vehicle, kilometers: number) =>
+  recordOdometer: (tenantId: string, vehicle: Vehicle, kilometers: number, usage?: { month: string; totalKm: number; privateKm: number } | null) =>
     request<Vehicle>(`/api/v1/vehicles/${vehicle.id}/odometer`, {
       tenantId,
-      body: { kilometers, version: vehicle.version },
+      body: { kilometers, version: vehicle.version, ...(usage ? { usage } : {}) },
     }),
   session: async (signal?: AbortSignal) => {
     try {

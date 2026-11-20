@@ -8,7 +8,7 @@ export type DashboardCar = {
 }
 export type Dashboard = {
   mode: 'Overview' | 'Vehicle'; priority: number; sourceGroup: string | null; canReadVehicles: boolean
-  canReadOverview: boolean; today: string; vehicles: DashboardCar[]
+  canReadOverview: boolean; canRecordMileage?: boolean; mileageDueMonth?: string | null; today: string; vehicles: DashboardCar[]
 }
 export type DashboardOverview = {
   today: string

@@ -37,10 +37,10 @@ public static class FleetOperationsEndpoints
         vehicles.MapGet("/fuel/export", async (Guid id, DateOnly month, FleetManagement fleet, HttpContext http, CancellationToken ct) =>
         {
             var entries = await fleet.Fuel(id, month, ct);
-            var csv = new StringBuilder("Dátum;Kilométerállás;Liter;Összeg;Pénznem\r\n");
+            var csv = new StringBuilder("Dátum;Kilométerállás;Liter;Összeg;Pénznem;Bizonylatszám;Teletank;Fogyasztás (l/100 km)\r\n");
             var culture = CultureInfo.GetCultureInfo("hu-HU");
             foreach (var row in entries.Items.Where(x => !x.IsVoided))
-                csv.Append(CultureInfo.InvariantCulture, $"{row.FueledOn:yyyy-MM-dd};{row.Kilometers};{row.Liters.ToString("0.###", culture)};{row.Amount.ToString("0.00", culture)};{row.Currency}\r\n");
+                csv.Append(CultureInfo.InvariantCulture, $"{row.FueledOn:yyyy-MM-dd};{row.Kilometers};{row.Liters.ToString("0.###", culture)};{row.Amount.ToString("0.00", culture)};{row.Currency};{CsvCell(row.ReceiptNumber)};{(row.IsFullTank ? "Igen" : "Nem")};{row.LitersPer100Km?.ToString("0.00", culture)}\r\n");
             http.Response.Headers.CacheControl = "private, no-store";
             return Results.File(Encoding.UTF8.GetBytes("\uFEFF" + csv), "text/csv; charset=utf-8", $"tankolas-{month:yyyy-MM}.csv");
         }).RequireAuthorization(Permissions.FuelRead);
@@ -50,6 +50,8 @@ public static class FleetOperationsEndpoints
             var (input, image) = await OperationForm<FuelEntryInput>(http.Request, ct);
             return Results.Ok(await fleet.RecordFuel(id, input, image, ct));
         }).RequireAuthorization(Permissions.FuelManage);
+        vehicles.MapPut("/fuel/{entry:guid}", async (Guid id, Guid entry, UpdateFuelEntryInput body, FleetManagement fleet, CancellationToken ct)
+            => Results.Ok(await fleet.UpdateFuel(id, entry, body, ct))).RequireAuthorization(Permissions.FuelManage);
         vehicles.MapPost("/fuel/{entry:guid}/void", async (Guid id, Guid entry, FuelVoidInput body, FleetManagement fleet, CancellationToken ct)
             => Results.Ok(await fleet.VoidFuel(id, entry, body.Reason, ct))).RequireAuthorization(Permissions.FuelManage);
         vehicles.MapGet("/fuel/{entry:guid}/receipt", async (Guid id, Guid entry, HttpContext http, FleetManagement fleet, CancellationToken ct)
@@ -68,6 +70,13 @@ public static class FleetOperationsEndpoints
     }
 
     private sealed record FuelVoidInput(string Reason);
+
+    private static string CsvCell(string? value)
+    {
+        value ??= "";
+        if (value.TrimStart().FirstOrDefault() is '=' or '+' or '-' or '@') value = "'" + value;
+        return "\"" + value.Replace("\"", "\"\"") + "\"";
+    }
 
     private static async Task<(T Data, byte[]? Image)> OperationForm<T>(HttpRequest request, CancellationToken ct) where T : class
     {

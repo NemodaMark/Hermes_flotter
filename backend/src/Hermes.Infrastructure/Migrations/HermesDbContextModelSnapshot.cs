@@ -356,6 +356,177 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("tenant_membership_permissions", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Domain.MileageAccount", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateOnly>("FirstMonth")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<long?>("MonthlyLimitKm")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
+                    b.HasKey("TenantId", "UserId");
+
+                    b.ToTable("mileage_accounts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_mileage_account", "\"Mode\" IN ('Entries','Monthly') AND (\"MonthlyLimitKm\" IS NULL OR \"MonthlyLimitKm\" BETWEEN 0 AND 100000000) AND extract(day from \"FirstMonth\") = 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Domain.MileageEntry", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("EndKilometers")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("OccurredOn")
+                        .HasColumnType("date");
+
+                    b.Property<long>("PrivateKm")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RecordedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("StartKilometers")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalKm")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "Source", "SourceId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "UserId", "Month");
+
+                    b.HasIndex("TenantId", "VehicleId", "StartKilometers");
+
+                    b.ToTable("mileage_entries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_mileage_entry", "\"TotalKm\" BETWEEN 0 AND 100000000 AND \"PrivateKm\" BETWEEN 0 AND \"TotalKm\" AND date_trunc('month', \"OccurredOn\"::timestamp)::date = \"Month\"");
+
+                            t.HasCheckConstraint("CK_mileage_interval", "(\"StartKilometers\" IS NULL AND \"EndKilometers\" IS NULL) OR (\"StartKilometers\" IS NOT NULL AND \"EndKilometers\" IS NOT NULL AND \"StartKilometers\" >= 0 AND \"EndKilometers\" - \"StartKilometers\" = \"TotalKm\" AND \"EndKilometers\" <= 100000000)");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Domain.MileageMonth", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("LimitCaptured")
+                        .HasColumnType("boolean");
+
+                    b.Property<long?>("LimitKm")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<long>("PrivateKm")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("TotalKm")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
+                    b.HasKey("TenantId", "UserId", "Month");
+
+                    b.ToTable("mileage_months", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_mileage_month", "\"Mode\" IN ('Entries','Monthly') AND \"TotalKm\" BETWEEN 0 AND 100000000 AND \"PrivateKm\" BETWEEN 0 AND \"TotalKm\" AND extract(day from \"Month\") = 1");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Domain.OdometerReading", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -499,6 +670,16 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("permission_definitions", (string)null);
 
                     b.HasData(
+                        new
+                        {
+                            Code = "mileage.record",
+                            Name = "Saját havi km-elszámolás és magánhasználat rögzítése"
+                        },
+                        new
+                        {
+                            Code = "mileage.manage",
+                            Name = "Céges km-keretek és havi elszámolások kezelése"
+                        },
                         new
                         {
                             Code = "vehicles.read",
@@ -1248,6 +1429,9 @@ namespace Hermes.Infrastructure.Migrations
                     b.Property<DateOnly>("FueledOn")
                         .HasColumnType("date");
 
+                    b.Property<bool>("IsFullTank")
+                        .HasColumnType("boolean");
+
                     b.Property<long>("Kilometers")
                         .HasColumnType("bigint");
 
@@ -1258,13 +1442,33 @@ namespace Hermes.Infrastructure.Migrations
                     b.Property<byte[]>("Receipt")
                         .HasColumnType("bytea");
 
+                    b.Property<string>("ReceiptNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset?>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("RecordedBy")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<Guid>("VehicleId")
                         .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
 
                     b.Property<DateTimeOffset?>("VoidedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1276,6 +1480,8 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("vehicle_fuel_entries", null, t =>
                         {
                             t.HasCheckConstraint("CK_vehicle_fuel_values", " \"Kilometers\" BETWEEN 0 AND 100000000 AND \"Liters\" > 0 AND \"Amount\" >= 0 AND (\"Receipt\" IS NULL OR octet_length(\"Receipt\") BETWEEN 1 AND 5242880) ");
+
+                            t.HasCheckConstraint("CK_vehicle_fuel_version", "\"Version\" > 0");
                         });
                 });
 
@@ -2314,6 +2520,38 @@ namespace Hermes.Infrastructure.Migrations
                         .WithMany("Permissions")
                         .HasForeignKey("TenantId", "UserSubject")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.MileageAccount", b =>
+                {
+                    b.HasOne("Hermes.Domain.TenantMembership", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.MileageEntry", b =>
+                {
+                    b.HasOne("Hermes.Domain.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hermes.Domain.MileageMonth", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UserId", "Month")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.MileageMonth", b =>
+                {
+                    b.HasOne("Hermes.Domain.MileageAccount", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

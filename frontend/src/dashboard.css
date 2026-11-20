@@ -58,6 +58,7 @@
   --garage-ink: #faf8ee;
   --garage-muted: #dddcd2;
   --garage-accent: var(--vehicle-accent-dark, #b6d1bb);
+  --garage-on-accent: #101711;
   --garage-panel: color-mix(in srgb, #171b19ee 92%, var(--garage-accent));
   --garage-line: color-mix(in srgb, var(--garage-accent) 38%, transparent);
   --garage-hover: color-mix(in srgb, #171b19 76%, var(--garage-accent));
@@ -193,18 +194,21 @@
 .car-menu {
   position: relative;
   z-index: 4;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
   justify-self: center;
   align-self: end;
-  width: min(650px, calc(100% - 2 * var(--garage-inset)));
+  width: min(740px, calc(100% - 2 * var(--garage-inset)));
   margin-block-end: max(12px, env(safe-area-inset-bottom));
   gap: 0;
   border: 1px solid var(--garage-line);
   border-radius: var(--radius-panel);
   background: var(--garage-panel);
 }
-.car-menu > button, .car-menu-more > summary {
+.car-menu > button, .car-menu-more, .car-menu > .vehicle-recording-actions { flex: 1; min-width: 0; }
+.car-menu > .vehicle-recording-actions { flex-wrap: nowrap; gap: 0; padding: 4px; }
+.car-menu > .vehicle-recording-actions:has(> button + button) { flex: 2; }
+.car-menu > .vehicle-recording-actions > button { flex: 1; }
+.car-menu > button, .car-menu-more > summary, .car-menu .vehicle-recording-actions > button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -219,7 +223,18 @@
   cursor: pointer;
 }
 .car-menu svg { color: var(--garage-accent); }
-.car-menu button:hover, .car-menu-more > summary:hover, .car-menu-more[open] > summary { color: var(--garage-ink); background: var(--garage-hover); }
+.car-menu .vehicle-recording-actions > button {
+  min-height: calc(var(--garage-dock) - 10px);
+  padding-inline: 8px;
+  background: var(--garage-accent);
+  color: var(--garage-on-accent);
+  font-weight: 600;
+}
+.car-menu .vehicle-recording-actions > button + button { margin-inline-start: 4px; }
+.car-menu .vehicle-recording-actions > button svg { color: inherit; }
+.car-menu .vehicle-recording-actions > button:hover { color: var(--garage-on-accent); background: color-mix(in srgb, var(--garage-accent) 85%, white); }
+.car-menu .vehicle-recording-feedback { background: var(--garage-panel); color: var(--garage-ink); border-color: var(--garage-line); }
+.car-menu > button:hover, .car-menu-more > div button:hover, .car-menu-more > summary:hover, .car-menu-more[open] > summary { color: var(--garage-ink); background: var(--garage-hover); }
 .car-menu-more > summary::-webkit-details-marker { display: none; }
 .car-menu-more > div {
   position: absolute;
@@ -304,7 +319,8 @@
   .profile-garage .car-stage-meta { bottom: 67px; max-width: calc(100% - 170px); }
   .car-stage-instrument strong { font-size: 18px; }
   .studio-camera-controls button { width: 44px; height: 40px; }
-  .car-menu > button, .car-menu-more > summary { flex-direction: column; gap: 3px; font-size: 11px; line-height: 1; }
+  .car-menu > button, .car-menu-more > summary, .car-menu .vehicle-recording-actions > button { flex-direction: column; gap: 3px; font-size: 11px; line-height: 1.2; }
+  .car-menu .vehicle-recording-actions > button { padding-inline: 3px; }
   .studio-hotspot { width: 44px; height: 44px; }
   .studio-hotspot > span { width: 14px; height: 14px; border-width: 2px; }
   .profile-garage .vehicle-studio { height: clamp(300px, 53svh, 430px); }

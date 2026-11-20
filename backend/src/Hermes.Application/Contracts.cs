@@ -38,7 +38,7 @@ public sealed record VehicleCreationOptions(bool CanCreateUnassigned, VehicleSit
     public PartnerOption[] ServicePartners { get; init; } = [];
 }
 public sealed record UpdateVehicleRequest(string Registration, string Make, string Model, long Version);
-public sealed record RecordOdometerRequest(long? Kilometers, long Version);
+public sealed record RecordOdometerRequest(long? Kilometers, long Version, MileageUsageInput? Usage = null);
 public sealed record VehicleListQuery(int Page = 1, int PageSize = 25, string? Search = null,
     string Status = "all", string SiteId = "all");
 public sealed record VehicleListPage(VehicleSummary[] Items, int Total, int AvailableTotal, int Page, int PageSize);

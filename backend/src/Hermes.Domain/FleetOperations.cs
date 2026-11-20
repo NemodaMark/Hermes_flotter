@@ -32,11 +32,17 @@ public sealed class VehicleFuelEntry : ITenantEntity
     public Guid TenantId { get; init; }
     public Guid Id { get; init; } = Guid.CreateVersion7();
     public Guid VehicleId { get; init; }
-    public DateOnly FueledOn { get; init; }
-    public long Kilometers { get; init; }
-    public decimal Liters { get; init; }
-    public decimal Amount { get; init; }
-    public required string Currency { get; init; }
+    public DateOnly FueledOn { get; set; }
+    public long Kilometers { get; set; }
+    public decimal Liters { get; set; }
+    public decimal Amount { get; set; }
+    public required string Currency { get; set; }
+    public string? ReceiptNumber { get; set; }
+    public bool IsFullTank { get; set; }
+    public long Version { get; set; } = 1;
+    public DateTimeOffset? RecordedAt { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAt { get; set; }
+    public string? UpdatedBy { get; set; }
     public required string RecordedBy { get; init; }
     public byte[]? Receipt { get; init; }
     public DateTimeOffset? VoidedAt { get; set; }

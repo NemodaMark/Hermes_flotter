@@ -1474,3 +1474,8 @@ FOREIGN KEY ("TenantId") REFERENCES tenants("Id") ON DELETE RESTRICT
 PRIMARY KEY ("TenantId", "Id")
 CREATE UNIQUE INDEX "IX_vehicles_TenantId_Registration" ON public.vehicles USING btree ("TenantId", "Registration")
 ```
+
+
+## 2026. november 20-i kiegészítés: havi km-elszámolás és tankolásjavítás
+
+A `20261120115253_MonthlyMileageAndFuelCorrections` migráció óta a `mileage_accounts`, `mileage_months` és `mileage_entries` táblák személyenként és cégenként tárolják a havi teljes és magánkilométert, a havi keretet és annak záráskori pillanatképét. A `vehicle_fuel_entries` bizonylatszámmal, teletankjelöléssel, verzióval és módosítói metaadatokkal bővült. A részletes mezők, kulcsok, importkompatibilitás és API: [Tankolás és havi km-elszámolás](MILEAGE_AND_FUEL.md#api-és-adatbázis). Ez a kiegészítés a korábbi átadási leíráshoz hozzáadódik; a korábbi CSV-oszlopok és előzményadatok megmaradnak.

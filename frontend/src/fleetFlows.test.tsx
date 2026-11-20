@@ -54,7 +54,7 @@ it('records the current odometer from the vehicle profile with its actual permis
   await userEvent.click(await screen.findByRole('button', { name: 'Kilométerállás: ABC-123' }))
   fireEvent.change(screen.getByLabelText('Kilométerállás (km)'), { target: { value: '51000' } })
   await userEvent.click(screen.getByRole('button', { name: 'Mentés' }))
-  await waitFor(() => expect(save).toHaveBeenCalledWith('company', car, 51000))
+  await waitFor(() => expect(save).toHaveBeenCalledWith('company', car, 51000, null))
 })
 it('searches partners while typing, resets the page atomically and uses a switch for archived records', async () => {
   const list = vi.spyOn(fleetApi, 'partners').mockResolvedValue({ items: [], total: 60, page: 1, pageSize: 25 })

@@ -8,6 +8,8 @@ public sealed record DashboardVehicle(VehicleSummary Vehicle, string BodyType, s
 public sealed record DashboardSummary(string Mode, int Priority, string? SourceGroup, bool CanReadVehicles, DashboardVehicle[] Vehicles)
 {
     public bool CanReadOverview { get; init; }
+    public bool CanRecordMileage { get; init; }
+    public DateOnly? MileageDueMonth { get; init; }
     public DateOnly Today { get; init; }
 }
 

@@ -275,6 +275,9 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
         var before = vehicle.OdometerKm;
         vehicle.OdometerKm = request.Kilometers;
         vehicle.Version++;
+        var zone = await db.Tenants.Where(x => x.Id == TenantId).Select(x => x.TimeZone).SingleAsync(ct);
+        await MileageLedger.Capture(db, tenantContext, id, "Odometer", reading.Id,
+            FleetManagement.LocalDay(reading.RecordedAt, zone), reading.Kilometers, request.Usage, ct);
         Audit("vehicle.odometer_recorded", new { vehicleId = id, readingId = reading.Id, before, after = request.Kilometers, version = vehicle.Version });
         await db.SaveChangesAsync(ct);
         return await Summary(vehicle, access, ct);

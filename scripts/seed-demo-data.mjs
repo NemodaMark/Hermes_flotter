@@ -19,8 +19,9 @@ const statePath = new URL('state.json', directory)
 const credentialsPath = new URL('bejelentkezesek.json', directory)
 const verifyOnly = process.argv.includes('--verify-only')
 const bookingsOnly = process.argv.includes('--bookings-only')
+const operationsOnly = process.argv.includes('--operations-only')
 const withBookings = process.argv.includes('--with-bookings')
-assert.ok(process.argv.slice(2).length <= 1 && process.argv.slice(2).every(arg => ['--verify-only', '--bookings-only', '--with-bookings'].includes(arg)), 'Ismeretlen vagy ismételt kapcsoló.')
+assert.ok(process.argv.slice(2).length <= 1 && process.argv.slice(2).every(arg => ['--verify-only', '--bookings-only', '--with-bookings', '--operations-only'].includes(arg)), 'Ismeretlen vagy ismételt kapcsoló.')
 const adminPassword = process.env.HERMES_SEED_ADMIN_PASSWORD
 assert.ok(adminPassword, 'Add meg a HERMES_SEED_ADMIN_PASSWORD környezeti változót.')
 
@@ -405,11 +406,42 @@ async function seedBookings() {
     await Promise.allSettled(accounts.map(({ account }) => account.logout()))
   }
 }
+// Upgrade only the known demo groups; retain every existing company/site scope and grant.
+async function upgradeOperations() {
+  const tenantId = state.done.company.id
+  assert.equal((await admin.request('/api/v1/company', { tenantId })).data.name, companyName)
+  const existing = await admin.request('/api/v1/permission-groups')
+  for (const definition of groups.filter(group => group.key !== 'reader')) {
+    const row = existing.find(item => item.id === state.done[`group-${definition.key}`]?.id)
+    assert.ok(row && row.name === definition.name && !row.isAdmin && !row.allPermissions
+      && row.companies.length === 1 && row.companies[0].id === tenantId, 'A demócsoport váratlanul megváltozott.')
+    const additions = ['vehicles.fuel.read', 'vehicles.fuel.manage', 'mileage.record', 'vehicles.bookings.read', 'vehicles.bookings.create',
+      ...(definition.key === 'fleet' ? ['mileage.manage', 'vehicles.bookings.manage'] : [])]
+    const permissions = [...new Set([...row.permissions, ...additions])]
+    if (permissions.length !== row.permissions.length) {
+      const company = row.companies[0]
+      state.done[`group-${definition.key}`] = await admin.request(`/api/v1/permission-groups/${row.id}`, { method: 'PUT', body: {
+        name: row.name, version: row.version, permissions, companyIds: [tenantId],
+        siteScopes: [{ companyId: tenantId, allSites: company.allSites, siteIds: company.sites.map(site => site.id) }],
+      } })
+      await privateJson(statePath, state)
+    }
+  }
+  // First-time example limits only; never overwrite a manually configured allowance.
+  const accounts = await admin.request('/api/v1/mileage/accounts', { tenantId })
+  for (const person of people.filter(person => person.group !== 'reader' && !person.suspended)) {
+    const account = accounts.find(item => item.userId === person.userName)
+    assert.ok(account, 'Hiányzó demófelhasználó.')
+    if (account.version === 0) await admin.request(`/api/v1/mileage/accounts/${person.userName}`, { tenantId, method: 'PUT', body: { version: 0, monthlyLimitKm: 2500 } })
+  }
+  console.log('A demó tankolási, km-elszámolási és foglalási jogai frissítve; a telephelykorlátok megmaradtak. Első alkalommal 2500 km-es havi mintakeret beállítva.')
+}
 try {
-  if (!verifyOnly && !bookingsOnly && !state.completedAt) await seed()
+  if (!verifyOnly && !bookingsOnly && !operationsOnly && !state.completedAt) await seed()
   assert.ok(state.completedAt, 'A betöltés még nem fejeződött be; futtasd --verify-only nélkül.')
+  if (operationsOnly || withBookings) await upgradeOperations()
   if (bookingsOnly || withBookings) await seedBookings()
-  if (!bookingsOnly) await verify()
+  if (!bookingsOnly && !operationsOnly) await verify()
 } finally {
   await admin.logout()
 }

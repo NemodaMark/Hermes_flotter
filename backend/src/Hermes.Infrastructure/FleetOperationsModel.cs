@@ -42,6 +42,10 @@ public sealed partial class HermesDbContext
             e.HasKey(x => new { x.TenantId, x.Id });
             e.HasIndex(x => new { x.TenantId, x.VehicleId, x.FueledOn });
             e.Property(x => x.RecordedBy).HasMaxLength(256);
+            e.Property(x => x.UpdatedBy).HasMaxLength(256);
+            e.Property(x => x.ReceiptNumber).HasMaxLength(100);
+            e.Property(x => x.Version).HasDefaultValue(1L).IsConcurrencyToken();
+            e.ToTable(t => t.HasCheckConstraint("CK_vehicle_fuel_version", "\"Version\" > 0"));
             e.Property(x => x.Currency).HasMaxLength(3);
             e.Property(x => x.Liters).HasPrecision(9, 3);
             e.Property(x => x.Amount).HasPrecision(14, 2);

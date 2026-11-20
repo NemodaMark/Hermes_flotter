@@ -135,33 +135,110 @@ public sealed partial class FleetManagement
     {
         await Car(id, access, Permissions.FuelRead, ct);
         var next = NextMonth(month);
-        var rows = await db.VehicleFuelEntries.AsNoTracking().Where(x => x.VehicleId == id && x.FueledOn >= month && x.FueledOn < next)
-            .OrderByDescending(x => x.FueledOn).ThenByDescending(x => x.Id)
-            .Select(x => new FuelEntryRow(x.Id, x.FueledOn, x.Kilometers, x.Liters, x.Amount, x.Currency, x.Receipt != null, x.VoidedAt != null)).ToArrayAsync(ct);
+        var baseline = await db.VehicleFuelEntries.AsNoTracking().Where(x => x.VehicleId == id && x.FueledOn < month && x.VoidedAt == null && x.IsFullTank)
+            .OrderByDescending(x => x.FueledOn).ThenByDescending(x => x.Kilometers).Select(x => (DateOnly?)x.FueledOn).FirstOrDefaultAsync(ct);
+        var start = baseline ?? month;
+        var entries = await db.VehicleFuelEntries.AsNoTracking().Where(x => x.VehicleId == id && x.FueledOn >= start && x.FueledOn < next)
+            .OrderBy(x => x.FueledOn).ThenBy(x => x.Kilometers).ThenBy(x => x.Id)
+            .Select(x => new FuelEntryRow(x.Id, x.FueledOn, x.Kilometers, x.Liters, x.Amount, x.Currency, x.Receipt != null, x.VoidedAt != null)
+            {
+                ReceiptNumber = x.ReceiptNumber, IsFullTank = x.IsFullTank, Version = x.Version,
+                RecordedBy = x.RecordedBy, RecordedAt = x.RecordedAt, UpdatedBy = x.UpdatedBy, UpdatedAt = x.UpdatedAt
+            }).ToArrayAsync(ct);
+        var averages = new Dictionary<Guid, decimal>();
+        long? anchor = null, previous = null;
+        decimal liters = 0, measuredLiters = 0;
+        long measuredKm = 0;
+        foreach (var row in entries.Where(x => !x.IsVoided))
+        {
+            if (previous is not null && row.Kilometers < previous) { anchor = null; liters = 0; }
+            previous = row.Kilometers;
+            if (anchor is not null) liters += row.Liters;
+            if (!row.IsFullTank) continue;
+            if (anchor is not null && row.Kilometers > anchor && row.FueledOn >= month)
+            {
+                var distance = row.Kilometers - anchor.Value;
+                averages[row.Id] = Math.Round(100 * liters / distance, 2);
+                measuredKm += distance;
+                measuredLiters += liters;
+            }
+            anchor = row.Kilometers;
+            liters = 0;
+        }
+        var rows = entries.Where(x => x.FueledOn >= month).Reverse()
+            .Select(x => x with { LitersPer100Km = averages.TryGetValue(x.Id, out var average) ? average : null }).ToArray();
         return new FuelMonth(rows, rows.Where(x => !x.IsVoided).GroupBy(x => x.Currency).OrderBy(x => x.Key)
-            .Select(x => new FuelTotal(x.Key, x.Sum(y => y.Liters), x.Sum(y => y.Amount))).ToArray());
+            .Select(x => new FuelTotal(x.Key, x.Sum(y => y.Liters), x.Sum(y => y.Amount))).ToArray())
+        {
+            MeasuredKilometers = measuredKm,
+            LitersPer100Km = measuredKm > 0 ? Math.Round(100 * measuredLiters / measuredKm, 2) : null
+        };
     }, ct);
 
-    public Task<FuelEntryRow> RecordFuel(Guid id, FuelEntryInput input, byte[]? receipt, CancellationToken ct) => Scoped(Permissions.FuelManage, async access =>
+    private async Task ValidateFuel(FuelEntryInput input, CancellationToken ct)
     {
-        await Car(id, access, Permissions.FuelManage, ct, write: true);
         FleetValidation.Date(input.FueledOn);
         if (input.FueledOn > await CompanyToday(ct)) throw FleetValidation.Invalid("A tankolás dátuma nem lehet jövőbeli.");
         FleetValidation.Range(input.Kilometers, 100_000_000, "Kilométerállás");
         FleetValidation.Range(input.Liters, 999_999, "Liter", 3);
         FleetValidation.Range(input.Amount, 999_999_999_999.99m, "Összeg", 2);
         if (input.Liters == 0) throw FleetValidation.Invalid("Adj meg pozitív mennyiséget.");
+        FleetValidation.Currency(input.Currency);
+        FleetValidation.Text(input.ReceiptNumber, 100, "Bizonylatszám");
+    }
+
+    private static FuelEntryRow FuelRow(VehicleFuelEntry item) => new(item.Id, item.FueledOn, item.Kilometers, item.Liters, item.Amount,
+        item.Currency, item.Receipt is not null, item.VoidedAt is not null)
+    {
+        ReceiptNumber = item.ReceiptNumber, IsFullTank = item.IsFullTank, Version = item.Version,
+        RecordedBy = item.RecordedBy, RecordedAt = item.RecordedAt, UpdatedBy = item.UpdatedBy, UpdatedAt = item.UpdatedAt
+    };
+
+    public Task<FuelEntryRow> RecordFuel(Guid id, FuelEntryInput input, byte[]? receipt, CancellationToken ct) => Scoped(Permissions.FuelManage, async access =>
+    {
+        await Car(id, access, Permissions.FuelManage, ct, write: true);
+        await ValidateFuel(input, ct);
         var currency = FleetValidation.Currency(input.Currency);
         var item = new VehicleFuelEntry
         {
             TenantId = TenantId, VehicleId = id, FueledOn = input.FueledOn, Kilometers = input.Kilometers, Liters = input.Liters,
-            Amount = input.Amount, Currency = currency, RecordedBy = Actor, Receipt = receipt
+            Amount = input.Amount, Currency = currency, RecordedBy = Actor, Receipt = receipt,
+            ReceiptNumber = FleetValidation.Text(input.ReceiptNumber, 100, "Bizonylatszám"), IsFullTank = input.IsFullTank
         };
         db.VehicleFuelEntries.Add(item);
-        var row = new FuelEntryRow(item.Id, item.FueledOn, item.Kilometers, item.Liters, item.Amount, currency, receipt is not null, false);
+        await MileageLedger.Capture(db, context, id, "Fuel", item.Id, item.FueledOn, item.Kilometers, input.Usage, ct);
+        var row = FuelRow(item);
         Audit("vehicle.fuel_recorded", item.Id, null, row, id);
         await db.SaveChangesAsync(ct);
         return row;
+    }, ct);
+
+    public Task<FuelEntryRow> UpdateFuel(Guid id, Guid entryId, UpdateFuelEntryInput input, CancellationToken ct) => Scoped(Permissions.FuelManage, async access =>
+    {
+        await Car(id, access, Permissions.FuelManage, ct, write: true);
+        var item = await db.VehicleFuelEntries.SingleOrDefaultAsync(x => x.VehicleId == id && x.Id == entryId, ct)
+            ?? throw Error(404, "fuel_not_found", "A tankolás nem található.");
+        if (item.VoidedAt is not null) throw Error(409, "fuel_voided", "Érvénytelenített tankolás nem módosítható.");
+        if (input.Version != item.Version) throw Error(409, "fuel_conflict", "A tankolás időközben megváltozott. Frissítsd a listát.");
+        var reason = FleetValidation.Text(input.Reason, 500, "Módosítás indoka", required: true);
+        if (input.Data is null) throw FleetValidation.Invalid("Add meg a tankolás adatait.");
+        if (input.Data.Usage is not null) throw FleetValidation.Invalid("A korábban elszámolt kilométert a havi elszámolásban javítsd.");
+        await ValidateFuel(input.Data, ct);
+        var before = FuelRow(item);
+        item.FueledOn = input.Data.FueledOn;
+        item.Kilometers = input.Data.Kilometers;
+        item.Liters = input.Data.Liters;
+        item.Amount = input.Data.Amount;
+        item.Currency = FleetValidation.Currency(input.Data.Currency);
+        item.ReceiptNumber = FleetValidation.Text(input.Data.ReceiptNumber, 100, "Bizonylatszám");
+        item.IsFullTank = input.Data.IsFullTank;
+        item.Version++;
+        item.UpdatedBy = Actor;
+        item.UpdatedAt = DateTimeOffset.UtcNow;
+        var after = FuelRow(item);
+        Audit("vehicle.fuel_updated", entryId, before, new { Data = after, Reason = reason }, id);
+        await db.SaveChangesAsync(ct);
+        return after;
     }, ct);
 
     public Task<bool> VoidFuel(Guid id, Guid entryId, string? reason, CancellationToken ct) => Scoped(Permissions.FuelManage, async access =>
@@ -172,6 +249,9 @@ public sealed partial class FleetManagement
         if (item.VoidedAt is not null) return true;
         var why = FleetValidation.Text(reason, 500, "Indoklás", required: true);
         item.VoidedAt = DateTimeOffset.UtcNow;
+        item.Version++;
+        item.UpdatedBy = Actor;
+        item.UpdatedAt = item.VoidedAt;
         Audit("vehicle.fuel_voided", entryId, null, new { item.VoidedAt, Reason = why }, id);
         await db.SaveChangesAsync(ct);
         return true;

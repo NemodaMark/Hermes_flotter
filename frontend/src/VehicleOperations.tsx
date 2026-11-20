@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { request } from './api'
@@ -11,13 +11,17 @@ import { PageButtons } from './CompaniesPage'
 import { Button } from './ui/Button'
 import { Select } from './ui/Select'
 import { Toggle } from './ui/Toggle'
+import { AccessDialog } from './AccessDialog'
+import { MileageCaptureFields } from './MileageCapture'
+import { useMileageCapture } from './useMileageCapture'
 import './vehicle-operations.css'
 
 type OperationProps = { tenant: Tenant; car: Vehicle }
 type Booking = { id: string; userId: string; name: string; startsOn: string; endsOn: string }
 type Calendar = { enabled: boolean; today: string; items: Booking[] }
-type FuelEntry = { id: string; fueledOn: string; kilometers: number; liters: number; amount: number; currency: string; hasReceipt: boolean; isVoided: boolean }
-type FuelMonth = { items: FuelEntry[]; totals: { currency: string; amount: number; liters: number }[] }
+type FuelEntry = { id: string; fueledOn: string; kilometers: number; liters: number; amount: number; currency: string; hasReceipt: boolean; isVoided: boolean;
+  receiptNumber: string | null; isFullTank: boolean; version: number; recordedBy: string | null; updatedBy: string | null; updatedAt: string | null; litersPer100Km: number | null }
+type FuelMonth = { items: FuelEntry[]; totals: { currency: string; amount: number; liters: number }[]; litersPer100Km: number | null; measuredKilometers: number }
 type Handover = { id: string; previousUserId: string | null; nextUserId: string | null; recordedBy: string; recordedAt: string; kilometers: number; condition: string; notes: string | null; hasPhoto: boolean }
 type Appointment = { startsAt: string; notes: string | null }
 
@@ -137,26 +141,70 @@ export function VehicleBookingCalendar(p: OperationProps & { userId: string; onC
   </section>
 }
 
-export function VehicleFuel(p: OperationProps) {
+export function VehicleFuelDialog(p: OperationProps & { userId: string; item?: FuelEntry; onSaved: (row: FuelEntry) => void; onClose: () => void }) {
+  const [pending, setPending] = useState(false)
+  return <AccessDialog title={p.item ? 'Tankolás módosítása' : 'Tankolás rögzítése'} pending={pending} onClose={p.onClose} className="fuel-record-dialog">
+    <p className="access-description">{p.car.registration} · {p.tenant.name}</p>
+    <VehicleFuelForm {...p} onPendingChange={setPending} />
+  </AccessDialog>
+}
+
+export function VehicleFuelForm(p: OperationProps & { userId: string; item?: FuelEntry; onSaved: (row: FuelEntry) => void; onPendingChange?: (pending: boolean) => void }) {
+  const client = useQueryClient()
+  const { onPendingChange } = p
+  const [currency, setCurrency] = useState(p.item?.currency ?? 'HUF')
+  const [date, setDate] = useState(p.item?.fueledOn ?? localDateTime().slice(0, 10))
+  const capture = useMileageCapture(p.tenant, p.userId, date, !p.item)
+  const save = useMutation({ mutationFn: (form: FormData) => {
+    const data = {
+      fueledOn: String(form.get('date')), kilometers: Number(form.get('km')), liters: Number(form.get('liters')),
+      amount: Number(form.get('amount')), currency, receiptNumber: String(form.get('receiptNumber')), isFullTank: form.get('fullTank') === 'on',
+      usage: capture.usage(),
+    }
+    return p.item ? request<FuelEntry>(`${path(p.car.id)}/fuel/${p.item.id}`, { tenantId: p.tenant.id, method: 'PUT', body: { data, version: p.item.version, reason: String(form.get('reason')) } })
+      : request<FuelEntry>(`${path(p.car.id)}/fuel`, { tenantId: p.tenant.id, body: payload(data, uploadedFile(form)) })
+  }, onSuccess: async row => {
+    await Promise.all([client.invalidateQueries({ queryKey: ['fleet-management', p.tenant.id, p.car.id] }), client.invalidateQueries({ queryKey: ['mileage', p.tenant.id] }), client.invalidateQueries({ queryKey: ['dashboard'] })])
+    p.onSaved(row)
+  } })
+  useEffect(() => { onPendingChange?.(save.isPending) }, [onPendingChange, save.isPending])
+  if (!editable(p, 'vehicles.fuel.manage')) return null
+  return <form className="operation-form" aria-label={p.item ? 'Tankolás módosítása' : 'Tankolás rögzítése'} onSubmit={e => { e.preventDefault(); if (capture.ready) save.mutate(new FormData(e.currentTarget)) }}>
+    <fieldset disabled={save.isPending}>
+      <legend className="sr-only">Tankolás adatai</legend>
+      <div className="org-form-grid">
+        <label className="org-field"><span>Bizonylatszám</span><input name="receiptNumber" defaultValue={p.item?.receiptNumber ?? ''} maxLength={100} required data-autofocus /></label>
+        <label className="org-field"><span>Tankolás napja</span><input name="date" type="date" value={date} onChange={e => setDate(e.target.value)} max={localDateTime().slice(0, 10)} required /></label>
+        <label className="org-field"><span>Kilométerállás</span><input name="km" type="number" inputMode="numeric" defaultValue={p.item?.kilometers ?? p.car.odometerKm ?? ''} min={0} max={100000000} required /></label>
+        <label className="org-field"><span>Liter</span><input name="liters" type="number" inputMode="decimal" defaultValue={p.item?.liters} step="0.001" min="0.001" max="999999" required /></label>
+        <label className="org-field"><span>Összeg</span><input name="amount" type="number" inputMode="decimal" defaultValue={p.item?.amount} step="0.01" min="0" max="999999999999.99" required /></label>
+        <CurrencyField value={currency} onChange={setCurrency} />
+        {!p.item && <label className="org-field"><span>Nyugtafotó (JPG, PNG)</span><input name="file" type="file" accept={fileTypes} /></label>}
+      </div>
+      <label className="checkbox-label"><input type="checkbox" name="fullTank" defaultChecked={p.item?.isFullTank ?? false} />Teletankoltam</label>
+      <MileageCaptureFields capture={capture} />
+      {p.item && <p className="field-hint">A megtett utat és a magánhasználatot a havi km-elszámolásban külön javíthatod. Az eredeti bizonylat megmarad.</p>}
+      {p.item && <label className="org-field"><span>Módosítás indoka</span><textarea name="reason" rows={2} maxLength={500} required /></label>}
+    </fieldset>
+    {save.error && <p role="alert" className="form-error">{save.error.message}</p>}
+    <div className="dialog-actions"><Button className="primary-button" disabled={!capture.ready} loading={save.isPending}>Tankolás mentése</Button></div>
+  </form>
+}
+
+export function VehicleFuel(p: OperationProps & { userId: string }) {
   const tenantId = p.tenant.id
   const url = path(p.car.id)
   const client = useQueryClient()
   const [month, setMonth] = useState(monthStart)
   const [open, setOpen] = useState(false)
   const [voidItem, setVoidItem] = useState<FuelEntry | null>(null)
+  const [editItem, setEditItem] = useState<FuelEntry | null>(null)
   const [image, setImage] = useState('')
-  const [currency, setCurrency] = useState('HUF')
   const key = ['fleet-management', tenantId, p.car.id, 'fuel']
   const read = allows(p, 'vehicles.fuel.read')
   const manage = editable(p, 'vehicles.fuel.manage')
   const data = useQuery({ queryKey: [...key, month], queryFn: ({ signal }) => request<FuelMonth>(`${url}/fuel?month=${month}`, { tenantId, signal }), enabled: read, retry: false })
   const refresh = () => client.invalidateQueries({ queryKey: key })
-  const save = useMutation({ mutationFn: (form: FormData) => {
-    const fueledOn = String(form.get('date'))
-    return request<FuelEntry>(`${url}/fuel`, { tenantId, body: payload({
-      fueledOn, kilometers: Number(form.get('km')), liters: Number(form.get('liters')), amount: Number(form.get('amount')), currency,
-    }, uploadedFile(form)) })
-  }, onSuccess: async row => { setMonth(row.fueledOn.slice(0, 7) + '-01'); setOpen(false); await refresh() } })
   const exportMonth = useMutation({ mutationFn: async () => {
     const blob = await request<Blob>(`${url}/fuel/export?month=${month}`, { tenantId, responseType: 'blob' })
     const href = URL.createObjectURL(blob)
@@ -171,30 +219,25 @@ export function VehicleFuel(p: OperationProps) {
       <div className="member-actions">
         {read && <input className="operation-month-input" aria-label="Elszámolás hónapja" type="month" min="1900-01" max="2100-12" value={month.slice(0, 7)} onChange={e => { if (e.target.value) setMonth(e.target.value + '-01') }} />}
         {read && <Button className="secondary-button" disabled={exportMonth.isPending || !data.data?.totals.length} onClick={() => exportMonth.mutate()}><Download size={15} />CSV</Button>}
-        {manage && <Button className="primary-button" onClick={() => { save.reset(); setOpen(!open) }}>{open ? 'Mégse' : 'Tankolás rögzítése'}</Button>}
+        {manage && <Button className="primary-button" onClick={() => setOpen(!open)}>{open ? 'Mégse' : 'Tankolás rögzítése'}</Button>}
       </div>
     </div>
     {exportMonth.error && <p role="alert" className="form-error">{exportMonth.error.message}</p>}
-    {manage && open && <form className="operation-form" onSubmit={e => { e.preventDefault(); save.mutate(new FormData(e.currentTarget)) }}>
-      <div className="org-form-grid">
-        <label className="org-field"><span>Tankolás napja</span><input name="date" type="date" defaultValue={localDateTime().slice(0, 10)} required /></label>
-        <label className="org-field"><span>Kilométerállás</span><input name="km" type="number" defaultValue={p.car.odometerKm ?? ''} min={0} max={100000000} required /></label>
-        <label className="org-field"><span>Liter</span><input name="liters" type="number" step="0.001" min="0.001" max="999999" required /></label>
-        <label className="org-field"><span>Összeg</span><input name="amount" type="number" step="0.01" min="0" max="999999999999.99" required /></label>
-        <CurrencyField value={currency} onChange={setCurrency} />
-        <label className="org-field"><span>Nyugtafotó (JPG, PNG)</span><input name="file" type="file" accept={fileTypes} /></label>
-      </div>
-      {save.error && <p role="alert" className="form-error">{save.error.message}</p>}
-      <Button className="primary-button" disabled={save.isPending}>Mentés</Button>
-    </form>}
+    {manage && open && <VehicleFuelForm {...p} onSaved={row => { setMonth(row.fueledOn.slice(0, 7) + '-01'); setOpen(false) }} />}
+    {editItem && <VehicleFuelDialog {...p} item={editItem} onClose={() => setEditItem(null)} onSaved={row => { setMonth(row.fueledOn.slice(0, 7) + '-01'); setEditItem(null) }} />}
     {read && <>
       <QueryMessage pending={data.isPending} error={data.error} retry={() => void data.refetch()} />
       {data.data?.totals.length ? <p className="fleet-detail-caption">Havi összesen · {data.data.totals.map(x => `${formatNumber(x.liters)} l · ${moneyText(x.amount, x.currency)}`).join(' / ')}</p> : null}
+      {data.data && (data.data.litersPer100Km != null ? <p className="fleet-detail-caption"><strong>{formatNumber(data.data.litersPer100Km)} l/100 km</strong> · {formatNumber(data.data.measuredKilometers)} km, teletankok közötti mérés</p>
+        : <p className="field-hint">Átlagfogyasztáshoz két teletankos rögzítés és növekvő kilométerállás szükséges.</p>)}
       {data.data && (data.data.items.length ? <ul className="vehicle-operation-list">{data.data.items.map(row => <li key={row.id}>
         <div><strong>{dateText(row.fueledOn)} · {moneyText(row.amount, row.currency)}</strong><span>{formatNumber(row.kilometers)} km · {formatNumber(row.liters)} l{row.isVoided ? ' · Érvénytelenítve' : ''}</span>
+          {row.receiptNumber && <span>Bizonylat: {row.receiptNumber}</span>}
+          {row.litersPer100Km != null && <span>{formatNumber(row.litersPer100Km)} l/100 km</span>}
+          {(row.updatedBy || row.recordedBy) && <small>{row.updatedBy ? `Módosította: ${row.updatedBy}` : `Rögzítette: ${row.recordedBy}`}</small>}
           {image === row.id && <ProtectedImage path={`${url}/fuel/${row.id}/receipt`} tenantId={tenantId} revision={row.id} alt="Tankolási nyugta" className="operation-image" />}</div>
         <div className="member-actions">{row.hasReceipt && <Button className="secondary-button" onClick={() => setImage(image === row.id ? '' : row.id)}>Nyugta</Button>}
-          {manage && !row.isVoided && <Button className="secondary-button" onClick={() => setVoidItem(row)}>Érvénytelenítés</Button>}</div>
+          {manage && !row.isVoided && <><Button className="secondary-button" onClick={() => setEditItem(row)}>Módosítás</Button><Button className="secondary-button" onClick={() => setVoidItem(row)}>Érvénytelenítés</Button></>}</div>
       </li>)}</ul> : <p className="notice">Ebben a hónapban nincs tankolás.</p>)}
     </>}
     {voidItem && <ReasonDialog title="Tankolás érvénytelenítése" onClose={() => setVoidItem(null)} onSave={async reason => {
