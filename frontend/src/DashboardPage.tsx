@@ -169,14 +169,14 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
           </section>}
         </>}>
         <nav className="car-menu" aria-label="Jármű gyorsmenü">
-          <VehicleRecordingActions key={car.vehicle.id} user={user} tenant={tenant} vehicle={car.vehicle} onModeChange={changeRecording} />
+          <VehicleRecordingActions key={`recording:${car.vehicle.id}`} user={user} tenant={tenant} vehicle={car.vehicle} onModeChange={changeRecording} />
           {menus.filter(menu => quickLabels[menu.key]).map(menu => {
           const Icon = icons[menu.key]
           return <Button key={menu.key} aria-label={menu.label} onClick={() => focus(menu.key)}>
             <Icon size={18} aria-hidden="true" /><span>{quickLabels[menu.key]}</span>
           </Button>
         })}
-          <Disclosure className="car-menu-more" key={car.vehicle.id}
+          <Disclosure className="car-menu-more" key={`more:${car.vehicle.id}`}
             trigger={<><Ellipsis size={18} aria-hidden="true" /><span>Továbbiak</span></>}>
             <div>{onMileage && <Button onClick={onMileage}><Gauge size={17} aria-hidden="true" />Havi km-elszámolás</Button>}{menus.filter(menu => !quickLabels[menu.key]).map(menu => {
               const Icon = icons[menu.key]

@@ -129,6 +129,32 @@ it('changes the selected car, body and operation menus without reusing the previ
   expect(await screen.findByRole('heading',{name:'Flotta áttekintés'})).toBeInTheDocument()
   expect(styles.getPropertyValue('--vehicle-paint')).toBe('')
 })
+it('keeps a single recording group through repeated car switches, dialogs and permission changes', async () => {
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const permissions = ['vehicles.read', 'vehicles.odometer.create', 'vehicles.fuel.manage']
+  const first = { ...car, vehicle: { ...car.vehicle, permissions } }
+  const second = { ...first, vehicle: { ...first.vehicle, id: 'second', registration: 'BBB-002' } }
+  const reader = { ...car, vehicle: { ...car.vehicle, id: 'reader', registration: 'READ-003', permissions: ['vehicles.read'] } }
+  mount({ mode: 'Vehicle', vehicles: [first, second, reader] })
+  const picker = await screen.findByRole('combobox', { name: 'Jármű kiválasztása' })
+  const menu = within(screen.getByRole('navigation', { name: 'Jármű gyorsmenü' }))
+  for (const current of [second, first, reader, second, reader, first]) {
+    await chooseOption(picker, current.vehicle.id)
+    const writable = current.vehicle.id !== 'reader'
+    expect(menu.queryAllByRole('group', { name: 'Gyors rögzítés' })).toHaveLength(writable ? 1 : 0)
+    expect(menu.queryAllByRole('button', { name: /^Tankolás rögzítése:/ })).toHaveLength(writable ? 1 : 0)
+    expect(menu.queryAllByRole('button', { name: /^Kilométerállás:/ })).toHaveLength(writable ? 1 : 0)
+    if (writable) {
+      await userEvent.click(menu.getByRole('button', { name: `Kilométerállás: ${current.vehicle.registration}` }))
+      expect(await screen.findByRole('dialog', { name: 'Kilométerállás rögzítése' })).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Bezárás' }))
+      await userEvent.click(menu.getByRole('button', { name: `Tankolás rögzítése: ${current.vehicle.registration}` }))
+      expect(await screen.findByRole('dialog', { name: 'Tankolás rögzítése' })).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Bezárás' }))
+    }
+  }
+  expect(errors.mock.calls.filter(args => args.some(arg => String(arg).includes('same key')))).toHaveLength(0)
+})
 it('shows no vehicle summary or studio when vehicle reading is forbidden',async()=>{
   mount({mode:'Vehicle',canReadVehicles:false,vehicles:[]})
   await screen.findByText(/Nincs jogosultságod járműadatok/)
