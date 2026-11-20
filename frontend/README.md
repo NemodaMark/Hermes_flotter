@@ -129,6 +129,8 @@ A kezdőlap 3D garázsa kitölti az egysoros fejléc alatti böngészőterülete
 
 A garázs minden karosszériához közös megvilágítást és felületkezelést alkalmaz. Asztali nézetben a kamera a panel nyitásakor és lapváltáskor az adott laphoz beállított szögbe fordul. Bezáráskor visszatér a nyitás előtti szöghöz és nagyításhoz. Keskeny nézetben a panel mögött megmarad az aktuális nézőpont. A gyorsmenü WebGL2 nélkül is használható. A jármű saját műveleti jogai szabják meg az elérhető lapokat. Ugyanez a modell az adatlap **3D garázs** fülén is megnyitható.
 
+A **Bemutató mód** gomb lassú kamerakörözést indít, körönként 90 másodperccel. Ugyanezzel a gombbal megállítható. Kézi forgatás, érintés, görgős nagyítás, kameragomb vagy járműmenü megnyitása leállítja, és újraindítani a gombbal lehet. Másik böngészőlapra váltva szünetel a rajzolás.
+
 A kompatibilis, átlátszatlan modellrészeket a megjelenítő összevonja. Álló kameránál csak változásra rajzol új képet, mozgás közben pedig a mért képkockaidő alapján állítja a belső felbontást. A készülék, a böngésző és a képernyőméret befolyásolja a tényleges képkockaszámot.
 
 A bejelentkezési kép és a munkaterület oldalai rövid belépő átmenetet használnak. A `prefers-reduced-motion` beállítással ezek az átmenetek kikapcsolnak, és a kamera azonnal vált.

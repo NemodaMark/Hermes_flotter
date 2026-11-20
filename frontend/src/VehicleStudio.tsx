@@ -13,7 +13,8 @@ import type { VehicleModel } from './vehicleModels'
 import { vehicleHotspots } from './vehicleHotspots'
 import type { VehicleHotspot } from './vehicleHotspots'
 import { buildStudioGarage } from './studioGarageScene'
-import { ChevronLeft, ChevronRight, Maximize, Minimize, Minus, Plus, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Maximize, Minimize, Minus, Pause, Play, Plus, RotateCcw } from 'lucide-react'
+import { Button } from './ui/Button'
 
 export type StudioSection = 'data' | 'history' | 'services' | 'documents' | 'leases' | 'site' | 'photos' | 'bookings' | 'fuel' | 'handovers' | 'assignees' | 'audit'
 type CameraAction = 'home' | 'resume' | 'left' | 'right' | 'closer' | 'farther'
@@ -48,15 +49,21 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
   onReset?: () => void
 }) {
   const host = useRef<HTMLDivElement>(null), overlay = useRef<HTMLDivElement>(null)
-  const controls = useRef<{ focus: (key: StudioAction['key']) => void } | null>(null)
+  const controls = useRef<{
+    focus: (key: StudioAction['key']) => void
+    togglePresentation: () => void
+    stopPresentation: () => void
+  } | null>(null)
   const invalidate = useRef<(() => void) | null>(null)
   const callbacks = useRef({ onFocused, onCancelled })
   useEffect(() => { callbacks.current = { onFocused, onCancelled } }, [onFocused, onCancelled])
   const pausedRef = useRef(paused)
   useEffect(() => {
     pausedRef.current = paused
+    if (paused) controls.current?.stopPresentation()
     if (!paused) invalidate.current?.()
   }, [paused])
+  const [presentationActive, setPresentationActive] = useState(false)
   const [unavailable, setUnavailable] = useState(() => !window.WebGL2RenderingContext)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [attempt, setAttempt] = useState(0)
@@ -155,6 +162,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     const labels: Partial<Record<StudioSection, [number, number]>> = { data: [.36, .25], history: [.79, .69], services: [.85, .4], documents: [.69, .23], leases: [.22, .42], site: [.38, .73], photos: [.21, .63] }
     let framing = 0, lastFit = 0
     let section: StudioSection | null = null
+    let presentation = false, presentationTime = 0
+    const presentationOffset = new T.Spherical(), presentationVector = new T.Vector3()
     let freeView: { offset: T.Spherical; target: T.Vector3; fit: number } | null = null
     let flight: {
       key: StudioAction['key']; started: number; duration: number; from: T.Spherical; to: T.Spherical
@@ -167,7 +176,26 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       camera.position.copy(position)
       orbit.target.copy(target)
     }
+    function stopPresentation() {
+      if (!presentation) return
+      presentation = false
+      presentationTime = 0
+      orbit.enableDamping = !reduceMotion.matches
+      setPresentationActive(false)
+    }
+    function togglePresentation() {
+      if (presentation) { stopPresentation(); return }
+      if (!loadedModel.current || pausedRef.current || contextLost) return
+      cancelFlight()
+      stopDamping()
+      presentation = true
+      presentationTime = 0
+      orbit.enableDamping = false
+      setPresentationActive(true)
+      requestFrame()
+    }
     function focus(key: StudioAction['key']) {
+      stopPresentation()
       const opensSection = isSection(key)
       const wasInSection = section !== null
       section = opensSection ? key : null
@@ -220,7 +248,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         frameFrom: framing, frameTo, clearance: frameTo && framing === 1 ? to.radius * .09 * angle : 0 }
       requestFrame()
     }
-    controls.current = { focus }
+    controls.current = { focus, togglePresentation, stopPresentation }
     function cancelFlight() {
       if (!flight) return
       if (flight.key === 'resume') {
@@ -234,8 +262,14 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       orbit.enabled = true
       orbit.enableDamping = !reduceMotion.matches
     }
-    renderer.domElement.addEventListener('pointerdown', cancelFlight, true)
-    renderer.domElement.addEventListener('wheel', cancelFlight, { capture: true, passive: true })
+    function manualCamera() { stopPresentation(); cancelFlight() }
+    renderer.domElement.addEventListener('pointerdown', manualCamera, true)
+    renderer.domElement.addEventListener('wheel', manualCamera, { capture: true, passive: true })
+    const garage = container.closest('.car-dashboard, .profile-garage') ?? container
+    const garageClick = (event: Event) => {
+      if (event.target instanceof Element && !event.target.closest('.studio-presentation-toggle')) stopPresentation()
+    }
+    garage.addEventListener('click', garageClick, true)
     function drawerWidth() { return Math.min(width * .68, 1280) }
     function projection() {
       if (!width || !height) return
@@ -318,6 +352,15 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
           if (isSection(key)) callbacks.current.onFocused(key)
         }
       }
+      if (presentation) {
+        const elapsed = presentationTime ? Math.min((time - presentationTime) / 1000, .1) : 0
+        presentationTime = time
+        presentationOffset.setFromVector3(presentationVector.subVectors(camera.position, orbit.target))
+        // One circuit takes 90 seconds, independent of the display refresh rate.
+        presentationOffset.theta += elapsed * Math.PI * 2 / 90
+        camera.position.setFromSpherical(presentationOffset).add(orbit.target)
+        renderNeeded = true
+      }
       orbit.update()
       camera.updateMatrixWorld()
       const cameraChanged = !lastCamera.equals(camera.matrixWorld) || !lastProjection.equals(camera.projectionMatrix)
@@ -355,21 +398,22 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       }
       if (checkOcclusion) lastOcclusion = time
       lastCamera.copy(camera.matrixWorld); lastProjection.copy(camera.projectionMatrix)
-      if (flight || cameraChanged) {
+      if (flight || presentation || cameraChanged) {
         previousFrame = time
         requestFrame()
       } else previousFrame = 0
     }
     requestFrame()
-    const visibilityChanged = () => { previousFrame = 0; invalidateFrame() }
+    const visibilityChanged = () => { previousFrame = presentationTime = 0; invalidateFrame() }
     container.ownerDocument.addEventListener('visibilitychange', visibilityChanged)
-    const lost = (event: Event) => { event.preventDefault(); contextLost = true; cancelAnimationFrame(frame); cancelFlight(); setUnavailable(true) }
+    const lost = (event: Event) => { event.preventDefault(); stopPresentation(); contextLost = true; cancelAnimationFrame(frame); cancelFlight(); setUnavailable(true) }
     renderer.domElement.addEventListener('webglcontextlost', lost)
     return () => {
       disposed = true; loadedModel.current = null; cancelAnimationFrame(frame); resize.disconnect(); orbit.dispose(); controls.current = null; invalidate.current = null
       container.ownerDocument.removeEventListener('visibilitychange', visibilityChanged)
       orbit.removeEventListener('change', requestFrame)
-      renderer.domElement.removeEventListener('pointerdown', cancelFlight, true); renderer.domElement.removeEventListener('wheel', cancelFlight, true)
+      renderer.domElement.removeEventListener('pointerdown', manualCamera, true); renderer.domElement.removeEventListener('wheel', manualCamera, true)
+      garage.removeEventListener('click', garageClick, true)
       renderer.domElement.removeEventListener('webglcontextlost', lost)
       disposeVehicleModel(scene); environment.dispose(); lighting?.dispose(); renderer.dispose(); renderer.domElement.remove()
     }
@@ -382,7 +426,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
   return <div className="vehicle-studio" ref={host} aria-busy={!unavailable && loadState === 'loading'}>
     {unavailable ? <div className="studio-unavailable" role="status"><p>A 3D nézet ezen az eszközön nem érhető el.</p><span>A jármű összes engedélyezett funkciója a menüből használható.</span></div> : <>
       {loadState !== 'ready' && <div className="studio-model-status" role="status">{loadState === 'loading' ? <p>Járműmodell betöltése…</p> : <><p>A járműmodell nem tölthető be. A gyorsmenü továbbra is használható.</p><button type="button" onClick={() => { setLoadState('loading'); setAttempt(value => value + 1) }}>Újrapróbálom</button></>}</div>}
-      <div className="studio-hotspots" ref={overlay}>{menus.map(menu => <button type="button" key={menu.key} data-hotspot={menu.key} className="studio-hotspot" aria-label={`3D pont: ${menu.label}`} onClick={() => onSelect(menu.key)}><span aria-hidden="true" /><i aria-hidden="true" /><strong>{menu.label}</strong></button>)}</div>
+      <div className="studio-hotspots" ref={overlay}>{menus.map(menu => <button type="button" key={menu.key} data-hotspot={menu.key} className="studio-hotspot" aria-label={`3D pont: ${menu.label}`} onClick={() => { controls.current?.stopPresentation(); onSelect(menu.key) }}><span aria-hidden="true" /><i aria-hidden="true" /><strong>{menu.label}</strong></button>)}</div>
       {loadState === 'ready' && <div className="studio-camera-controls" role="group" aria-label="Kamera vezérlése">
         <button type="button" aria-label="Forgatás balra" onClick={() => controls.current?.focus('left')}><ChevronLeft size={17} /></button>
         <button type="button" aria-label="Forgatás jobbra" onClick={() => controls.current?.focus('right')}><ChevronRight size={17} /></button>
@@ -390,6 +434,12 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         <button type="button" aria-label="Kamera távolítása" onClick={() => controls.current?.focus('farther')}><Minus size={17} /></button>
         <button type="button" aria-label="Kamera alaphelyzetbe" title="Alapnézet" onClick={onReset ?? (() => controls.current?.focus('home'))}><RotateCcw size={16} /></button>
         {immersive && document.fullscreenEnabled && <button type="button" aria-label={fullscreen ? 'Kilépés a teljes képernyőből' : 'Teljes képernyő'} onClick={() => void toggleFullscreen()}>{fullscreen ? <Minimize size={17} /> : <Maximize size={17} />}</button>}
+        <Button type="button" className="studio-presentation-toggle" aria-pressed={presentationActive} disabled={paused}
+          title={presentationActive ? 'Bemutató leállítása' : 'Lassú körbejárás indítása'}
+          onClick={() => controls.current?.togglePresentation()}>
+          {presentationActive ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
+          <span>Bemutató mód</span>
+        </Button>
       </div>}
     </>}
   </div>
