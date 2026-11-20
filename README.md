@@ -6,6 +6,8 @@ Projektátadás és áttekintés: [az elkészült funkciók, technológiák és 
 
 [Állapotfelmérés és teendők](docs/ALLAPOTFELMERES.md) · [Helyi telepítés Windowsra és Linuxra](docs/MUNKAALLOMAS_TELEPITES.md)
 
+[Windows fejlesztői teszttelepítő mintaadatokkal](docs/WINDOWS_DEV_TELEPITES.md) – `scripts/install-dev-windows.cmd`, külön demóadatbázissal és asztali rendszervezérlővel.
+
 [HERMES adatbázis-leírás és adatátadás](docs/HERMES_ADATBAZIS_LEIRAS.md) · [CSV-import csatolmányokkal](docs/CSV_IMPORT.md)
 
 Debian 13 tesztszerverhez: [HTTPS-es telepítés, titkosított automatikus mentés és visszaállítás](deploy/debian13/README.md). Ez külön konfigurációt használ a lent bemutatott helyi fejlesztői indítástól.

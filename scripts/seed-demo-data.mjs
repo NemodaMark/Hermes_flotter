@@ -7,6 +7,10 @@ import { companyName, demoNote, address, sites, partners, groups, people, vehicl
 
 // Deliberately separate from application startup and from production migrations.
 const baseUrl = new URL(process.env.HERMES_BASE_URL ?? 'http://127.0.0.1:5080')
+const frontendUrl = new URL(process.env.HERMES_FRONTEND_URL ?? 'http://127.0.0.1:5173/')
+assert.ok(['http:', 'https:'].includes(frontendUrl.protocol) && ['127.0.0.1', 'localhost', '[::1]'].includes(frontendUrl.hostname)
+  && !frontendUrl.username && !frontendUrl.password && frontendUrl.pathname === '/' && !frontendUrl.search && !frontendUrl.hash,
+  'A demófelület címe csak helyi HTTP(S)-cím lehet.')
 assert.ok(['http:', 'https:'].includes(baseUrl.protocol) && ['127.0.0.1', 'localhost', '[::1]'].includes(baseUrl.hostname)
   && !baseUrl.username && !baseUrl.password && baseUrl.pathname === '/' && !baseUrl.search && !baseUrl.hash,
   'A demóbetöltő csak helyi API-val használható.')
@@ -15,7 +19,8 @@ const statePath = new URL('state.json', directory)
 const credentialsPath = new URL('bejelentkezesek.json', directory)
 const verifyOnly = process.argv.includes('--verify-only')
 const bookingsOnly = process.argv.includes('--bookings-only')
-assert.ok(process.argv.slice(2).length <= 1 && process.argv.slice(2).every(arg => ['--verify-only', '--bookings-only'].includes(arg)), 'Ismeretlen vagy ismételt kapcsoló.')
+const withBookings = process.argv.includes('--with-bookings')
+assert.ok(process.argv.slice(2).length <= 1 && process.argv.slice(2).every(arg => ['--verify-only', '--bookings-only', '--with-bookings'].includes(arg)), 'Ismeretlen vagy ismételt kapcsoló.')
 const adminPassword = process.env.HERMES_SEED_ADMIN_PASSWORD
 assert.ok(adminPassword, 'Add meg a HERMES_SEED_ADMIN_PASSWORD környezeti változót.')
 
@@ -27,10 +32,20 @@ function client() {
     if (body !== undefined) headers['Content-Type'] = 'application/json'
     if (method !== 'GET') headers['X-CSRF-TOKEN'] = token
     if (tenantId) headers['X-Tenant-Id'] = tenantId
-    const response = await fetch(new URL(path, baseUrl), {
-      method, headers, body: body === undefined ? undefined : JSON.stringify(body),
-      redirect: 'error', signal: AbortSignal.timeout(30000),
-    })
+    let response
+    for (let attempt = 0; ; attempt++) {
+      response = await fetch(new URL(path, baseUrl), {
+        method, headers, body: body === undefined ? undefined : JSON.stringify(body),
+        redirect: 'error', signal: AbortSignal.timeout(30000),
+      })
+      // The real account rate limiter remains enabled. A rejected request has not reached its handler.
+      if (response.status !== 429 || attempt >= 6) break
+      const seconds = Number(response.headers.get('retry-after'))
+      const delay = Number.isFinite(seconds) && seconds > 0 ? Math.min(30000, seconds * 1000) : 15000
+      await response.arrayBuffer()
+      console.log(`A helyi API kéréskorlátja miatt várakozás: ${Math.ceil(delay / 1000)} másodperc.`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
     for (const cookie of response.headers.getSetCookie()) {
       const pair = cookie.split(';', 1)[0]
       const index = pair.indexOf('=')
@@ -149,6 +164,7 @@ async function seed() {
     assert.ok(!(await admin.request('/api/v1/permission-groups')).some(existing => existing.name === group.name), 'Már van ilyen demócsoport; nem készítek másolatot.')
     return admin.request('/api/v1/permission-groups', { method: 'POST', status: 201, body: {
       name: group.name, permissions: group.permissions, companyIds: [tenantId],
+      dashboardMode: group.key === 'fleet' ? 'Overview' : 'Vehicle', dashboardPriority: 10,
       siteScopes: [{ companyId: tenantId, allSites: group.site === undefined, siteIds: group.site === undefined ? [] : [locations[group.site].id] }],
     } })
   })
@@ -186,7 +202,7 @@ async function seed() {
     })
   }
   await privateJson(credentialsPath, {
-    company: companyName, url: 'http://127.0.0.1:5173/',
+    company: companyName, url: frontendUrl.href,
     users: people.map(person => ({ userName: person.userName, displayName: person.displayName, password: state.users[person.userName].password,
       group: groups.find(group => group.key === person.group).name, suspended: !!person.suspended })),
   })
@@ -300,6 +316,12 @@ async function verify() {
       const siteId = scope === undefined ? null : state.done[`site-${scope}`].id
       const visible = await account.request('/api/v1/vehicles', { tenantId })
       assert.deepEqual(visible.map(car => car.id).sort(), cars.filter(car => !siteId || car.siteId === siteId).map(car => car.id).sort())
+      const dashboard = await account.request('/api/v1/dashboard', { tenantId })
+      const canOverview = state.done[`group-${person.group}`].permissions.includes('vehicles.overview.read')
+      assert.equal(dashboard.canReadOverview, canOverview)
+      assert.equal(dashboard.mode, canOverview ? 'Overview' : 'Vehicle')
+      assert.deepEqual(dashboard.vehicles.map(car => car.vehicle.id).sort(), visible.map(car => car.id).sort())
+      await account.request('/api/v1/dashboard/overview', { tenantId, status: canOverview ? 200 : 403 })
       if (siteId) {
         const hidden = cars.find(car => car.siteId !== null && car.siteId !== siteId)
         const unassigned = cars.find(car => car.siteId === null)
@@ -386,8 +408,8 @@ async function seedBookings() {
 try {
   if (!verifyOnly && !bookingsOnly && !state.completedAt) await seed()
   assert.ok(state.completedAt, 'A betöltés még nem fejeződött be; futtasd --verify-only nélkül.')
-  if (bookingsOnly) await seedBookings()
-  else await verify()
+  if (bookingsOnly || withBookings) await seedBookings()
+  if (!bookingsOnly) await verify()
 } finally {
   await admin.logout()
 }

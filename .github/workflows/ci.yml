@@ -57,6 +57,40 @@ jobs:
       - run: dotnet test desktop/tests/Hermes.ControlCenter.Tests/Hermes.ControlCenter.Tests.csproj -c Release
       - run: dotnet publish desktop/src/Hermes.ControlCenter/Hermes.ControlCenter.csproj -c Release -r win-x64 --self-contained true -o .local/control-center-ci
 
+  workstation-windows-demo:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 22
+      - name: Windows development installer, demo logins, calendars and repeatability
+        shell: powershell
+        run: |
+          $upstream = Join-Path $env:RUNNER_TEMP 'hermes-demo-upstream.git'
+          git clone --bare . $upstream
+          if ($LASTEXITCODE) { throw 'Could not create the test upstream.' }
+          git --git-dir=$upstream update-ref refs/heads/main (git rev-parse HEAD)
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = "url.$(([Uri]$upstream).AbsoluteUri).insteadOf"
+          $env:GIT_CONFIG_VALUE_0 = 'https://github.com/NemodaMark/Hermes_flotter.git'
+          & scripts/tests/workstation-windows-demo.ps1 -ProjectPath (Join-Path $env:RUNNER_TEMP 'HERMES Dev demo')
+      - name: Package the Windows development installer
+        shell: powershell
+        run: scripts/package-dev-installer.ps1
+      - uses: actions/upload-artifact@v6
+        with:
+          name: HERMES-Windows-Dev
+          if-no-files-found: error
+          include-hidden-files: true
+          path: |
+            .local/installers/HERMES-Windows-Dev.zip
+            .local/installers/HERMES-Windows-Dev.zip.sha256
+
   workstation-linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

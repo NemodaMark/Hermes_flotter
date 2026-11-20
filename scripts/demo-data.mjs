@@ -18,7 +18,7 @@ const read = ['vehicles.read', 'sites.read']
 const km = [...read, 'vehicles.odometer.create']
 const service = [...km, 'vehicles.service.read', 'vehicles.service.manage']
 export const groups = [
-  { key: 'fleet', name: 'Demo – Flottakezelők', permissions: [...read, 'vehicles.create', 'vehicles.update', 'vehicles.users.assign', 'vehicles.archive', 'vehicles.odometer.create', 'vehicles.leasing.read', 'vehicles.leasing.manage', 'vehicles.service.read', 'vehicles.service.manage', 'vehicles.documents.read', 'vehicles.documents.manage', 'partners.read', 'partners.create', 'partners.update', 'partners.archive', 'members.read', 'companies.read', 'companies.update', 'sites.create', 'sites.update', 'sites.vehicles.assign', 'audit.read'] },
+  { key: 'fleet', name: 'Demo – Flottakezelők', permissions: [...read, 'vehicles.overview.read', 'vehicles.create', 'vehicles.update', 'vehicles.users.assign', 'vehicles.archive', 'vehicles.odometer.create', 'vehicles.leasing.read', 'vehicles.leasing.manage', 'vehicles.service.read', 'vehicles.service.manage', 'vehicles.documents.read', 'vehicles.documents.manage', 'partners.read', 'partners.create', 'partners.update', 'partners.archive', 'members.read', 'companies.read', 'companies.update', 'sites.create', 'sites.update', 'sites.vehicles.assign', 'audit.read'] },
   { key: 'dispatch', name: 'Demo – Diszpécserek', permissions: [...km, 'vehicles.update', 'vehicles.users.assign', 'sites.vehicles.assign', 'members.read'] },
   { key: 'service-bp', name: 'Demo – Budapesti szerviz', permissions: service, site: 0 },
   { key: 'service-deb', name: 'Demo – Debreceni szerviz', permissions: service, site: 1 },

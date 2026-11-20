@@ -4,6 +4,8 @@ A két szkript Git, .NET 10 SDK, Node.js/npm és PostgreSQL 18 környezetet kés
 
 ## Windows x64
 
+**Mintaadatokkal feltöltött fejlesztői tesztkörnyezethez:** [Windows demótelepítő és belépési útmutató](WINDOWS_DEV_TELEPITES.md). A `HERMES-Windows-Dev.zip` kibontása után az `install-dev-windows.cmd` indítja; PowerShellből az alábbi telepítő `-Demo` kapcsolója használható.
+
 Töltsd le az [install-workstation.ps1](https://github.com/NemodaMark/Hermes_flotter/raw/refs/heads/main/scripts/install-workstation.ps1) fájlt. A letöltési mappából futtasd PowerShellben.
 
 ```powershell

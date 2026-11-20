@@ -1,12 +1,40 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$ProjectPath,
-    [switch]$SkipShortcut
+    [switch]$SkipShortcut,
+    [switch]$Demo,
+    [switch]$NoLaunch
 )
 
 $ErrorActionPreference = 'Stop'
 $repository = 'https://github.com/NemodaMark/Hermes_flotter.git'
 $toolsDirectory = Join-Path $env:LOCALAPPDATA 'HERMES\tools'
+
+# Select and validate the destination before installing dependencies or changing a checkout.
+$defaultFolder = if ($Demo) { 'HERMES-Dev' } else { 'HERMES' }
+$pathSupplied = ![string]::IsNullOrWhiteSpace($ProjectPath)
+while ($true) {
+    if (!$ProjectPath) { $ProjectPath = Read-Host "Project directory (Enter for Documents\$defaultFolder)" }
+    if ([string]::IsNullOrWhiteSpace($ProjectPath)) { $ProjectPath = Join-Path ([Environment]::GetFolderPath('MyDocuments')) $defaultFolder }
+    $ProjectPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ProjectPath.Trim().Trim('"'))
+    if (!$ProjectPath.Contains('%')) { break }
+    $message = 'Vite cannot serve a project path containing %. Choose another directory.'
+    if ($pathSupplied) { throw $message }
+    Write-Warning $message
+    $ProjectPath = ''
+}
+$demoMarker = Join-Path $ProjectPath '.local\workstation\dev-demo.json'
+$demoInstallation = Join-Path $ProjectPath '.local\workstation\dev-installation.json'
+if ($Demo -and (Test-Path -LiteralPath $ProjectPath) -and (Get-ChildItem -LiteralPath $ProjectPath -Force | Select-Object -First 1)) {
+    if (!(Test-Path -LiteralPath $demoMarker)) { throw 'For demo installation select a NEW, empty directory. Existing projects and databases are preserved.' }
+    $marker = Get-Content -LiteralPath $demoMarker -Raw | ConvertFrom-Json
+    if ($marker.schema -ne 1 -or $marker.projectPath -ne $ProjectPath) { throw 'The demo marker belongs to a different installation.' }
+}
+# A completed provision can be resumed without rebuilding assemblies that its services are using.
+if ($Demo -and (Test-Path -LiteralPath $demoInstallation)) {
+    & (Join-Path $ProjectPath 'scripts\initialize-demo-workstation.ps1') -ProjectPath $ProjectPath -NoLaunch:$NoLaunch -SkipShortcut:$SkipShortcut
+    return
+}
 
 function Invoke-Checked($Program, [string[]]$Arguments) {
     & $Program @Arguments
@@ -113,17 +141,6 @@ if (!(Test-Path -LiteralPath (Join-Path $postgres 'pg_ctl.exe'))) {
 $env:PATH = "$(Split-Path -Parent $dotnet);$(Split-Path -Parent $node);$env:PATH"
 $env:DOTNET_ROOT = Split-Path -Parent $dotnet
 
-$pathSupplied = ![string]::IsNullOrWhiteSpace($ProjectPath)
-while ($true) {
-    if (!$ProjectPath) { $ProjectPath = Read-Host 'Project directory (Enter for Documents\HERMES)' }
-    if ([string]::IsNullOrWhiteSpace($ProjectPath)) { $ProjectPath = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'HERMES' }
-    $ProjectPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ProjectPath.Trim().Trim('"'))
-    if (!$ProjectPath.Contains('%')) { break }
-    $message = 'Vite cannot serve a project path containing %. Choose another directory.'
-    if ($pathSupplied) { throw $message }
-    Write-Warning $message
-    $ProjectPath = ''
-}
 if (Test-Path -LiteralPath (Join-Path $ProjectPath '.git')) {
     $origin = Invoke-Checked $git @('-C', $ProjectPath, 'config', '--get', 'remote.origin.url')
     if ($origin -notin @($repository, ($repository -replace '\.git$', ''), 'git@github.com:NemodaMark/Hermes_flotter.git',
@@ -135,6 +152,11 @@ if (Test-Path -LiteralPath (Join-Path $ProjectPath '.git')) {
 } else {
     Invoke-Checked $git @('clone', '--branch', 'main', '--', $repository, $ProjectPath)
 }
+if ($Demo -and !(Test-Path -LiteralPath $demoMarker)) {
+    $null = New-Item -ItemType Directory -Force -Path (Split-Path -Parent $demoMarker)
+    @{ schema = 1; projectPath = $ProjectPath; createdAt = [DateTimeOffset]::UtcNow.ToString('O') } |
+        ConvertTo-Json | Set-Content -LiteralPath $demoMarker -Encoding UTF8
+}
 
 Push-Location -LiteralPath $ProjectPath
 try {
@@ -145,10 +167,15 @@ try {
     Invoke-Checked $dotnet @('publish', 'desktop/src/Hermes.Workstation/Hermes.Workstation.csproj', '-c', 'Release', '-o', $launcher, '--nologo')
     $cli = Join-Path $launcher 'Hermes.Workstation.dll'
     Invoke-Checked $dotnet @($cli, 'prepare', $ProjectPath, $postgres, $dotnet, $node, $git)
-    $shortcutArguments = @{ NoLaunch = $true; CreateShortcut = !$SkipShortcut }
-    & (Join-Path $ProjectPath 'scripts\start-control-center.ps1') @shortcutArguments
+    $shortcutArguments = @{ NoLaunch = $true; CreateShortcut = !$SkipShortcut; PassThru = $true }
+    if ($Demo) { $shortcutArguments.ShortcutName = 'HERMES Dev Rendszervezérlő' }
+    $controlCenter = & (Join-Path $ProjectPath 'scripts\start-control-center.ps1') @shortcutArguments
 
-    if (!$SkipShortcut) {
+    if ($Demo) {
+        @{ controlCenterExecutable = $controlCenter.ExecutablePath; shortcutPath = $controlCenter.ShortcutPath } |
+            ConvertTo-Json | Set-Content -LiteralPath $demoInstallation -Encoding UTF8
+        & (Join-Path $ProjectPath 'scripts\initialize-demo-workstation.ps1') -ProjectPath $ProjectPath -NoLaunch:$NoLaunch -SkipShortcut:$SkipShortcut
+    } elseif (!$SkipShortcut) {
         if ($firstSetup) {
             $username = Read-Host 'First system administrator username (Enter to skip)'
             if ($username) {
