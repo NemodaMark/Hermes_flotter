@@ -84,6 +84,8 @@ export type GroupUser = {
   adminCompanyIds: string[]
 }
 export type Vehicle = {
+  bodyType?: string
+  color?: string | null
   bookingAvailability?: { currentUser: string | null; availableFrom: string } | null
   id: string
   registration: string

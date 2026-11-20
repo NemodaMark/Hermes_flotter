@@ -17,7 +17,7 @@ beforeEach(()=>{
 })
 const user={id:'anna',displayName:'Anna',email:'anna@example.test'}
 const tenant={id:'company',name:'Duna',permissions:['vehicles.read','vehicles.leasing.read']}
-const car:DashboardCar={vehicle:{id:'first',registration:'AAA-001',make:'Ford',model:'Focus',status:'Active',siteId:'bp',siteName:'Budapest',odometerKm:14000,permissions:['vehicles.read','vehicles.odometer.create']},bodyType:'Estate',color:'Kék',inspectionDueDate:'2026-10-15',insuranceDueDate:null,nextServiceDate:null,nextServiceKm:20000,isAssignedToMe:false}
+const car:DashboardCar={vehicle:{id:'first',registration:'AAA-001',make:'Ford',model:'Focus',status:'Active',siteId:'bp',siteName:'Budapest',odometerKm:14000,permissions:['vehicles.read','vehicles.odometer.create']},bodyType:'Estate',color:'Kék',inspectionDueDate:'2026-10-15',insuranceDueDate:null,nextServiceDate:null,nextServiceKm:20000,isAssignedToMe:true}
 function mount(data:Partial<Dashboard>={},siteId='all') {
   const today = '2026-10-24'
   const vehicles = data.vehicles ?? [car]
@@ -100,7 +100,7 @@ it('offers one empty state and fleet navigation when the selected site has no ve
   expect(onFleet).toHaveBeenCalledOnce()
 })
 it('chooses an assigned active vehicle and keeps unauthorized menus hidden even with company-wide aggregate rights',async()=>{
-  mount({mode:'Vehicle',vehicles:[car,{...car,vehicle:{...car.vehicle,id:'mine',registration:'MINE-002'},isAssignedToMe:true}]})
+  mount({mode:'Vehicle',vehicles:[{...car,isAssignedToMe:false},{...car,vehicle:{...car.vehicle,id:'mine',registration:'MINE-002'},isAssignedToMe:true}]})
   const region=await screen.findByRole('region',{name:'Autós dashboard'})
   expect(within(region).getByRole('heading', { name: 'MINE-002' })).toBeInTheDocument()
   const menu=within(region).getByRole('navigation',{name:'Jármű gyorsmenü'})
@@ -155,4 +155,11 @@ it('resolves Hungarian color names and hex values and identifies unknown colors 
   expect(vehiclePaint('  Kék ').hex).toBe('#214d81')
   expect(vehiclePaint('#c01234')).toEqual({hex:'#c01234',matched:true})
   expect(vehiclePaint('Ismeretlen árnyalat').matched).toBe(false)
+})
+
+it('never offers an ordinary driver a car switcher or substitutes someone else’s vehicle', async () => {
+  mount({ canReadOverview: false, vehicles: [{ ...car, isAssignedToMe: false }] })
+  expect(await screen.findByRole('heading', { name: 'Nincs hozzád rendelt, megtekinthető jármű' })).toBeInTheDocument()
+  expect(screen.queryByRole('combobox', { name: 'Jármű kiválasztása' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'AAA-001' })).not.toBeInTheDocument()
 })

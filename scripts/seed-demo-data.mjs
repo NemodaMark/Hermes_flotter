@@ -321,7 +321,8 @@ async function verify() {
       const canOverview = state.done[`group-${person.group}`].permissions.includes('vehicles.overview.read')
       assert.equal(dashboard.canReadOverview, canOverview)
       assert.equal(dashboard.mode, canOverview ? 'Overview' : 'Vehicle')
-      assert.deepEqual(dashboard.vehicles.map(car => car.vehicle.id).sort(), visible.map(car => car.id).sort())
+      if (canOverview) assert.deepEqual(dashboard.vehicles.map(car => car.vehicle.id).sort(), visible.map(car => car.id).sort())
+      else assert.ok(dashboard.vehicles.every(car => car.isAssignedToMe && visible.some(item => item.id === car.vehicle.id)))
       await account.request('/api/v1/dashboard/overview', { tenantId, status: canOverview ? 200 : 403 })
       if (siteId) {
         const hidden = cars.find(car => car.siteId !== null && car.siteId !== siteId)

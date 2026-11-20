@@ -78,7 +78,9 @@ public sealed class FleetFixture : IAsyncLifetime
         => new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment(environment)
             .UseSetting("ConnectionStrings:Database", ApplicationConnection)
-            .UseSetting("Security:AccountPermitLimit", "500"));
+            // Large integration suites authenticate a registrar and an actor for each isolated scenario.
+            // The dedicated limiter test overrides this to 1; production settings are unaffected.
+            .UseSetting("Security:AccountPermitLimit", "2000"));
 
     public async Task<HttpClient> ClientAsync(string? user = "anna", Guid? tenantId = null)
     {

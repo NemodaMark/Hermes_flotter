@@ -1,6 +1,6 @@
 import { Select } from './ui/Select'
 import { Button } from './ui/Button'
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRight,
@@ -27,6 +27,8 @@ import { clearAccountToken, readAccountLink } from './accountLink'
 import { CompaniesPage } from './CompaniesPage'
 import { PartnersPage } from './PartnersPage'
 import { VehiclePage } from './VehiclePage'
+import { ViewModeSwitch } from './ViewModeSwitch'
+const FleetParking = lazy(() => import('./FleetParking'))
 import { MembersPage } from './MembersPage'
 import { PermissionGroups } from './PermissionGroups'
 import { ListToolbar } from './ListToolbar'
@@ -205,6 +207,15 @@ function FleetWorkspace({
   const [search, setSearch] = useState('')
   const [vehicleQuery, setVehicleQuery] = useState({ search: '', page: 1 })
   const [pageSize, setPageSize] = useState(25)
+  const [parking, setParking] = useState(false)
+  const [smallParking, setSmallParking] = useState(() => window.matchMedia('(max-width: 700px)').matches)
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 700px)')
+    const update = () => setSmallParking(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  const effectivePageSize = parking ? (smallParking || navigator.hardwareConcurrency <= 4 ? 2 : 4) : pageSize
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const committed = search.trim()
@@ -235,7 +246,7 @@ function FleetWorkspace({
   const currentSiteId = !canReadVehicles || (siteId === 'none' && !canReadUnassigned) ||
     (workspaceSites.isSuccess && !workspaceSites.data.some(site => site.id === siteId) && siteId !== 'none') ? 'all' : siteId
   const currentSiteName = currentSiteId === 'none' ? 'Telephely nélkül' : workspaceSites.data?.find(site => site.id === currentSiteId)?.name ?? 'Összes telephely'
-  const listQuery = { ...vehicleQuery, pageSize, status, siteId: currentSiteId }
+  const listQuery = { ...vehicleQuery, pageSize: effectivePageSize, status, siteId: currentSiteId }
   const vehicles = useQuery({
     queryKey: [...vehicleKey(user.id, tenant?.id), listQuery, tenant?.permissions, tenant?.permissionScopes],
     queryFn: ({ signal }) => api.searchVehicles(tenant!.id, listQuery, signal),
@@ -262,7 +273,7 @@ function FleetWorkspace({
   const vehicleTotal = vehicles.data?.total ?? 0
   const availableTotal = vehicles.data?.availableTotal ?? 0
   const vehiclePage = vehicles.data?.page ?? vehicleQuery.page
-  const vehiclePages = Math.max(1, Math.ceil(vehicleTotal / pageSize))
+  const vehiclePages = Math.max(1, Math.ceil(vehicleTotal / effectivePageSize))
   const canCreate = tenant?.permissions.includes('vehicles.create') ?? false
   const canManageMembers = canManageSystem || !!tenant
   const canInvite = tenant?.permissions.includes('members.invite') ?? false
@@ -465,7 +476,7 @@ function FleetWorkspace({
             <VehiclePage key={`${tenant.id}:${selectedVehicleId}`} user={user} tenant={tenant} id={selectedVehicleId} onBack={() => { setSelectedVehicleId(null); if (vehicleLinkFromHash()) changeView('fleet') }} />
           ) : (
             <section className="fleet-panel" aria-label="Járműlista" aria-busy={vehicles.isFetching}>
-              <ListToolbar label="Járművek keresése és műveletei" actions={canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>}>
+              <ListToolbar label="Járművek keresése és műveletei" actions={<><ViewModeSwitch visual={parking} label="Parkoló" onChange={value => { setParking(value); setVehicleQuery(current => ({ ...current, page: 1 })) }} />{canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>}</>}>
                 <div className="list-toolbar-form">
                   <div className="search-field"><Search size={18} /><input aria-label="Jármű keresése" placeholder="Rendszám, gyártó vagy modell" maxLength={200} value={search} onChange={event => setSearch(event.target.value)} /></div>
                   <Select aria-label="Szűrés állapot szerint" className="status-filter" value={status} onChange={event => { setStatus(event.target.value); setVehicleQuery(current => ({ ...current, page: 1 })) }}><option value="all">Minden állapot</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
@@ -483,15 +494,15 @@ function FleetWorkspace({
                   </Button>
                 </div>
               ) : (
-                <FleetTable vehicles={visibleVehicles} tenant={tenant!} onOpen={setSelectedVehicleId}
+                parking && visibleVehicles.length ? <Suspense fallback={<p className="notice" role="status">Parkoló betöltése…</p>}><FleetParking vehicles={visibleVehicles} onOpen={setSelectedVehicleId} /></Suspense> : <FleetTable vehicles={visibleVehicles} tenant={tenant!} onOpen={setSelectedVehicleId}
                   message={vehicles.isPending ? 'Járművek betöltése…' : availableTotal ? undefined : 'Még nincs jármű. Az Új jármű gombbal veheted fel az elsőt.'} />
               )}
               <div className="table-footer fleet-pagination">
                 <span aria-live="polite">{vehicles.isPending ? 'Betöltés…' : vehicles.isError ? 'A találatszám nem elérhető' : `${vehicleTotal}${vehicleTotal !== availableTotal ? ` / ${availableTotal}` : ''} jármű`}</span>
                 <div className="fleet-page-controls" role="group" aria-label="Járműlista lapozása">
-                  <Select aria-label="Járművek száma oldalanként" value={String(pageSize)} onChange={event => { setPageSize(Number(event.target.value)); setVehicleQuery(current => ({ ...current, page: 1 })) }}>
+                  {!parking && <Select aria-label="Járművek száma oldalanként" value={String(pageSize)} onChange={event => { setPageSize(Number(event.target.value)); setVehicleQuery(current => ({ ...current, page: 1 })) }}>
                     {[25, 50, 100].map(size => <option key={size} value={size}>{size} / oldal</option>)}
-                  </Select>
+                  </Select>}
                   <span aria-live="polite">{vehicles.data ? `${vehiclePage} / ${vehiclePages}. oldal` : '—'}</span>
                   <Button className="secondary-button" disabled={vehicles.isFetching || vehicles.isError || vehiclePage <= 1} onClick={() => setVehicleQuery(current => ({ ...current, page: vehiclePage - 1 }))}>Előző oldal</Button>
                   <Button className="secondary-button" disabled={vehicles.isFetching || vehicles.isError || vehiclePage >= vehiclePages} onClick={() => setVehicleQuery(current => ({ ...current, page: vehiclePage + 1 }))}>Következő oldal</Button>

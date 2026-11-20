@@ -1,7 +1,7 @@
 import * as T from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 
-function surfaceTexture() {
+export function createGarageSurfaceTexture() {
   const size = 256
   const pixels = new Uint8Array(size * size * 4)
   // Each frequency tiles at the texture boundary, including its interpolated edges.
@@ -39,7 +39,7 @@ export function buildStudioGarage(scale: number) {
   const material = (color: string, roughness = .75, metalness = 0) => new T.MeshStandardMaterial({ color, roughness, metalness })
   const floor = material('#454a45', .47, .13)
   const concrete = material('#4c504d', .87)
-  const texture = surfaceTexture()
+  const texture = createGarageSurfaceTexture()
   texture.repeat.set(8, 8)
   floor.map = texture
   floor.roughnessMap = texture

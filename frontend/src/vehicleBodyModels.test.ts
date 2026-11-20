@@ -10,7 +10,7 @@ import { vehicleModel } from './vehicleModels'
 import { bodyNames } from './vehicleAppearance'
 import { batchVehicleMeshes, disposeVehicleModel, prepareVehicleModel } from './vehicleSceneModel'
 import { vehicleHotspots } from './vehicleHotspots'
-import { Vector3 } from 'three'
+import { Raycaster, Vector3 } from 'three'
 
 const bodies = Object.keys(bodyNames).filter(body => !['Unknown', 'Other'].includes(body))
 const prepared = ['vehicle-bodies/prepared.json', 'studio/sources.json'].flatMap(path =>
@@ -62,6 +62,19 @@ it.each(examples)('loads and paints $key with valid ground-level proportions', a
     }
   })
   expect(painted).toBeGreaterThan(0); expect(glass).toBeGreaterThan(0)
+  if (appearance.key === 'volkswagen-passat') {
+    const surfaces: Mesh[] = []; model.traverseVisible(object => { if (object instanceof Mesh) surfaces.push(object) })
+    const ray = new Raycaster()
+    for (const x of [-1.28, 1.55]) {
+      ray.set(new Vector3(x, .35, 4), new Vector3(0, 0, -1))
+      const right = ray.intersectObjects(surfaces, false)[0]
+      ray.set(new Vector3(x, .35, -4), new Vector3(0, 0, 1))
+      const left = ray.intersectObjects(surfaces, false)[0]
+      expect(right).toBeDefined(); expect(left).toBeDefined()
+      expect(left.point.z).toBeLessThan(-.75)
+      expect(left.distance).toBeCloseTo(right.distance, 2)
+    }
+  }
   const hotspots = vehicleHotspots(model, shape.length)
   const door = hotspots.anchor(new Vector3(-shape.length * .08, shape.roof * .5, shape.width * .44), new Vector3(0, 0, 1))
   batchVehicleMeshes(model)

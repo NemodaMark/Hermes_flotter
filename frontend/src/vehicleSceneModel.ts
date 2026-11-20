@@ -1,5 +1,6 @@
 import * as T from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { restorePassatWheels } from './vehicleModelRepairs'
 
 export type VehicleShape = { length: number; width: number; roof: number; frontAxle: number; rearAxle: number }
 
@@ -82,7 +83,7 @@ function applyGarageMaterials(source: T.Group, paintMaterials: readonly string[]
   })
 }
 
-export function prepareVehicleModel(source: T.Group, color: string, appearance: { rotation: number; length: number; paintMaterials?: readonly string[] } = { rotation: Math.PI / 2, length: 4.8 }): { model: T.Group; shape: VehicleShape } {
+export function prepareVehicleModel(source: T.Group, color: string, appearance: { key?: string; rotation: number; length: number; paintMaterials?: readonly string[] } = { rotation: Math.PI / 2, length: 4.8 }): { model: T.Group; shape: VehicleShape } {
   const model = new T.Group()
   model.name = 'HermesVehicle'
   // Assets have different forward axes; the studio always uses +X.
@@ -96,6 +97,7 @@ export function prepareVehicleModel(source: T.Group, color: string, appearance: 
   applyGarageMaterials(source, appearance.paintMaterials ?? ['Paint 1', 'Paint 2'])
   setVehiclePaint(model, color, appearance.paintMaterials)
   model.updateMatrixWorld(true)
+  if (appearance.key === 'volkswagen-passat') restorePassatWheels(model)
   return { model, shape: { length: appearance.length, width: size.z * scale, roof: size.y * scale + .025, frontAxle: appearance.length * .29, rearAxle: -appearance.length * .3 } }
 }
 
@@ -104,7 +106,7 @@ export function batchVehicleMeshes(model: T.Group) {
   const inverse = model.matrixWorld.clone().invert()
   const transform = new T.Matrix4()
   model.traverseVisible(object => {
-    if (!(object instanceof T.Mesh) || Array.isArray(object.material) || object.material.transparent || object.matrixWorld.determinant() < 0) return
+    if (!(object instanceof T.Mesh) || object.children.length || object.userData.articulated || Array.isArray(object.material) || object.material.transparent || object.matrixWorld.determinant() < 0) return
     const { attributes, index } = object.geometry
     const layout = Object.keys(attributes).sort().map(name => {
       const attr = attributes[name]
@@ -163,4 +165,20 @@ export function disposeVehicleModel(model: T.Object3D) {
     if (typeof image?.close === 'function') images.add(image as { close: () => void })
   }
   for (const image of images) image.close()
+}
+
+export function createContactShadow() {
+  const width = 96, pixels = new Uint8Array(width * width * 4)
+  for (let y = 0; y < width; y++) for (let x = 0; x < width; x++) {
+    const radius = Math.hypot((x + .5) / width * 2 - 1, (y + .5) / width * 2 - 1)
+    const index = (y * width + x) * 4
+    pixels.set([18, 29, 38, Math.round(85 * Math.max(0, 1 - radius ** 2) ** 2)], index)
+  }
+  const texture = new T.DataTexture(pixels, width, width)
+  texture.magFilter = T.LinearFilter
+  texture.needsUpdate = true
+  const shadow = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }))
+  shadow.rotation.x = -Math.PI / 2
+  shadow.position.y = .012
+  return shadow
 }

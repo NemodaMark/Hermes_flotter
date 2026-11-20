@@ -6,13 +6,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
 import studioLight from './assets/vehicles/studio-small-03.hdr?url'
-import { batchVehicleMeshes, disposeVehicleModel, prepareVehicleModel, setVehiclePaint } from './vehicleSceneModel'
+import { batchVehicleMeshes, createContactShadow as contactShadow, disposeVehicleModel, prepareVehicleModel, setVehiclePaint } from './vehicleSceneModel'
 import type { VehicleShape } from './vehicleSceneModel'
 import { vehiclePaint } from './vehicleAppearance'
 import type { VehicleModel } from './vehicleModels'
 import { vehicleHotspots } from './vehicleHotspots'
 import type { VehicleHotspot } from './vehicleHotspots'
 import { buildStudioGarage } from './studioGarageScene'
+import { vehicleInteractionLayout } from './vehicleInteractionLayout'
 import { ChevronLeft, ChevronRight, Maximize, Minimize, Minus, Pause, Play, Plus, RotateCcw } from 'lucide-react'
 import { Button } from './ui/Button'
 
@@ -24,24 +25,9 @@ const isSection = (key: StudioAction['key']): key is StudioSection => !['home', 
 const sectionAngles: Record<StudioSection, [azimuth: number, elevation: number]> = {
   data: [42, 21], history: [59, 8], services: [83, 15], documents: [25, 25],
   leases: [-68, 17], site: [-5, 11], photos: [-46, 22], bookings: [52, 20],
-  fuel: [-141, 13], handovers: [111, 13], assignees: [-24, 10], audit: [-125, 23],
+  fuel: [-55, 13], handovers: [111, 13], assignees: [-24, 10], audit: [-125, 23],
 }
 
-function contactShadow() {
-  const width = 96, pixels = new Uint8Array(width * width * 4)
-  for (let y = 0; y < width; y++) for (let x = 0; x < width; x++) {
-    const radius = Math.hypot((x + .5) / width * 2 - 1, (y + .5) / width * 2 - 1)
-    const index = (y * width + x) * 4
-    pixels.set([18, 29, 38, Math.round(85 * Math.max(0, 1 - radius ** 2) ** 2)], index)
-  }
-  const texture = new T.DataTexture(pixels, width, width)
-  texture.magFilter = T.LinearFilter
-  texture.needsUpdate = true
-  const shadow = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }))
-  shadow.rotation.x = -Math.PI / 2
-  shadow.position.y = .012
-  return shadow
-}
 
 export default function VehicleStudio({ model, color, menus, action, onSelect, onFocused, onCancelled, onReset, immersive = false, paused = false }: {
   model: VehicleModel; color: string | null; menus: StudioMenu[]; action: StudioAction | null; paused?: boolean; immersive?: boolean
@@ -159,7 +145,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     let shape: VehicleShape | null = null
     const positions: Partial<Record<StudioSection, VehicleHotspot>> = {}
     let hotspots: ReturnType<typeof vehicleHotspots> | null = null
-    const labels: Partial<Record<StudioSection, [number, number]>> = { data: [.36, .25], history: [.79, .69], services: [.85, .4], documents: [.69, .23], leases: [.22, .42], site: [.38, .73], photos: [.21, .63] }
+    const labels: Partial<Record<StudioSection, [number, number]>> = { data: [.36, .25], history: [.79, .69], fuel: [.22, .46], services: [.85, .4], documents: [.69, .23], leases: [.22, .42], site: [.38, .73], photos: [.21, .63] }
     let framing = 0, lastFit = 0
     let section: StudioSection | null = null
     let presentation = false, presentationTime = 0
@@ -216,9 +202,10 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
 
       if (opensSection) {
         freeView ??= { offset: from, target: startTarget, fit: lastFit }
-        const [azimuth, elevation] = sectionAngles[key]
+        const [azimuth, elevation] = key === 'fuel' && shape && shape.roof > 2.05 ? [38, 12] : sectionAngles[key]
         const relativeWidth = height ? (width - drawerWidth()) / height : 1
-        const distance = frameTo ? lastFit * Math.max(1.65, .9 / relativeWidth) : lastFit
+        const quick = key === 'fuel' || key === 'history'
+        const distance = frameTo ? lastFit * (quick ? 1.06 : Math.max(1.65, .9 / relativeWidth)) : lastFit
         to.set(distance || from.radius, T.MathUtils.degToRad(90 - elevation), T.MathUtils.degToRad(azimuth))
         targetTo = homeTarget.clone().lerp(positions[key]?.point ?? homeTarget, .18)
       } else if (key === 'resume' && freeView) {
@@ -270,7 +257,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       if (event.target instanceof Element && !event.target.closest('.studio-presentation-toggle')) stopPresentation()
     }
     garage.addEventListener('click', garageClick, true)
-    function drawerWidth() { return Math.min(width * .68, 1280) }
+    function drawerWidth() { return section === 'fuel' || section === 'history' ? Math.min(width * .43, 620) : Math.min(width * .68, 1280) }
     function projection() {
       if (!width || !height) return
       // Reserve the drawer's screen space while keeping the same camera orbit.
@@ -309,18 +296,14 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       try { vehicle = prepareVehicleModel(gltf.scene, paintRef.current, model) }
       catch (error) { disposeVehicleModel(gltf.scene); throw error }
       loadedModel.current = vehicle.model; shape = vehicle.shape; scene.add(vehicle.model)
-      const { length, width, roof, frontAxle } = shape
+      const { length, width } = shape
       const shadow = contactShadow()
       shadow.scale.set(length * 1.16, width * 1.5, 1)
       scene.add(shadow)
       hotspots = vehicleHotspots(vehicle.model, length)
-      const anchor = (x: number, y: number, z: number, nx: number, ny: number, nz: number) => hotspots!.anchor(new T.Vector3(x, y, z), new T.Vector3(nx, ny, nz))
       orbit.minDistance = Math.max(4.5, length * .8)
-      Object.assign(positions, {
-        data: anchor(-.05 * length, roof, 0, 0, 1, 0), history: anchor(frontAxle, .34, width * .43, 0, 0, 1),
-        services: anchor(length * .29, roof * .43, 0, 0, 1, 0), documents: anchor(.08 * length, roof * .73, width * .34, 0, 0, 1),
-        leases: anchor(-length * .4, roof * .55, 0, -1, 0, 0), site: anchor(-length * .08, roof * .5, width * .44, 0, 0, 1), photos: anchor(-length * .38, roof * .3, width * .42, 0, 0, 1),
-      })
+      for (const [section, { seed, outward }] of Object.entries(vehicleInteractionLayout(shape)))
+        positions[section as StudioSection] = hotspots.anchor(seed, outward)
       batchVehicleMeshes(vehicle.model)
       renderer.shadowMap.needsUpdate = true
       fit(true)

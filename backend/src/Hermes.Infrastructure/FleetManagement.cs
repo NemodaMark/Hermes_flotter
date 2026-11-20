@@ -60,7 +60,7 @@ public sealed partial class FleetManagement(HermesDbContext db, ITenantContext c
         var site = await (from a in db.VehicleSiteAssignments join s in db.Sites on a.SiteId equals s.Id
             where a.VehicleId == v.Id select new { s.Id, s.Name }).SingleOrDefaultAsync(ct);
         var summary = new VehicleSummary(v.Id, v.Registration, v.Make, v.Model, v.Status.ToString())
-        { Version = v.Version, OdometerKm = v.OdometerKm, SiteId = site?.Id, SiteName = site?.Name, Permissions = VehicleAccess.PermissionsFor(access, site?.Id) };
+        { BodyType = p.BodyType, Color = p.Color, Version = v.Version, OdometerKm = v.OdometerKm, SiteId = site?.Id, SiteName = site?.Name, Permissions = VehicleAccess.PermissionsFor(access, site?.Id) };
         var name = p.PreferredServicePartnerId is { } id ? await db.Partners.Where(x => x.Id == id).Select(x => x.Name).SingleOrDefaultAsync(ct) : null;
         return new(summary, Specification(p), name, p.StatusReason, p.UpdatedAt, p.UpdatedBy);
     }

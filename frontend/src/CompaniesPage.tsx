@@ -21,6 +21,8 @@ import './organizations.css'
 import { ListToolbar } from './ListToolbar'
 import { OrganizationAuditChanges } from './OrganizationAuditChanges'
 import { useListSearch } from './useListSearch'
+import { ViewModeSwitch } from './ViewModeSwitch'
+import { SiteActions, SiteShowcase } from './SiteShowcase'
 
 export function PageButtons({
   page,
@@ -191,6 +193,7 @@ function CompanyWorkspace({
     ...(has('audit.read') ? [{ id: 'audit', name: 'Módosítási napló' }] : []),
   ]
   const [tab, setTab] = useState(tabs[0]?.id ?? '')
+  const [siteCards, setSiteCards] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [auditPage, setAuditPage] = useState(1)
   const [notice, setNotice] = useState('')
@@ -430,6 +433,7 @@ function CompanyWorkspace({
               {contacts.data?.length === 0 && <p className="notice">Még nincs kapcsolattartó.</p>}
             </>
           ))}
+        {tab === 'sites' && has('sites.read') && <div className="site-view-toolbar"><ViewModeSwitch visual={siteCards} onChange={setSiteCards} label="Helyszínek" /></div>}
         {tab === 'sites' &&
           (!has('sites.read') ? (
             <p className="notice">A meglévő telephelyek megtekintéséhez nincs jogosultságod.</p>
@@ -437,7 +441,7 @@ function CompanyWorkspace({
             <p className="notice">Telephelyek betöltése…</p>
           ) : (
             <>
-              <div className="table-scroll">
+              {siteCards && sites.data?.length ? <SiteShowcase sites={sites.data} active={active} permissions={company.permissions} onEdit={site => setDialog({ kind: 'site', site })} onStatus={site => setDialog({ kind: 'site-status', site })} /> : <div className="table-scroll">
                 <table className="org-table responsive-list">
                   <thead>
                     <tr>
@@ -473,32 +477,13 @@ function CompanyWorkspace({
                         <td data-label="Kapcsolattartó">{site.contactName ?? '–'}</td>
                         <td data-label="Járművek">{site.vehicleCount ?? '–'}</td>
                         <td data-label="Műveletek">
-                          <div className="member-actions">
-                            {active && !site.isArchived && (site.permissions ?? company.permissions).includes('sites.update') && (
-                              <Button
-                                className="secondary-button"
-                                aria-label={`Telephely szerkesztése: ${site.data.name}`}
-                                onClick={() => setDialog({ kind: 'site', site })}
-                              >
-                                Szerkesztés
-                              </Button>
-                            )}
-                            {active && (site.permissions ?? company.permissions).includes('sites.archive') && (
-                              <Button
-                                className="secondary-button"
-                                aria-label={`Telephely állapota: ${site.data.name}`}
-                                onClick={() => setDialog({ kind: 'site-status', site })}
-                              >
-                                {site.isArchived ? 'Visszaállítás' : 'Archiválás'}
-                              </Button>
-                            )}
-                          </div>
+                          <SiteActions site={site} active={active} permissions={company.permissions} onEdit={site => setDialog({ kind: 'site', site })} onStatus={site => setDialog({ kind: 'site-status', site })} />
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </div>}
               {sites.data?.length === 0 && (
                 <p className="notice">
                   Ennél a cégnél még nincs telephely rögzítve.

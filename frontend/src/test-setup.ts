@@ -11,3 +11,8 @@ afterEach(() => {
 })
 // Query-backed screens can spend more than a second in their loading state on busy Windows/CI workers.
 configure({ asyncUtilTimeout: 3000 })
+
+// jsdom does not implement CSS media queries; browser-facing flows use the real API shape.
+Object.defineProperty(window, 'matchMedia', { writable: true, configurable: true, value: (media: string) => ({
+  matches: false, media, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent: () => true,
+}) })

@@ -88,7 +88,8 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
     {
         var site = await (from a in db.VehicleSiteAssignments join s in db.Sites on a.SiteId equals s.Id
             where a.VehicleId == x.Id select new { s.Id, s.Name }).SingleOrDefaultAsync(ct);
-        return Summary(x, access, site?.Id, site?.Name);
+        var appearance = await db.VehicleProfiles.AsNoTracking().Where(p => p.VehicleId == x.Id).Select(p => new { p.BodyType, p.Color }).SingleOrDefaultAsync(ct);
+        return Summary(x, access, site?.Id, site?.Name) with { BodyType = appearance?.BodyType ?? "Unknown", Color = appearance?.Color };
     }
     public Task<VehicleSummary?> GetAsync(Guid id, CancellationToken ct) => Authorized<VehicleSummary?>(Permissions.VehiclesRead, async access =>
         await VehicleAccess.Query(db, access, Permissions.VehiclesRead).AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct) is { } vehicle
@@ -153,12 +154,14 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
         var ids = rows.Select(x => x.Vehicle.Id).ToArray();
         var registrations = await db.VehicleRegistrations.AsNoTracking().Where(x => ids.Contains(x.VehicleId))
             .Select(x => new { x.VehicleId, x.Registration }).Distinct().ToArrayAsync(ct);
+        var appearance = await db.VehicleProfiles.AsNoTracking().Where(x => ids.Contains(x.VehicleId)).Select(x => new { x.VehicleId, x.BodyType, x.Color }).ToDictionaryAsync(x => x.VehicleId, ct);
         var previous = registrations.ToLookup(x => x.VehicleId, x => x.Registration);
         var permitted = rows.Where(x => access.Allows(Permissions.BookingsRead, x.SiteId) && x.Vehicle.Status == VehicleStatus.Active)
             .Select(x => x.Vehicle.Id).ToArray();
         var availability = await ReadBookingAvailability(permitted, ct);
         return rows.Select(x => Summary(x.Vehicle, access, x.SiteId, x.SiteName) with
-            { PreviousRegistrations = previous[x.Vehicle.Id].Where(p => p != x.Vehicle.Registration).ToArray(),
+            { BodyType = appearance.GetValueOrDefault(x.Vehicle.Id)?.BodyType ?? "Unknown", Color = appearance.GetValueOrDefault(x.Vehicle.Id)?.Color,
+                PreviousRegistrations = previous[x.Vehicle.Id].Where(p => p != x.Vehicle.Registration).ToArray(),
                 BookingAvailability = availability.GetValueOrDefault(x.Vehicle.Id) }).ToArray();
     }
 

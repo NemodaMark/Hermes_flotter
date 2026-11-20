@@ -32,7 +32,7 @@ export function DashboardPage({ user, tenant, siteId, onFleet, onVehicle }: {
   const [mileage, setMileage] = useState(false)
   const mileagePending = useIsMutating({ mutationKey: ['mileage', tenant.id] }) > 0
   const data = dashboard.error ? null : dashboard.data
-  const cars = (data?.vehicles ?? []).filter(({ vehicle }) =>
+  const cars = (data?.vehicles ?? []).filter(car => data?.canReadOverview || car.isAssignedToMe).filter(({ vehicle }) =>
     siteId === 'all' || (siteId === 'none' ? !vehicle.siteId : vehicle.siteId === siteId))
   const mode = data?.canReadOverview ? override ?? data.mode : 'Vehicle'
   const viewSwitch = data?.canReadOverview && <div className="dashboard-view-switch" role="group" aria-label="Kezdőlap nézete">
@@ -89,6 +89,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
   }
   const points: { key: VehicleTab; label: string }[] = [
     { key: 'data', label: 'Járműadatok' }, { key: 'history', label: 'Kilométerállás' },
+    ...(can('vehicles.fuel.manage') || can('vehicles.fuel.read') ? [{ key: 'fuel' as const, label: 'Tankolás' }] : []),
     ...(canService ? [{ key: 'services' as const, label: 'Szerviz' }] : []),
     ...(canDocuments ? [{ key: 'documents' as const, label: 'Dokumentumok' }] : []),
     ...(can('vehicles.leasing.read') || can('vehicles.leasing.manage') ? [{ key: 'leases' as const, label: 'Lízing' }] : []),
@@ -97,10 +98,11 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
   const menus: { key: VehicleTab; label: string }[] = [
     ...points,
     ...(can('vehicles.bookings.read') || can('vehicles.bookings.manage') ? [{ key: 'bookings' as const, label: 'Foglalások' }] : []),
-    ...(can('vehicles.fuel.read') || can('vehicles.fuel.manage') ? [{ key: 'fuel' as const, label: 'Tankolások' }] : []),
     { key: 'handovers', label: 'Átadás-átvétel' },
   ]
   const focus = (key: StudioSection) => {
+    if (key === 'fuel' && can('vehicles.fuel.manage')) { changeRecording('fuel'); return }
+    if (key === 'history' && can('vehicles.odometer.create')) { changeRecording('odometer'); return }
     setOpened(key)
     setAction(previous => ({ key, sequence: (previous?.sequence ?? 0) + 1 }))
   }
@@ -115,7 +117,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
     setAction(previous => ({ key: mode === 'fuel' ? 'fuel' : mode === 'odometer' ? 'history' : 'resume', sequence: (previous?.sequence ?? 0) + 1 }))
   }
   if (!car) return <section className="access-panel dashboard-no-car">
-    <CarFront size={28} aria-hidden="true" /><h3>Nincs megjeleníthető jármű</h3>
+    <CarFront size={28} aria-hidden="true" /><h3>Nincs hozzád rendelt, megtekinthető jármű</h3>
     <Button className="primary-button" onClick={onFleet}>Járműlista</Button>
   </section>
 
@@ -141,7 +143,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
             </div>
             {(viewSwitch || eligible.length > 1) && <div className="car-dashboard-actions">
               {viewSwitch}
-              {eligible.length > 1 && <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
+              {viewSwitch && eligible.length > 1 && <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
                 <Select value={car.vehicle.id} onChange={event => { setSelected(event.target.value); moveCamera('home') }}>
                   {eligible.map(item => <option key={item.vehicle.id} value={item.vehicle.id}>
                     {item.vehicle.registration}

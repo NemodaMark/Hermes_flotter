@@ -28,6 +28,8 @@ public sealed record VehicleSummary(Guid Id, string Registration, string Make, s
     public string[] Permissions { get; init; } = [];
     public string[] PreviousRegistrations { get; init; } = [];
     public VehicleBookingAvailability? BookingAvailability { get; init; }
+    public string BodyType { get; init; } = "Unknown";
+    public string? Color { get; init; }
 }
 public sealed record VehicleBookingAvailability(string? CurrentUser, DateOnly AvailableFrom);
 public sealed record CreateVehicleRequest(string Registration, string Make, string Model, Guid? SiteId = null,

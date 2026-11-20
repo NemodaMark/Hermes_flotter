@@ -141,9 +141,9 @@ export function VehicleBookingCalendar(p: OperationProps & { userId: string; onC
   </section>
 }
 
-export function VehicleFuelDialog(p: OperationProps & { userId: string; item?: FuelEntry; onSaved: (row: FuelEntry) => void; onClose: () => void }) {
+export function VehicleFuelDialog(p: OperationProps & { userId: string; item?: FuelEntry; cinematic?: boolean; onSaved: (row: FuelEntry) => void; onClose: () => void }) {
   const [pending, setPending] = useState(false)
-  return <AccessDialog title={p.item ? 'Tankolás módosítása' : 'Tankolás rögzítése'} pending={pending} onClose={p.onClose} className="fuel-record-dialog">
+  return <AccessDialog title={p.item ? 'Tankolás módosítása' : 'Tankolás rögzítése'} pending={pending} onClose={p.onClose} className={`fuel-record-dialog${p.cinematic ? ' garage-operation-dialog' : ''}`}>
     <p className="access-description">{p.car.registration} · {p.tenant.name}</p>
     <VehicleFuelForm {...p} onPendingChange={setPending} />
   </AccessDialog>

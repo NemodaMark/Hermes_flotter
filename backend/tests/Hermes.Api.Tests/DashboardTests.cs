@@ -58,8 +58,12 @@ public sealed partial class PermissionManagementTests
         await ScopeOk<object>(await owner.Client.PutAsJsonAsync($"/api/v1/vehicles/{carB.Id}/assignee", new { userId = member.User.Id, version = carB.Version }));
         Select(member, company.Id);
         var dashboard = (await member.Client.GetFromJsonAsync<DashboardSummary>("/api/v1/dashboard"))!;
+        Assert.Empty(dashboard.Vehicles); // An unreadable assignment must not fall back to another car.
+        Assert.Equal("Vehicle", dashboard.Mode);
+        await ScopeOk<object>(await owner.Client.PutAsJsonAsync($"/api/v1/vehicles/{carA.Id}/assignee", new { userId = member.User.Id, version = carA.Version }));
+        dashboard = (await member.Client.GetFromJsonAsync<DashboardSummary>("/api/v1/dashboard"))!;
         var car = Assert.Single(dashboard.Vehicles);
-        Assert.Equal("Vehicle", dashboard.Mode); Assert.Equal(carA.Id, car.Vehicle.Id); Assert.False(car.IsAssignedToMe);
+        Assert.Equal(carA.Id, car.Vehicle.Id); Assert.True(car.IsAssignedToMe);
         Assert.DoesNotContain(Permissions.OdometerCreate, car.Vehicle.Permissions);
         Assert.DoesNotContain(dashboard.Vehicles, x => x.Vehicle.Id == carB.Id || x.Vehicle.Id == none.Id);
         Select(stranger, company.Id); Assert.Equal(HttpStatusCode.Forbidden, (await stranger.Client.GetAsync("/api/v1/dashboard")).StatusCode);
@@ -169,4 +173,28 @@ public sealed partial class PermissionManagementTests
         Assert.Single(await db.PermissionGroups.Where(x => x.IsAdmin).ToArrayAsync());
         Assert.False(await db.SystemPermissionGrants.AnyAsync(x => x.UserId == manager.User.Id));
     }
+    [Fact]
+    public async Task Personal_garage_does_not_fall_back_after_release_and_parking_uses_authorized_appearance()
+    {
+        using var owner = await Register(); using var driver = await Register(); using var foreign = await Register();
+        var company = await Company(owner); await Company(foreign);
+        await Join(owner, driver, company.Id, Permissions.VehiclesRead);
+        var car = await FleetCar(owner, "MINE-001");
+        await FleetCar(owner, "OTHER-002");
+        var foreignCar = await FleetCar(foreign, "FOREIGN-001");
+        car = await ScopeOk<VehicleRecord>(await owner.Client.PutAsJsonAsync(CarUrl(car) + "/details", new SaveVehicleRecord(car.Vehicle.Registration, car.Vehicle.Make, car.Vehicle.Model, "Active", car.Vehicle.Version, car.Data with { BodyType = "Estate", Color = "Kék" })));
+        await ScopeOk<object>(await owner.Client.PutAsJsonAsync(CarUrl(car) + "/assignee", new { userId = driver.User.Id, version = car.Vehicle.Version }));
+        var home = (await driver.Client.GetFromJsonAsync<DashboardSummary>("/api/v1/dashboard"))!;
+        Assert.Equal(car.Vehicle.Id, Assert.Single(home.Vehicles).Vehicle.Id);
+        Assert.True(home.Vehicles[0].IsAssignedToMe);
+        var parking = await SearchCars(driver, "pageSize=4");
+        Assert.Equal(2, parking.Items.Length);
+        var appearance = Assert.Single(parking.Items, x => x.Id == car.Vehicle.Id);
+        Assert.Equal("Estate", appearance.BodyType); Assert.Equal("Kék", appearance.Color);
+        Assert.DoesNotContain(parking.Items, x => x.Id == foreignCar.Vehicle.Id);
+        var current = (await owner.Client.GetFromJsonAsync<VehicleRecord>(CarUrl(car) + "/details"))!;
+        await ScopeOk<object>(await owner.Client.PutAsJsonAsync(CarUrl(car) + "/assignee", new { userId = (string?)null, version = current.Vehicle.Version }));
+        Assert.Empty((await driver.Client.GetFromJsonAsync<DashboardSummary>("/api/v1/dashboard"))!.Vehicles);
+    }
+
 }

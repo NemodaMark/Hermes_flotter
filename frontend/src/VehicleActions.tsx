@@ -51,9 +51,10 @@ export function VehicleRecordingActions(props: VehicleActionProps & {
     </Button>}
     {message && <span className="vehicle-recording-feedback" role="status">{message}</span>}
     {mode === 'odometer' && odometer && <VehicleActionDialog key={`${vehicle.id}:${vehicle.version}:odometer`} user={props.user} tenant={tenant} vehicle={vehicle}
+      cinematic={!!onModeChange}
       mode="odometer" onClose={() => select(null)} onChanged={async () => { await refresh(); setMessage('Kilométerállás elmentve.') }} />}
     {mode === 'fuel' && fuel && <Suspense fallback={<p role="status">Tankolási űrlap betöltése…</p>}>
-      <VehicleFuelDialog tenant={tenant} car={vehicle} userId={props.user.id} onClose={() => select(null)} onSaved={() => { select(null); setMessage('Tankolás elmentve.') }} />
+      <VehicleFuelDialog tenant={tenant} car={vehicle} userId={props.user.id} cinematic={!!onModeChange} onClose={() => select(null)} onSaved={() => { select(null); setMessage('Tankolás elmentve.') }} />
     </Suspense>}
   </div>
 }
@@ -107,6 +108,7 @@ export function VehicleActions({
 }
 
 function VehicleActionDialog({
+  cinematic = false,
   user,
   tenant,
   vehicle,
@@ -114,6 +116,7 @@ function VehicleActionDialog({
   onClose,
   onChanged,
 }: {
+  cinematic?: boolean
   user: Session
   tenant: Tenant
   vehicle: Vehicle
@@ -139,7 +142,7 @@ function VehicleActionDialog({
       title={mode === 'edit' ? 'Járműadatok szerkesztése' : 'Kilométerállás rögzítése'}
       pending={save.isPending || mileagePending}
       onClose={onClose}
-      className={monthly ? 'mileage-dialog' : ''}
+      className={monthly ? 'mileage-dialog' : cinematic ? 'garage-operation-dialog' : ''}
     >
       {mode === 'odometer' && capture.allowed && <div className="mileage-dialog-tabs" role="group" aria-label="Km-rögzítés nézete">
         <Button className="secondary-button" aria-pressed={!monthly} disabled={save.isPending} onClick={() => setMonthly(false)}>Kilométerállás</Button>

@@ -21,7 +21,12 @@ public sealed class DashboardManagement(HermesDbContext db, TenantContext contex
             var mode = !canOverview || (winners.Length > 0 && winners.All(x => x.DashboardMode == "Vehicle")) ? "Vehicle" : "Overview";
             var source = winners.Length == 1 && winners[0].DashboardMode == mode ? winners[0].Name : null;
             var access = new ResourceAccess(accessMember);
-            var vehicles = canRead ? await ReadVehicles(VehicleAccess.Query(db, access, Permissions.VehiclesRead), access,
+            var visible = VehicleAccess.Query(db, access, Permissions.VehiclesRead);
+            // Personal home never falls back to unrelated cars. Assignment does not grant reading rights.
+            var overviewScope = VehicleAccess.Query(db, access, Permissions.FleetOverviewRead);
+            visible = visible.Where(vehicle => db.VehicleUserAssignments.Any(a => a.VehicleId == vehicle.Id && a.UserId == context.UserSubject && a.ReleasedAt == null)
+                || (canOverview && overviewScope.Any(candidate => candidate.Id == vehicle.Id)));
+            var vehicles = canRead ? await ReadVehicles(visible, access,
                 TimeZoneInfo.FindSystemTimeZoneById(zone), ct) : [];
             return new DashboardSummary(mode, priority, source, canRead, vehicles)
             {
@@ -128,7 +133,7 @@ public sealed class DashboardManagement(HermesDbContext db, TenantContext contex
                     Mine = db.VehicleUserAssignments.Any(u => u.VehicleId == v.Id && u.UserId == actor && u.ReleasedAt == null) }).ToArrayAsync(ct);
         return rows.Select(x => new DashboardVehicle(
                 new VehicleSummary(x.Car.Id, x.Car.Registration, x.Car.Make, x.Car.Model, x.Car.Status.ToString())
-                { Version = x.Car.Version, SiteId = x.SiteId, SiteName = x.SiteName, OdometerKm = x.Car.OdometerKm,
+                { BodyType = x.Profile?.BodyType ?? "Unknown", Color = x.Profile?.Color, Version = x.Car.Version, SiteId = x.SiteId, SiteName = x.SiteName, OdometerKm = x.Car.OdometerKm,
                     Permissions = VehicleAccess.PermissionsFor(access, x.SiteId) },
                 x.Profile?.BodyType ?? "Unknown", x.Profile?.Color, x.Profile?.InspectionDueDate, x.Profile?.InsuranceDueDate,
                 x.Profile?.NextServiceDate, x.Profile?.NextServiceKm, x.Mine)
