@@ -1,19 +1,21 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent, ReactNode } from 'react'
 import { ArrowDown, ArrowUp, ChartColumn, ChartPie, ChartScatter, Grip, MoveDiagonal, Settings2, Trash2 } from 'lucide-react'
-import { dashboardModules, dashboardSize } from './dashboardModules'
-import type { DashboardTile, ModuleKind } from './dashboardModules'
+import { dashboardModules, dashboardSize, makeTile } from './dashboardModules'
+import type { DashboardPosition, DashboardTile, ModuleKind } from './dashboardModules'
+import { arrangeDashboard, intersectingCells, tileRows } from './dashboardPlacement'
+import type { DashboardCell } from './dashboardPlacement'
 import { Button } from './ui/Button'
 
-export type DashboardDrop = { id: string; after: boolean } | 'end'
+export type DashboardDrop = { position: DashboardPosition; settled: ReadonlyMap<string, DashboardPosition>; compact: boolean }
 export type DashboardDrag = { kind: ModuleKind } | { id: string }
 
 type TileSize = Pick<DashboardTile, 'columns' | 'height'>
 type PointerStart = { pointerId: number; x: number; y: number }
 type DragSource = { source: DashboardDrag; label: string }
 type Gesture = PointerStart & (
-  | (DragSource & { moved: boolean })
-  | { id: string; size: TileSize; height: number; columnWidth: number }
+  | (DragSource & { moved: boolean; grabX?: number; grabY?: number })
+  | { id: string; size: TileSize; height: number; columnWidth: number; maxColumns: number }
 )
 
 type Editor = {
@@ -26,6 +28,7 @@ type Editor = {
 }
 
 const chartIcons = { bar: ChartColumn, pie: ChartPie, scatter: ChartScatter }
+const compactQuery = '(max-width: 860px)'
 
 function bounded(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
@@ -35,7 +38,7 @@ function resizeTo(gesture: Extract<Gesture, { size: TileSize }>, x: number, y: n
   const columns = gesture.columnWidth ? Math.round((x - gesture.x) / gesture.columnWidth) : 0
   const rows = Math.round((y - gesture.y) / dashboardSize.heightStep)
   return {
-    columns: bounded(gesture.size.columns + columns, dashboardSize.minColumns, dashboardSize.columns),
+    columns: bounded(gesture.size.columns + columns, dashboardSize.minColumns, gesture.maxColumns),
     height: rows ? bounded(gesture.height + rows * dashboardSize.heightStep, dashboardSize.minHeight, dashboardSize.maxHeight) : gesture.size.height,
   }
 }
@@ -46,24 +49,75 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
   const grid = useRef<HTMLDivElement>(null)
   const gesture = useRef<Gesture | null>(null)
   const preventClick = useRef(false)
-  const [drag, setDrag] = useState<{ label: string; x: number; y: number; target: DashboardDrop | null } | null>(null)
+  const [drag, setDrag] = useState<{ label: string; x: number; y: number; target: DashboardCell | null; blocked: boolean } | null>(null)
   const [resize, setResize] = useState<{ id: string; size: TileSize } | null>(null)
+  const [compact, setCompact] = useState(() => matchMedia(compactQuery).matches)
+  const [heights, setHeights] = useState<ReadonlyMap<string, number>>(new Map())
+  const [canvasHeight, setCanvasHeight] = useState(320)
+  const editing = !!editor
+  const paletteOpen = !!editor?.catalogue
+  const layout = arrangeDashboard(resize ? tiles.map(tile => tile.id === resize.id ? { ...tile, ...resize.size } : tile) : tiles, heights, compact)
 
-  function dropAt(x: number, y: number): DashboardDrop | null {
-    const area = grid.current
-    const target = document.elementFromPoint(x, y)
-    if (!area || !target || !area.contains(target)) return null
-    const tile = target.closest<HTMLElement>('[data-dashboard-tile]')
-    if (tile?.dataset.dashboardTile) {
-      const rect = tile.getBoundingClientRect()
-      const alone = Math.abs(rect.width - area.clientWidth) < 2
-      return { id: tile.dataset.dashboardTile, after: alone ? y > rect.top + rect.height / 2 : x > rect.left + rect.width / 2 }
+  useLayoutEffect(() => {
+    const area = grid.current!
+    const media = matchMedia(compactQuery)
+    const measure = () => {
+      setCompact(media.matches)
+      const measured = new Map(Array.from(area.querySelectorAll<HTMLElement>('[data-dashboard-tile]'), tile =>
+        [tile.dataset.dashboardTile!, tile.offsetHeight] as const).filter(([, height]) => height > 0))
+      setHeights(previous => previous.size === measured.size && [...measured].every(([id, height]) => previous.get(id) === height) ? previous : measured)
+      if (editing) setCanvasHeight(Math.max(240, innerHeight - (area.getBoundingClientRect().top + scrollY) - 40))
     }
-    const next = Array.from(area.querySelectorAll<HTMLElement>('[data-dashboard-tile]')).find(item => {
-      const rect = item.getBoundingClientRect()
-      return rect.top > y || (y <= rect.bottom && x < rect.left)
-    })?.dataset.dashboardTile
-    return next ? { id: next, after: false } : 'end'
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    area.querySelectorAll('[data-dashboard-tile]').forEach(tile => observer?.observe(tile))
+    if (area.parentElement) observer?.observe(area.parentElement)
+    window.addEventListener('resize', measure)
+    let active = true
+    queueMicrotask(() => { if (active) measure() })
+    return () => { active = false; observer?.disconnect(); window.removeEventListener('resize', measure) }
+  }, [tiles, editing, paletteOpen])
+
+  function columnStep(area: HTMLDivElement) {
+    const gap = parseFloat(getComputedStyle(area).columnGap) || 0
+    return { gap, step: (area.clientWidth + gap) / layout.columns }
+  }
+
+  function dropAt(current: Extract<Gesture, DragSource>, x: number, y: number): DashboardCell | null {
+    const area = grid.current
+    if (!area?.contains(document.elementFromPoint(x, y))) return null
+    const bounds = area.getBoundingClientRect()
+    if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return null
+    const { step, gap } = columnStep(area)
+    const size = 'id' in current.source ? layout.positions.get(current.source.id)
+      : { columns: compact ? 1 : makeTile(current.source.kind, '').columns, rows: tileRows(current.source.kind === 'note' ? 192 : 224) }
+    if (!size || !step) return null
+    const grabX = current.grabX ?? (size.columns * step - gap) / 2
+    return {
+      columns: size.columns, rows: size.rows,
+      column: bounded(Math.round((x - bounds.left - grabX) / step), 0, layout.columns - size.columns),
+      row: bounded(Math.round((y - bounds.top - (current.grabY ?? 0)) / dashboardSize.rowStep), 0, dashboardSize.maxRow),
+    }
+  }
+
+  function occupied(cell: DashboardCell, source: DashboardDrag) {
+    const others = [...layout.positions].filter(([id]) => !('id' in source) || id !== source.id).map(([, item]) => item)
+    return intersectingCells(cell, others).length > 0
+  }
+
+  function place(source: DashboardDrag, cell: DashboardCell) {
+    editor?.onDrop(source, { position: { column: cell.column, row: cell.row }, settled: layout.positions, compact })
+  }
+
+  function nudge(id: string, column: number, row: number) {
+    const origin = layout.positions.get(id)
+    if (!origin) return
+    const source = { id }
+    const target = { ...origin, column: origin.column + column, row: origin.row + row }
+    while (target.column >= 0 && target.column + target.columns <= layout.columns && target.row >= 0 && target.row <= dashboardSize.maxRow) {
+      if (!occupied(target, source)) { place(source, target); return }
+      target.column += column
+      target.row += row
+    }
   }
 
   function begin(event: PointerEvent<HTMLButtonElement>, details: DragSource | DashboardTile) {
@@ -72,15 +126,16 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
     if (typeof event.currentTarget.setPointerCapture !== 'function') return
     const start = { pointerId: event.pointerId, x: event.clientX, y: event.clientY }
     if ('source' in details) {
-      gesture.current = { ...start, ...details, moved: false }
+      const rect = event.currentTarget.closest('[data-dashboard-tile]')?.getBoundingClientRect()
+      gesture.current = { ...start, ...details, moved: false, grabX: rect ? start.x - rect.left : undefined, grabY: rect ? start.y - rect.top : undefined }
     } else {
       const element = grid.current!
-      const style = getComputedStyle(element)
-      const columns = style.gridTemplateColumns.split(' ').length
       const body = event.currentTarget.closest('[data-dashboard-tile]')?.querySelector<HTMLElement>('.custom-tile-body')
+      const position = layout.positions.get(details.id)!
       gesture.current = { ...start, id: details.id, size: { columns: details.columns, height: details.height },
         height: body?.offsetHeight ?? dashboardSize.minHeight,
-        columnWidth: columns === dashboardSize.columns ? (element.clientWidth + (parseFloat(style.columnGap) || 0)) / columns : 0 }
+        columnWidth: compact ? 0 : columnStep(element).step,
+        maxColumns: compact ? dashboardSize.columns : dashboardSize.columns - position.column }
     }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
@@ -100,7 +155,8 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
     preventClick.current = true
     if (y > innerHeight - 44) window.scrollBy(0, 18)
     if (y < 44) window.scrollBy(0, -18)
-    setDrag({ label: current.label, x, y, target: dropAt(x, y) })
+    const target = dropAt(current, x, y)
+    setDrag({ label: current.label, x, y, target, blocked: !!target && occupied(target, current.source) })
   }
 
   function cancel(event: PointerEvent<HTMLButtonElement>) {
@@ -117,13 +173,18 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
       const size = resizeTo(current, event.clientX, event.clientY)
       if (size.columns !== current.size.columns || size.height !== current.size.height) editor?.onResize(current.id, size)
     } else if (current.moved) {
-      const target = dropAt(event.clientX, event.clientY)
-      if (target) editor?.onDrop(current.source, target)
+      const target = dropAt(current, event.clientX, event.clientY)
+      if (target && !occupied(target, current.source)) place(current.source, target)
     }
     cancel(event)
   }
 
   const pointerHandlers = { onPointerMove: move, onPointerUp: finish, onPointerCancel: cancel, onLostPointerCapture: cancel }
+  const cellStyle = (cell: DashboardCell) => ({ '--tile-column': cell.column, '--render-columns': cell.columns,
+    '--tile-top': `${cell.row * dashboardSize.rowStep}px` })
+  const ordered = [...layout.positions].sort(([, a], [, b]) => a.row - b.row || a.column - b.column)
+  const boardStyle = { '--dashboard-columns': layout.columns, '--dashboard-row-step': `${dashboardSize.rowStep}px`,
+    '--dashboard-height': `${editing ? Math.max(canvasHeight, layout.height + 192) : layout.height}px` } as CSSProperties
   return <>
     {editor?.catalogue && <section id={paletteId} className="custom-module-palette" aria-label="Elérhető modulok">
       {editor.catalogue.map(kind => {
@@ -135,23 +196,29 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
         </Button>
       })}
     </section>}
-    <div ref={grid} className="custom-dashboard-grid" aria-label="Áttekintő moduljai">
-      {tiles.map((tile, index) => {
+    <div ref={grid} className="custom-dashboard-grid" role="region" aria-label="Áttekintő moduljai" style={boardStyle}
+      data-editing={editing || undefined} data-grid-visible={editing && (paletteOpen || !!drag || !tiles.length) || undefined}>
+      {editing && !tiles.length && !drag && <p className="custom-dashboard-drop">Húzd ide a modult</p>}
+      {ordered.map(([id, position]) => {
+        const tile = tiles.find(tile => tile.id === id)!
         const title = tile.kind === 'note' && tile.title.trim() ? tile.title : dashboardModules[tile.kind]
         const size = resize?.id === tile.id ? resize.size : tile
-        const target = drag?.target
-        const drop = target && target !== 'end' && target.id === tile.id ? (target.after ? 'after' : 'before') : undefined
-        const style = { '--tile-columns': size.columns, '--tile-height': size.height === null ? undefined : `${size.height}px` } as CSSProperties
+        const style = { ...cellStyle(position), '--tile-columns': size.columns, '--tile-height': size.height === null ? undefined : `${size.height}px` } as CSSProperties
         return <article key={tile.id} className="custom-dashboard-tile" data-dashboard-tile={tile.id}
-          style={style} data-editing={editor ? '' : undefined} data-drop={drop} aria-label={title}>
+          style={style} data-editing={editor ? '' : undefined} aria-label={title}>
           {editor && <div className="custom-tile-controls">
-            <Button type="button" className="icon-button custom-tile-grip" aria-label={`${title} mozgatása húzással`} tabIndex={-1}
-              {...pointerHandlers} onPointerDown={event => begin(event, { source: { id: tile.id }, label: title })} title="Mozgatás húzással"><Grip size={18} /></Button>
+            <Button type="button" className="icon-button custom-tile-grip" aria-label={`${title} mozgatása húzással vagy nyilakkal`}
+              {...pointerHandlers} onPointerDown={event => begin(event, { source: { id: tile.id }, label: title })} title="Mozgatás húzással vagy nyilakkal"
+              onKeyDown={event => {
+                const directions: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
+                const direction = directions[event.key]
+                if (direction) { event.preventDefault(); nudge(tile.id, ...direction) }
+              }}><Grip size={18} /></Button>
             <span className="custom-tile-edit-label" title={title}>{title}</span>
-            <Button type="button" className="icon-button" aria-label={`${title} előrébb`} disabled={index === 0}
-              onClick={() => editor.onDrop({ id: tile.id }, { id: tiles[index - 1]!.id, after: false })}><ArrowUp size={16} /></Button>
-            <Button type="button" className="icon-button" aria-label={`${title} hátrébb`} disabled={index === tiles.length - 1}
-              onClick={() => editor.onDrop({ id: tile.id }, { id: tiles[index + 1]!.id, after: true })}><ArrowDown size={16} /></Button>
+            <Button type="button" className="icon-button" aria-label={`${title} felfelé`} disabled={position.row === 0}
+              onClick={() => nudge(tile.id, 0, -1)}><ArrowUp size={16} /></Button>
+            <Button type="button" className="icon-button" aria-label={`${title} lefelé`}
+              onClick={() => nudge(tile.id, 0, 1)}><ArrowDown size={16} /></Button>
             <Button type="button" className="icon-button" aria-label={`${title} beállításai`} onClick={() => editor.onSettings(tile)}><Settings2 size={16} /></Button>
             <Button type="button" className="icon-button" aria-label={`${title} eltávolítása`} onClick={() => editor.onRemove(tile.id)}><Trash2 size={16} /></Button>
           </div>}
@@ -163,9 +230,8 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
             title="Átméretezés húzással" onClick={event => { if (!event.detail || !preventClick.current) editor.onSettings(tile) }}><MoveDiagonal size={17} /></Button>}
         </article>
       })}
-      {editor && (editor.catalogue || drag || !tiles.length) && <div className="custom-dashboard-drop" data-active={drag?.target === 'end'}>
-        Húzd ide a modult
-      </div>}
+      {drag?.target && <div className="custom-dashboard-target" aria-hidden="true" data-blocked={drag.blocked}
+        style={{ ...cellStyle(drag.target), '--target-height': `${(drag.target.rows - 1) * dashboardSize.rowStep}px` } as CSSProperties} />}
     </div>
     {drag && <div className="custom-drag-preview" aria-hidden="true"
       style={{ left: Math.min(drag.x + 12, innerWidth - 180), top: Math.min(drag.y + 12, innerHeight - 46) }}>{drag.label}</div>}

@@ -29,12 +29,15 @@ export const dashboardModules = {
 
 export type OverviewModule = keyof typeof overviewModules
 export type ModuleKind = keyof typeof dashboardModules
-export const dashboardSize = { columns: 12, minColumns: 3, minHeight: 64, maxHeight: 1200, heightStep: 16 }
+export const dashboardSize = { columns: 12, minColumns: 3, minHeight: 64, maxHeight: 1200, heightStep: 16, rowStep: 16, maxRow: 10000 }
+export type DashboardPosition = { column: number; row: number }
 export type DashboardTile = {
   id: string
   kind: ModuleKind
   columns: number
   height: number | null
+  position?: DashboardPosition
+  mobileRow?: number
   site: string
   status: string
   search: string
@@ -66,6 +69,8 @@ export function isChartModule(kind: ModuleKind): kind is ChartKind {
 
 type StoredTile = DashboardTile | (Omit<DashboardTile, 'columns' | 'height'> & { wide: boolean })
 
+const validRow = (row: unknown) => typeof row === 'number' && Number.isInteger(row) && row >= 0 && row <= dashboardSize.maxRow
+
 function isDashboardLayout(value: unknown): value is StoredTile[] {
   if (!Array.isArray(value)) return false
   const ids = new Set<string>()
@@ -77,6 +82,9 @@ function isDashboardLayout(value: unknown): value is StoredTile[] {
         && (tile.height === null || (Number.isInteger(tile.height) && tile.height >= dashboardSize.minHeight && tile.height <= dashboardSize.maxHeight))
       : typeof tile.wide === 'boolean'
     return size
+      && (tile.position === undefined || (tile.position && Number.isInteger(tile.position.column)
+        && tile.position.column >= 0 && tile.position.column < dashboardSize.columns && validRow(tile.position.row)))
+      && (tile.mobileRow === undefined || validRow(tile.mobileRow))
       && ['site', 'status', 'search', 'deadlineType', 'deadlineTiming', 'title', 'note'].every(key => typeof tile[key] === 'string')
       && Number.isInteger(tile.months) && tile.months >= 1 && tile.months <= 12
       && Number.isInteger(tile.limit) && tile.limit >= 1 && tile.limit <= 100

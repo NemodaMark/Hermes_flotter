@@ -5,7 +5,7 @@ import { api, vehicleKey } from './api'
 import type { Session, Tenant } from './api'
 import { dashboardApi } from './dashboardApi'
 import { chartIntervals, chartMetrics, dashboardModules, dashboardSize, isChartModule, isOverviewModule, makeTile, overviewModules, readDashboardLayout } from './dashboardModules'
-import type { ChartInterval, ChartMetric, DashboardTile, ModuleKind, OverviewModule } from './dashboardModules'
+import type { ChartInterval, ChartMetric, DashboardPosition, DashboardTile, ModuleKind, OverviewModule } from './dashboardModules'
 import { FleetDataChart, ReportedMileageChart } from './DashboardChart'
 import { DashboardGrid } from './DashboardGrid'
 import type { DashboardDrag, DashboardDrop } from './DashboardGrid'
@@ -67,12 +67,17 @@ export function DashboardOverview({ editing, onEditingChange, onFleet, ...props 
   function drop(source: DashboardDrag, target: DashboardDrop) {
     if (!draft) return
     const tile = 'kind' in source ? newTile(source.kind) : draft.find(item => item.id === source.id)
-    if (!tile || (target !== 'end' && target.id === tile.id)) return
-    const next = draft.filter(item => item.id !== tile.id)
-    const at = target === 'end' ? next.length : next.findIndex(item => item.id === target.id) + Number(target.after)
-    next.splice(at, 0, tile)
+    if (!tile) return
+    function positioned(item: DashboardTile, position?: DashboardPosition) {
+      if (!position) return item
+      const row = Math.min(position.row, dashboardSize.maxRow)
+      return target.compact ? { ...item, mobileRow: row } : { ...item, position: { column: position.column, row } }
+    }
+    const placed = positioned(tile, target.position)
+    const next = draft.map(item => item.id === tile.id ? placed : positioned(item, target.settled.get(item.id)))
+    if ('kind' in source) next.push(placed)
     setDraft(next)
-    if ('kind' in source && isChartModule(source.kind)) setConfig(tile)
+    if ('kind' in source && isChartModule(source.kind)) setConfig(placed)
     setAnnouncement(`${dashboardModules[tile.kind]} ${'kind' in source ? 'hozzáadva' : 'áthelyezve'}.`)
   }
 
