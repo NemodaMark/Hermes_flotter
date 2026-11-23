@@ -10,6 +10,32 @@ namespace Hermes.Api.Tests;
 
 public sealed partial class PermissionManagementTests
 {
+    [Fact]
+    public async Task Dashboard_booking_flag_is_fresh_and_follows_its_own_site_and_company_scope()
+    {
+        using var owner = await Register(); using var driver = await Register(); using var foreign = await Register();
+        var company = await Company(owner); await Company(foreign);
+        var a = await ScopeSite(owner, "BOOK-A"); var b = await ScopeSite(owner, "BOOK-B");
+        var carA = await FleetCar(owner, "FLAG-A", a.Id); var carB = await FleetCar(owner, "FLAG-B", b.Id);
+        var other = await FleetCar(foreign, "FLAG-FOREIGN");
+        await Join(owner, driver, company.Id, Permissions.VehiclesRead, Permissions.FleetOverviewRead);
+        var bookings = await ScopedGroup(owner, "A foglalási jog", company.Id, [a.Id], Permissions.BookingsRead);
+        await CompanyAssign(owner, driver.User.Id, bookings.Id); Select(driver, company.Id);
+        var before = (await driver.Client.GetFromJsonAsync<DashboardSummary>("/api/v1/dashboard"))!;
+        Assert.False(Assert.Single(before.Vehicles, x => x.Vehicle.Id == carA.Vehicle.Id).BookingEnabled);
+        foreach (var car in new[] { carA, carB })
+            (await owner.Client.PutAsJsonAsync(CarUrl(car) + "/booking-settings", new BookingSettingsInput(true))).EnsureSuccessStatusCode();
+        var enabled = (await driver.Client.GetFromJsonAsync<DashboardSummary>("/api/v1/dashboard"))!;
+        Assert.True(Assert.Single(enabled.Vehicles, x => x.Vehicle.Id == carA.Vehicle.Id).BookingEnabled);
+        Assert.Null(Assert.Single(enabled.Vehicles, x => x.Vehicle.Id == carB.Vehicle.Id).BookingEnabled);
+        Assert.True((await driver.Client.GetFromJsonAsync<VehicleRecord>(CarUrl(carA) + "/details"))!.BookingEnabled);
+        Assert.Null((await driver.Client.GetFromJsonAsync<VehicleRecord>(CarUrl(carB) + "/details"))!.BookingEnabled);
+        Assert.DoesNotContain(enabled.Vehicles, x => x.Vehicle.Id == other.Vehicle.Id);
+        (await owner.Client.PutAsJsonAsync(CarUrl(carA) + "/booking-settings", new BookingSettingsInput(false))).EnsureSuccessStatusCode();
+        Assert.False(Assert.Single((await driver.Client.GetFromJsonAsync<DashboardSummary>("/api/v1/dashboard"))!.Vehicles, x => x.Vehicle.Id == carA.Vehicle.Id).BookingEnabled);
+        Assert.False((await driver.Client.GetFromJsonAsync<VehicleRecord>(CarUrl(carA) + "/details"))!.BookingEnabled);
+    }
+
     private static async Task<PermissionGroupSummary> DashboardGroup(Account owner, PermissionGroupSummary group, string mode, int priority)
         => await ScopeOk<PermissionGroupSummary>(await owner.Client.PutAsJsonAsync($"/api/v1/permission-groups/{group.Id}/dashboard", new GroupDashboardInput(mode, priority, group.Version)));
 

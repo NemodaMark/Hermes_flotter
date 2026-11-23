@@ -52,6 +52,7 @@ export function VehicleFields({ tenantId, data, setData, disabled, readOnly = fa
       {text('Flottaazonosító', spec.fleetNumber, x => set('fleetNumber', x), 40)}
       {choice('Karosszéria', bodyType, bodyNames, x => set('bodyType', x))}
       {choice('Járműkategória', spec.category, categories, x => set('category', x))}
+      {readOnly && choice('Üzemanyag / hajtás', spec.fuelType, fuels, x => set('fuelType', x))}
       {num('year', 'Gyártási év', currentYear + 1)}
       {readOnly ? <VehicleValue label="Szín" value={spec.color} /> : <div className="org-field">
         <span>Szín</span>
@@ -65,9 +66,10 @@ export function VehicleFields({ tenantId, data, setData, disabled, readOnly = fa
           ? 'A 3D előnézethez válassz színmintát, vagy adj meg HEX-kódot.'
           : 'Válassz egy színt a listából vagy a színmintára kattintva.'}</small>
       </div>}
+      {readOnly && spec.notes && <div className="vehicle-wide-field"><VehicleValue label="Megjegyzés" value={spec.notes} /></div>}
     </div></fieldset>,
     technical: <fieldset disabled={disabled}><legend>Műszaki adatok</legend><div className="org-form-grid">
-      {choice('Üzemanyag / hajtás', spec.fuelType, fuels, x => set('fuelType', x))}
+      {!readOnly && choice('Üzemanyag / hajtás', spec.fuelType, fuels, x => set('fuelType', x))}
       {choice('Váltó', spec.transmission, transmissions, x => set('transmission', x))}
       {num('powerKw', 'Teljesítmény (kW)', 10000, 0.001)}{num('engineCapacityCc', 'Hengerűrtartalom (cm³)', 100000)}{num('seats', 'Ülések száma', 500)}
       {(['Electric', 'PluginHybrid', 'Hybrid'].includes(spec.fuelType) || spec.batteryKwh !== null) && num('batteryKwh', 'Akkumulátor (kWh)', 10000, 0.001)}
@@ -79,7 +81,7 @@ export function VehicleFields({ tenantId, data, setData, disabled, readOnly = fa
       {choice('Állapot', data.status, data.status === 'Archived' ? vehicleStatuses : { Active: 'Aktív', Maintenance: 'Szervizben', Inactive: 'Inaktív' }, x => setData({ ...data, status: x }))}
       {choice('Tulajdonlás', spec.ownership, ownerships, x => set('ownership', x))}
       {date('firstRegistration', 'Első forgalomba helyezés')}{date('fleetEntryDate', 'Flottába kerülés')}{date('fleetExitDate', 'Flottából kilépés')}
-      <div className="vehicle-wide-field">{readOnly ? <VehicleValue label="Megjegyzés" value={spec.notes} /> : <NotesField value={spec.notes} onChange={x => set('notes', x)} disabled={disabled} />}</div>
+      {!readOnly && <div className="vehicle-wide-field"><NotesField value={spec.notes} onChange={x => set('notes', x)} disabled={disabled} /></div>}
     </div></fieldset>,
     deadlines: <fieldset disabled={disabled}><legend>Határidők és szerviz</legend><div className="org-form-grid">
       {date('inspectionDueDate', 'Műszaki vizsga lejárata')}{date('insuranceDueDate', 'Biztosítás lejárata')}{date('nextServiceDate', 'Következő szerviz dátuma')}{num('nextServiceKm', 'Következő szerviz (km)')}

@@ -97,6 +97,13 @@ it('keeps a disabled booking calendar compact and never offers management throug
   expect(screen.queryByRole('switch')).not.toBeInTheDocument()
 })
 
+it.each(['read', 'manage'])('hides disabled booking in the profile except for its authorized manager: %s', async operation => {
+  vi.mocked(fleetApi.vehicle).mockResolvedValue({ ...record, bookingEnabled: false, vehicle: { ...record.vehicle, permissions: ['vehicles.read', `vehicles.bookings.${operation}`] } })
+  mount(<VehiclePage user={user} tenant={tenant} id="car" initialTab="usage" onBack={vi.fn()} />)
+  await screen.findByRole('heading', { name: 'DEMO-007' })
+  expect(screen.queryByText('Foglalás', { exact: true }) !== null).toBe(operation === 'manage')
+})
+
 it('preserves access to earlier bookings while booking is disabled without showing an empty calendar', async () => {
   vi.mocked(fleetApi.vehicle).mockResolvedValue({ ...record, vehicle: { ...record.vehicle, permissions: ['vehicles.read', 'vehicles.bookings.read'] } })
   const fetch = vi.fn(async () => new Response(JSON.stringify({ enabled: false, today: '2026-11-23', items: [] })))

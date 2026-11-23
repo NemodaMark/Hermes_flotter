@@ -1,0 +1,63 @@
+/* One scene, four functional corners: identity, tasks, controls, daily actions. */
+.car-dashboard .vehicle-studio { isolation: auto; }
+.car-dashboard .car-stage-overlay { grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: var(--space-3) var(--space-5); }
+.car-dashboard-toolbar { display: contents; }
+.car-identity { grid-column: 1; grid-row: 1; gap: var(--space-2); }
+.car-identity-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.car-registration { font-size: clamp(26px, 2.7vw, 42px); }
+.car-dashboard-model { font-size: 14px; color: var(--garage-muted); }
+.car-identity-detail { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+.car-identity .car-mileage { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0; border: 0; background: transparent; color: var(--garage-ink); pointer-events: auto; }
+.car-mileage strong { font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.car-mileage > span { color: var(--garage-muted); font-size: 12px; }
+.car-dashboard-actions { grid-column: 2; grid-row: 1; justify-self: end; margin-top: 54px; }
+.car-dashboard .car-attention { grid-column: 2; grid-row: 2; justify-self: end; width: 100%; max-width: none; max-height: none; overflow: visible; gap: 0; background: var(--garage-panel); }
+.car-dashboard .car-attention-notice { width: 100%; min-height: 44px; padding: var(--space-2) var(--space-3); border: 0; border-radius: 0; background: transparent; }
+.car-attention-notice + .car-attention-notice { border-top: 1px solid var(--garage-line); }
+.car-attention-notice .sera-badge { padding-inline: 0; border: 0; background: transparent; }
+.car-dashboard .car-attention-more { width: 100%; min-height: 36px; padding: var(--space-2) var(--space-3); border: 0; border-radius: 0; color: var(--garage-accent); background: transparent; justify-content: space-between; font-size: 12px; }
+.car-attention-list { display: grid; gap: 0; }
+.car-attention-list .car-attention-notice { width: 100%; min-height: 52px; padding: var(--space-3) 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); justify-content: start; text-align: left; }
+.car-dashboard .car-menu { justify-self: start; margin-inline-start: var(--garage-inset); width: min(740px, calc(100% - 2 * var(--garage-inset))); }
+.studio-camera-container { position: absolute; z-index: 3; right: 16px; bottom: 16px; }
+.studio-camera-container .studio-camera-controls { position: static; }
+.studio-camera-toggle { display: none; }
+.car-dashboard .studio-camera-container { top: var(--garage-inset); right: var(--garage-inset); bottom: auto; }
+.car-dashboard .studio-camera-controls button { width: 36px; height: 36px; }
+.car-dashboard .studio-camera-controls button.studio-presentation-toggle { position: static; width: auto; min-height: 36px; padding-inline: var(--space-3); border: 0; border-left: 1px solid var(--garage-line); border-radius: 0; background: transparent; }
+.car-dashboard > .studio-credit { font-size: 10px; bottom: max(18px, env(safe-area-inset-bottom)); }
+.car-dashboard .studio-credit .studio-credit-compact { display: inline; }
+.car-dashboard .studio-credit .studio-credit-compact + span { display: none; }
+@media (max-width: 760px) {
+  .car-dashboard { --garage-dock: 108px; }
+  .car-dashboard .car-stage-overlay { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+  .car-identity { max-width: calc(100% - 88px); }
+  .car-identity-heading { gap: 4px var(--space-3); }
+  .car-registration { font-size: 27px; }
+  .car-dashboard-model { font-size: 12px; }
+  .car-identity .car-mileage { min-height: 32px; }
+  .car-mileage strong { font-size: 18px; }
+  .car-dashboard-actions { grid-column: 1; grid-row: 2; width: 100%; margin: 0; flex-direction: row; justify-content: end; }
+  .car-dashboard .car-attention { grid-column: 1; grid-row: 3; }
+  .car-dashboard .car-attention-notice { min-height: 34px; font-size: 12px; padding-block: 6px; }
+  .car-dashboard .car-attention-more { min-height: 32px; padding-block: 6px; }
+  .car-dashboard .car-menu { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .car-menu > .vehicle-recording-actions { grid-column: 1 / -1; }
+  .car-menu .vehicle-recording-actions > button { flex-direction: row; gap: var(--space-2); font-size: 14px; min-height: 44px; }
+  .car-menu > button, .car-menu-more > summary { min-height: 44px; flex-direction: row; font-size: 12px; gap: 6px; }
+  .car-dashboard > .studio-credit { bottom: calc(var(--garage-dock) + 10px); }
+  .studio-camera-toggle { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: var(--space-2); color: var(--garage-ink); background: var(--garage-panel); border: 1px solid var(--garage-line); border-radius: var(--radius-control); font-size: 12px; }
+  .studio-camera-container .studio-camera-controls { display: none; }
+  .studio-camera-container .studio-camera-controls.is-open { position: absolute; display: grid; grid-template-columns: repeat(3, 44px); top: calc(100% + 6px); right: 0; bottom: auto; padding: var(--space-1); gap: 2px; }
+  .studio-camera-container .studio-camera-controls button { width: 44px; height: 44px; border: 0; }
+  .studio-camera-container .studio-camera-controls button.studio-presentation-toggle { position: static; grid-column: 1 / -1; width: 100%; min-height: 44px; padding: var(--space-2); border: 0; }
+  .studio-camera-container .studio-camera-controls button.studio-presentation-toggle span { display: inline; }
+}
+@media (max-height: 490px) and (orientation: landscape) {
+  .car-dashboard .car-stage-overlay { grid-template-columns: minmax(0, 1fr) 260px; }
+  .car-dashboard .car-attention { grid-column: 2; grid-row: 2; }
+  .car-dashboard-actions { grid-column: 2; }
+  .car-dashboard .car-attention-notice { min-height: 30px; padding-block: 4px; }
+  .car-dashboard .car-attention-more { min-height: 30px; }
+  .car-dashboard .car-menu { width: min(740px, calc(100% - 2 * var(--garage-inset))); }
+}

@@ -276,21 +276,6 @@
   .sidebar .mobile-nav-toggle { display: inline-flex; grid-area: 1 / 3; width: 44px; height: 44px; padding: 0; color: var(--ink); background: transparent; border: 0; }
   .sidebar .mobile-nav-toggle:hover { background: var(--primary-soft); }
   .sidebar #main-navigation:not(.is-open) { display: none; }
-  .sidebar #main-navigation.is-open {
-    position: absolute;
-    inset: calc(100% + 6px) 12px auto auto;
-    display: grid;
-    gap: 2px;
-    min-width: min(280px, calc(100vw - 24px));
-    max-height: calc(100dvh - 72px);
-    overflow: auto;
-    padding: 6px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-panel);
-    background: var(--surface);
-    box-shadow: 0 8px 20px var(--shadow-color);
-  }
-  .sidebar #main-navigation.is-open .nav-item { border-radius: var(--radius-control); }
   .sidebar .admin-navigation { width: 100%; }
   .sidebar .settings-links { display: grid; }
 }

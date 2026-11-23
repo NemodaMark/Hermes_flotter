@@ -62,7 +62,11 @@ public sealed partial class FleetManagement(HermesDbContext db, ITenantContext c
         var summary = new VehicleSummary(v.Id, v.Registration, v.Make, v.Model, v.Status.ToString())
         { BodyType = p.BodyType, Color = p.Color, Version = v.Version, OdometerKm = v.OdometerKm, SiteId = site?.Id, SiteName = site?.Name, Permissions = VehicleAccess.PermissionsFor(access, site?.Id) };
         var name = p.PreferredServicePartnerId is { } id ? await db.Partners.Where(x => x.Id == id).Select(x => x.Name).SingleOrDefaultAsync(ct) : null;
-        return new(summary, Specification(p), name, p.StatusReason, p.UpdatedAt, p.UpdatedBy);
+        return new(summary, Specification(p), name, p.StatusReason, p.UpdatedAt, p.UpdatedBy)
+        {
+            BookingEnabled = access.Allows(Permissions.BookingsRead, site?.Id) || access.Allows(Permissions.BookingsManage, site?.Id)
+                ? await db.VehicleBookingSettings.AnyAsync(x => x.VehicleId == v.Id && x.Enabled, ct) : null
+        };
     }
     public Task<VehicleRecord> GetVehicle(Guid id, CancellationToken ct) => Scoped(Permissions.VehiclesRead, async access =>
         await Record(await Car(id, access, Permissions.VehiclesRead, ct), await Profile(id, ct), access, ct), ct);

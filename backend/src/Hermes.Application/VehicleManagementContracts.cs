@@ -30,7 +30,10 @@ public sealed record VehicleSpecification
     public string? Notes { get; init; }
 }
 public sealed record VehicleRecord(VehicleSummary Vehicle, VehicleSpecification Data, string? PreferredServicePartnerName,
-    string? StatusReason, DateTimeOffset? UpdatedAt, string? UpdatedBy);
+    string? StatusReason, DateTimeOffset? UpdatedAt, string? UpdatedBy)
+{
+    public bool? BookingEnabled { get; init; }
+}
 public sealed record SaveVehicleRecord(string Registration, string Make, string Model, string Status, long Version, VehicleSpecification Data);
 public sealed record VehicleStateInput(bool? IsArchived, string Reason, long Version);
 public sealed record VersionReason(long Version, string Reason);

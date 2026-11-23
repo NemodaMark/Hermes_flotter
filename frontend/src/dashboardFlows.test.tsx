@@ -59,7 +59,8 @@ it('surfaces service deadlines and lets an authorized driver record a missing od
     ...car.vehicle, odometerKm: undefined, version: 4, permissions: ['vehicles.read', 'vehicles.service.read', 'vehicles.odometer.create'],
   } }] })
   const tasks = await screen.findByRole('region', { name: 'Jármű teendői' })
-  await userEvent.click(within(tasks).getByRole('button', { name: /Következő szerviz.*3 nap múlva/ }))
+  await userEvent.click(within(tasks).getByRole('button', { name: 'Minden teendő (3)' }))
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'AAA-001 · Teendők' })).getByRole('button', { name: /Következő szerviz.*3 nap múlva/ }))
   expect(await screen.findByText('Megnyitott rész: services')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Bezárás' }))
   await userEvent.click(within(tasks).getByRole('button', { name: 'Rögzítendő kilométerállás' }))
@@ -121,7 +122,8 @@ it('changes the selected car, body and operation menus without reusing the previ
   await chooseOption(picker,'second')
   expect(styles.getPropertyValue('--vehicle-paint')).toBe('#cc1122')
   expect(styles.getPropertyValue('--vehicle-accent-light')).not.toBe(styles.getPropertyValue('--vehicle-accent-dark'))
-  expect(await screen.findByText(/Furgon/)).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'SECOND-002' })).toBeInTheDocument()
+  expect(document.querySelector('.car-stage-meta')).not.toBeInTheDocument()
   const menu=screen.getByRole('navigation',{name:'Jármű gyorsmenü'})
   await userEvent.click(within(menu).getByText('Továbbiak'))
   expect(within(menu).getByRole('button',{name:'Szerviz'})).toBeInTheDocument()
@@ -160,6 +162,19 @@ it('shows no vehicle summary or studio when vehicle reading is forbidden',async(
   await screen.findByText(/Nincs jogosultságod járműadatok/)
   expect(screen.queryByRole('region',{name:'Autós dashboard'})).not.toBeInTheDocument()
   expect(screen.queryByText('AAA-001')).not.toBeInTheDocument()
+})
+
+it.each([false, true, null])('shows the booking shortcut only for an enabled authorized car: %s', async enabled => {
+  mount({ mode: 'Vehicle', vehicles: [{ ...car, bookingEnabled: enabled, vehicle: { ...car.vehicle, permissions: ['vehicles.read', 'vehicles.bookings.read'] } }] })
+  const menu = await screen.findByRole('navigation', { name: 'Jármű gyorsmenü' })
+  expect(within(menu).queryByRole('button', { name: 'Foglalások' }) !== null).toBe(enabled === true)
+  if (enabled === true) {
+    await userEvent.click(within(menu).getByRole('button', { name: 'Foglalások' }))
+    expect(await screen.findByText('Megnyitott rész: bookings')).toBeInTheDocument()
+  } else {
+    await userEvent.click(within(menu).getByText('Továbbiak'))
+    expect(within(menu).queryByRole('button', { name: 'Foglalások' })).not.toBeInTheDocument()
+  }
 })
 it('edits the protected admin dashboard without exposing protected name or permission editing',async()=>{
   vi.spyOn(api,'groups').mockResolvedValue([{id:'admin-group',name:'admin',createdBy:'system',version:7,isAdmin:true,allPermissions:true,permissions:['vehicles.read'],companies:[],memberCount:1,canAssign:true,canEdit:false,canConfigureDashboard:true,dashboardMode:'Overview',dashboardPriority:0}])

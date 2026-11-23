@@ -1,5 +1,6 @@
 import { Select } from './ui/Select'
 import { Button } from './ui/Button'
+import { MainNavigation } from './MainNavigation'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -164,25 +165,6 @@ function FleetWorkspace({
   const [busy, setBusy] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const mobileNavButton = useRef<HTMLButtonElement>(null)
-  const navigation = useRef<HTMLElement>(null)
-  useEffect(() => {
-    if (!mobileNavOpen) return
-    const outside = (event: PointerEvent) => {
-      const target = event.target as Node
-      if (!navigation.current?.contains(target) && !mobileNavButton.current?.contains(target)) setMobileNavOpen(false)
-    }
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return
-      setMobileNavOpen(false)
-      mobileNavButton.current?.focus()
-    }
-    document.addEventListener('pointerdown', outside)
-    document.addEventListener('keydown', escape)
-    return () => {
-      document.removeEventListener('pointerdown', outside)
-      document.removeEventListener('keydown', escape)
-    }
-  }, [mobileNavOpen])
   useEffect(() => {
     const read = () => {
       setMobileNavOpen(false)
@@ -347,7 +329,7 @@ function FleetWorkspace({
           </WorkspaceSwitcher>
         </div>
         <Button ref={mobileNavButton} className="mobile-nav-toggle" aria-label={mobileNavOpen ? 'Menü bezárása' : 'Menü megnyitása'} aria-expanded={mobileNavOpen} aria-controls="main-navigation" disabled={busy} onClick={() => setMobileNavOpen(open => !open)}><Menu size={21} aria-hidden="true" /></Button>
-        <nav ref={navigation} id="main-navigation" aria-label="Fő navigáció" className={mobileNavOpen ? 'is-open' : undefined}>
+        <MainNavigation open={mobileNavOpen} busy={busy} onClose={() => setMobileNavOpen(false)}>
           <Button className={view === 'dashboard' ? 'nav-item active' : 'nav-item'} aria-current={view === 'dashboard' ? 'page' : undefined} onClick={() => changeView('dashboard')}><LayoutDashboard size={19}/>Kezdőlap<ArrowRight size={16}/></Button>
           <Button
             className={view === 'fleet' ? 'nav-item active' : 'nav-item'}
@@ -391,7 +373,7 @@ function FleetWorkspace({
             {canManageSystem && <Button className={view === 'system' ? 'nav-item active' : 'nav-item'} aria-current={view === 'system' ? 'page' : undefined} onClick={() => changeView('system')}><Users size={17} /><span>Rendszerkezelés</span></Button>}
             </div>
           </details>}
-        </nav>
+        </MainNavigation>
         <Disclosure className="sidebar-bottom profile-navigation" summaryClassName="profile profile-button" label="Fiókmenü" trigger={<>
             <ProtectedImage path={peopleApi.avatarPath(user.id)} revision={ownProfile.data?.person?.avatarRevision}
               alt="Saját profilkép" className="avatar profile-avatar" fallback={initials(user.displayName)} />

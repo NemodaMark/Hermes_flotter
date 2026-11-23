@@ -31,6 +31,7 @@ export type VehicleSpecification = {
   notes: string | null
 }
 export type VehicleRecord = {
+  bookingEnabled?: boolean | null
   vehicle: Vehicle
   data: VehicleSpecification
   preferredServicePartnerName: string | null

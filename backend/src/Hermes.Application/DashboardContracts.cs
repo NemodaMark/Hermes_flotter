@@ -4,6 +4,7 @@ public sealed record DashboardVehicle(VehicleSummary Vehicle, string BodyType, s
     DateOnly? InspectionDueDate, DateOnly? InsuranceDueDate, DateOnly? NextServiceDate, long? NextServiceKm, bool IsAssignedToMe)
 {
     public DateTimeOffset? ServiceAppointmentAt { get; init; }
+    public bool? BookingEnabled { get; init; }
 }
 public sealed record DashboardSummary(string Mode, int Priority, string? SourceGroup, bool CanReadVehicles, DashboardVehicle[] Vehicles)
 {

@@ -12,6 +12,7 @@
 .mileage-panel h3 { margin: 0; font-size: 16px; }
 .mileage-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; gap: var(--space-3); padding-block: var(--space-3); border-block: 1px solid var(--line); }
 .mileage-totals dt { color: var(--muted); font-size: 12px; }
+.mileage-totals > div { display: block; min-width: 0; padding: var(--space-2) 0; border: 0; }
 .mileage-totals dd { margin: 4px 0 0; font-weight: 600; font-size: 19px; }
 .mileage-due { border-inline-start: 3px solid var(--danger-ink); padding-inline-start: var(--space-3); }
 .mileage-entries { list-style: none; padding: 0; margin: 0; }

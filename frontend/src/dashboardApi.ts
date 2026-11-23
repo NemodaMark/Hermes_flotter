@@ -5,6 +5,7 @@ export type DashboardCar = {
   vehicle: Vehicle; bodyType: string; color: string | null; isAssignedToMe: boolean
   inspectionDueDate: string | null; insuranceDueDate: string | null; nextServiceDate: string | null; nextServiceKm: number | null
   serviceAppointmentAt?: string | null
+  bookingEnabled?: boolean | null
 }
 export type Dashboard = {
   mode: 'Overview' | 'Vehicle'; priority: number; sourceGroup: string | null; canReadVehicles: boolean

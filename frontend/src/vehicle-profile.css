@@ -65,7 +65,7 @@
 .vehicle-task-footer { padding: 0 var(--space-5) var(--space-5); }
 .studio-vehicle-dialog.vehicle-focused-task.access-dialog { width: min(800px, 60vw); }
 .studio-vehicle-dialog.vehicle-focused-task:is(.task-bookings, .task-services, .task-leases, .task-audit).access-dialog { width: min(1040px, 72vw); }
-.car-dashboard[data-task-open=true] :is(.car-stage-overlay, .car-stage-meta, .studio-hotspots, .studio-camera-controls, .car-menu > button, .car-menu-more, .car-menu .vehicle-recording-actions > button) { visibility: hidden; pointer-events: none; }
+.car-dashboard[data-task-open=true] :is(.car-stage-overlay, .car-stage-meta, .studio-hotspots, .studio-camera-container, .car-menu > button, .car-menu-more, .car-menu .vehicle-recording-actions > button) { visibility: hidden; pointer-events: none; }
 .car-dashboard[data-task-open=true] .car-menu { border-color: transparent; background: transparent; box-shadow: none; pointer-events: none; }
 .car-dashboard[data-task-open=true] .car-menu dialog { pointer-events: auto; }
 .car-attention-more { color: var(--ink); background: var(--surface); font-size: 12px; }

@@ -131,14 +131,16 @@ public sealed class DashboardManagement(HermesDbContext db, TenantContext contex
                 join s in db.Sites on a.SiteId equals s.Id into sites from s in sites.DefaultIfEmpty()
                 orderby v.Registration
                 select new { Car = v, Profile = p, SiteId = (Guid?)a.SiteId, SiteName = s.Name, Appointment = (DateTimeOffset?)appointment.StartsAt,
-                    Mine = db.VehicleUserAssignments.Any(u => u.VehicleId == v.Id && u.UserId == actor && u.ReleasedAt == null) }).ToArrayAsync(ct);
+                    Mine = db.VehicleUserAssignments.Any(u => u.VehicleId == v.Id && u.UserId == actor && u.ReleasedAt == null),
+                    BookingEnabled = db.VehicleBookingSettings.Any(b => b.VehicleId == v.Id && b.Enabled) }).ToArrayAsync(ct);
         return rows.Select(x => new DashboardVehicle(
                 new VehicleSummary(x.Car.Id, x.Car.Registration, x.Car.Make, x.Car.Model, x.Car.Status.ToString())
                 { BodyType = x.Profile?.BodyType ?? "Unknown", Color = x.Profile?.Color, Version = x.Car.Version, SiteId = x.SiteId, SiteName = x.SiteName, OdometerKm = x.Car.OdometerKm,
                     Permissions = VehicleAccess.PermissionsFor(access, x.SiteId) },
                 x.Profile?.BodyType ?? "Unknown", x.Profile?.Color, x.Profile?.InspectionDueDate, x.Profile?.InsuranceDueDate,
                 x.Profile?.NextServiceDate, x.Profile?.NextServiceKm, x.Mine)
-                { ServiceAppointmentAt = x.Appointment is { } appointment && access.Allows(Permissions.ServicesRead, x.SiteId)
+                { BookingEnabled = access.Allows(Permissions.BookingsRead, x.SiteId) || access.Allows(Permissions.BookingsManage, x.SiteId) ? x.BookingEnabled : null,
+                  ServiceAppointmentAt = x.Appointment is { } appointment && access.Allows(Permissions.ServicesRead, x.SiteId)
                     ? TimeZoneInfo.ConvertTime(appointment, zone) : null }).ToArray();
     }
 }

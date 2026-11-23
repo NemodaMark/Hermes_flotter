@@ -22,6 +22,7 @@ import { FleetDashboardOverview } from './FleetDashboardOverview'
 import { AccessDialog } from './AccessDialog'
 import { useVehicleAccent } from './useVehicleAccent'
 import './dashboard.css'
+import './garage-hud.css'
 const MileagePanel = lazy(() => import('./MileagePanel').then(module => ({ default: module.MileagePanel })))
 
 export function DashboardPage({ user, tenant, siteId, onFleet, onVehicle }: {
@@ -85,7 +86,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
   const can = (code: string) => !!car?.vehicle.permissions?.includes(code)
   const canService = can('vehicles.service.read') || can('vehicles.service.manage')
   const canDocuments = can('vehicles.documents.read') || can('vehicles.documents.manage')
-  const canBook = can('vehicles.bookings.read') || can('vehicles.bookings.manage')
+  const canBook = car?.bookingEnabled === true && (can('vehicles.bookings.read') || can('vehicles.bookings.manage'))
   const quickLabels: Partial<Record<VehicleTab, string>> = { data: 'Adatlap', ...(canBook ? { bookings: 'Foglalások' } : { photos: 'Képek' }),
     ...(!can('vehicles.odometer.create') ? { history: 'Km-állás' } : {}),
     ...(!can('vehicles.fuel.manage') && can('vehicles.fuel.read') ? { fuel: 'Tankolások' } : {}),
@@ -100,10 +101,11 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
   ]
   const menus: { key: VehicleTab; label: string }[] = [
     ...points,
-    ...(can('vehicles.bookings.read') || can('vehicles.bookings.manage') ? [{ key: 'bookings' as const, label: 'Foglalások' }] : []),
+    ...(canBook ? [{ key: 'bookings' as const, label: 'Foglalások' }] : []),
     { key: 'handovers', label: 'Átadás-átvétel' },
   ]
   const focus = (key: StudioSection) => {
+    setAllAttention(false)
     if (key === 'fuel' && can('vehicles.fuel.manage')) { changeRecording('fuel'); return }
     if (key === 'history' && can('vehicles.odometer.create')) { changeRecording('odometer'); return }
     setOpened(key)
@@ -130,19 +132,34 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
     if (kind === 'inspection' || kind === 'insurance') focus(canDocuments ? 'documents' : 'data')
     else focus(canService ? 'services' : 'data')
   }
+  const notices = [
+    ...(dueMonth && onMileage ? [<Button key="month" className="car-attention-notice" onClick={() => { setAllAttention(false); onMileage() }}><Gauge size={17} aria-hidden="true" /><span>Havi km-elszámolás</span><Badge tone="danger" dot={false}>{dueMonth.slice(0, 7)} lezárandó</Badge></Button>] : []),
+    ...(missingOdometer ? [<Button key="odometer" className="car-attention-notice" onClick={() => { setAllAttention(false); changeRecording('odometer') }}><Gauge size={17} aria-hidden="true" /><span>Rögzítendő kilométerállás</span></Button>] : []),
+    ...deadlines.map(item => {
+      const state = deadlineState(item)
+      return <Button key={item.kind} className="car-attention-notice" onClick={() => openDeadline(item)}>
+        <CalendarClock size={17} aria-hidden="true" /><span>{item.label}</span>
+        {item.kind === 'appointment' && car.serviceAppointmentAt && <time dateTime={car.serviceAppointmentAt}>{car.serviceAppointmentAt.slice(11, 16)}</time>}
+        <Badge tone={state.tone} dot={false}>{state.label}</Badge>
+      </Button>
+    }),
+  ]
   return <>
-    <section className="car-dashboard" aria-label="Autós dashboard" data-task-open={opened !== null || recording !== null || mileageOpen}>
+    <section className="car-dashboard" aria-label="Autós dashboard" data-task-open={opened !== null || recording !== null || mileageOpen || allAttention}>
       <VehicleGarage car={car.vehicle} bodyType={car.bodyType} color={car.color} menus={points} action={action} immersive
-        onSelect={focus} paused={opened !== null || recording !== null || mileageOpen} onReset={() => moveCamera('home')}
+        onSelect={focus} paused={opened !== null || recording !== null || mileageOpen || allAttention} onReset={() => moveCamera('home')}
         overlay={<>
           <div className="car-dashboard-toolbar">
             <div className="car-identity">
-              <h3 className="car-registration">{car.vehicle.registration}</h3>
-              <span className="car-dashboard-model">{car.vehicle.make} {car.vehicle.model}</span>
-              <span className="car-location"><MapPin size={13} aria-hidden="true" />{car.vehicle.siteName ?? 'Telephely nélkül'}
-                {car.isAssignedToMe && <Badge tone="success" dot={false}>Hozzám rendelve</Badge>}
+              <div className="car-identity-heading"><h3 className="car-registration">{car.vehicle.registration}</h3>
+                <span className="car-dashboard-model">{car.vehicle.make} {car.vehicle.model}</span></div>
+              <div className="car-identity-detail">
+                <Button className="car-mileage" aria-label={can('vehicles.odometer.create') ? `Kilométerállás rögzítése: ${car.vehicle.registration}` : 'Kilométerelőzmények megnyitása'} onClick={() => focus('history')}>
+                  <Gauge size={17} aria-hidden="true" /><strong>{car.vehicle.odometerKm?.toLocaleString('hu-HU') ?? '—'}</strong><span>km</span>
+                </Button>
+                {car.vehicle.status === 'Maintenance' && <Badge tone="warning" dot={false}>Szervizben</Badge>}
                 {car.vehicle.status === 'Inactive' && <Badge tone="neutral" dot={false}>Inaktív</Badge>}
-              </span>
+              </div>
             </div>
             {(viewSwitch || eligible.length > 1) && <div className="car-dashboard-actions">
               {viewSwitch}
@@ -155,21 +172,9 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
               </label>}
             </div>}
           </div>
-          {(missingOdometer || deadlines.length > 0 || car.vehicle.status === 'Maintenance' || dueMonth) && <section className="car-attention" aria-label="Jármű teendői">
-            {dueMonth && onMileage && <Button className="car-attention-notice" onClick={onMileage}><Gauge size={17} aria-hidden="true" />Havi km-elszámolás<Badge tone="danger" dot={false}>{dueMonth.slice(0, 7)} lezárandó</Badge></Button>}
-            {car.vehicle.status === 'Maintenance' && <div className="car-attention-notice"><Wrench size={17} aria-hidden="true" />Szervizben</div>}
-            {missingOdometer && <div className="car-attention-notice"><Gauge size={17} aria-hidden="true" />
-              <Button variant="link" onClick={() => changeRecording('odometer')}>Rögzítendő kilométerállás</Button>
-            </div>}
-            {(allAttention ? deadlines : deadlines.slice(0, 3)).map(item => {
-              const state = deadlineState(item)
-              return <Button key={item.kind} className="car-attention-notice" onClick={() => openDeadline(item)}>
-                <CalendarClock size={17} aria-hidden="true" /><span>{item.label}</span>
-                {item.kind === 'appointment' && car.serviceAppointmentAt && <time dateTime={car.serviceAppointmentAt}>{car.serviceAppointmentAt.slice(11, 16)}</time>}
-                <Badge tone={state.tone} dot={false}>{state.label}</Badge>
-              </Button>
-            })}
-            {deadlines.length > 3 && <Button className="car-attention-more" aria-expanded={allAttention} onClick={() => setAllAttention(value => !value)}>{allAttention ? 'Kevesebb teendő' : `További teendők (${deadlines.length - 3})`}</Button>}
+          {notices.length > 0 && <section className="car-attention" aria-label="Jármű teendői">
+            {notices.slice(0, 2)}
+            {notices.length > 2 && <Button className="car-attention-more" onClick={() => setAllAttention(true)}>Minden teendő ({notices.length})<ArrowRight size={14} aria-hidden="true" /></Button>}
           </section>}
         </>}>
         <nav className="car-menu" aria-label="Jármű gyorsmenü">
@@ -190,6 +195,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
         </nav>
       </VehicleGarage>
     </section>
+    {allAttention && <AccessDialog title={`${car.vehicle.registration} · Teendők`} pending={false} onClose={() => setAllAttention(false)} className="car-attention-dialog"><div className="car-attention-list">{notices}</div></AccessDialog>}
     {opened && <AccessDialog title={`${car.vehicle.registration} · ${vehicleTaskNames[opened]}`}
       pending={taskPending} onClose={closeDrawer} className={`studio-vehicle-dialog vehicle-focused-task task-${opened}`}>
       <VehicleTaskPanel key={`${car.vehicle.id}:${opened}`} user={user} tenant={tenant} id={car.vehicle.id} section={opened} />

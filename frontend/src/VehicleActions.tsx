@@ -144,7 +144,7 @@ function VehicleActionDialog({
       title={mode === 'edit' ? 'Járműadatok szerkesztése' : 'Kilométerállás rögzítése'}
       pending={save.isPending || mileagePending}
       onClose={onClose}
-      className={monthly ? 'mileage-dialog' : cinematic ? 'garage-operation-dialog' : ''}
+      className={`recording-dialog ${monthly ? 'mileage-dialog' : cinematic ? 'garage-operation-dialog' : ''}`}
     >
       {mode === 'odometer' && capture.allowed && <div className="mileage-dialog-tabs" role="group" aria-label="Km-rögzítés nézete">
         <Button className="secondary-button" aria-pressed={!monthly} disabled={save.isPending} onClick={() => setMonthly(false)}>Kilométerállás</Button>

@@ -58,6 +58,7 @@ A `VehicleDetailGroup` tartalmi kinyitásra szolgál. A menükhöz használt `ui
 - A Tankolás és Km rögzítése ugyanazon gombjai mobilon rögzített alsó sávba kerülnek; nincs második példány.
 - A tartalom helyet hagy az alsó sávnak és az eszköz biztonsági margójának.
 - A garázsfeladat mobilon teljes szélességű párbeszédablak, saját görgetéssel és bezárógombbal.
+- A fő hamburger menü natív modális, jobbról nyíló offcanvas panel. Egyetlen navigációt használ; a fókusz a panelen belül marad, bezárás után visszatér a megnyitó gombra.
 - A navigáció billentyűzettel használható, látható fókuszt és aktuális állapotot kap. Menüválasztás után a mobil menügomb visszakapja a fókuszt.
 - A meglévő csökkentettmozgás-beállítás, témák és hibaállapotok megmaradnak.
 
@@ -66,3 +67,9 @@ A `VehicleDetailGroup` tartalmi kinyitásra szolgál. A menükhöz használt `ui
 Nincs új színpaletta, betűcsalád vagy párhuzamos UI-könyvtár. Nincs ismétlődő járműfejléc, egymásba ágyazott fülsor, megtekintéskor letiltott űrlap, üres listán lapozósáv vagy kikapcsolt foglalásnál üres naptár. A korábbi foglalások ettől még elérhetők.
 
 Az elrendezés nem ad új jogot: a tényleges jármű műveletenkénti jogosultsága elsőbbséget élvez a céges összesítéssel szemben. A szerveroldali cég-/telephelykorlátok, verzióellenőrzés és naplózás változatlanok.
+
+## Garázs HUD
+
+Bal felül a rendszám, modell és kattintható km-állás; jobb felül a kameravezérlés, alatta a két legsürgősebb teendő; bal alul a napi gyorsműveletek. A teljes teendőlista külön párbeszédablakból érhető el. Nincs belső görgetős értesítésfal vagy megismételt telephely-/karosszéria-/színsor. A modell licence külön hivatkozásként megmarad.
+
+Mobilon a kamera összecsukható eszköztár, a tankolás/km pedig külön, jól olvasható első gombsor. A nyugtafotó-választó natív fájlinputot használ, magyar felirattal és látható fájlnévvel. A jelölőnégyzetek a közös akcentust követik, kényszerített rendszerszíneknél natív megjelenítéssel.

@@ -104,7 +104,7 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', sho
               <h3>Használat és hozzárendelés</h3>
               {(can('vehicles.users.assign') || can('sites.vehicles.assign')) && mutable && task('site', false)}
               {!can('vehicles.users.assign') && !can('sites.vehicles.assign') && <p className="field-hint">A jelenlegi használó és telephely a jármű fejlécében látható.</p>}
-              {group('bookings', 'Foglalás')}
+              {(record.data.bookingEnabled === true || can('vehicles.bookings.manage')) && group('bookings', 'Foglalás')}
               {group('handovers', 'Átadás-átvétel')}
               <Button variant="link" onClick={() => selectPage('history')}>Korábbi használók és események</Button>
             </>}

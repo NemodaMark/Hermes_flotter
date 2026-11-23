@@ -7,6 +7,7 @@ import type { Vehicle } from './api'
 import type { StudioAction, StudioMenu, StudioSection } from './VehicleStudio'
 import { useVehicleAccent } from './useVehicleAccent'
 import './dashboard.css'
+import './garage-hud.css'
 
 const VehicleStudio = lazy(() => import('./VehicleStudio'))
 const emptyMenus: StudioMenu[] = []
@@ -27,12 +28,12 @@ export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action
           onSelect={onSelect} onFocused={ignore} onCancelled={ignore} onReset={onReset} immersive={immersive} paused={paused} />
       </Suspense>
       {overlay && <div className="car-stage-overlay">{overlay}</div>}
-      <div className="car-stage-meta">
+      {!immersive && <div className="car-stage-meta">
         <span>{bodyType !== 'Unknown' && bodyNames[bodyType]}<i style={{ backgroundColor: paint.hex }} />{color ?? 'Szín nincs megadva'}</span>
         {car.odometerKm != null && <div className="car-stage-instrument"><Gauge size={17} aria-hidden="true" />
           <strong>{car.odometerKm.toLocaleString('hu-HU')}</strong><span>km</span>
         </div>}
-      </div>
+      </div>}
     </div>
     {children}
     <div className="studio-credit">

@@ -12,6 +12,7 @@ import { Button } from './ui/Button'
 import { Select } from './ui/Select'
 import { Toggle } from './ui/Toggle'
 import { AccessDialog } from './AccessDialog'
+import { FileInput } from './ui/FileInput'
 import { VehicleDetailGroup } from './VehicleDetailGroup'
 import { MileageCaptureFields } from './MileageCapture'
 import { useMileageCapture } from './useMileageCapture'
@@ -148,7 +149,7 @@ export function VehicleBookingCalendar(p: OperationProps & { userId: string; onC
 
 export function VehicleFuelDialog(p: OperationProps & { userId: string; item?: FuelEntry; cinematic?: boolean; onSaved: (row: FuelEntry) => void; onClose: () => void }) {
   const [pending, setPending] = useState(false)
-  return <AccessDialog title={p.item ? 'Tankolás módosítása' : 'Tankolás rögzítése'} pending={pending} onClose={p.onClose} className={`fuel-record-dialog${p.cinematic ? ' garage-operation-dialog' : ''}`}>
+  return <AccessDialog title={p.item ? 'Tankolás módosítása' : 'Tankolás rögzítése'} pending={pending} onClose={p.onClose} className={`recording-dialog fuel-record-dialog${p.cinematic ? ' garage-operation-dialog' : ''}`}>
     <p className="access-description">{p.car.registration} · {p.tenant.name}</p>
     <VehicleFuelForm {...p} onPendingChange={setPending} />
   </AccessDialog>
@@ -184,7 +185,7 @@ export function VehicleFuelForm(p: OperationProps & { userId: string; item?: Fue
         <label className="org-field"><span>Liter</span><input name="liters" type="number" inputMode="decimal" defaultValue={p.item?.liters} step="0.001" min="0.001" max="999999" required /></label>
         <label className="org-field"><span>Összeg</span><input name="amount" type="number" inputMode="decimal" defaultValue={p.item?.amount} step="0.01" min="0" max="999999999999.99" required /></label>
         <CurrencyField value={currency} onChange={setCurrency} />
-        {!p.item && <label className="org-field"><span>Nyugtafotó (JPG, PNG)</span><input name="file" type="file" accept={fileTypes} /></label>}
+        {!p.item && <FileInput label="Nyugtafotó (JPG, PNG)" name="file" accept={fileTypes} />}
       </div>
       <label className="checkbox-label"><input type="checkbox" name="fullTank" defaultChecked={p.item?.isFullTank ?? false} />Teletankoltam</label>
       <MileageCaptureFields capture={capture} />
