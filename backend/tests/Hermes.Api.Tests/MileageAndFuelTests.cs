@@ -72,6 +72,41 @@ public sealed partial class PermissionManagementTests
     }
 
     [Fact]
+    public async Task Dashboard_mileage_chart_separates_selected_people_and_enforces_mileage_and_company_access()
+    {
+        using var owner = await Register(); using var first = await Register(); using var second = await Register();
+        using var observer = await Register(); using var outsider = await Register();
+        var company = await Company(owner);
+        await Join(owner, first, company.Id, Permissions.MileageRecord);
+        await Join(owner, second, company.Id, Permissions.MileageRecord);
+        await Join(owner, observer, company.Id, Permissions.VehiclesRead, Permissions.FleetOverviewRead);
+        await Company(outsider);
+        var month = MileageThisMonth.AddMonths(-1);
+        foreach (var (actor, km) in new[] { (first, 120), (second, 340), (outsider, 999) })
+            (await actor.Client.PostAsJsonAsync(MileageUrl(month) + "/entries", new MileageEntryInput(month, km, 10))).EnsureSuccessStatusCode();
+        (await first.Client.PostAsJsonAsync(MileageUrl(month.AddMonths(-2)) + "/entries", new MileageEntryInput(month.AddMonths(-2), 800, 20))).EnsureSuccessStatusCode();
+
+        const string url = "/api/v1/dashboard/mileage?months=2";
+        var all = await ScopeOk<DashboardMileageChart>(await owner.Client.GetAsync(url));
+        Assert.True(all.CanSelectPeople);
+        Assert.Contains(all.People, x => x.Id == first.User.Id);
+        Assert.DoesNotContain(all.People, x => x.Id == outsider.User.Id);
+        Assert.Equal(new DashboardMileagePoint(null, month, 460), Assert.Single(all.Points));
+        var selected = await ScopeOk<DashboardMileageChart>(await owner.Client.GetAsync($"{url}&userId={first.User.Id}&userId={second.User.Id}&userId={first.User.Id}"));
+        Assert.Equal(2, selected.Points.Length);
+        Assert.Contains(new DashboardMileagePoint(first.User.Id, month, 120), selected.Points);
+        Assert.Contains(new DashboardMileagePoint(second.User.Id, month, 340), selected.Points);
+        var own = await ScopeOk<DashboardMileageChart>(await first.Client.GetAsync(url));
+        Assert.False(own.CanSelectPeople);
+        Assert.Empty(own.People);
+        Assert.Equal(120, Assert.Single(own.Points).Kilometers);
+        Assert.Equal(HttpStatusCode.Forbidden, (await first.Client.GetAsync($"{url}&userId={second.User.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await observer.Client.GetAsync(url)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.Client.GetAsync($"{url}&userId={outsider.User.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await owner.Client.GetAsync("/api/v1/dashboard/mileage?months=13")).StatusCode);
+    }
+
+    [Fact]
     public async Task Mileage_capture_is_atomic_and_same_vehicle_distance_cannot_be_claimed_twice()
     {
         using var owner = await Register(); using var driver = await Register(); using var colleague = await Register();

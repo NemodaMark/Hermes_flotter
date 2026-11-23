@@ -32,11 +32,46 @@ public sealed class DashboardManagement(HermesDbContext db, TenantContext contex
             return new DashboardSummary(mode, priority, source, canRead, vehicles)
             {
                 CanReadOverview = canOverview,
+                CanReadMileage = ledger,
                 CanRecordMileage = canMileage,
                 MileageDueMonth = ledger ? await MileageLedger.Due(db, context.UserSubject!, FleetManagement.LocalDay(DateTimeOffset.UtcNow, zone), ct) : null,
                 Today = FleetManagement.LocalDay(DateTimeOffset.UtcNow, zone)
             };
         }, ct);
+
+    public Task<DashboardMileageChart> ReadMileageChart(int months, string[] userIds, CancellationToken ct) => WithAccess(async (_, member, zone) =>
+    {
+        var permissions = member.EffectivePermissions;
+        var canSelectPeople = permissions.Contains(Permissions.MileageManage);
+        var actor = context.UserSubject!;
+        if (!canSelectPeople && (!permissions.Contains(Permissions.MileageRecord) || userIds.Any(id => id != actor)))
+            throw UserAccounts.Error(403, "permission_denied", "Mások futásteljesítményéhez céges km-elszámolási jog szükséges.");
+        if (months is < 1 or > 12 || userIds.Length > 100 || userIds.Any(string.IsNullOrWhiteSpace))
+            throw FleetValidation.Invalid("Válassz 1–12 hónapot és legfeljebb 100 céges felhasználót.");
+
+        var company = context.TenantId!.Value;
+        var current = MileageLedger.MonthOf(FleetManagement.LocalDay(DateTimeOffset.UtcNow, zone));
+        var first = current.AddMonths(1 - months);
+        var reports = db.MileageMonths.AsNoTracking().Where(x => x.TenantId == company && x.Month >= first && x.Month <= current
+            && (x.TotalKm > 0 || x.SubmittedAt != null));
+        var people = canSelectPeople ? await (
+            from membership in db.Memberships.AsNoTracking()
+            join user in db.Users.AsNoTracking() on membership.UserSubject equals user.Id
+            where membership.TenantId == company && (membership.IsActive || reports.Any(x => x.UserId == membership.UserSubject))
+            orderby user.DisplayName, user.Id
+            select new DashboardMileagePerson(user.Id, user.DisplayName == null || user.DisplayName == "" ? user.Id : user.DisplayName)).ToArrayAsync(ct) : [];
+        var eligible = people.Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
+        if (canSelectPeople && userIds.Any(id => !eligible.Contains(id)))
+            throw UserAccounts.Error(404, "mileage_user", "A kiválasztott céges felhasználó nem érhető el.");
+        var selected = userIds.Distinct(StringComparer.Ordinal).ToArray();
+        var split = canSelectPeople && selected.Length > 0;
+        var scope = !canSelectPeople ? [actor] : split ? selected : eligible.ToArray();
+        var points = await reports.Where(x => scope.Contains(x.UserId))
+            .GroupBy(x => new { x.Month, UserId = split ? x.UserId : null })
+            .OrderBy(x => x.Key.Month).ThenBy(x => x.Key.UserId)
+            .Select(x => new DashboardMileagePoint(x.Key.UserId, x.Key.Month, x.Sum(r => r.TotalKm))).ToArrayAsync(ct);
+        return new DashboardMileageChart(first, months, canSelectPeople, people, points);
+    }, ct);
 
     public Task<DashboardOverview> ReadOverview(string? site, string? status, string? search, int months, bool includeMileage, CancellationToken ct)
         => WithAccess(async (_, member, zone) =>

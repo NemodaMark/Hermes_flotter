@@ -145,6 +145,42 @@ it('keeps the configured width and height of an added module after saving and re
     localStorage.removeItem(key)
   }
 })
+it('configures a chart by shape and filters several people without editing the dashboard', async () => {
+  const key = personalKey(user.id, 'dashboard-layout-v1', tenant.id)
+  localStorage.removeItem(key)
+  try {
+    const people = [{ id: 'kati', name: 'Kovács Kati' }, { id: 'peter', name: 'Nagy Péter' }]
+    const loadChart = vi.spyOn(dashboardApi, 'mileageChart').mockImplementation(async (_tenant, months, selected) => ({
+      firstMonth: '2026-05-01', months, canSelectPeople: true, people,
+      points: selected.length ? selected.map(userId => ({ userId, month: '2026-07-01', kilometers: userId === 'kati' ? 120 : 340 }))
+        : [{ userId: null, month: '2026-07-01', kilometers: 460 }],
+    }))
+    mount({ canReadMileage: true })
+    const operator = userEvent.setup()
+    await operator.click(await screen.findByRole('button', { name: 'Elrendezés szerkesztése' }))
+    await operator.click(screen.getByRole('button', { name: 'Modul hozzáadása' }))
+    const palette = within(screen.getByRole('region', { name: 'Elérhető modulok' }))
+    expect(palette.getByRole('button', { name: 'Oszlopdiagram' })).toBeInTheDocument()
+    expect(palette.getByRole('button', { name: 'Kördiagram' })).toBeInTheDocument()
+    await operator.click(palette.getByRole('button', { name: 'Pontdiagram' }))
+    const settings = within(screen.getByRole('dialog', { name: 'Pontdiagram · Beállítások' }))
+    expect(settings.getByRole('combobox', { name: 'Adatforrás' })).toHaveValue('Személyenként elszámolt km')
+    expect(settings.getByRole('combobox', { name: 'Időbontás' })).toHaveValue('Havi')
+    await operator.click(settings.getByRole('button', { name: 'Alkalmazás' }))
+    await operator.click(screen.getByRole('button', { name: 'Elrendezés mentése' }))
+
+    const chart = within(await screen.findByRole('article', { name: 'Pontdiagram' }))
+    await operator.click(await chart.findByLabelText('Személyek szűrése'))
+    await operator.click(chart.getByRole('checkbox', { name: /Kovács Kati/ }))
+    await operator.click(chart.getByRole('checkbox', { name: /Nagy Péter/ }))
+    await waitFor(() => expect(loadChart).toHaveBeenLastCalledWith(tenant.id, 6, ['kati', 'peter'], expect.any(AbortSignal)))
+    expect(await chart.findByText('Kovács Kati · km')).toBeInTheDocument()
+    expect(chart.getByText('Nagy Péter · km')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Elrendezés mentése' })).not.toBeInTheDocument()
+  } finally {
+    localStorage.removeItem(key)
+  }
+})
 it('surfaces service deadlines and lets an authorized driver record a missing odometer reading', async () => {
   mount({ canReadOverview: false, vehicles: [{ ...car, nextServiceDate: '2026-10-27', vehicle: {
     ...car.vehicle, odometerKm: undefined, version: 4, permissions: ['vehicles.read', 'vehicles.service.read', 'vehicles.odometer.create'],

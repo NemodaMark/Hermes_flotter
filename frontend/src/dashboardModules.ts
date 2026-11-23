@@ -10,7 +10,17 @@ export const overviewModules = {
   sites: 'Járművek telephelyenként',
 }
 
+export const chartModules = { bar: 'Oszlopdiagram', pie: 'Kördiagram', scatter: 'Pontdiagram' }
+export const chartMetrics = {
+  reportedMileage: 'Személyenként elszámolt km', fleetMileage: 'Flotta futásteljesítménye', vehicleStatus: 'Járművek állapota',
+}
+export const chartIntervals = { month: 'Havi', quarter: 'Negyedéves', year: 'Éves' }
+export type ChartKind = keyof typeof chartModules
+export type ChartMetric = keyof typeof chartMetrics
+export type ChartInterval = keyof typeof chartIntervals
+
 export const dashboardModules = {
+  ...chartModules,
   ...overviewModules,
   vehicles: 'Járműlista',
   settlement: 'Havi km-elszámolás',
@@ -34,6 +44,8 @@ export type DashboardTile = {
   deadlineTiming: 'all' | 'overdue' | 'upcoming'
   title: string
   note: string
+  chartMetric?: ChartMetric
+  chartInterval?: ChartInterval
 }
 
 export function makeTile(kind: ModuleKind, id: string): DashboardTile {
@@ -46,6 +58,10 @@ export function makeTile(kind: ModuleKind, id: string): DashboardTile {
 
 export function isOverviewModule(kind: ModuleKind): kind is OverviewModule {
   return Object.hasOwn(overviewModules, kind)
+}
+
+export function isChartModule(kind: ModuleKind): kind is ChartKind {
+  return Object.hasOwn(chartModules, kind)
 }
 
 type StoredTile = DashboardTile | (Omit<DashboardTile, 'columns' | 'height'> & { wide: boolean })
@@ -64,6 +80,7 @@ function isDashboardLayout(value: unknown): value is StoredTile[] {
       && ['site', 'status', 'search', 'deadlineType', 'deadlineTiming', 'title', 'note'].every(key => typeof tile[key] === 'string')
       && Number.isInteger(tile.months) && tile.months >= 1 && tile.months <= 12
       && Number.isInteger(tile.limit) && tile.limit >= 1 && tile.limit <= 100
+      && (!isChartModule(tile.kind) || (Object.hasOwn(chartMetrics, tile.chartMetric) && Object.hasOwn(chartIntervals, tile.chartInterval)))
   })
 }
 

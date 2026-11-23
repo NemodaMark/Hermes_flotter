@@ -5,8 +5,9 @@ import { ArrowRight, Pencil, Plus, RotateCcw, StickyNote } from 'lucide-react'
 import { api, vehicleKey } from './api'
 import type { Session, Tenant } from './api'
 import { dashboardApi } from './dashboardApi'
-import { dashboardModules, dashboardSize, isOverviewModule, makeTile, overviewModules, readDashboardLayout } from './dashboardModules'
-import type { DashboardTile, ModuleKind, OverviewModule } from './dashboardModules'
+import { chartIntervals, chartMetrics, dashboardModules, dashboardSize, isChartModule, isOverviewModule, makeTile, overviewModules, readDashboardLayout } from './dashboardModules'
+import type { ChartInterval, ChartMetric, DashboardTile, ModuleKind, OverviewModule } from './dashboardModules'
+import { FleetDataChart, ReportedMileageChart } from './DashboardChart'
 import { DashboardGrid } from './DashboardGrid'
 import type { DashboardDrag, DashboardDrop } from './DashboardGrid'
 import { FleetDashboardOverview, OverviewModuleContent } from './FleetDashboardOverview'
@@ -22,6 +23,7 @@ type Scope = { user: Session; tenant: Tenant; siteId: string; sites: { id: strin
 type DashboardProps = Scope & {
   canOverview: boolean
   canVehicles: boolean
+  canReadMileage: boolean
   onVehicle: (id: string) => void
   onMileage?: () => void
   dueMonth?: string | null
@@ -30,7 +32,7 @@ type DashboardProps = Scope & {
 export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props }: DashboardProps & {
   viewSwitch: ReactNode; quickActions: ReactNode; onFleet: (status?: string) => void
 }) {
-  const { user, tenant, siteId, canOverview, canVehicles, onVehicle, onMileage } = props
+  const { user, tenant, siteId, canOverview, canVehicles, canReadMileage, onVehicle, onMileage } = props
   const key = personalKey(user.id, 'dashboard-layout-v1', tenant.id)
   const paletteId = useId()
   const [saved, setSaved] = useState(() => readDashboardLayout(key))
@@ -42,6 +44,7 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
   const [announcement, setAnnouncement] = useState('')
 
   function allowed(kind: ModuleKind) {
+    if (isChartModule(kind)) return canOverview || canReadMileage
     if (isOverviewModule(kind)) return canOverview
     if (kind === 'vehicles') return canVehicles
     if (kind === 'settlement') return Boolean(onMileage)
@@ -52,11 +55,13 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
   const layout = saved ?? defaults.map(kind => makeTile(kind, kind))
   const visible = (draft ?? layout).filter(tile => allowed(tile.kind))
   const showDefaultOverview = !draft && saved === undefined && canOverview
-  const catalogue = (Object.keys(dashboardModules) as ModuleKind[]).filter(allowed)
+  const catalogue = (Object.keys(dashboardModules) as ModuleKind[]).filter(kind => kind !== 'mileage' && allowed(kind))
+  const sources: ChartMetric[] = [...(canReadMileage ? ['reportedMileage'] as const : []), ...(canOverview ? ['fleetMileage', 'vehicleStatus'] as const : [])]
 
   function newTile(kind: ModuleKind) {
     const id = Array.from(crypto.getRandomValues(new Uint32Array(4)), part => part.toString(16).padStart(8, '0')).join('')
-    return makeTile(kind, id)
+    const tile = makeTile(kind, id)
+    return isChartModule(kind) ? { ...tile, chartMetric: sources[0]!, chartInterval: 'month' } as const : tile
   }
 
   function drop(source: DashboardDrag, target: DashboardDrop) {
@@ -67,6 +72,7 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
     const at = target === 'end' ? next.length : next.findIndex(item => item.id === target.id) + Number(target.after)
     next.splice(at, 0, tile)
     setDraft(next)
+    if ('kind' in source && isChartModule(source.kind)) setConfig(tile)
     setAnnouncement(`${dashboardModules[tile.kind]} ${'kind' in source ? 'hozzáadva' : 'áthelyezve'}.`)
   }
 
@@ -141,7 +147,7 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
         <Button type="button" variant="destructive" onClick={reset}>Visszaállítás</Button>
       </div>
     </AccessDialog>}
-    {config && draft && <TileSettings key={config.id} tile={config} sites={props.sites} canUnassigned={props.canUnassigned}
+    {config && draft && <TileSettings key={config.id} tile={config} sites={props.sites} canUnassigned={props.canUnassigned} chartSources={sources}
       onClose={() => setConfig(null)} onApply={next => {
         setDraft(draft.some(tile => tile.id === next.id) ? draft.map(tile => tile.id === next.id ? next : tile) : [...draft, next])
         setConfig(null)
@@ -160,6 +166,11 @@ function DashboardTileContent({ tile, ...props }: DashboardProps & { tile: Dashb
     <Button variant="outline" onClick={props.onMileage}>{props.dueMonth ? `Lezárandó hónap · ${props.dueMonth.slice(0, 7)}` : 'Elszámolás megnyitása'}<ArrowRight size={16} /></Button>
   </section>
 
+  if (isChartModule(tile.kind) && tile.chartMetric === 'reportedMileage') {
+    return props.canReadMileage ? <ReportedMileageChart userId={props.user.id} tenantId={props.tenant.id} kind={tile.kind} tile={tile} />
+      : <p className="access-panel dashboard-empty">Az elszámolt kilométerek nem érhetők el.</p>
+  }
+
   const site = tile.site === 'workspace' ? props.siteId : tile.site
   const siteName = site === 'all' ? 'Összes telephely' : site === 'none' ? 'Telephely nélkül' : props.sites.find(item => item.id === site)?.name
   if (!siteName || (site === 'none' && !props.canUnassigned)) {
@@ -173,7 +184,9 @@ function DashboardTileContent({ tile, ...props }: DashboardProps & { tile: Dashb
   ].filter(Boolean)
   return <>
     {activeFilters.length > 0 && <p className="custom-tile-filter-summary">{activeFilters.join(' · ')}</p>}
-    {tile.kind === 'vehicles' ? <VehicleListTile key={JSON.stringify([site, tile.status, tile.search, tile.limit])} {...props} tile={tile} site={site} />
+    {isChartModule(tile.kind) ? (props.canOverview ? <FleetDataChart userId={props.user.id} tenantId={props.tenant.id} kind={tile.kind} tile={tile} site={site} />
+      : <p className="access-panel dashboard-empty">A flottaadatok nem érhetők el.</p>)
+      : tile.kind === 'vehicles' ? <VehicleListTile key={JSON.stringify([site, tile.status, tile.search, tile.limit])} {...props} tile={tile} site={site} />
       : <OverviewTile key={JSON.stringify([site, tile.status, tile.search, tile.limit, tile.deadlineType, tile.deadlineTiming])} {...props} tile={tile} kind={tile.kind} site={site} />}
   </>
 }
@@ -221,17 +234,29 @@ const deadlineTypes = {
   service: 'Következő szerviz', 'service-km': 'Szerviz kilométerhatára', appointment: 'Szervizidőpont',
 }
 
-function TileSettings({ tile, sites, canUnassigned, onClose, onApply }: {
-  tile: DashboardTile; sites: Scope['sites']; canUnassigned: boolean
+function TileSettings({ tile, sites, canUnassigned, chartSources, onClose, onApply }: {
+  tile: DashboardTile; sites: Scope['sites']; canUnassigned: boolean; chartSources: ChartMetric[]
   onClose: () => void; onApply: (tile: DashboardTile) => void
 }) {
   const [value, setValue] = useState(tile)
   const change = (values: Partial<DashboardTile>) => setValue({ ...value, ...values })
-  const isData = tile.kind !== 'note' && tile.kind !== 'settlement'
-  const hasPeriod = tile.kind === 'mileage' || tile.kind === 'ranking'
+  const chart = isChartModule(tile.kind)
+  const isData = tile.kind !== 'note' && tile.kind !== 'settlement' && value.chartMetric !== 'reportedMileage'
+  const hasPeriod = tile.kind === 'mileage' || tile.kind === 'ranking' || (chart && value.chartMetric !== 'vehicleStatus')
   const hasLimit = tile.kind === 'vehicles' || tile.kind === 'service' || tile.kind === 'ranking' || tile.kind === 'deadlines'
   return <AccessDialog title={`${dashboardModules[tile.kind]} · Beállítások`} pending={false} onClose={onClose}>
     <form className="custom-tile-form" onSubmit={event => { event.preventDefault(); onApply(value) }}>
+      {chart && <>
+        <label className="org-field"><span>Adatforrás</span><Select value={value.chartMetric ?? ''}
+          onChange={event => change({ chartMetric: event.target.value as ChartMetric })}>
+          {value.chartMetric && !chartSources.includes(value.chartMetric) && <option value={value.chartMetric}>Nem elérhető adatforrás</option>}
+          {chartSources.map(metric => <option key={metric} value={metric}>{chartMetrics[metric]}</option>)}
+        </Select></label>
+        {hasPeriod && <label className="org-field"><span>Időbontás</span><Select value={value.chartInterval ?? 'month'}
+          onChange={event => change({ chartInterval: event.target.value as ChartInterval })}>
+          {Object.entries(chartIntervals).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+        </Select></label>}
+      </>}
       {tile.kind === 'note' && <>
         <label className="org-field"><span>Cím</span><input value={value.title} onChange={e => change({ title: e.target.value })} data-autofocus /></label>
         <label className="org-field"><span>Jegyzet</span><textarea rows={6} value={value.note} onChange={e => change({ note: e.target.value })} /></label>

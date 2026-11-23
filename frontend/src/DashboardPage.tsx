@@ -56,7 +56,7 @@ export function DashboardPage({ user, tenant, siteId, sites = [], canUnassigned 
       </div>}
       {mode === 'Overview' ? <Suspense fallback={<p role="status">Áttekintő betöltése…</p>}>
         <DashboardOverview key={user.id} user={user} tenant={tenant} siteId={siteId} sites={sites} canUnassigned={canUnassigned}
-          canOverview={data.canReadOverview} canVehicles={data.canReadVehicles} onVehicle={onVehicle} onFleet={onFleet}
+          canOverview={data.canReadOverview} canVehicles={data.canReadVehicles} canReadMileage={data.canReadMileage === true} onVehicle={onVehicle} onFleet={onFleet}
           onMileage={openMileage} dueMonth={data.mileageDueMonth} viewSwitch={viewSwitch} quickActions={<>
             {mileageAction}
             {data.canReadVehicles && <Button variant="outline" aria-label="Járműlista megnyitása" onClick={() => onFleet()}>

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent, ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Grip, MoveDiagonal, Settings2, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChartColumn, ChartPie, ChartScatter, Grip, MoveDiagonal, Settings2, Trash2 } from 'lucide-react'
 import { dashboardModules, dashboardSize } from './dashboardModules'
 import type { DashboardTile, ModuleKind } from './dashboardModules'
 import { Button } from './ui/Button'
@@ -24,6 +24,8 @@ type Editor = {
   onSettings: (tile: DashboardTile) => void
   onRemove: (id: string) => void
 }
+
+const chartIcons = { bar: ChartColumn, pie: ChartPie, scatter: ChartScatter }
 
 function bounded(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
@@ -124,11 +126,14 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
   const pointerHandlers = { onPointerMove: move, onPointerUp: finish, onPointerCancel: cancel, onLostPointerCapture: cancel }
   return <>
     {editor?.catalogue && <section id={paletteId} className="custom-module-palette" aria-label="Elérhető modulok">
-      {editor.catalogue.map(kind => <Button key={kind} type="button" variant="outline" className="custom-module-choice" {...pointerHandlers}
+      {editor.catalogue.map(kind => {
+        const Icon = chartIcons[kind as keyof typeof chartIcons] ?? Grip
+        return <Button key={kind} type="button" variant="outline" className="custom-module-choice" {...pointerHandlers}
         onPointerDown={event => begin(event, { source: { kind }, label: dashboardModules[kind] })}
         onClick={event => { if (!event.detail || !preventClick.current) editor.onChoose(kind) }}>
-        <Grip size={17} aria-hidden="true" /><span>{dashboardModules[kind]}</span>
-      </Button>)}
+          <Icon size={20} aria-hidden="true" /><span>{dashboardModules[kind]}</span>
+        </Button>
+      })}
     </section>}
     <div ref={grid} className="custom-dashboard-grid" aria-label="Áttekintő moduljai">
       {tiles.map((tile, index) => {

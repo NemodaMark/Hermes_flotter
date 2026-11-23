@@ -9,6 +9,7 @@ public sealed record DashboardVehicle(VehicleSummary Vehicle, string BodyType, s
 public sealed record DashboardSummary(string Mode, int Priority, string? SourceGroup, bool CanReadVehicles, DashboardVehicle[] Vehicles)
 {
     public bool CanReadOverview { get; init; }
+    public bool CanReadMileage { get; init; }
     public bool CanRecordMileage { get; init; }
     public DateOnly? MileageDueMonth { get; init; }
     public DateOnly Today { get; init; }
@@ -18,3 +19,7 @@ public sealed record DashboardMileageMonth(DateOnly Month, long? Kilometers);
 public sealed record DashboardMileageVehicle(Guid VehicleId, string Registration, string Make, string Model, long Kilometers);
 public sealed record DashboardOverview(DateOnly Today, DashboardVehicle[] Vehicles, DashboardMileageMonth[] MonthlyMileage,
     DashboardMileageVehicle[] TopVehicles);
+public sealed record DashboardMileagePerson(string Id, string Name);
+public sealed record DashboardMileagePoint(string? UserId, DateOnly Month, long Kilometers);
+public sealed record DashboardMileageChart(DateOnly FirstMonth, int Months, bool CanSelectPeople, DashboardMileagePerson[] People,
+    DashboardMileagePoint[] Points);

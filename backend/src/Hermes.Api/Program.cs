@@ -237,6 +237,8 @@ api.MapGet("/dashboard", async (DashboardManagement service, CancellationToken c
 api.MapGet("/dashboard/overview", async (string? site, string? status, string? search, int? months, bool? includeMileage, DashboardManagement service, CancellationToken ct)
     => Results.Ok(await service.ReadOverview(site, status, search, months ?? 6, includeMileage ?? true, ct)))
     .WithMetadata(new TenantRequired()).RequireAuthorization(Permissions.FleetOverviewRead, Permissions.VehiclesRead);
+api.MapGet("/dashboard/mileage", async (int? months, string[] userId, DashboardManagement service, CancellationToken ct)
+    => Results.Ok(await service.ReadMileageChart(months ?? 6, userId, ct))).WithMetadata(new TenantRequired());
 vehicles.MapGet("/site-options", async (IVehicleStore store, CancellationToken ct)
     => Results.Ok(await store.ReadSiteOptionsAsync(ct))).RequireAuthorization(Permissions.VehiclesRead);
 vehicles.MapGet("/create-options", async (IVehicleStore store, CancellationToken ct)
