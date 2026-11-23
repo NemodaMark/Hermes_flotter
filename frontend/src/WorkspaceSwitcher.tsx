@@ -17,7 +17,7 @@ export function WorkspaceSwitcher({ company, site, disabled, children }: {
   const [requestedOpen, setOpen] = useState(false)
   const [position, setPosition] = useState<CSSProperties>({})
   const open = requestedOpen && !disabled
-  const location = [company, site].filter(Boolean).join(' / ')
+  const location = site ? `${site}, ${company}` : company
 
   function close() { setOpen(false); trigger.current?.focus() }
 
@@ -33,7 +33,7 @@ export function WorkspaceSwitcher({ company, site, disabled, children }: {
     }
     try { element.showPopover?.() } catch { /* Fixed positioning also supports browsers without popovers. */ }
     place()
-    element.querySelector<HTMLElement>('[role=combobox]')?.focus()
+    element.querySelector<HTMLElement>('[role=combobox]:not([aria-disabled=true]):not(:disabled)')?.focus()
     window.addEventListener('resize', place)
     window.addEventListener('scroll', place, true)
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
@@ -51,14 +51,13 @@ export function WorkspaceSwitcher({ company, site, disabled, children }: {
   }, [open])
 
   return <>
-    <span className="workspace-caption">Munkaterület</span>
     <Button ref={trigger} type="button" className="workspace-trigger" aria-label={`Munkaterület váltása: ${location}`}
       title={location} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined} disabled={disabled}
       onClick={() => setOpen(value => !value)}>
-      <span className="workspace-location"><span>{company}</span>{site && <><span className="workspace-separator" aria-hidden="true">/</span><span>{site}</span></>}</span>
+      <span className="workspace-location"><span>{site ?? company}</span>{site && <small>{company}</small>}</span>
       <ChevronDown size={15} aria-hidden="true" />
     </Button>
-    {open && createPortal(<div ref={panel} id={id} className="workspace-panel" popover="manual" data-choice-root
+    {open && createPortal(<div ref={panel} id={id} className="workspace-panel glass-surface" popover="manual" data-choice-root
       role="dialog" aria-labelledby={`${id}-heading`} style={{ ...position, display: 'block' }}
       onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close() } }}>
       <div className="workspace-panel-heading"><h2 id={`${id}-heading`}>Munkaterület váltása</h2>

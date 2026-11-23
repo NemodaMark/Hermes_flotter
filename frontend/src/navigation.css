@@ -11,6 +11,6 @@
 .sidebar .navigation-drawer #main-navigation .nav-item { justify-content: start; min-height: 48px; font-size: 15px; }
 .sidebar .navigation-drawer .admin-navigation { border-top: 1px solid var(--line); margin-top: var(--space-4); padding-top: var(--space-4); }
 .sidebar .navigation-drawer .admin-navigation summary { min-height: 44px; }
-.sidebar .navigation-drawer .settings-links { position: static; display: grid; padding: var(--space-2) 0 0 var(--space-4); border: 0; background: transparent; box-shadow: none; }
+.sidebar .navigation-drawer .settings-links { position: static; display: grid; padding: var(--space-2) 0 0 var(--space-4); border: 0; background: transparent; backdrop-filter: none; box-shadow: none; }
 @media (prefers-reduced-motion: no-preference) { .navigation-drawer[open] { animation: navigation-enter 200ms ease-out; } }
 @keyframes navigation-enter { from { transform: translateX(100%); } to { transform: translateX(0); } }

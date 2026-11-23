@@ -16,7 +16,7 @@ function Fixture() {
 
 it('keeps nested choices open, updates the combined location and restores focus after Escape', async () => {
   render(<Fixture />)
-  const trigger = screen.getByRole('button', { name: 'Munkaterület váltása: D-Fuvar / Összes telephely' })
+  const trigger = screen.getByRole('button', { name: 'Munkaterület váltása: Összes telephely, D-Fuvar' })
   expect(trigger).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   await userEvent.click(trigger)
@@ -25,7 +25,7 @@ it('keeps nested choices open, updates the combined location and restores focus 
   await userEvent.click(site)
   await userEvent.click(screen.getByRole('option', { name: 'Budapest' }))
   expect(screen.getByRole('dialog', { name: 'Munkaterület váltása' })).toBeInTheDocument()
-  expect(trigger).toHaveAccessibleName('Munkaterület váltása: D-Fuvar / Budapest')
+  expect(trigger).toHaveAccessibleName('Munkaterület váltása: Budapest, D-Fuvar')
   await userEvent.click(site)
   await userEvent.keyboard('{Escape}')
   expect(screen.queryByRole('listbox')).not.toBeInTheDocument()

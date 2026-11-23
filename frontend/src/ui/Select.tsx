@@ -87,7 +87,7 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
     <Button type="button" className="choice-arrow" aria-label={`${accessibleLabel ?? label ?? 'Választás'} lehetőségei`} tabIndex={-1} disabled={disabled}
       onMouseDown={event => event.preventDefault()} onClick={() => { input.current?.focus(); if (open) setOpen(false); else show() }}><ChevronDown size={16} aria-hidden="true" /></Button>
     {native}
-    {open && portalRoot && createPortal(<div className="choice-popup" popover="manual" ref={popup} style={{ ...position, display: 'block' }}>
+    {open && portalRoot && createPortal(<div className="choice-popup glass-surface" popover="manual" ref={popup} style={{ ...position, display: 'block' }}>
       {options.length > 8 && <div className="choice-search-hint"><Search size={14} aria-hidden="true" />Gépeléssel kereshetsz</div>}
       <div role="listbox" id={listId} aria-label={accessibleLabel}>
         {filtered.map(option => <div key={option.value} role="option" id={`${uid}-${options.indexOf(option)}`} aria-selected={option.value === value}

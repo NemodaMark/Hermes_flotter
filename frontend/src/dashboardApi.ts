@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { request } from './api'
 import type { Vehicle } from './api'
 
@@ -41,4 +42,9 @@ export const dashboardApi = {
     return request<MileageChartData>(`/api/v1/dashboard/mileage?${params}`, { tenantId, signal })
   },
   configure: (id: string, mode: string, priority: number, version: number) => request(`/api/v1/permission-groups/${id}/dashboard`, { method: 'PUT', body: { mode, priority, version } }),
+}
+
+export function useDashboard(userId: string, tenantId?: string, enabled = true) {
+  return useQuery({ queryKey: ['dashboard', userId, tenantId], enabled: !!tenantId && enabled,
+    queryFn: ({ signal }) => dashboardApi.read(tenantId!, signal), retry: false, refetchInterval: 30000 })
 }

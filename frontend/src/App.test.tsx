@@ -110,6 +110,28 @@ it('opens the dashboard for the root URL while keeping explicit fleet links avai
   expect(window.location.hash).toBe('#/vehicles')
 })
 
+it('keeps editing and view switching in the account menu and exposes mileage in the fleet toolbar', async () => {
+  window.location.hash = '/dashboard'
+  mountApp({ permissions: ['vehicles.read', 'mileage.record'] })
+  const operator = userEvent.setup()
+  await screen.findByRole('group', { name: 'Flotta állapota' })
+  const content = within(screen.getByRole('main'))
+  expect(content.queryByRole('button', { name: 'Elrendezés szerkesztése' })).not.toBeInTheDocument()
+  expect(content.queryByRole('button', { name: 'Járműlista megnyitása' })).not.toBeInTheDocument()
+  expect(content.queryByRole('button', { name: 'Havi km-elszámolás' })).not.toBeInTheDocument()
+  const account = screen.getByLabelText('Fiókmenü')
+  await operator.click(account)
+  await operator.click(screen.getByRole('button', { name: 'Elrendezés szerkesztése' }))
+  await screen.findByRole('button', { name: 'Elrendezés mentése' })
+  await operator.click(screen.getByRole('button', { name: 'Mégse' }))
+  await operator.click(account)
+  await operator.click(screen.getByRole('button', { name: 'Autós nézet' }))
+  await screen.findByRole('heading', { name: 'Járműközpont' })
+  await operator.click(screen.getByRole('button', { name: 'Járművek' }))
+  expect(within(await screen.findByRole('group', { name: 'Járművek keresése és műveletei' }))
+    .getByRole('button', { name: 'Havi km-elszámolás' })).toBeInTheDocument()
+})
+
 it('replaces the visible fleet when a different company is selected', async () => {
   mountApp()
   expect(await screen.findByText('DUN-001')).toBeInTheDocument()
@@ -145,9 +167,9 @@ it('restores the last authorized site per company after switching companies and 
   const { unmount } = mountApp()
   await screen.findByText('DUN-001')
   expect(screen.queryByRole('combobox', { name: 'Munkaterület' })).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: /Munkaterület váltása: Duna \/ Összes telephely/ }))
+  await userEvent.click(screen.getByRole('button', { name: /Munkaterület váltása: Összes telephely, Duna/ }))
   await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület telephelye' }), 'site-a')
-  expect(screen.getByRole('button', { name: 'Munkaterület váltása: Duna / Budapest' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Munkaterület váltása: Budapest, Duna' })).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Munkaterület-választó bezárása' }))
   expect(screen.queryByText('DUN-001')).not.toBeInTheDocument()
   expect(screen.getByRole('columnheader', { name: 'Jármű' })).toBeInTheDocument()
@@ -161,11 +183,11 @@ it('restores the last authorized site per company after switching companies and 
   expect(await screen.findByText('PAN-002')).toBeInTheDocument()
   expect(screen.getByRole('combobox', { name: 'Munkaterület telephelye' })).toHaveValue('Összes telephely')
   await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület' }), 'duna')
-  await screen.findByRole('button', { name: 'Munkaterület váltása: Duna / Budapest' })
+  await screen.findByRole('button', { name: 'Munkaterület váltása: Budapest, Duna' })
   unmount()
 
   mountApp()
-  await screen.findByRole('button', { name: 'Munkaterület váltása: Duna / Budapest' })
+  await screen.findByRole('button', { name: 'Munkaterület váltása: Budapest, Duna' })
   await waitFor(() => {
     const queries = vi.mocked(fetch).mock.calls.filter(([path]) => String(path).startsWith('/api/v1/vehicles/search?'))
     expect(queries.length).toBeGreaterThan(0)
@@ -328,7 +350,7 @@ it('takes an invited account through creating its first company after sign-in', 
   await userEvent.type(screen.getByLabelText('Cégnév'), 'Saját Flotta Kft.')
   await userEvent.click(screen.getByRole('button', { name: 'Cég létrehozása' }))
   expect(await screen.findByText('Ezen a munkaterületen még nincs jármű.')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Munkaterület váltása: Saját Flotta Kft. / Összes telephely' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Munkaterület váltása: Összes telephely, Saját Flotta Kft.' })).toBeInTheDocument()
 })
 
 it('clears private data on logout and returns to the login form', async () => {

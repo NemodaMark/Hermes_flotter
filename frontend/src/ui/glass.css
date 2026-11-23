@@ -1,0 +1,32 @@
+/* Sera UI's subtle backdrop treatment, shared by transient and scene controls. */
+:root {
+  --action-secondary: color-mix(in srgb, var(--ink) 7%, var(--surface));
+  --action-hover: color-mix(in srgb, var(--ink) 13%, var(--surface));
+}
+
+.glass-surface {
+  --glass-fill: var(--glass-base, var(--surface));
+  background-color: var(--glass-fill);
+  border: 0;
+  border-radius: var(--radius-panel);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .glass-surface {
+    --glass-fill: color-mix(in srgb, var(--glass-base, var(--surface)) var(--glass-opacity, 87%), transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(112%);
+    backdrop-filter: blur(12px) saturate(112%);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .glass-surface {
+    --glass-fill: var(--glass-base, var(--surface));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .glass-surface { --glass-fill: Canvas; outline: 1px solid CanvasText; }
+}

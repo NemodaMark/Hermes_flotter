@@ -7,8 +7,8 @@
 .choice.choice select.choice-native { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; border: 0; opacity: 0; pointer-events: none; overflow: hidden; }
 .choice[data-disabled], fieldset:disabled .choice { background: var(--surface-subtle); border-color: var(--line); color: var(--muted); }
 .choice[data-disabled] input, fieldset:disabled .choice input { cursor: default; opacity: 1; }
-.choice-popup { position: fixed; z-index: 1000; inset: auto; margin: 0; display: block; padding: 5px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--control-border, #7e909b); border-radius: var(--radius-control, 7px); color: var(--ink, #20343e); background: var(--surface, white); box-shadow: 0 4px 16px var(--shadow-color); font: 14px/1.5 'IBM Plex Sans', sans-serif; }
-.choice-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 8px 10px; border-radius: 5px; cursor: pointer; overflow-wrap: anywhere; }
+.choice-popup { position: fixed; z-index: 1000; inset: auto; margin: 0; display: block; padding: 5px; overflow: auto; overscroll-behavior: contain; color: var(--ink); box-shadow: 0 4px 16px var(--shadow-color); font: 14px/1.5 'IBM Plex Sans', sans-serif; --glass-opacity: 94%; }
+.choice-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 8px 10px; border-radius: var(--radius-control); cursor: pointer; overflow-wrap: anywhere; }
 .choice-option[aria-selected=true] { color: var(--primary); font-weight: 500; }
 .choice-option[data-active=true] { background: var(--primary-soft); box-shadow: inset 2px 0 var(--primary); }
 .choice-option[aria-disabled=true] { opacity: .5; cursor: default; }

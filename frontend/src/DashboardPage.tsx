@@ -1,9 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
-import type { ReactNode } from 'react'
-import { useIsMutating, useQuery } from '@tanstack/react-query'
-import { ArrowRight, CalendarClock, CalendarDays, Camera, CarFront, Ellipsis, FileText, Fuel, Gauge, Handshake, LayoutDashboard, MapPin, Wrench } from 'lucide-react'
-import { dashboardApi } from './dashboardApi'
-import type { DashboardCar } from './dashboardApi'
+import { useIsMutating } from '@tanstack/react-query'
+import { ArrowRight, CalendarClock, CalendarDays, Camera, CarFront, Ellipsis, FileText, Fuel, Gauge, Handshake, MapPin, Wrench } from 'lucide-react'
+import type { Dashboard, DashboardCar, useDashboard } from './dashboardApi'
 import { dashboardDeadlines, deadlineState } from './dashboardDeadlines'
 import type { DashboardDeadline } from './dashboardDeadlines'
 import type { Session, Tenant } from './api'
@@ -23,52 +21,29 @@ import { useVehicleAccent } from './useVehicleAccent'
 import './dashboard.css'
 import './garage-hud.css'
 const DashboardOverview = lazy(() => import('./DashboardOverview').then(module => ({ default: module.DashboardOverview })))
-const MileagePanel = lazy(() => import('./MileagePanel').then(module => ({ default: module.MileagePanel })))
 
-export function DashboardPage({ user, tenant, siteId, sites = [], canUnassigned = true, onFleet, onVehicle }: {
+export function DashboardPage({ user, tenant, siteId, sites = [], canUnassigned = true, onFleet, onVehicle,
+  dashboard, mode, editing, onEditingChange, mileageOpen, onMileage }: {
   user: Session; tenant: Tenant; siteId: string; onFleet: (status?: string) => void; onVehicle: (id: string) => void
   sites?: { id: string; name: string }[]; canUnassigned?: boolean
+  dashboard: ReturnType<typeof useDashboard>; mode: Dashboard['mode']; editing: boolean
+  onEditingChange: (editing: boolean) => void; mileageOpen: boolean; onMileage?: () => void
 }) {
-  const dashboard = useQuery({ queryKey: ['dashboard', user.id, tenant.id],
-    queryFn: ({ signal }) => dashboardApi.read(tenant.id, signal), retry: false, refetchInterval: 30000 })
-  const [override, setOverride] = useState<'Overview' | 'Vehicle' | null>(null)
-  const [mileage, setMileage] = useState(false)
-  const mileagePending = useIsMutating({ mutationKey: ['mileage', tenant.id] }) > 0
   const data = dashboard.error ? null : dashboard.data
   const cars = (data?.vehicles ?? []).filter(car => data?.canReadOverview || car.isAssignedToMe).filter(({ vehicle }) =>
     siteId === 'all' || (siteId === 'none' ? !vehicle.siteId : vehicle.siteId === siteId))
-  const mode = override ?? (data?.canReadOverview ? data.mode : 'Vehicle')
-  const viewSwitch = data && <div className="dashboard-view-switch" role="group" aria-label="Kezdőlap nézete">
-    <Button aria-pressed={mode === 'Overview'} onClick={() => setOverride('Overview')}><LayoutDashboard size={16} aria-hidden="true" />{data.canReadOverview ? 'Áttekintő' : 'Saját áttekintő'}</Button>
-    <Button aria-pressed={mode === 'Vehicle'} onClick={() => setOverride('Vehicle')}><CarFront size={17} aria-hidden="true" />Autós</Button>
-  </div>
-  const openMileage = data?.canRecordMileage ? () => setMileage(true) : undefined
-  const mileageAction = openMileage && <Button variant="outline" onClick={openMileage}>
-    <Gauge size={17} aria-hidden="true" />{data?.mileageDueMonth ? `Lezárandó elszámolás: ${data.mileageDueMonth.slice(0, 7)}` : 'Havi km-elszámolás'}
-  </Button>
   const fullStudio = mode === 'Vehicle' && data?.canReadVehicles && cars.some(car => car.vehicle.status !== 'Archived')
   return <section className={fullStudio ? 'dashboard-page dashboard-studio' : 'dashboard-page'} aria-label="Kezdőlap">
     <QueryMessage pending={dashboard.isPending} error={dashboard.error} retry={() => void dashboard.refetch()} />
     {data && <>
       <h2 className="sr-only">{mode === 'Vehicle' ? 'Járműközpont' : data.canReadOverview ? 'Flotta áttekintés' : 'Saját áttekintés'}</h2>
-      {mode === 'Vehicle' && !fullStudio && <div className="dashboard-heading">{viewSwitch}
-        <div className="dashboard-heading-actions">{mileageAction}</div>
-      </div>}
       {mode === 'Overview' ? <Suspense fallback={<p role="status">Áttekintő betöltése…</p>}>
         <DashboardOverview key={user.id} user={user} tenant={tenant} siteId={siteId} sites={sites} canUnassigned={canUnassigned}
           canOverview={data.canReadOverview} canVehicles={data.canReadVehicles} canReadMileage={data.canReadMileage === true} onVehicle={onVehicle} onFleet={onFleet}
-          onMileage={openMileage} dueMonth={data.mileageDueMonth} viewSwitch={viewSwitch} quickActions={<>
-            {mileageAction}
-            {data.canReadVehicles && <Button variant="outline" aria-label="Járműlista megnyitása" onClick={() => onFleet()}>
-              Járműlista<ArrowRight size={16} aria-hidden="true" />
-            </Button>}
-          </>} />
+          onMileage={onMileage} dueMonth={data.mileageDueMonth} editing={editing} onEditingChange={onEditingChange} />
       </Suspense> : !data.canReadVehicles ? <p className="notice">Nincs jogosultságod járműadatok megtekintéséhez.</p>
-        : <CarDashboard key={siteId} cars={cars} user={user} tenant={tenant} today={data.today} onFleet={onFleet} viewSwitch={viewSwitch} allowVehiclePicker={data.canReadOverview}
-          mileageOpen={mileage} onProfile={onVehicle} onMileage={openMileage} dueMonth={data.mileageDueMonth} />}
-      {mileage && data.canRecordMileage && <AccessDialog title="Havi km-elszámolás" pending={mileagePending} onClose={() => setMileage(false)} className="mileage-dialog">
-        <Suspense fallback={<p role="status">Elszámolás betöltése…</p>}><MileagePanel tenant={tenant} user={user} initialMonth={data.mileageDueMonth ?? undefined} /></Suspense>
-      </AccessDialog>}
+        : <CarDashboard key={siteId} cars={cars} user={user} tenant={tenant} today={data.today} onFleet={onFleet} allowVehiclePicker={data.canReadOverview}
+          mileageOpen={mileageOpen} onProfile={onVehicle} onMileage={onMileage} dueMonth={data.mileageDueMonth} />}
     </>}
   </section>
 }
@@ -77,8 +52,8 @@ const icons = { data: CarFront, history: Gauge, services: Wrench, documents: Fil
   site: MapPin, photos: Camera, bookings: CalendarDays, fuel: Fuel, handovers: Handshake }
 type VehicleTab = keyof typeof icons
 
-function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, allowVehiclePicker, onMileage, dueMonth, mileageOpen, onProfile }: {
-  cars: DashboardCar[]; user: Session; tenant: Tenant; today: string; onFleet: () => void; viewSwitch: ReactNode
+function CarDashboard({ cars, user, tenant, today, onFleet, allowVehiclePicker, onMileage, dueMonth, mileageOpen, onProfile }: {
+  cars: DashboardCar[]; user: Session; tenant: Tenant; today: string; onFleet: () => void
   onMileage?: () => void; dueMonth?: string | null; mileageOpen: boolean
   onProfile: (id: string) => void
   allowVehiclePicker: boolean
@@ -170,23 +145,22 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, allowVeh
                 {car.vehicle.status === 'Inactive' && <Badge tone="neutral" dot={false}>Inaktív</Badge>}
               </div>
             </div>
-            {(viewSwitch || eligible.length > 1) && <div className="car-dashboard-actions">
-              {viewSwitch}
-              {allowVehiclePicker && eligible.length > 1 && <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
+            {allowVehiclePicker && eligible.length > 1 && <div className="car-dashboard-actions">
+              <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
                 <Select value={car.vehicle.id} onChange={event => { setSelected(event.target.value); moveCamera('home') }}>
                   {eligible.map(item => <option key={item.vehicle.id} value={item.vehicle.id}>
                     {item.vehicle.registration}
                   </option>)}
                 </Select>
-              </label>}
+              </label>
             </div>}
           </div>
-          {notices.length > 0 && <section className="car-attention" aria-label="Jármű teendői">
+          {notices.length > 0 && <section className="car-attention glass-surface" aria-label="Jármű teendői">
             {notices.slice(0, 2)}
             {notices.length > 2 && <Button className="car-attention-more" onClick={() => setAllAttention(true)}>Minden teendő ({notices.length})<ArrowRight size={14} aria-hidden="true" /></Button>}
           </section>}
         </>}>
-        <nav className="car-menu" aria-label="Jármű gyorsmenü">
+        <nav className="car-menu glass-surface" aria-label="Jármű gyorsmenü">
           <VehicleRecordingActions key={`recording:${car.vehicle.id}`} user={user} tenant={tenant} vehicle={car.vehicle} mode={recording} onModeChange={changeRecording} />
           {menus.filter(menu => quickLabels[menu.key]).map(menu => {
           const Icon = icons[menu.key]
@@ -196,7 +170,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, allowVeh
         })}
           <Disclosure className="car-menu-more" key={`more:${car.vehicle.id}`}
             trigger={<><Ellipsis size={18} aria-hidden="true" /><span>Továbbiak</span></>}>
-            <div>{onMileage && <Button onClick={onMileage}><Gauge size={17} aria-hidden="true" />Havi km-elszámolás</Button>}{menus.filter(menu => !quickLabels[menu.key]).map(menu => {
+            <div className="glass-surface">{onMileage && <Button onClick={onMileage}><Gauge size={17} aria-hidden="true" />Havi km-elszámolás</Button>}{menus.filter(menu => !quickLabels[menu.key]).map(menu => {
               const Icon = icons[menu.key]
               return <Button key={menu.key} onClick={() => focus(menu.key)}><Icon size={17} aria-hidden="true" />{menu.label}</Button>
             })}</div>

@@ -67,7 +67,7 @@ export function VehiclePage({ user, tenant, id, onBack, initialTab = 'data', sho
           {can('vehicles.update') && mutable && <Button variant="outline" onClick={() => { setDraftRecord(record.data!); setEditing(true) }}><Pencil size={16} />Szerkesztés</Button>}
           {showGarage && <Button variant="outline" onClick={() => setGarage(true)}>3D garázs</Button>}
           <Disclosure className="vehicle-more-actions" trigger={<><Ellipsis size={18} /><span>Műveletek</span></>}>
-            <div><Button variant="ghost" disabled={record.isFetching} onClick={() => void changed()}><RefreshCw size={16} />Adatok frissítése</Button>
+            <div className="glass-surface"><Button variant="ghost" disabled={record.isFetching} onClick={() => void changed()}><RefreshCw size={16} />Adatok frissítése</Button>
               {can('vehicles.archive') && <Button variant="ghost" className={mutable ? 'danger-text' : ''} onClick={() => setArchiveOpen(true)}>{mutable ? 'Archiválás' : 'Visszaállítás'}</Button>}</div>
           </Disclosure>
         </div>}

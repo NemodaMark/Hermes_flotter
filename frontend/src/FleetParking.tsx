@@ -21,6 +21,7 @@ export default function FleetParking({ vehicles, onOpen }: { vehicles: Vehicle[]
   const sceneCars = useMemo<Pick<Vehicle, 'id' | 'make' | 'model' | 'bodyType' | 'color'>[]>(() => JSON.parse(sceneData), [sceneData])
   const [hour, setHour] = useState(() => new Date().getHours())
   const [state, setState] = useState<'loading' | 'ready' | 'fallback'>('loading')
+  const [cameraMoved, setCameraMoved] = useState(false)
   useEffect(() => { callback.current = onOpen }, [onOpen])
   useEffect(() => { const timer = window.setInterval(() => setHour(new Date().getHours()), 60000); return () => clearInterval(timer) }, [])
   useEffect(() => {
@@ -50,12 +51,18 @@ export default function FleetParking({ vehicles, onOpen }: { vehicles: Vehicle[]
     const draw = () => { frame = 0; if (!disposed && !contextLost && !document.hidden) renderer.render(scene, camera) }
     const invalidate = () => { if (!disposed && !contextLost && !frame && !document.hidden) frame = requestAnimationFrame(draw) }
     orbit.addEventListener('change', invalidate)
+    let homePolar = 0
+    orbit.addEventListener('end', () => {
+      setCameraMoved(Math.abs(orbit.getAzimuthalAngle()) > .001 || Math.abs(orbit.getPolarAngle() - homePolar) > .001)
+    })
     const home = () => {
       const halfFov = Math.tan(T.MathUtils.degToRad(camera.fov / 2))
       const height = container.clientHeight, clearHeight = Math.max(120, height - 220)
       const distance = Math.max(9, framingWidth / (2 * halfFov * camera.aspect) + 3, 3 * height / (2 * halfFov * clearHeight) + 2)
       camera.position.set(0, 3 + distance * .06, distance)
       orbit.target.set(0, height < 500 ? .7 : 1.1, -.3); orbit.update(); invalidate()
+      homePolar = orbit.getPolarAngle()
+      setCameraMoved(false)
     }
     resetView.current = home
     const resize = new ResizeObserver(() => {
@@ -109,10 +116,10 @@ export default function FleetParking({ vehicles, onOpen }: { vehicles: Vehicle[]
     <div className="fleet-parking-stage" ref={host}>
       {state !== 'ready' && <p className="parking-state" role="status">{state === 'loading' ? 'Parkoló betöltése…' : 'A járműveket az alábbi listából nyithatod meg.'}</p>}
     </div>
-    <div className="parking-scene-controls"><span className="parking-daytime">{parkingLighting(hour).name}</span>
-      <Button variant="outline" size="sm" disabled={state !== 'ready'} onClick={() => resetView.current()} aria-label="Parkolónézet visszaállítása"><RotateCcw size={16} /><span>Alapnézet</span></Button>
-    </div>
-    <div className="parking-vehicles" style={{ gridTemplateColumns: `repeat(${vehicles.length}, minmax(0, 1fr))` }}>{vehicles.map(car => <Button key={car.id} className="parking-vehicle" aria-label={`Jármű megnyitása: ${car.registration}`} onClick={() => onOpen(car.id)}>
+    {state === 'ready' && cameraMoved && <div className="parking-scene-controls">
+      <Button className="glass-surface" size="sm" onClick={() => resetView.current()} aria-label="Parkolónézet visszaállítása"><RotateCcw size={16} aria-hidden="true" /><span>Alapnézet</span></Button>
+    </div>}
+    <div className="parking-vehicles glass-surface" style={{ gridTemplateColumns: `repeat(${vehicles.length}, minmax(0, 1fr))` }}>{vehicles.map(car => <Button key={car.id} className="parking-vehicle" aria-label={`Jármű megnyitása: ${car.registration}`} onClick={() => onOpen(car.id)}>
       <strong>{car.registration}</strong><span>{car.make} {car.model}</span><Badge tone={car.status === 'Active' ? 'success' : car.status === 'Maintenance' ? 'warning' : 'neutral'}>{car.status === 'Active' ? 'Aktív' : car.status === 'Maintenance' ? 'Szervizben' : car.status === 'Archived' ? 'Archivált' : 'Inaktív'}</Badge>
       <small>{car.siteName ?? 'Telephely nélkül'}</small>
     </Button>)}</div>

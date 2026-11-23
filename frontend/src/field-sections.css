@@ -1,9 +1,9 @@
 .field-sections > .field-picker { display: none; }
 .field-sections { display: grid; gap: 20px; }
 .field-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: start; }
-.field-tabs button { min-height: 40px; padding: 8px 12px; border: 1px solid var(--control-border); border-radius: 4px; background: var(--surface); color: var(--ink); font-size: 13px; text-align: left; }
+.field-tabs button { min-height: 40px; padding: 8px 12px; border: 0; border-radius: var(--radius-control); background: var(--surface); color: var(--ink); font-size: 13px; text-align: left; }
 .field-tabs button:hover { background: var(--surface-subtle); }
-.field-tabs button[aria-selected=true] { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); font-weight: 500; }
+.field-tabs button[aria-selected=true] { color: var(--primary); background: var(--primary-soft); font-weight: 500; }
 .field-panels { min-width: 0; container-type: inline-size; container-name: detail-fields; }
 .field-panels [hidden] { display: none; }
 .field-sections .field-panels fieldset { margin-bottom: 0; }
@@ -15,8 +15,7 @@
 @media (min-width: 1250px) {
   .field-sections { grid-template-columns: 170px minmax(0, 1fr); gap: 24px; }
   .field-tabs { flex-direction: column; gap: 4px; align-items: stretch; border-right: 1px solid var(--line); padding-right: 16px; }
-  .field-tabs button { border-color: transparent; justify-content: flex-start; }
-  .field-tabs button[aria-selected=true] { border-color: var(--line); }
+  .field-tabs button { justify-content: flex-start; }
 }
 @media (max-width: 1000px) {
   .field-tabs { display: none; }

@@ -5,17 +5,16 @@
   --table-row-height: 76px;
   --shadow-panel: none;
 }
-.sera-button { position: relative; flex-shrink: 0; font-weight: 500; transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+.sera-button { position: relative; flex-shrink: 0; border: 0; border-radius: var(--radius-control); font-weight: 500; transition: background-color 140ms ease, color 140ms ease; }
 .sera-button > svg { flex-shrink: 0; }
-.sera-button[data-variant] { min-height: 40px; padding: 9px 15px; border: 1px solid transparent; border-radius: var(--radius-control); font-size: 14px; }
-.sera-button[data-variant=default], .primary-button { color: var(--on-primary); border-color: var(--primary); background: var(--primary); }
-.sera-button[data-variant=default]:hover, .primary-button:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
-.sera-button[data-variant=outline] { color: var(--ink); border-color: var(--control-border); background: var(--surface); }
-.sera-button[data-variant=secondary] { color: var(--ink); background: var(--surface-subtle); }
+.sera-button[data-variant] { min-height: 40px; padding: 9px 15px; font-size: 14px; }
+.sera-button[data-variant=default], .primary-button { color: var(--on-primary); border: 0; background: var(--primary); }
+.sera-button[data-variant=default]:hover, .primary-button:hover { background: var(--primary-hover); }
+.sera-button:is([data-variant=outline], [data-variant=secondary]), .secondary-button { color: var(--ink); border: 0; background: var(--action-secondary); }
 .sera-button[data-variant=ghost], .sera-button[data-variant=link] { background: transparent; color: var(--primary); }
 .sera-button[data-variant=destructive] { background: var(--destructive); color: var(--on-destructive); }
 .sera-button[data-variant=link] { text-decoration: underline; text-underline-offset: 3px; }
-.sera-button[data-variant=outline]:hover, .sera-button[data-variant=ghost]:hover, .sera-button[data-variant=secondary]:hover { background: var(--surface-subtle); }
+.sera-button:is([data-variant=outline], [data-variant=ghost], [data-variant=secondary]):hover, .secondary-button:hover { background: var(--action-hover); }
 .sera-button[data-size=sm] { min-height: 36px; padding: 6px 11px; font-size: 13px; }
 .sera-button[data-size=lg] { min-height: 44px; padding-inline: 20px; }
 .sera-button:focus-visible, .app-shell :focus-visible, .account-page :focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
@@ -29,18 +28,16 @@
 .app-shell input[type=checkbox]:disabled { cursor: not-allowed; opacity: .55; }
 @media (forced-colors: active) { .app-shell input[type=checkbox] { appearance: auto; } .app-shell input[type=checkbox]::before { content: none; } }
 .file-control { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3); min-width: 0; }
-.file-control-button { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: var(--space-2) var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-control); color: var(--ink); background: var(--surface); cursor: pointer; }
+.file-control-button { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); color: var(--ink); background: var(--action-secondary); cursor: pointer; }
 .file-control-button:hover { background: var(--primary-soft); }
 .file-control-button:focus-within { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
 .app-shell .file-control-button input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
 .file-control-name { min-width: 0; max-width: 100%; overflow-wrap: anywhere; color: var(--muted); font-size: 12px; }
 .file-control-button:has(input:disabled) { opacity: .55; cursor: not-allowed; }
 .primary-button, .secondary-button { border-radius: var(--radius-control); min-height: 40px; padding: 9px 14px; font-size: 14px; line-height: 1.4; }
-.secondary-button { background: var(--surface); border-color: var(--control-border); color: var(--ink); }
-.secondary-button:hover { background: var(--surface-subtle); border-color: var(--control-border); }
 .member-actions .secondary-button { min-height: 36px; font-size: 13px; padding: 7px 11px; }
-.icon-button { border: 1px solid transparent; border-radius: var(--radius-control); width: 40px; height: 40px; color: var(--muted); }
-.icon-button:hover { border-color: var(--line); background: var(--surface-subtle); }
+.icon-button { border: 0; border-radius: var(--radius-control); width: 40px; height: 40px; color: var(--muted); }
+.icon-button:hover { background: var(--action-hover); }
 .sera-badge, .app-shell .status { display: inline-flex; width: fit-content; align-items: center; gap: 6px; border: 1px solid transparent; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 500; line-height: 1.5; white-space: nowrap; }
 .sera-badge > .sera-badge-dot { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: currentColor; }
 .sera-badge[data-tone=success] { background: var(--success-surface); color: var(--success-ink); border-color: var(--success-line); }
@@ -72,7 +69,7 @@
 .admin-navigation[open] summary > svg:last-child { rotate: 180deg; }
 .sidebar .sidebar-bottom { padding-top: 32px; }
 .sidebar .connection { padding: 0 12px 16px; font-size: 11px; }
-.sidebar .profile.profile-button { border: 1px solid transparent; background: transparent; border-radius: var(--radius-control); padding: 10px; text-align: left; }
+.sidebar .profile.profile-button { border: 0; background: transparent; border-radius: var(--radius-control); padding: 10px; text-align: left; }
 .sidebar .profile.profile-button:hover { background: #294854; }
 .sidebar .avatar { background: #31545d; border: 1px solid #57727b; color: #e2eeee; }
 .topbar { min-height: 72px; padding: 15px 32px; background: var(--surface); }
@@ -80,7 +77,7 @@
 .breadcrumb .breadcrumb-home { color: var(--muted); font-size: 12px; }
 .breadcrumb .breadcrumb-separator { margin-inline: 2px; }
 .breadcrumb strong { font-weight: 500; font-size: 16px; line-height: 1.4; }
-.topbar .logout-button { min-height: 36px; padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--muted); font-size: 12px; background: var(--surface); }
+.topbar .logout-button { min-height: 36px; padding: 7px 10px; border: 0; border-radius: var(--radius-control); color: var(--muted); font-size: 12px; background: var(--action-secondary); }
 .topbar .logout-button:hover { background: var(--surface-subtle); }
 .page-content.page-content-compact { max-width: 1580px; padding: 24px 32px 40px; }
 .app-shell :is(.fleet-panel, .access-panel, .organization-panel), .account-panel, .onboarding-panel { border-radius: var(--radius-panel); box-shadow: var(--shadow-panel); border-color: var(--line); }
@@ -120,7 +117,7 @@
 .app-shell .field-sections .field-tabs { gap: 6px; }
 .app-shell .field-tabs .sera-tab { position: relative; border-radius: var(--radius-control); padding: 10px 12px; font-size: 14px; color: var(--muted); }
 .app-shell .field-tabs .sera-tab:hover { background: var(--surface-subtle); }
-.app-shell .field-tabs .sera-tab[aria-selected=true] { background: var(--primary-soft); border-color: var(--line); color: var(--primary); box-shadow: inset 3px 0 var(--primary); font-weight: 500; }
+.app-shell .field-tabs .sera-tab[aria-selected=true] { background: var(--primary-soft); color: var(--primary); font-weight: 500; }
 .app-shell :is(.access-tabs, .vehicle-detail-navigation nav) button { padding: 12px 11px; border-radius: 0; font-size: 14px; }
 .app-shell :is(.access-tabs, .vehicle-detail-navigation nav) button:is([aria-selected=true], [aria-pressed=true], [aria-current]) { background: var(--primary-soft); color: var(--primary); border-bottom-color: var(--primary); }
 .app-shell :is(.access-tabs, .vehicle-detail-navigation nav) button:hover { background: var(--surface-subtle); }

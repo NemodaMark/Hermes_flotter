@@ -12,7 +12,7 @@
 .vehicle-more-actions summary { display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; min-height: 40px; padding: var(--space-2) 10px; border-radius: var(--radius-control); list-style: none; }
 .vehicle-more-actions summary::-webkit-details-marker { display: none; }
 .vehicle-more-actions summary:hover { background: var(--primary-soft); }
-.vehicle-more-actions > div { position: absolute; z-index: 5; right: 0; min-width: 210px; padding: 6px; display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-control); box-shadow: var(--shadow-panel); }
+.vehicle-more-actions > div { position: absolute; z-index: 5; right: 0; min-width: 210px; padding: 6px; display: grid; box-shadow: 0 8px 20px var(--shadow-color); }
 .vehicle-more-actions > div button { justify-content: start; }
 .vehicle-profile-layout { display: grid; grid-template-columns: 184px minmax(0, 1fr); align-items: start; }
 .vehicle-section-menu { display: grid; gap: var(--space-1); padding: 20px var(--space-3); position: sticky; top: 78px; }

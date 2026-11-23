@@ -1,10 +1,7 @@
 .dashboard-page { display: grid; gap: var(--space-4); min-width: 0; }
-.dashboard-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
+.dashboard-heading { display: flex; justify-content: flex-end; }
 .dashboard-heading-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .dashboard-heading-actions:empty { display: none; }
-.dashboard-view-switch { display: flex; padding: var(--space-1); background: var(--surface-subtle); border: 1px solid var(--line); border-radius: var(--radius-control); }
-.dashboard-view-switch button { display: inline-flex; align-items: center; gap: var(--space-2); padding: 8px 12px; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; font-size: 14px; }
-.dashboard-view-switch button[aria-pressed=true] { color: var(--primary); background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
 .fleet-overview { display: grid; gap: var(--space-4); min-width: 0; }
 .fleet-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--surface); overflow: hidden; }
 .fleet-metrics .fleet-metric { display: grid; grid-template-columns: auto minmax(0, 1fr); justify-content: start; align-content: start; align-items: center; gap: 4px 8px; padding: var(--space-3) var(--space-4); border: 0; border-radius: 0; color: var(--muted); text-align: left; text-decoration: none; font-size: 14px; font-weight: 500; }
@@ -60,6 +57,7 @@
   --garage-accent: var(--vehicle-accent-dark, #b6d1bb);
   --garage-on-accent: #101711;
   --garage-panel: color-mix(in srgb, #171b19ee 92%, var(--garage-accent));
+  --glass-base: color-mix(in srgb, #171b19 92%, var(--garage-accent));
   --garage-line: color-mix(in srgb, var(--garage-accent) 38%, transparent);
   --garage-hover: color-mix(in srgb, #171b19 76%, var(--garage-accent));
 }
@@ -107,7 +105,6 @@
 .car-location { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; color: var(--garage-muted); font-size: 12px; margin-top: 5px; }
 .car-location .sera-badge { margin-inline-start: 4px; }
 .car-dashboard-actions { display: flex; align-items: start; gap: var(--space-2); pointer-events: auto; }
-.car-dashboard-actions .dashboard-view-switch { flex: none; }
 .car-picker { min-width: 0; width: clamp(118px, 15vw, 200px); }
 .app-shell .car-picker .choice { width: 100%; background: var(--garage-panel); border-color: var(--garage-line); color: var(--garage-ink); }
 .car-picker .choice input, .car-picker .choice .choice-arrow { color: inherit; }
@@ -170,10 +167,9 @@
 .car-stage-meta i { width: 11px; height: 11px; border: 1px solid #dddcd2aa; border-radius: 50%; }
 .car-stage-instrument { display: flex; align-items: center; gap: 5px; color: var(--garage-ink, var(--surface)); }
 .car-stage-instrument strong { font-size: 21px; font-variant-numeric: tabular-nums; font-weight: 600; line-height: 1; }
-.studio-camera-controls { position: absolute; right: 16px; bottom: 16px; display: flex; border: 1px solid var(--garage-line); background: var(--garage-panel); border-radius: var(--radius-control); z-index: 3; }
+.studio-camera-controls { position: absolute; right: 16px; bottom: 16px; display: flex; gap: 2px; padding: var(--space-1); z-index: 3; }
 .car-dashboard .studio-camera-controls { right: var(--garage-inset); bottom: calc(var(--garage-dock) + 27px); }
-.studio-camera-controls button { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; background: transparent; border: 0; color: var(--garage-accent); cursor: pointer; }
-.studio-camera-controls button + button { border-left: 1px solid var(--garage-line); }
+.studio-camera-controls button { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; background: transparent; border: 0; border-radius: var(--radius-control); color: var(--garage-accent); cursor: pointer; }
 .studio-camera-controls button:hover { background: var(--garage-hover); }
 .studio-camera-controls button.studio-presentation-toggle {
   position: absolute;
@@ -183,7 +179,7 @@
   gap: 7px;
   width: max-content;
   padding-inline: 12px;
-  border: 1px solid var(--garage-line);
+  border: 0;
   border-radius: var(--radius-control);
   background: var(--garage-panel);
   font-size: 12px;
@@ -200,9 +196,6 @@
   width: min(740px, calc(100% - 2 * var(--garage-inset)));
   margin-block-end: max(12px, env(safe-area-inset-bottom));
   gap: 0;
-  border: 1px solid var(--garage-line);
-  border-radius: var(--radius-panel);
-  background: var(--garage-panel);
 }
 .car-menu > button, .car-menu-more, .car-menu > .vehicle-recording-actions { flex: 1; min-width: 0; }
 .car-menu > .vehicle-recording-actions { flex-wrap: nowrap; gap: 0; padding: 4px; }
@@ -245,9 +238,7 @@
   max-height: calc(100dvh - 160px);
   overflow: auto;
   padding: 5px;
-  border: 1px solid var(--garage-line);
-  border-radius: var(--radius-control);
-  background: var(--garage-panel);
+  --glass-opacity: 96%;
 }
 .car-menu-more > div .sera-button { justify-content: start; color: var(--garage-ink); min-height: 44px; text-align: left; }
 .studio-unavailable, .studio-loading { display: grid; min-height: 100%; place-content: center; text-align: center; padding: 28px; gap: 6px; color: var(--garage-ink); }
@@ -255,7 +246,7 @@
 .studio-unavailable span { font-size: 13px; }
 .studio-model-status { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 28px; background: #202622; color: var(--garage-ink); font-size: 13px; text-align: center; }
 .studio-model-status p { max-width: 350px; margin: 0; }
-.studio-model-status button { border: 1px solid var(--control-border); border-radius: var(--radius-control); background: var(--surface); padding: 8px 12px; color: var(--ink); }
+.studio-model-status button { border: 0; border-radius: var(--radius-control); background: var(--action-secondary); padding: 8px 12px; color: var(--ink); }
 .studio-credit { padding: 8px 16px; font-size: 12px; text-align: right; }
 .studio-credit a { color: inherit; text-underline-offset: 3px; }
 .studio-credit .studio-credit-compact { display: none; }
@@ -304,9 +295,6 @@
   .car-dashboard { --garage-dock: 54px; --garage-inset: 12px; }
   .car-dashboard-toolbar { gap: 6px; }
   .car-dashboard-actions { align-items: end; flex-direction: column-reverse; }
-  .car-dashboard-actions .dashboard-view-switch { padding: 2px; }
-  .car-dashboard-actions .dashboard-view-switch button { padding: 5px; min-height: 30px; font-size: 12px; }
-  .car-dashboard-actions .dashboard-view-switch button svg { display: none; }
   .car-picker { width: 118px; }
   .car-picker .choice.choice input[role=combobox] { padding-inline: 8px 27px; }
   .car-registration { font-size: 28px; }
@@ -371,6 +359,7 @@
     --garage-accent: #dddddd;
     --garage-on-accent: #171717;
     --garage-panel: #242424f0;
+    --glass-base: #242424;
     --garage-line: #666;
     --garage-hover: #383838;
   }

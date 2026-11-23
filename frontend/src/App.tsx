@@ -2,7 +2,7 @@ import { Select } from './ui/Select'
 import { Button } from './ui/Button'
 import { MainNavigation } from './MainNavigation'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRight,
   Building2,
@@ -11,11 +11,13 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleHelp,
+  Gauge,
   LoaderCircle,
   LogOut,
   Plus,
   MailPlus,
   Menu,
+  Pencil,
   ShieldCheck,
   Settings,
   Search,
@@ -52,11 +54,15 @@ import { peopleApi } from './peopleApi'
 import { ProtectedImage } from './ProtectedImage'
 import { initials } from './peopleDisplay'
 import { DashboardPage } from './DashboardPage'
+import { useDashboard } from './dashboardApi'
+import type { Dashboard } from './dashboardApi'
+import { AccessDialog } from './AccessDialog'
 import { isText, personalKey, readPersonal, writePersonal } from './personalStorage'
 import { dateText } from './fleetApi'
 import { consumeEntraResult } from './entra'
 
 const entraResult = consumeEntraResult()
+const MileagePanel = lazy(() => import('./MileagePanel').then(module => ({ default: module.MileagePanel })))
 
 const statuses: Record<string, string> = {
   Active: 'Aktív',
@@ -160,6 +166,9 @@ function FleetWorkspace({
   const companyKey = personalKey(user.id, 'last-company')
   const [tenantId, setTenantId] = useState<string | null>(() => vehicleLinkFromHash()?.tenantId ?? initialTenantId ?? readPersonal(companyKey, isText) ?? null)
   const [view, setView] = useState<WorkspaceView>(viewFromHash)
+  const [dashboardEditing, setDashboardEditing] = useState(false)
+  const [mileageOpen, setMileageOpen] = useState(false)
+  const [modeOverride, setModeOverride] = useState<{ tenantId: string; mode: Dashboard['mode'] } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(() => ['invitations', 'groups', 'system'].includes(view))
   const [profileId, setProfileId] = useState<string | null>(profileFromHash)
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(() => vehicleLinkFromHash()?.id ?? null)
@@ -171,6 +180,8 @@ function FleetWorkspace({
     const read = () => {
       setMobileNavOpen(false)
       const id = profileFromHash(); setProfileId(id)
+      if (id || viewFromHash() !== 'dashboard') setDashboardEditing(false)
+      setMileageOpen(false)
       const link = vehicleLinkFromHash()
       if (link) { setTenantId(link.tenantId); setSelectedVehicleId(link.id) }
       if (id) setView(current => { if (current !== 'profile') profileReturn.current = current; return 'profile' })
@@ -184,6 +195,8 @@ function FleetWorkspace({
     if (busy) return
     setMobileNavOpen(false)
     if (next === 'profile') return
+    if (next !== 'dashboard') setDashboardEditing(false)
+    setMileageOpen(false)
     if (['invitations', 'groups', 'system'].includes(next)) setSettingsOpen(true)
     window.location.hash = workspacePaths[next]
     setView(next)
@@ -226,6 +239,24 @@ function FleetWorkspace({
   const tenant: Tenant | undefined =
     tenants.data?.find((item) => item.id === tenantId) ?? tenants.data?.[0]
   const canReadVehicles = !!tenant?.permissions.includes('vehicles.read')
+  const hasMileageAccess = tenant?.permissions.some(code => code === 'mileage.record' || code === 'mileage.manage' || code.startsWith('vehicles.settlements.'))
+  const dashboard = useDashboard(user.id, tenant?.id, view === 'dashboard')
+  const dashboardData = dashboard.error ? undefined : dashboard.data
+  const dashboardMode = modeOverride && modeOverride.tenantId === tenant?.id ? modeOverride.mode
+    : dashboardData?.canReadOverview ? dashboardData.mode : 'Vehicle'
+  const canRecordMileage = view === 'fleet' ? !!hasMileageAccess : !!dashboardData?.canRecordMileage
+  const mileagePending = useIsMutating({ mutationKey: ['mileage', tenant?.id] }) > 0
+  const openMileage = canRecordMileage ? () => setMileageOpen(true) : undefined
+  const fleetMileageAction = openMileage && <Button variant="secondary" className="fleet-mileage-action" aria-label="Havi km-elszámolás" onClick={openMileage}>
+    <Gauge size={17} aria-hidden="true" /><span>Havi km-elszámolás</span>
+  </Button>
+
+  function selectDashboardMode(mode: Dashboard['mode']) {
+    if (!tenant) return
+    setModeOverride({ tenantId: tenant.id, mode })
+    setDashboardEditing(false)
+    changeView('dashboard')
+  }
   const canReadUnassigned = tenant?.permissionScopes?.find(scope => scope.code === 'vehicles.read')?.allSites ?? true
   const workspaceSites = useQuery({
     queryKey: ['workspace-sites', user.id, tenant?.id],
@@ -285,6 +316,8 @@ function FleetWorkspace({
 
   function changeTenant(value: string) {
     setTenantId(value)
+    setDashboardEditing(false)
+    setMileageOpen(false)
     writePersonal(companyKey, value)
     if (view === 'profile') changeView('members')
     setSelectedVehicleId(null)
@@ -315,13 +348,6 @@ function FleetWorkspace({
         <div className="workspace-selector">
           <WorkspaceSwitcher company={tenant?.name ?? 'Cég kiválasztása'} site={canReadVehicles ? currentSiteName : undefined}
             disabled={!tenants.data?.length || busy || createCompany.isPending || loggingOut}>
-            <label><span>Cég</span>
-              <Select id="company" aria-label="Munkaterület" value={tenant?.id ?? ''}
-                onChange={event => changeTenant(event.target.value)}>
-                {!tenant && <option value="">Cég kiválasztása</option>}
-                {tenants.data?.map(company => <option value={company.id} key={company.id}>{company.name}</option>)}
-              </Select>
-            </label>
             {canReadVehicles && <label><span>Telephely</span>
               <Select aria-label="Munkaterület telephelye" value={currentSiteId} disabled={workspaceSites.isPending}
                 onChange={event => {
@@ -340,6 +366,13 @@ function FleetWorkspace({
               </Select>
               {workspaceSites.isError && <Button type="button" variant="outline" size="sm" className="workspace-retry" onClick={() => void workspaceSites.refetch()}>Telephelyek újratöltése</Button>}
             </label>}
+            <label><span>Cég</span>
+              <Select id="company" aria-label="Munkaterület" value={tenant?.id ?? ''}
+                onChange={event => changeTenant(event.target.value)}>
+                {!tenant && <option value="">Cég kiválasztása</option>}
+                {tenants.data?.map(company => <option value={company.id} key={company.id}>{company.name}</option>)}
+              </Select>
+            </label>
           </WorkspaceSwitcher>
         </div>
         <Button ref={mobileNavButton} className="mobile-nav-toggle" aria-label={mobileNavOpen ? 'Menü bezárása' : 'Menü megnyitása'} aria-expanded={mobileNavOpen} aria-controls="main-navigation" disabled={busy} onClick={() => setMobileNavOpen(open => !open)}><Menu size={21} aria-hidden="true" /></Button>
@@ -381,7 +414,7 @@ function FleetWorkspace({
           </Button>
           {(canManageSystem || canInvite || canReadGroups) && <details className="admin-navigation" open={settingsOpen} onToggle={event => setSettingsOpen(event.currentTarget.open)}>
             <summary><Settings size={16} aria-hidden="true" />Beállítások<ChevronDown size={14} aria-hidden="true" /></summary>
-            <div className="settings-links">
+            <div className="settings-links glass-surface">
             {canInvite && <Button className={view === 'invitations' ? 'nav-item active' : 'nav-item'} aria-current={view === 'invitations' ? 'page' : undefined} onClick={() => changeView('invitations')}><MailPlus size={17} /><span>Meghívások</span></Button>}
             {canReadGroups && <Button className={view === 'groups' ? 'nav-item active' : 'nav-item'} aria-label="Jogosultságcsoportok" aria-current={view === 'groups' ? 'page' : undefined} onClick={() => changeView('groups')}><ShieldCheck size={17} /><span>Jogosultság<wbr />csoportok</span></Button>}
             {canManageSystem && <Button className={view === 'system' ? 'nav-item active' : 'nav-item'} aria-current={view === 'system' ? 'page' : undefined} onClick={() => changeView('system')}><Users size={17} /><span>Rendszerkezelés</span></Button>}
@@ -393,8 +426,13 @@ function FleetWorkspace({
               alt="Saját profilkép" className="avatar profile-avatar" fallback={initials(user.displayName)} />
             <span>{user.displayName}</span>
           </>}>
-          <div className="profile-navigation-links">
+          <div className="profile-navigation-links glass-surface">
             <Button onClick={() => openProfile(user.id)} disabled={busy}>Saját profil megnyitása</Button>
+            {view === 'dashboard' && dashboardData && !dashboardEditing && <>
+              {dashboardMode === 'Vehicle' ? <Button disabled={busy} onClick={() => selectDashboardMode('Overview')}><LayoutDashboard size={16} aria-hidden="true" />{dashboardData.canReadOverview ? 'Áttekintő nézet' : 'Saját áttekintő'}</Button>
+                : <Button disabled={busy} onClick={() => selectDashboardMode('Vehicle')}><CarFront size={16} aria-hidden="true" />Autós nézet</Button>}
+              <Button disabled={busy} onClick={() => { selectDashboardMode('Overview'); setDashboardEditing(true) }}><Pencil size={16} aria-hidden="true" />Elrendezés szerkesztése</Button>
+            </>}
             <Button className="logout-button" onClick={onLogout} disabled={loggingOut || busy || createCompany.isPending}>
               <LogOut size={16} aria-hidden="true" />{loggingOut ? 'Kilépés…' : 'Kijelentkezés'}
             </Button>
@@ -468,6 +506,7 @@ function FleetWorkspace({
           ) : view === 'dashboard' ? (
             restoringSite ? <p className="notice" role="status">Munkaterület betöltése…</p>
               : <DashboardPage key={tenant.id} user={user} tenant={tenant} siteId={currentSiteId} sites={workspaceSites.data ?? []} canUnassigned={canReadUnassigned}
+                dashboard={dashboard} mode={dashboardMode} editing={dashboardEditing} onEditingChange={setDashboardEditing} mileageOpen={mileageOpen} onMileage={openMileage}
                 onFleet={nextStatus => { changeView('fleet'); setSelectedVehicleId(null); setStatus(nextStatus ?? 'all'); setVehicleQuery(current => ({ ...current, page: 1 })) }}
                 onVehicle={id => { changeView('fleet'); setSelectedVehicleId(id) }} />
           ) : view === 'partners' ? (
@@ -475,14 +514,18 @@ function FleetWorkspace({
           ) : formOpen ? (
             <VehicleCreatePage key={tenant.id} user={user} tenant={tenant} initialSiteId={currentSiteId} onBusyChange={setBusy} onBack={() => setFormOpen(false)} onCreated={car => { setFormOpen(false); setSelectedVehicleId(tenant.permissions.includes('vehicles.read') ? car.id : null) }} />
           ) : !tenant.permissions.includes('vehicles.read') ? (
-            <section className="access-panel" aria-label="Járművek"><ListToolbar label="Járművek műveletei" actions={canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>} /><p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p></section>
+            <section className="access-panel" aria-label="Járművek"><ListToolbar label="Járművek műveletei" actions={(openMileage || canCreate) && <>
+              {fleetMileageAction}{canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>}
+            </>} /><p className="notice">Nincs jogosultságod a járműlista megtekintéséhez.</p></section>
           ) : selectedVehicleId ? (
             <VehiclePage key={`${tenant.id}:${selectedVehicleId}`} user={user} tenant={tenant} id={selectedVehicleId} onBack={() => { setSelectedVehicleId(null); if (vehicleLinkFromHash()) changeView('fleet') }} />
           ) : (
             <section className={`fleet-panel${parking ? ' parking-panel' : ''}`} aria-label="Járműlista" aria-busy={vehicles.isFetching}>
-              <ListToolbar label="Járművek keresése és műveletei" actions={<><ViewModeSwitch visual={parking} label="Parkoló" onChange={value => { setParking(value); setVehicleQuery(current => ({ ...current, page: 1 })) }} />{canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>}</>}>
+              <ListToolbar label="Járművek keresése és műveletei" glass={parking} actions={<>
+                {fleetMileageAction}
+                <ViewModeSwitch visual={parking} label="Parkoló" onChange={value => { setParking(value); setVehicleQuery(current => ({ ...current, page: 1 })) }} />{canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>}</>}>
                 <div className="list-toolbar-form">
-                  <div className="search-field"><Search size={18} /><input aria-label="Jármű keresése" placeholder="Rendszám, gyártó vagy modell" maxLength={200} value={search} onChange={event => setSearch(event.target.value)} /></div>
+                  <div className="search-field"><Search size={18} /><input aria-label="Jármű keresése" placeholder={parking ? 'Keresés' : 'Rendszám, gyártó vagy modell'} maxLength={200} value={search} onChange={event => setSearch(event.target.value)} /></div>
                   <Select aria-label="Szűrés állapot szerint" className="status-filter" value={status} onChange={event => { setStatus(event.target.value); setVehicleQuery(current => ({ ...current, page: 1 })) }}><option value="all">Minden állapot</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
                 </div>
               </ListToolbar>
@@ -504,7 +547,7 @@ function FleetWorkspace({
                   </div> : <FleetTable vehicles={visibleVehicles} tenant={tenant!} onOpen={setSelectedVehicleId}
                   message={vehicles.isPending ? 'Járművek betöltése…' : availableTotal ? undefined : 'Még nincs jármű. Az Új jármű gombbal veheted fel az elsőt.'} />
               )}
-              <div className="table-footer fleet-pagination">
+              <div className={`table-footer fleet-pagination${parking ? ' glass-surface' : ''}`}>
                 <span aria-live="polite">{vehicles.isPending ? 'Betöltés…' : vehicles.isError ? 'A találatszám nem elérhető' : `${vehicleTotal}${vehicleTotal !== availableTotal ? ` / ${availableTotal}` : ''} jármű`}</span>
                 <div className="fleet-page-controls" role="group" aria-label="Járműlista lapozása">
                   {!parking && <Select aria-label="Járművek száma oldalanként" value={String(pageSize)} onChange={event => { setPageSize(Number(event.target.value)); setVehicleQuery(current => ({ ...current, page: 1 })) }}>
@@ -519,6 +562,9 @@ function FleetWorkspace({
           )}
         </div>
       </main>
+      {tenant && mileageOpen && canRecordMileage && <AccessDialog title="Havi km-elszámolás" pending={mileagePending} onClose={() => setMileageOpen(false)} className="mileage-dialog">
+        <Suspense fallback={<p role="status">Elszámolás betöltése…</p>}><MileagePanel tenant={tenant} user={user} initialMonth={dashboardData?.mileageDueMonth ?? undefined} /></Suspense>
+      </AccessDialog>}
       {companyOpen && (
         <CompanyDialog
           onClose={() => setCompanyOpen(false)}

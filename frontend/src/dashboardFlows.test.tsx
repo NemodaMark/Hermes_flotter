@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { DashboardPage } from './DashboardPage'
-import { dashboardApi } from './dashboardApi'
+import { dashboardApi, useDashboard } from './dashboardApi'
 import type { Dashboard, DashboardCar } from './dashboardApi'
 import { api } from './api'
 import { PermissionGroups } from './PermissionGroups'
@@ -32,7 +32,23 @@ function mount(data:Partial<Dashboard>={},siteId='all') {
   })
   const client=new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}})
   const onFleet=vi.fn(),onVehicle=vi.fn()
-  const { unmount } = render(<QueryClientProvider client={client}><DashboardPage user={user} tenant={tenant} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle}/></QueryClientProvider>)
+  function Fixture() {
+    const dashboard = useDashboard(user.id, tenant.id)
+    const [override, setOverride] = useState<Dashboard['mode']>()
+    const [editing, setEditing] = useState(false)
+    const canReadOverview = dashboard.data?.canReadOverview
+    const mode = override ?? (canReadOverview ? dashboard.data!.mode : 'Vehicle')
+    return <>
+      {dashboard.data && <div role="group" aria-label="Kezdőlap vezérlése">
+        <button aria-pressed={mode === 'Overview'} onClick={() => setOverride('Overview')}>{canReadOverview ? 'Áttekintő' : 'Saját áttekintő'}</button>
+        <button aria-pressed={mode === 'Vehicle'} onClick={() => setOverride('Vehicle')}>Autós</button>
+        {!editing && <button onClick={() => { setOverride('Overview'); setEditing(true) }}>Elrendezés szerkesztése</button>}
+      </div>}
+      <DashboardPage user={user} tenant={tenant} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle}
+        dashboard={dashboard} mode={mode} editing={editing} onEditingChange={setEditing} mileageOpen={false} />
+    </>
+  }
+  const { unmount } = render(<QueryClientProvider client={client}><Fixture /></QueryClientProvider>)
   return {onFleet,onVehicle,loadOverview,unmount}
 }
 it('summarizes only the selected site and opens a due vehicle through its authorized ID',async()=>{
@@ -96,6 +112,7 @@ it('opens an existing custom layout in overview and restores the fleet default a
     expect(screen.queryByRole('button', { name: 'Egyéni' })).not.toBeInTheDocument()
     expect(loadOverview).not.toHaveBeenCalled()
 
+    await operator.click(screen.getByRole('button', { name: 'Elrendezés szerkesztése' }))
     const restore = screen.getByRole('button', { name: 'Alapelrendezés visszaállítása' })
     await operator.click(restore)
     await operator.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mégse' }))
@@ -216,15 +233,16 @@ it('keeps status shortcuts connected to the corresponding fleet filter', async (
   expect(onFleet).toHaveBeenLastCalledWith('Active')
   await userEvent.click(screen.getByRole('button', { name: 'Szervizben megnyitása' }))
   expect(onFleet).toHaveBeenLastCalledWith('Maintenance')
-  await userEvent.click(screen.getByRole('button', { name: 'Járműlista megnyitása' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Jármű a flottában megnyitása' }))
   expect(onFleet).toHaveBeenLastCalledWith()
 })
-it('offers one empty state and fleet navigation when the selected site has no vehicles', async () => {
+it('offers one empty state without a duplicate fleet shortcut when the selected site has no vehicles', async () => {
   const { onFleet } = mount({}, 'empty-site')
   expect(await screen.findByText('Ezen a munkaterületen még nincs jármű.')).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: /Határidők/ })).not.toBeInTheDocument()
   expect(screen.queryByText(/Járművek telephelyenként/)).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Járműlista megnyitása' }))
+  expect(screen.queryByRole('button', { name: 'Járműlista megnyitása' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Jármű a flottában megnyitása' }))
   expect(onFleet).toHaveBeenCalledOnce()
 })
 it('chooses an assigned active vehicle and keeps unauthorized menus hidden even with company-wide aggregate rights',async()=>{
@@ -331,3 +349,4 @@ it('never offers an ordinary driver a car switcher or substitutes someone else�
   expect(screen.queryByRole('combobox', { name: 'Jármű kiválasztása' })).not.toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'AAA-001' })).not.toBeInTheDocument()
 })
+import { useState } from 'react'

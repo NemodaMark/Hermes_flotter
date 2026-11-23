@@ -443,7 +443,7 @@ it('keeps a pending invitation through login and selects its company only after 
   await screen.findByRole('heading', { name: 'Céges meghívó' })
   expect(state.accepted).toBe(false)
   await userEvent.click(screen.getByRole('button', { name: 'Meghívó elfogadása' }))
-  expect(await screen.findByRole('button', { name: 'Munkaterület váltása: Duna / Összes telephely' })).toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: 'Munkaterület váltása: Összes telephely, Duna' })).toBeInTheDocument()
   expect(window.location.hash).toBe('')
   expect(calls.find((call) => call.path === '/api/v1/invitations/accept')).toMatchObject({
     tenant: null,

@@ -1,7 +1,6 @@
 import { useId, useState } from 'react'
-import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, Pencil, Plus, RotateCcw, StickyNote } from 'lucide-react'
+import { ArrowRight, Plus, RotateCcw, StickyNote } from 'lucide-react'
 import { api, vehicleKey } from './api'
 import type { Session, Tenant } from './api'
 import { dashboardApi } from './dashboardApi'
@@ -29,14 +28,14 @@ type DashboardProps = Scope & {
   dueMonth?: string | null
 }
 
-export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props }: DashboardProps & {
-  viewSwitch: ReactNode; quickActions: ReactNode; onFleet: (status?: string) => void
+export function DashboardOverview({ editing, onEditingChange, onFleet, ...props }: DashboardProps & {
+  editing: boolean; onEditingChange: (editing: boolean) => void; onFleet: (status?: string) => void
 }) {
   const { user, tenant, siteId, canOverview, canVehicles, canReadMileage, onVehicle, onMileage } = props
   const key = personalKey(user.id, 'dashboard-layout-v1', tenant.id)
   const paletteId = useId()
   const [saved, setSaved] = useState(() => readDashboardLayout(key))
-  const [draft, setDraft] = useState<DashboardTile[] | null>(null)
+  const [edits, setDraft] = useState<DashboardTile[] | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
   const [adding, setAdding] = useState(false)
   const [config, setConfig] = useState<DashboardTile | null>(null)
@@ -53,6 +52,7 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
 
   const defaults: ModuleKind[] = canOverview ? (Object.keys(overviewModules) as OverviewModule[]) : canVehicles ? ['vehicles'] : []
   const layout = saved ?? defaults.map(kind => makeTile(kind, kind))
+  const draft = editing ? edits ?? layout : null
   const visible = (draft ?? layout).filter(tile => allowed(tile.kind))
   const showDefaultOverview = !draft && saved === undefined && canOverview
   const catalogue = (Object.keys(dashboardModules) as ModuleKind[]).filter(kind => kind !== 'mileage' && allowed(kind))
@@ -78,6 +78,7 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
 
   function stopEditing() {
     setDraft(null)
+    onEditingChange(false)
     setAdding(false)
     setError('')
   }
@@ -100,34 +101,28 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
       return
     }
     setSaved(undefined)
-    setError('')
+    stopEditing()
     setAnnouncement('Az alapelrendezés visszaállítva.')
   }
 
   return <div className="dashboard-overview">
-    <div className="dashboard-heading">
-      {viewSwitch}
+    {draft && <div className="dashboard-heading">
       <div className="dashboard-heading-actions">
-        {draft ? <>
-          <Button variant="outline" aria-expanded={adding} aria-controls={adding ? paletteId : undefined}
-            onClick={() => setAdding(open => !open)}><Plus size={17} aria-hidden="true" />Modul hozzáadása</Button>
-          <Button variant="ghost" onClick={stopEditing}>Mégse</Button>
-          <Button variant="default" onClick={save}>Elrendezés mentése</Button>
-        </> : <>
-          {quickActions}
-          <Button variant="outline" aria-label="Elrendezés szerkesztése" onClick={() => setDraft(layout)}><Pencil size={16} aria-hidden="true" />Szerkesztés</Button>
-          {saved !== undefined && <Button variant="outline" aria-label="Alapelrendezés visszaállítása" onClick={() => setConfirmReset(true)}>
-            <RotateCcw size={16} aria-hidden="true" />Alap visszaállítása
-          </Button>}
-        </>}
+        <Button variant="secondary" aria-expanded={adding} aria-controls={adding ? paletteId : undefined}
+          onClick={() => setAdding(open => !open)}><Plus size={17} aria-hidden="true" />Modul hozzáadása</Button>
+        {saved !== undefined && <Button variant="ghost" aria-label="Alapelrendezés visszaállítása" onClick={() => setConfirmReset(true)}>
+          <RotateCcw size={16} aria-hidden="true" />Alap visszaállítása
+        </Button>}
+        <Button variant="ghost" onClick={stopEditing}>Mégse</Button>
+        <Button variant="default" onClick={save}>Elrendezés mentése</Button>
       </div>
-    </div>
+    </div>}
     <span className="sr-only" role="status">{announcement}</span>
     {error && <p className="notice error" role="alert">{error}</p>}
     {showDefaultOverview ? <FleetDashboardOverview userId={user.id} tenantId={tenant.id} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle} />
       : !draft && visible.length === 0 ? <div className="access-panel dashboard-empty">
         <p>Még nincsenek modulok az áttekintődben.</p>
-        <Button variant="outline" onClick={() => { setDraft(layout); setAdding(true) }}><Plus size={17} />Első modul hozzáadása</Button>
+        <Button variant="secondary" onClick={() => { onEditingChange(true); setAdding(true) }}><Plus size={17} />Első modul hozzáadása</Button>
       </div>
       : <DashboardGrid tiles={visible} paletteId={paletteId} editor={draft ? {
         catalogue: adding ? catalogue : null,

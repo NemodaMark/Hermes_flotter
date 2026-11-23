@@ -4,7 +4,7 @@
 .chart-people { max-width: 100%; }
 .chart-people-trigger {
   display: flex; gap: var(--space-2); align-items: center; width: fit-content; min-height: 36px;
-  padding: var(--space-1) var(--space-2); border: 1px solid var(--control-border); border-radius: var(--radius-control);
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--action-secondary);
   cursor: pointer; color: var(--ink); font-size: 13px; font-weight: 500;
 }
 .chart-people-trigger::after { content: '⌄'; font-size: 15px; color: var(--muted); }
