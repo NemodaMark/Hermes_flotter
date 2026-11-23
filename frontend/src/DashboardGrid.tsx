@@ -143,7 +143,7 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
         const drop = target && target !== 'end' && target.id === tile.id ? (target.after ? 'after' : 'before') : undefined
         const style = { '--tile-columns': size.columns, '--tile-height': size.height === null ? undefined : `${size.height}px` } as CSSProperties
         return <article key={tile.id} className="custom-dashboard-tile" data-dashboard-tile={tile.id}
-          style={style} data-drop={drop} aria-label={title}>
+          style={style} data-editing={editor ? '' : undefined} data-drop={drop} aria-label={title}>
           {editor && <div className="custom-tile-controls">
             <Button type="button" className="icon-button custom-tile-grip" aria-label={`${title} mozgatása húzással`} tabIndex={-1}
               {...pointerHandlers} onPointerDown={event => begin(event, { source: { id: tile.id }, label: title })} title="Mozgatás húzással"><Grip size={18} /></Button>

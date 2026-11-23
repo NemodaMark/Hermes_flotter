@@ -4,6 +4,10 @@
   grid-column: span var(--tile-columns); display: flex; flex-direction: column; position: relative;
   min-width: 0; container-type: inline-size;
 }
+.custom-dashboard-tile[data-editing] {
+  --tile-resize-size: 32px;
+  border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--surface);
+}
 .custom-dashboard-tile[data-drop] { outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-panel); }
 .custom-dashboard-tile[data-drop]::before {
   content: ''; position: absolute; pointer-events: none; inset-block: 0; width: 3px;
@@ -30,17 +34,27 @@
 .custom-tile-body[data-sized=true] > .fleet-mileage { display: flex; flex-direction: column; }
 .custom-tile-body[data-sized=true] .fleet-mileage-chart { flex: 1; }
 .custom-tile-body[data-sized=true] .fleet-mileage-chart li { grid-template-rows: auto minmax(42px, 1fr) 24px; }
-.custom-tile-controls {
-  display: flex; align-items: center; gap: 2px; min-width: 0; margin-bottom: var(--space-2);
-  padding: 2px; border-radius: var(--radius-control); background: var(--surface-subtle);
+.custom-dashboard-tile[data-editing] .custom-tile-body {
+  margin-inline-end: var(--tile-resize-size); border-radius: 0; border-end-start-radius: var(--radius-panel); outline-offset: -3px;
 }
-.custom-tile-controls .icon-button { width: 34px; height: 40px; flex-shrink: 0; }
+.custom-dashboard-tile[data-editing] .custom-tile-body > :is(.access-panel, .fleet-metrics) {
+  border: 0; border-radius: 0; border-end-start-radius: inherit;
+}
+.custom-dashboard-tile[data-editing] .custom-tile-filter-summary { margin: var(--space-2) var(--space-4) 0; }
+.custom-tile-controls {
+  display: flex; align-items: center; gap: 2px; min-width: 0; padding-inline: var(--space-1);
+  border-block-end: 1px solid var(--line); border-start-start-radius: inherit; border-start-end-radius: inherit;
+  background: var(--surface-subtle);
+}
+.custom-tile-controls .icon-button { width: 32px; height: 36px; flex-shrink: 0; }
+.custom-tile-controls .icon-button:focus-visible, .custom-tile-resize.icon-button:focus-visible { outline-offset: -4px; }
 .custom-tile-grip, .custom-module-choice { touch-action: none; cursor: grab; user-select: none; }
 .custom-tile-grip:active { cursor: grabbing; }
 .custom-tile-edit-label { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .custom-tile-resize.icon-button {
-  align-self: end; width: 40px; height: 36px; margin-top: var(--space-1);
-  cursor: nwse-resize; touch-action: none; background: var(--surface-subtle);
+  position: absolute; inset-inline-end: 0; inset-block-end: 0;
+  width: var(--tile-resize-size); height: var(--tile-resize-size);
+  border-end-end-radius: inherit; cursor: nwse-resize; touch-action: none;
 }
 .custom-tile-resize svg { transform: scaleX(-1); }
 .custom-tile-filter-summary { margin: 0 0 var(--space-2); color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
@@ -87,8 +101,8 @@
   .custom-tile-resize.icon-button { cursor: ns-resize; }
 }
 @media (max-width: 760px) {
+  .custom-dashboard-tile[data-editing] { --tile-resize-size: 44px; }
   .custom-tile-controls .icon-button { width: 42px; min-height: 44px; }
-  .custom-tile-resize.icon-button { width: 44px; height: 44px; }
   .custom-module-palette { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .custom-module-palette .custom-module-choice { padding-inline: var(--space-2); }
 }
