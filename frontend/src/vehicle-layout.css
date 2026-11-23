@@ -32,7 +32,9 @@
   .vehicle-detail-picker select { border-color: var(--control-border); }
 }
 @media (max-width: 700px) {
-  .vehicle-detail-panel .vehicle-detail-header { padding: 16px; }
+  .vehicle-detail-panel .vehicle-detail-header { padding: 16px; grid-template-columns: minmax(0, 1fr); }
+  .vehicle-detail-header > .member-actions { grid-column: 1; grid-row: auto; min-width: 0; }
+  .vehicle-detail-header .vehicle-recording-actions { min-width: 0; }
   .vehicle-detail-panel .vehicle-current-user { padding: 12px 16px; }
   .vehicle-detail-navigation { padding: 12px 16px; }
   .org-form.vehicle-data-form { padding: 16px; }

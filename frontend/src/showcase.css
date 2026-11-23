@@ -1,16 +1,34 @@
 .view-mode-switch { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: var(--radius-control); }
 .view-mode-switch .sera-button { border: 0; background: transparent; color: var(--muted); min-height: 34px; gap: 6px; padding: 6px 10px; }
 .view-mode-switch .sera-button[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary); box-shadow: inset 0 -2px var(--primary); }
-.fleet-parking-stage { height: clamp(300px, 52dvh, 620px); position: relative; background: #343e39; overflow: hidden; }
-.fleet-parking-stage canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; }
-.parking-daytime, .parking-state { position: absolute; top: 16px; left: 20px; color: #faf8ee; background: #202822d9; border-radius: var(--radius-control); padding: 7px 11px; font-size: 13px; }
-.parking-state { top: auto; bottom: 12px; margin: 0; }
-.parking-vehicles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-.parking-vehicles .parking-vehicle { display: grid; align-content: start; justify-items: start; gap: 7px; text-align: left; background: var(--surface); border: 0; border-radius: 0; border-inline-end: 1px solid var(--line); padding: 18px 20px; white-space: normal; }
-.parking-vehicles .parking-vehicle:hover { background: var(--primary-soft); }
-.parking-vehicle strong { font-size: 20px; }
-.parking-vehicle > span:not(.sera-badge), .parking-vehicle small { color: var(--muted); font-size: 13px; }
-.parking-credit { display: block; padding: 8px 20px; color: var(--muted); text-align: right; font-size: 11px; }
+.app-shell .fleet-panel.parking-panel { position: relative; display: flex; flex: 1; flex-direction: column; min-height: min(540px, calc(100dvh - 55px)); border: 0; border-radius: 0; box-shadow: none; background: var(--surface-subtle); }
+.parking-panel .fleet-parking { position: absolute; inset: 0; }
+.fleet-parking-stage { position: absolute; inset: 0; background: #343e39; overflow: hidden; }
+.fleet-parking-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, #161d2126, transparent 35%, transparent 65%, #161d2173); }
+.fleet-parking-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.fleet-parking-stage canvas:active { cursor: grabbing; }
+.app-shell .parking-panel > .list-toolbar { position: relative; z-index: 2; margin: 18px 24px 0; padding: 10px 12px; gap: 12px; border: 1px solid var(--line); border-radius: var(--radius-panel); background: color-mix(in srgb, var(--surface) 95%, transparent); }
+.parking-panel > .list-toolbar .list-toolbar-main { flex-basis: 400px; }
+.app-shell .parking-panel > .table-footer { position: relative; z-index: 2; margin-top: auto; border-radius: 0; background: var(--surface); padding: 10px 24px; }
+.app-shell .parking-panel .fleet-page-controls { display: flex; width: auto; flex-wrap: nowrap; }
+.parking-page-icon { display: none; }
+.parking-panel > .notice { position: relative; margin-top: auto; margin-bottom: auto; }
+.parking-panel .parking-empty { position: relative; align-self: center; margin-block: auto; padding: 24px; gap: 12px; }
+.parking-empty h2 { font-size: 20px; margin: 0; color: var(--ink); }
+.parking-scene-controls { position: absolute; top: 100px; inset-inline: 24px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
+.parking-scene-controls > * { pointer-events: auto; }
+.parking-daytime, .parking-state { color: #faf8ee; background: #202822e8; border-radius: var(--radius-control); padding: 7px 11px; font-size: 13px; }
+.parking-state { position: absolute; top: 44%; left: 50%; transform: translateX(-50%); margin: 0; max-width: calc(100% - 40px); text-align: center; }
+.parking-scene-controls .sera-button { color: var(--ink); background: var(--surface); border-color: var(--line); }
+.parking-vehicles { position: absolute; bottom: 90px; inset-inline: 24px; display: grid; max-width: 1320px; margin-inline: auto; border: 1px solid var(--line); border-radius: var(--radius-panel); background: color-mix(in srgb, var(--surface) 96%, transparent); overflow: hidden; }
+.parking-vehicles .parking-vehicle { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; align-items: center; justify-items: start; gap: 3px 8px; min-width: 0; text-align: left; background: transparent; border: 0; border-radius: 0; border-inline-end: 1px solid var(--line); padding: 12px 18px; white-space: normal; }
+.parking-vehicles .parking-vehicle:last-child { border-inline-end: 0; }
+.parking-vehicles .parking-vehicle:is(:hover, :focus-visible) { background: var(--primary-soft); }
+.parking-vehicles .parking-vehicle:focus-visible { outline-offset: -3px; }
+.parking-vehicle strong { font-size: 19px; }
+.parking-vehicle .sera-badge { grid-column: 2; grid-row: 1; }
+.parking-vehicle > span:not(.sera-badge), .parking-vehicle small { grid-column: 1 / -1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 13px; }
+.parking-credit { position: absolute; bottom: 62px; inset-inline-end: 24px; color: #faf8ee; text-shadow: 0 1px 3px #111; text-align: right; font-size: 11px; }
 .showcase-grid { padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
 .showcase-item { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--surface); }
 .showcase-item:hover { border-color: var(--control-border); }
@@ -26,5 +44,48 @@
 .site-silhouette { position: absolute; inset: 0; background: linear-gradient(180deg, transparent, var(--primary-soft)); }
 .site-silhouette::before { content: ''; position: absolute; width: 75%; height: 65%; right: -8%; bottom: -4%; background: var(--primary); opacity: .15; transform: skewY(-12deg); box-shadow: -50px -10px 0 var(--primary-soft); }
 .showcase-cover > span { position: relative; color: var(--primary); font-size: 22px; font-weight: 600; }
-@media (max-width: 600px) { .showcase-grid { padding: 12px; grid-template-columns: minmax(0, 1fr); } .parking-vehicles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .parking-vehicles .parking-vehicle { padding: 14px; } }
+@media (max-width: 1000px) {
+  .app-shell .parking-panel > .list-toolbar { margin: 12px 16px 0; }
+  .parking-panel .list-toolbar-actions { flex-wrap: nowrap; }
+  .parking-scene-controls { inset-inline: 16px; top: 92px; }
+  .parking-vehicles { inset-inline: 16px; }
+}
+@media (max-width: 600px) {
+  .showcase-grid { padding: 12px; grid-template-columns: minmax(0, 1fr); }
+  .app-shell .parking-panel > .list-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin: 10px 12px 0; padding: 10px; }
+  .parking-panel > .list-toolbar .search-field { grid-column: 1 / -1; width: 100%; }
+  .parking-panel > .list-toolbar .status-filter { width: 100%; }
+  .parking-panel > .list-toolbar .list-toolbar-actions { margin: 0; gap: 6px; }
+  .parking-panel > .list-toolbar .primary-button { width: auto; }
+  .parking-panel .view-mode-switch .sera-button { padding-inline: 8px; }
+  .parking-panel .list-toolbar-actions .primary-button { font-size: 0; padding-inline: 10px; }
+  .parking-panel .list-toolbar-actions .primary-button svg { width: 20px; }
+  .parking-scene-controls { top: 145px; inset-inline: 12px; }
+  .parking-scene-controls .sera-button { min-height: 36px; }
+  .parking-vehicles { bottom: 94px; inset-inline: 12px; }
+  .parking-vehicles .parking-vehicle { padding: 10px 14px; }
+  .parking-credit { bottom: 71px; inset-inline-end: 12px; }
+  .app-shell .parking-panel > .table-footer { padding: 8px 12px; gap: 4px 8px; }
+  .parking-panel .fleet-page-controls { gap: 6px; }
+  .parking-panel .fleet-page-controls .sera-button { font-size: 12px; padding-inline: 8px; }
+  .parking-panel .parking-page-label { display: none; }
+  .parking-panel .parking-page-icon { display: block; }
+  .parking-panel .fleet-page-controls .sera-button { min-width: 44px; }
+}
+@media (max-height: 540px) and (min-width: 601px) {
+  .app-shell .fleet-panel.parking-panel { min-height: 0; }
+  .parking-vehicles { bottom: 80px; }
+  .parking-vehicles .parking-vehicle { padding: 7px 14px; }
+  .parking-vehicle small { display: none; }
+  .parking-vehicle strong { font-size: 16px; }
+  .parking-scene-controls { top: 90px; }
+}
+@media (max-width: 380px) {
+  .parking-panel .view-mode-switch .sera-button { width: 44px; font-size: 0; gap: 0; }
+}
+@media (max-width: 600px) and (max-height: 650px) {
+  .parking-vehicle small { display: none; }
+  .parking-vehicles .parking-vehicle { padding-block: 8px; }
+  .parking-vehicle strong { font-size: 17px; }
+}
 .site-view-toolbar { display: flex; justify-content: flex-end; padding: 12px 20px; border-bottom: 1px solid var(--line); }

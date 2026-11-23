@@ -7,6 +7,8 @@ import {
   Building2,
   CarFront,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleHelp,
   LoaderCircle,
   LogOut,
@@ -59,6 +61,10 @@ const statuses: Record<string, string> = {
   Maintenance: 'Szervizben',
   Inactive: 'Inaktív',
   Archived: 'Archivált',
+}
+
+function parkingCapacity() {
+  return window.innerWidth <= 600 ? 1 : window.innerWidth <= 1000 || navigator.hardwareConcurrency <= 4 ? 2 : 4
 }
 
 type WorkspaceView = 'dashboard' | 'fleet' | 'organization' | 'members' | 'system' | 'partners' | 'profile' | 'invitations' | 'groups'
@@ -208,14 +214,13 @@ function FleetWorkspace({
   const [vehicleQuery, setVehicleQuery] = useState({ search: '', page: 1 })
   const [pageSize, setPageSize] = useState(25)
   const [parking, setParking] = useState(false)
-  const [smallParking, setSmallParking] = useState(() => window.matchMedia('(max-width: 700px)').matches)
+  const [parkingPageSize, setParkingPageSize] = useState(parkingCapacity)
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 700px)')
-    const update = () => setSmallParking(media.matches)
-    media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
+    const update = () => setParkingPageSize(parkingCapacity())
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
   }, [])
-  const effectivePageSize = parking ? (smallParking || navigator.hardwareConcurrency <= 4 ? 2 : 4) : pageSize
+  const effectivePageSize = parking ? parkingPageSize : pageSize
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const committed = search.trim()
@@ -475,7 +480,7 @@ function FleetWorkspace({
           ) : selectedVehicleId ? (
             <VehiclePage key={`${tenant.id}:${selectedVehicleId}`} user={user} tenant={tenant} id={selectedVehicleId} onBack={() => { setSelectedVehicleId(null); if (vehicleLinkFromHash()) changeView('fleet') }} />
           ) : (
-            <section className="fleet-panel" aria-label="Járműlista" aria-busy={vehicles.isFetching}>
+            <section className={`fleet-panel${parking ? ' parking-panel' : ''}`} aria-label="Járműlista" aria-busy={vehicles.isFetching}>
               <ListToolbar label="Járművek keresése és műveletei" actions={<><ViewModeSwitch visual={parking} label="Parkoló" onChange={value => { setParking(value); setVehicleQuery(current => ({ ...current, page: 1 })) }} />{canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>}</>}>
                 <div className="list-toolbar-form">
                   <div className="search-field"><Search size={18} /><input aria-label="Jármű keresése" placeholder="Rendszám, gyártó vagy modell" maxLength={200} value={search} onChange={event => setSearch(event.target.value)} /></div>
@@ -494,7 +499,10 @@ function FleetWorkspace({
                   </Button>
                 </div>
               ) : (
-                parking && visibleVehicles.length ? <Suspense fallback={<p className="notice" role="status">Parkoló betöltése…</p>}><FleetParking vehicles={visibleVehicles} onOpen={setSelectedVehicleId} /></Suspense> : <FleetTable vehicles={visibleVehicles} tenant={tenant!} onOpen={setSelectedVehicleId}
+                parking ? visibleVehicles.length ? <Suspense fallback={<p className="notice" role="status">Parkoló betöltése…</p>}><FleetParking vehicles={visibleVehicles} onOpen={setSelectedVehicleId} /></Suspense> :
+                  <div className="empty-state parking-empty" role="status"><CarFront size={28} /><h2>{vehicles.isPending ? 'Járművek betöltése…' : availableTotal ? 'Nincs találat' : 'Még nincs jármű'}</h2>
+                    {!vehicles.isPending && (search || status !== 'all') && <Button variant="outline" onClick={() => { setSearch(''); setStatus('all'); setVehicleQuery({ search: '', page: 1 }) }}>Szűrők törlése</Button>}
+                  </div> : <FleetTable vehicles={visibleVehicles} tenant={tenant!} onOpen={setSelectedVehicleId}
                   message={vehicles.isPending ? 'Járművek betöltése…' : availableTotal ? undefined : 'Még nincs jármű. Az Új jármű gombbal veheted fel az elsőt.'} />
               )}
               <div className="table-footer fleet-pagination">
@@ -504,8 +512,8 @@ function FleetWorkspace({
                     {[25, 50, 100].map(size => <option key={size} value={size}>{size} / oldal</option>)}
                   </Select>}
                   <span aria-live="polite">{vehicles.data ? `${vehiclePage} / ${vehiclePages}. oldal` : '—'}</span>
-                  <Button className="secondary-button" disabled={vehicles.isFetching || vehicles.isError || vehiclePage <= 1} onClick={() => setVehicleQuery(current => ({ ...current, page: vehiclePage - 1 }))}>Előző oldal</Button>
-                  <Button className="secondary-button" disabled={vehicles.isFetching || vehicles.isError || vehiclePage >= vehiclePages} onClick={() => setVehicleQuery(current => ({ ...current, page: vehiclePage + 1 }))}>Következő oldal</Button>
+                  <Button className="secondary-button" aria-label="Előző oldal" disabled={vehicles.isFetching || vehicles.isError || vehiclePage <= 1} onClick={() => setVehicleQuery(current => ({ ...current, page: vehiclePage - 1 }))}>{parking && <ChevronLeft className="parking-page-icon" size={18} aria-hidden="true" />}<span className={parking ? 'parking-page-label' : undefined}>Előző oldal</span></Button>
+                  <Button className="secondary-button" aria-label="Következő oldal" disabled={vehicles.isFetching || vehicles.isError || vehiclePage >= vehiclePages} onClick={() => setVehicleQuery(current => ({ ...current, page: vehiclePage + 1 }))}><span className={parking ? 'parking-page-label' : undefined}>Következő oldal</span>{parking && <ChevronRight className="parking-page-icon" size={18} aria-hidden="true" />}</Button>
                 </div>
               </div>
             </section>

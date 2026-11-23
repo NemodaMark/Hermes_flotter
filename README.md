@@ -16,7 +16,7 @@ Több céget kiszolgáló flottakezelő SaaS: React + TypeScript frontend, ASP.N
 
 [Tankolás, magánkilométer és személyes havi km-elszámolás](docs/MILEAGE_AND_FUEL.md) – gyorsrögzítés, havi teljes km-keret, indokolt javítás és teletankok közötti fogyasztás (2026. 11. 20.).
 
-[Saját autós garázs, parkolónézet, portrék és telephelyek](docs/GARAGE_AND_VISUAL_VIEWS.md) – megjelenítés, jogosultságok és teljesítménykorlátok (2026. 11. 20.).
+[Saját autós garázs, parkolónézet, portrék és telephelyek](docs/GARAGE_AND_VISUAL_VIEWS.md) – megjelenítés, jogosultságok és teljesítménykorlátok; teljes képernyős, 45°-os flottaparkoló (2026. 11. 23.).
 
 ## Elkészült funkciók
 
