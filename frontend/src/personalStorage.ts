@@ -20,4 +20,13 @@ export function writePersonal(key: string, value: unknown) {
   }
 }
 
+export function removePersonal(key: string) {
+  try {
+    localStorage.removeItem(key)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export const isText = (value: unknown): value is string => typeof value === 'string'

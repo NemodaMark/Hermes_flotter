@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useIsMutating, useQuery } from '@tanstack/react-query'
-import { ArrowRight, CalendarClock, CalendarDays, Camera, CarFront, Ellipsis, FileText, Fuel, Gauge, Handshake, LayoutDashboard, MapPin, PanelsTopLeft, Wrench } from 'lucide-react'
+import { ArrowRight, CalendarClock, CalendarDays, Camera, CarFront, Ellipsis, FileText, Fuel, Gauge, Handshake, LayoutDashboard, MapPin, Wrench } from 'lucide-react'
 import { dashboardApi } from './dashboardApi'
 import type { DashboardCar } from './dashboardApi'
 import { dashboardDeadlines, deadlineState } from './dashboardDeadlines'
@@ -18,12 +18,11 @@ import { vehicleTaskNames } from './vehicleDetailModel'
 import { VehicleRecordingActions } from './VehicleActions'
 import type { VehicleRecordingMode } from './VehicleActions'
 import { VehicleGarage } from './VehicleGarage'
-import { FleetDashboardOverview } from './FleetDashboardOverview'
 import { AccessDialog } from './AccessDialog'
 import { useVehicleAccent } from './useVehicleAccent'
 import './dashboard.css'
 import './garage-hud.css'
-const CustomDashboard = lazy(() => import('./CustomDashboard').then(module => ({ default: module.CustomDashboard })))
+const DashboardOverview = lazy(() => import('./DashboardOverview').then(module => ({ default: module.DashboardOverview })))
 const MileagePanel = lazy(() => import('./MileagePanel').then(module => ({ default: module.MileagePanel })))
 
 export function DashboardPage({ user, tenant, siteId, sites = [], canUnassigned = true, onFleet, onVehicle }: {
@@ -32,41 +31,41 @@ export function DashboardPage({ user, tenant, siteId, sites = [], canUnassigned 
 }) {
   const dashboard = useQuery({ queryKey: ['dashboard', user.id, tenant.id],
     queryFn: ({ signal }) => dashboardApi.read(tenant.id, signal), retry: false, refetchInterval: 30000 })
-  const [override, setOverride] = useState<'Overview' | 'Vehicle' | 'Custom' | null>(null)
+  const [override, setOverride] = useState<'Overview' | 'Vehicle' | null>(null)
   const [mileage, setMileage] = useState(false)
   const mileagePending = useIsMutating({ mutationKey: ['mileage', tenant.id] }) > 0
   const data = dashboard.error ? null : dashboard.data
   const cars = (data?.vehicles ?? []).filter(car => data?.canReadOverview || car.isAssignedToMe).filter(({ vehicle }) =>
     siteId === 'all' || (siteId === 'none' ? !vehicle.siteId : vehicle.siteId === siteId))
-  const mode = override === 'Custom' ? 'Custom' : data?.canReadOverview ? override ?? data.mode : 'Vehicle'
+  const mode = override ?? (data?.canReadOverview ? data.mode : 'Vehicle')
   const viewSwitch = data && <div className="dashboard-view-switch" role="group" aria-label="Kezdőlap nézete">
-    {data.canReadOverview && <Button aria-pressed={mode === 'Overview'} onClick={() => setOverride('Overview')}><LayoutDashboard size={16} aria-hidden="true" />Áttekintő</Button>}
+    <Button aria-pressed={mode === 'Overview'} onClick={() => setOverride('Overview')}><LayoutDashboard size={16} aria-hidden="true" />{data.canReadOverview ? 'Áttekintő' : 'Saját áttekintő'}</Button>
     <Button aria-pressed={mode === 'Vehicle'} onClick={() => setOverride('Vehicle')}><CarFront size={17} aria-hidden="true" />Autós</Button>
-    <Button aria-pressed={mode === 'Custom'} onClick={() => setOverride('Custom')}><PanelsTopLeft size={16} aria-hidden="true" />Egyéni</Button>
   </div>
   const openMileage = data?.canRecordMileage ? () => setMileage(true) : undefined
+  const mileageAction = openMileage && <Button variant="outline" onClick={openMileage}>
+    <Gauge size={17} aria-hidden="true" />{data?.mileageDueMonth ? `Lezárandó elszámolás: ${data.mileageDueMonth.slice(0, 7)}` : 'Havi km-elszámolás'}
+  </Button>
   const fullStudio = mode === 'Vehicle' && data?.canReadVehicles && cars.some(car => car.vehicle.status !== 'Archived')
   return <section className={fullStudio ? 'dashboard-page dashboard-studio' : 'dashboard-page'} aria-label="Kezdőlap">
     <QueryMessage pending={dashboard.isPending} error={dashboard.error} retry={() => void dashboard.refetch()} />
     {data && <>
-      {mode !== 'Custom' && <h2 className="sr-only">{mode === 'Vehicle' ? 'Járműközpont' : 'Flotta áttekintés'}</h2>}
-      {!fullStudio && viewSwitch && <div className="dashboard-heading">{viewSwitch}
-        <div className="dashboard-heading-actions">
-        {mode !== 'Custom' && openMileage && <Button variant="outline" onClick={openMileage}>
-          <Gauge size={17} aria-hidden="true" />{data.mileageDueMonth ? `Lezárandó elszámolás: ${data.mileageDueMonth.slice(0, 7)}` : 'Havi km-elszámolás'}
-        </Button>}
-        {mode === 'Overview' && <Button variant="outline" aria-label="Járműlista megnyitása" onClick={() => onFleet()}>
-          Járműlista<ArrowRight size={16} aria-hidden="true" />
-        </Button>}
-        </div>
+      <h2 className="sr-only">{mode === 'Vehicle' ? 'Járműközpont' : data.canReadOverview ? 'Flotta áttekintés' : 'Saját áttekintés'}</h2>
+      {mode === 'Vehicle' && !fullStudio && <div className="dashboard-heading">{viewSwitch}
+        <div className="dashboard-heading-actions">{mileageAction}</div>
       </div>}
-      {mode === 'Custom' ? <Suspense fallback={<p role="status">Egyéni nézet betöltése…</p>}>
-        <CustomDashboard user={user} tenant={tenant} siteId={siteId} sites={sites} canUnassigned={canUnassigned}
-          canOverview={data.canReadOverview} canVehicles={data.canReadVehicles} onVehicle={onVehicle} onMileage={openMileage} dueMonth={data.mileageDueMonth} />
+      {mode === 'Overview' ? <Suspense fallback={<p role="status">Áttekintő betöltése…</p>}>
+        <DashboardOverview key={user.id} user={user} tenant={tenant} siteId={siteId} sites={sites} canUnassigned={canUnassigned}
+          canOverview={data.canReadOverview} canVehicles={data.canReadVehicles} onVehicle={onVehicle} onFleet={onFleet}
+          onMileage={openMileage} dueMonth={data.mileageDueMonth} viewSwitch={viewSwitch} quickActions={<>
+            {mileageAction}
+            {data.canReadVehicles && <Button variant="outline" aria-label="Járműlista megnyitása" onClick={() => onFleet()}>
+              Járműlista<ArrowRight size={16} aria-hidden="true" />
+            </Button>}
+          </>} />
       </Suspense> : !data.canReadVehicles ? <p className="notice">Nincs jogosultságod járműadatok megtekintéséhez.</p>
-        : mode === 'Overview' ? <FleetDashboardOverview userId={user.id} tenantId={tenant.id} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle} />
         : <CarDashboard key={siteId} cars={cars} user={user} tenant={tenant} today={data.today} onFleet={onFleet} viewSwitch={viewSwitch} allowVehiclePicker={data.canReadOverview}
-          mileageOpen={mileage} onProfile={onVehicle} onMileage={data.canRecordMileage ? () => setMileage(true) : undefined} dueMonth={data.mileageDueMonth} />}
+          mileageOpen={mileage} onProfile={onVehicle} onMileage={openMileage} dueMonth={data.mileageDueMonth} />}
       {mileage && data.canRecordMileage && <AccessDialog title="Havi km-elszámolás" pending={mileagePending} onClose={() => setMileage(false)} className="mileage-dialog">
         <Suspense fallback={<p role="status">Elszámolás betöltése…</p>}><MileagePanel tenant={tenant} user={user} initialMonth={data.mileageDueMonth ?? undefined} /></Suspense>
       </AccessDialog>}

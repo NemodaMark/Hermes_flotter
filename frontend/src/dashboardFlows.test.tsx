@@ -10,6 +10,7 @@ import { PermissionGroups } from './PermissionGroups'
 import { chooseOption } from './selectTestUtils'
 import { vehiclePaint } from './vehicleAppearance'
 import { personalKey } from './personalStorage'
+import { makeTile } from './dashboardModules'
 vi.mock('./VehicleTaskPanel',()=>({VehicleTaskPanel:({section}:{section:string})=><div aria-label="Járműfeladat">Megnyitott rész: {section}</div>}))
 afterEach(()=>vi.restoreAllMocks())
 beforeEach(()=>{
@@ -31,8 +32,8 @@ function mount(data:Partial<Dashboard>={},siteId='all') {
   })
   const client=new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}})
   const onFleet=vi.fn(),onVehicle=vi.fn()
-  render(<QueryClientProvider client={client}><DashboardPage user={user} tenant={tenant} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle}/></QueryClientProvider>)
-  return {onFleet,onVehicle,loadOverview}
+  const { unmount } = render(<QueryClientProvider client={client}><DashboardPage user={user} tenant={tenant} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle}/></QueryClientProvider>)
+  return {onFleet,onVehicle,loadOverview,unmount}
 }
 it('summarizes only the selected site and opens a due vehicle through its authorized ID',async()=>{
   vi.setSystemTime(new Date('2026-10-24T09:00:00Z'))
@@ -61,7 +62,7 @@ it('keeps notes across view changes without exposing modules the user cannot rea
   try {
     const { loadOverview } = mount({ canReadOverview: false, canReadVehicles: false, vehicles: [] })
     const operator = userEvent.setup()
-    await operator.click(await screen.findByRole('button', { name: 'Egyéni' }))
+    await operator.click(await screen.findByRole('button', { name: 'Saját áttekintő' }))
     await operator.click(await screen.findByRole('button', { name: 'Első modul hozzáadása' }))
     const choices = within(screen.getByRole('dialog', { name: 'Modul hozzáadása' }))
     expect(choices.queryByRole('button', { name: 'Flotta állapota' })).not.toBeInTheDocument()
@@ -73,11 +74,47 @@ it('keeps notes across view changes without exposing modules the user cannot rea
     await operator.click(settings.getByRole('button', { name: 'Alkalmazás' }))
     await operator.click(screen.getByRole('button', { name: 'Elrendezés mentése' }))
     await operator.click(screen.getByRole('button', { name: 'Autós' }))
-    await operator.click(screen.getByRole('button', { name: 'Egyéni' }))
+    await operator.click(screen.getByRole('button', { name: 'Saját áttekintő' }))
     expect(within(await screen.findByRole('article', { name: 'Holnap' })).getByText('Időpont egyeztetése')).toBeInTheDocument()
     expect(loadOverview).not.toHaveBeenCalled()
   } finally {
     localStorage.removeItem(key)
+  }
+})
+it('opens an existing custom layout in overview and restores the fleet default after confirmation', async () => {
+  const key = personalKey(user.id, 'dashboard-layout-v1', tenant.id)
+  const otherWorkspace = personalKey(user.id, 'dashboard-layout-v1', 'other-company')
+  const layout = JSON.stringify([{ ...makeTile('note', 'existing-note'), title: 'Szerviz', note: 'Időpont egyeztetése' }])
+  localStorage.setItem(key, layout)
+  localStorage.setItem(otherWorkspace, layout)
+  try {
+    const { loadOverview, unmount } = mount()
+    const operator = userEvent.setup()
+    expect(await screen.findByRole('article', { name: 'Szerviz' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Áttekintő' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Egyéni' })).not.toBeInTheDocument()
+    expect(loadOverview).not.toHaveBeenCalled()
+
+    const restore = screen.getByRole('button', { name: 'Alapelrendezés visszaállítása' })
+    await operator.click(restore)
+    await operator.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mégse' }))
+    expect(screen.getByText('Időpont egyeztetése')).toBeInTheDocument()
+    await operator.click(restore)
+    await operator.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Visszaállítás' }))
+    await screen.findByRole('heading', { name: 'Havi futásteljesítmény' })
+    expect(screen.getByRole('group', { name: 'Flotta állapota' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Járművek telephelyenként' })).toBeInTheDocument()
+    expect(screen.queryByText('Időpont egyeztetése')).not.toBeInTheDocument()
+    expect(localStorage.getItem(key)).toBeNull()
+    expect(localStorage.getItem(otherWorkspace)).toBe(layout)
+
+    unmount()
+    mount()
+    await screen.findByRole('heading', { name: 'Havi futásteljesítmény' })
+    expect(screen.queryByRole('button', { name: 'Alapelrendezés visszaállítása' })).not.toBeInTheDocument()
+  } finally {
+    localStorage.removeItem(key)
+    localStorage.removeItem(otherWorkspace)
   }
 })
 it('surfaces service deadlines and lets an authorized driver record a missing odometer reading', async () => {

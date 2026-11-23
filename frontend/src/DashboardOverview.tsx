@@ -1,17 +1,17 @@
 import { useRef, useState } from 'react'
-import type { PointerEvent } from 'react'
+import type { PointerEvent, ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDown, ArrowRight, ArrowUp, Grip, Pencil, Plus, Settings2, StickyNote, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, Grip, Pencil, Plus, RotateCcw, Settings2, StickyNote, Trash2 } from 'lucide-react'
 import { api, vehicleKey } from './api'
 import type { Session, Tenant } from './api'
 import { dashboardApi } from './dashboardApi'
-import { dashboardModules, isDashboardLayout, isOverviewModule, makeTile } from './dashboardModules'
+import { dashboardModules, isDashboardLayout, isOverviewModule, makeTile, overviewModules } from './dashboardModules'
 import type { DashboardTile, ModuleKind, OverviewModule } from './dashboardModules'
-import { OverviewModuleContent } from './FleetDashboardOverview'
+import { FleetDashboardOverview, OverviewModuleContent } from './FleetDashboardOverview'
 import { AccessDialog } from './AccessDialog'
 import { QueryMessage } from './FleetFields'
 import { vehicleStatuses } from './fleetApi'
-import { personalKey, readPersonal, writePersonal } from './personalStorage'
+import { personalKey, readPersonal, removePersonal, writePersonal } from './personalStorage'
 import { Button } from './ui/Button'
 import { Select } from './ui/Select'
 import './custom-dashboard.css'
@@ -25,14 +25,14 @@ type DashboardProps = Scope & {
   dueMonth?: string | null
 }
 
-export function CustomDashboard(props: DashboardProps) {
-  const { user, tenant, canOverview, canVehicles, onMileage } = props
+export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props }: DashboardProps & {
+  viewSwitch: ReactNode; quickActions: ReactNode; onFleet: (status?: string) => void
+}) {
+  const { user, tenant, siteId, canOverview, canVehicles, onVehicle, onMileage } = props
   const key = personalKey(user.id, 'dashboard-layout-v1', tenant.id)
-  const [saved, setSaved] = useState(() => {
-    const defaults: ModuleKind[] = canOverview ? ['metrics', 'mileage', 'ranking', 'service', 'deadlines', 'sites'] : canVehicles ? ['vehicles'] : []
-    return readPersonal(key, isDashboardLayout) ?? defaults.map(kind => makeTile(kind, kind))
-  })
+  const [saved, setSaved] = useState(() => readPersonal(key, isDashboardLayout))
   const [draft, setDraft] = useState<DashboardTile[] | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
   const [adding, setAdding] = useState(false)
   const [config, setConfig] = useState<DashboardTile | null>(null)
   const [error, setError] = useState('')
@@ -47,7 +47,10 @@ export function CustomDashboard(props: DashboardProps) {
     return true
   }
 
-  const visible = (draft ?? saved).filter(tile => allowed(tile.kind))
+  const defaults: ModuleKind[] = canOverview ? (Object.keys(overviewModules) as OverviewModule[]) : canVehicles ? ['vehicles'] : []
+  const layout = saved ?? defaults.map(kind => makeTile(kind, kind))
+  const visible = (draft ?? layout).filter(tile => allowed(tile.kind))
+  const showDefaultOverview = !draft && saved === undefined && canOverview
   const catalogue = (Object.keys(dashboardModules) as ModuleKind[]).filter(allowed)
 
   function move(id: string, targetId: string) {
@@ -71,6 +74,17 @@ export function CustomDashboard(props: DashboardProps) {
     setDraft(null)
     setError('')
     setAnnouncement('Az egyéni nézet mentve.')
+  }
+
+  function reset() {
+    setConfirmReset(false)
+    if (!removePersonal(key)) {
+      setError('A böngésző nem tudta visszaállítani az alapelrendezést.')
+      return
+    }
+    setSaved(undefined)
+    setError('')
+    setAnnouncement('Az alapelrendezés visszaállítva.')
   }
 
   function targetAt(event: PointerEvent) {
@@ -104,24 +118,31 @@ export function CustomDashboard(props: DashboardProps) {
     setDropTarget(null)
   }
 
-  return <section className="custom-dashboard" aria-label="Egyéni dashboard">
-    <div className="custom-dashboard-toolbar">
-      <h2>Egyéni dashboard</h2>
-      <div className="custom-dashboard-actions">
+  return <div className="dashboard-overview">
+    <div className="dashboard-heading">
+      {viewSwitch}
+      <div className="dashboard-heading-actions">
         {draft ? <>
           <Button variant="outline" onClick={() => setAdding(true)}><Plus size={17} />Modul hozzáadása</Button>
           <Button variant="ghost" onClick={() => { setDraft(null); setError('') }}>Mégse</Button>
           <Button variant="default" onClick={save}>Elrendezés mentése</Button>
-        </> : <Button variant="outline" onClick={() => setDraft(saved)}><Pencil size={16} />Szerkesztés</Button>}
+        </> : <>
+          {quickActions}
+          <Button variant="outline" aria-label="Elrendezés szerkesztése" onClick={() => setDraft(layout)}><Pencil size={16} aria-hidden="true" />Szerkesztés</Button>
+          {saved !== undefined && <Button variant="outline" aria-label="Alapelrendezés visszaállítása" onClick={() => setConfirmReset(true)}>
+            <RotateCcw size={16} aria-hidden="true" />Alap visszaállítása
+          </Button>}
+        </>}
       </div>
     </div>
     <span className="sr-only" role="status">{announcement}</span>
     {error && <p className="notice error" role="alert">{error}</p>}
-    {visible.length === 0 && <div className="access-panel dashboard-empty">
-      <p>Még nincsenek modulok az egyéni nézetedben.</p>
-      <Button variant="outline" onClick={() => { if (!draft) setDraft(saved); setAdding(true) }}><Plus size={17} />Első modul hozzáadása</Button>
-    </div>}
-    <div className="custom-dashboard-grid">
+    {showDefaultOverview ? <FleetDashboardOverview userId={user.id} tenantId={tenant.id} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle} />
+      : visible.length === 0 ? <div className="access-panel dashboard-empty">
+        <p>Még nincsenek modulok az áttekintődben.</p>
+        {!draft && <Button variant="outline" onClick={() => { setDraft(layout); setAdding(true) }}><Plus size={17} />Első modul hozzáadása</Button>}
+      </div>
+      : <div className="custom-dashboard-grid">
       {visible.map((tile, index) => {
         const title = tile.kind === 'note' && tile.title.trim() ? tile.title : dashboardModules[tile.kind]
         return <article key={tile.id} className="custom-dashboard-tile" data-dashboard-tile={tile.id}
@@ -139,7 +160,14 @@ export function CustomDashboard(props: DashboardProps) {
           <DashboardTileContent {...props} tile={tile} />
         </article>
       })}
-    </div>
+    </div>}
+    {confirmReset && <AccessDialog title="Alapelrendezés visszaállítása" pending={false} onClose={() => setConfirmReset(false)}>
+      <p>Az egyéni elrendezés, a szűrők és az áttekintőben mentett jegyzetek törlődnek.</p>
+      <div className="dialog-actions">
+        <Button type="button" variant="outline" data-autofocus onClick={() => setConfirmReset(false)}>Mégse</Button>
+        <Button type="button" variant="destructive" onClick={reset}>Visszaállítás</Button>
+      </div>
+    </AccessDialog>}
     {adding && draft && <AccessDialog title="Modul hozzáadása" pending={false} onClose={() => setAdding(false)}>
       <div className="custom-module-list">
         {catalogue.map(kind => <Button key={kind} variant="ghost" onClick={() => {
@@ -154,7 +182,7 @@ export function CustomDashboard(props: DashboardProps) {
         setDraft(draft.some(tile => tile.id === next.id) ? draft.map(tile => tile.id === next.id ? next : tile) : [...draft, next])
         setConfig(null)
       }} />}
-  </section>
+  </div>
 }
 
 function DashboardTileContent({ tile, ...props }: DashboardProps & { tile: DashboardTile }) {
