@@ -28,8 +28,8 @@ type DashboardProps = Scope & {
   dueMonth?: string | null
 }
 
-export function DashboardOverview({ editing, onEditingChange, onFleet, ...props }: DashboardProps & {
-  editing: boolean; onEditingChange: (editing: boolean) => void; onFleet: (status?: string) => void
+export function DashboardOverview({ compact, editing, onEditingChange, onFleet, ...props }: DashboardProps & {
+  compact: boolean; editing: boolean; onEditingChange: (editing: boolean) => void; onFleet: (status?: string) => void
 }) {
   const { user, tenant, siteId, canOverview, canVehicles, canReadMileage, onVehicle, onMileage } = props
   const key = personalKey(user.id, 'dashboard-layout-v1', tenant.id)
@@ -52,7 +52,7 @@ export function DashboardOverview({ editing, onEditingChange, onFleet, ...props 
 
   const defaults: ModuleKind[] = canOverview ? (Object.keys(overviewModules) as OverviewModule[]) : canVehicles ? ['vehicles'] : []
   const layout = saved ?? defaults.map(kind => makeTile(kind, kind))
-  const draft = editing ? edits ?? layout : null
+  const draft = editing && !compact ? edits ?? layout : null
   const visible = (draft ?? layout).filter(tile => allowed(tile.kind))
   const showDefaultOverview = !draft && saved === undefined && canOverview
   const catalogue = (Object.keys(dashboardModules) as ModuleKind[]).filter(kind => kind !== 'mileage' && allowed(kind))
@@ -70,8 +70,7 @@ export function DashboardOverview({ editing, onEditingChange, onFleet, ...props 
     if (!tile) return
     function positioned(item: DashboardTile, position?: DashboardPosition) {
       if (!position) return item
-      const row = Math.min(position.row, dashboardSize.maxRow)
-      return target.compact ? { ...item, mobileRow: row } : { ...item, position: { column: position.column, row } }
+      return { ...item, position: { column: position.column, row: Math.min(position.row, dashboardSize.maxRow) } }
     }
     const placed = positioned(tile, target.position)
     const next = draft.map(item => item.id === tile.id ? placed : positioned(item, target.settled.get(item.id)))
@@ -123,13 +122,13 @@ export function DashboardOverview({ editing, onEditingChange, onFleet, ...props 
       </div>
     </div>}
     <span className="sr-only" role="status">{announcement}</span>
-    {error && <p className="notice error" role="alert">{error}</p>}
+    {draft && error && <p className="notice error" role="alert">{error}</p>}
     {showDefaultOverview ? <FleetDashboardOverview userId={user.id} tenantId={tenant.id} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle} />
       : !draft && visible.length === 0 ? <div className="access-panel dashboard-empty">
         <p>Még nincsenek modulok az áttekintődben.</p>
-        <Button variant="secondary" onClick={() => { onEditingChange(true); setAdding(true) }}><Plus size={17} />Első modul hozzáadása</Button>
+        {!compact && <Button variant="secondary" onClick={() => { onEditingChange(true); setAdding(true) }}><Plus size={17} />Első modul hozzáadása</Button>}
       </div>
-      : <DashboardGrid tiles={visible} paletteId={paletteId} editor={draft ? {
+      : <DashboardGrid key={draft ? 'edit' : 'view'} tiles={visible} compact={compact} paletteId={paletteId} editor={draft ? {
         catalogue: adding ? catalogue : null,
         onChoose: kind => setConfig(newTile(kind)),
         onDrop: drop,
@@ -140,15 +139,16 @@ export function DashboardOverview({ editing, onEditingChange, onFleet, ...props 
         onSettings: setConfig,
         onRemove: id => setDraft(draft.filter(tile => tile.id !== id)),
       } : undefined}>{tile => <DashboardTileContent {...props} tile={tile} />}</DashboardGrid>}
-    {confirmReset && <AccessDialog title="Alapelrendezés visszaállítása" pending={false} onClose={() => setConfirmReset(false)}>
+    {draft && confirmReset && <AccessDialog title="Alapelrendezés visszaállítása" pending={false} onClose={() => setConfirmReset(false)}>
       <p>Az egyéni elrendezés, a szűrők és az áttekintőben mentett jegyzetek törlődnek.</p>
       <div className="dialog-actions">
         <Button type="button" variant="outline" data-autofocus onClick={() => setConfirmReset(false)}>Mégse</Button>
         <Button type="button" variant="destructive" onClick={reset}>Visszaállítás</Button>
       </div>
     </AccessDialog>}
-    {config && draft && <TileSettings key={config.id} tile={config} sites={props.sites} canUnassigned={props.canUnassigned} chartSources={sources}
+    {config && editing && <TileSettings key={config.id} open={!!draft} tile={config} sites={props.sites} canUnassigned={props.canUnassigned} chartSources={sources}
       onClose={() => setConfig(null)} onApply={next => {
+        if (!draft) return
         setDraft(draft.some(tile => tile.id === next.id) ? draft.map(tile => tile.id === next.id ? next : tile) : [...draft, next])
         setConfig(null)
       }} />}
@@ -234,11 +234,12 @@ const deadlineTypes = {
   service: 'Következő szerviz', 'service-km': 'Szerviz kilométerhatára', appointment: 'Szervizidőpont',
 }
 
-function TileSettings({ tile, sites, canUnassigned, chartSources, onClose, onApply }: {
-  tile: DashboardTile; sites: Scope['sites']; canUnassigned: boolean; chartSources: ChartMetric[]
+function TileSettings({ open, tile, sites, canUnassigned, chartSources, onClose, onApply }: {
+  open: boolean; tile: DashboardTile; sites: Scope['sites']; canUnassigned: boolean; chartSources: ChartMetric[]
   onClose: () => void; onApply: (tile: DashboardTile) => void
 }) {
   const [value, setValue] = useState(tile)
+  if (!open) return null
   const change = (values: Partial<DashboardTile>) => setValue({ ...value, ...values })
   const chart = isChartModule(tile.kind)
   const isData = tile.kind !== 'note' && tile.kind !== 'settlement' && value.chartMetric !== 'reportedMileage'

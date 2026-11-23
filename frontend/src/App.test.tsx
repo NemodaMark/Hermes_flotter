@@ -1,10 +1,12 @@
 import { chooseOption } from './selectTestUtils'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { api, resetCsrfToken } from './api'
+import { dashboardCompactQuery } from './dashboardModules'
+import { personalKey } from './personalStorage'
 
 beforeEach(() => localStorage.clear())
 
@@ -130,6 +132,41 @@ it('keeps editing and view switching in the account menu and exposes mileage in 
   await operator.click(screen.getByRole('button', { name: 'Járművek' }))
   expect(within(await screen.findByRole('group', { name: 'Járművek keresése és műveletei' }))
     .getByRole('button', { name: 'Havi km-elszámolás' })).toBeInTheDocument()
+})
+
+it('shows the saved layout without edit controls when the dashboard becomes compact', async () => {
+  const originalMatchMedia = window.matchMedia
+  const media = new EventTarget()
+  const query = {
+    ...originalMatchMedia(dashboardCompactQuery), matches: false,
+    addEventListener: media.addEventListener.bind(media), removeEventListener: media.removeEventListener.bind(media),
+  }
+  const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation(value =>
+    value === dashboardCompactQuery ? query : originalMatchMedia(value))
+  const key = personalKey('anna', 'dashboard-layout-v1', 'duna')
+  localStorage.setItem(key, '[]')
+  window.location.hash = '/dashboard'
+  try {
+    mountApp()
+    const operator = userEvent.setup()
+    await operator.click(await screen.findByRole('button', { name: 'Első modul hozzáadása' }))
+    expect(screen.getByRole('region', { name: 'Elérhető modulok' })).toBeInTheDocument()
+
+    act(() => {
+      query.matches = true
+      media.dispatchEvent(new Event('change'))
+    })
+    expect(screen.getByText('Még nincsenek modulok az áttekintődben.')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Elérhető modulok' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Első modul hozzáadása' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Elrendezés mentése' })).not.toBeInTheDocument()
+    await operator.click(screen.getByLabelText('Fiókmenü'))
+    expect(screen.queryByRole('button', { name: 'Elrendezés szerkesztése' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Autós nézet' })).toBeInTheDocument()
+    expect(localStorage.getItem(key)).toBe('[]')
+  } finally {
+    matchMedia.mockRestore()
+  }
 })
 
 it('replaces the visible fleet when a different company is selected', async () => {

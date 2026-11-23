@@ -23,10 +23,10 @@ import './garage-hud.css'
 const DashboardOverview = lazy(() => import('./DashboardOverview').then(module => ({ default: module.DashboardOverview })))
 
 export function DashboardPage({ user, tenant, siteId, sites = [], canUnassigned = true, onFleet, onVehicle,
-  dashboard, mode, editing, onEditingChange, mileageOpen, onMileage }: {
+  dashboard, mode, compact, editing, onEditingChange, mileageOpen, onMileage }: {
   user: Session; tenant: Tenant; siteId: string; onFleet: (status?: string) => void; onVehicle: (id: string) => void
   sites?: { id: string; name: string }[]; canUnassigned?: boolean
-  dashboard: ReturnType<typeof useDashboard>; mode: Dashboard['mode']; editing: boolean
+  dashboard: ReturnType<typeof useDashboard>; mode: Dashboard['mode']; compact: boolean; editing: boolean
   onEditingChange: (editing: boolean) => void; mileageOpen: boolean; onMileage?: () => void
 }) {
   const data = dashboard.error ? null : dashboard.data
@@ -40,7 +40,7 @@ export function DashboardPage({ user, tenant, siteId, sites = [], canUnassigned 
       {mode === 'Overview' ? <Suspense fallback={<p role="status">Áttekintő betöltése…</p>}>
         <DashboardOverview key={user.id} user={user} tenant={tenant} siteId={siteId} sites={sites} canUnassigned={canUnassigned}
           canOverview={data.canReadOverview} canVehicles={data.canReadVehicles} canReadMileage={data.canReadMileage === true} onVehicle={onVehicle} onFleet={onFleet}
-          onMileage={onMileage} dueMonth={data.mileageDueMonth} editing={editing} onEditingChange={onEditingChange} />
+          onMileage={onMileage} dueMonth={data.mileageDueMonth} compact={compact} editing={editing} onEditingChange={onEditingChange} />
       </Suspense> : !data.canReadVehicles ? <p className="notice">Nincs jogosultságod járműadatok megtekintéséhez.</p>
         : <CarDashboard key={siteId} cars={cars} user={user} tenant={tenant} today={data.today} onFleet={onFleet} allowVehiclePicker={data.canReadOverview}
           mileageOpen={mileageOpen} onProfile={onVehicle} onMileage={onMileage} dueMonth={data.mileageDueMonth} />}

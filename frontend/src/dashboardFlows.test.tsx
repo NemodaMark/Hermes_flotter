@@ -45,7 +45,7 @@ function mount(data:Partial<Dashboard>={},siteId='all') {
         {!editing && <button onClick={() => { setOverride('Overview'); setEditing(true) }}>Elrendezés szerkesztése</button>}
       </div>}
       <DashboardPage user={user} tenant={tenant} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle}
-        dashboard={dashboard} mode={mode} editing={editing} onEditingChange={setEditing} mileageOpen={false} />
+        dashboard={dashboard} mode={mode} compact={false} editing={editing} onEditingChange={setEditing} mileageOpen={false} />
     </>
   }
   const { unmount } = render(<QueryClientProvider client={client}><Fixture /></QueryClientProvider>)

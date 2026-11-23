@@ -29,6 +29,7 @@ export const dashboardModules = {
 
 export type OverviewModule = keyof typeof overviewModules
 export type ModuleKind = keyof typeof dashboardModules
+export const dashboardCompactQuery = '(max-width: 860px), (hover: none) and (pointer: coarse)'
 export const dashboardSize = { columns: 12, minColumns: 3, minHeight: 64, maxHeight: 1200, heightStep: 16, rowStep: 16, maxRow: 10000 }
 export type DashboardPosition = { column: number; row: number }
 export type DashboardTile = {

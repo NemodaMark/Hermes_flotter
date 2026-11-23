@@ -7,7 +7,7 @@ import { arrangeDashboard, intersectingCells, tileRows } from './dashboardPlacem
 import type { DashboardCell } from './dashboardPlacement'
 import { Button } from './ui/Button'
 
-export type DashboardDrop = { position: DashboardPosition; settled: ReadonlyMap<string, DashboardPosition>; compact: boolean }
+export type DashboardDrop = { position: DashboardPosition; settled: ReadonlyMap<string, DashboardPosition> }
 export type DashboardDrag = { kind: ModuleKind } | { id: string }
 
 type TileSize = Pick<DashboardTile, 'columns' | 'height'>
@@ -28,7 +28,6 @@ type Editor = {
 }
 
 const chartIcons = { bar: ChartColumn, pie: ChartPie, scatter: ChartScatter }
-const compactQuery = '(max-width: 860px)'
 
 function bounded(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
@@ -43,15 +42,14 @@ function resizeTo(gesture: Extract<Gesture, { size: TileSize }>, x: number, y: n
   }
 }
 
-export function DashboardGrid({ tiles, editor, paletteId, children }: {
-  tiles: DashboardTile[]; editor?: Editor; paletteId: string; children: (tile: DashboardTile) => ReactNode
+export function DashboardGrid({ tiles, compact, editor, paletteId, children }: {
+  tiles: DashboardTile[]; compact: boolean; editor?: Editor; paletteId: string; children: (tile: DashboardTile) => ReactNode
 }) {
   const grid = useRef<HTMLDivElement>(null)
   const gesture = useRef<Gesture | null>(null)
   const preventClick = useRef(false)
   const [drag, setDrag] = useState<{ label: string; x: number; y: number; target: DashboardCell | null; blocked: boolean } | null>(null)
   const [resize, setResize] = useState<{ id: string; size: TileSize } | null>(null)
-  const [compact, setCompact] = useState(() => matchMedia(compactQuery).matches)
   const [heights, setHeights] = useState<ReadonlyMap<string, number>>(new Map())
   const [canvasHeight, setCanvasHeight] = useState(320)
   const editing = !!editor
@@ -60,9 +58,7 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
 
   useLayoutEffect(() => {
     const area = grid.current!
-    const media = matchMedia(compactQuery)
     const measure = () => {
-      setCompact(media.matches)
       const measured = new Map(Array.from(area.querySelectorAll<HTMLElement>('[data-dashboard-tile]'), tile =>
         [tile.dataset.dashboardTile!, tile.offsetHeight] as const).filter(([, height]) => height > 0))
       setHeights(previous => previous.size === measured.size && [...measured].every(([id, height]) => previous.get(id) === height) ? previous : measured)
@@ -75,7 +71,7 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
     let active = true
     queueMicrotask(() => { if (active) measure() })
     return () => { active = false; observer?.disconnect(); window.removeEventListener('resize', measure) }
-  }, [tiles, editing, paletteOpen])
+  }, [tiles, compact, editing, paletteOpen])
 
   function columnStep(area: HTMLDivElement) {
     const gap = parseFloat(getComputedStyle(area).columnGap) || 0
@@ -89,7 +85,7 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
     if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return null
     const { step, gap } = columnStep(area)
     const size = 'id' in current.source ? layout.positions.get(current.source.id)
-      : { columns: compact ? 1 : makeTile(current.source.kind, '').columns, rows: tileRows(current.source.kind === 'note' ? 192 : 224) }
+      : { columns: makeTile(current.source.kind, '').columns, rows: tileRows(current.source.kind === 'note' ? 192 : 224) }
     if (!size || !step) return null
     const grabX = current.grabX ?? (size.columns * step - gap) / 2
     return {
@@ -105,7 +101,7 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
   }
 
   function place(source: DashboardDrag, cell: DashboardCell) {
-    editor?.onDrop(source, { position: { column: cell.column, row: cell.row }, settled: layout.positions, compact })
+    editor?.onDrop(source, { position: { column: cell.column, row: cell.row }, settled: layout.positions })
   }
 
   function nudge(id: string, column: number, row: number) {
@@ -134,8 +130,7 @@ export function DashboardGrid({ tiles, editor, paletteId, children }: {
       const position = layout.positions.get(details.id)!
       gesture.current = { ...start, id: details.id, size: { columns: details.columns, height: details.height },
         height: body?.offsetHeight ?? dashboardSize.minHeight,
-        columnWidth: compact ? 0 : columnStep(element).step,
-        maxColumns: compact ? dashboardSize.columns : dashboardSize.columns - position.column }
+        columnWidth: columnStep(element).step, maxColumns: dashboardSize.columns - position.column }
     }
     event.currentTarget.setPointerCapture(event.pointerId)
   }

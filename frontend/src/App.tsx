@@ -1,6 +1,7 @@
 import { Select } from './ui/Select'
 import { Button } from './ui/Button'
 import { MainNavigation } from './MainNavigation'
+import { dashboardCompactQuery } from './dashboardModules'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -167,6 +168,7 @@ function FleetWorkspace({
   const [tenantId, setTenantId] = useState<string | null>(() => vehicleLinkFromHash()?.tenantId ?? initialTenantId ?? readPersonal(companyKey, isText) ?? null)
   const [view, setView] = useState<WorkspaceView>(viewFromHash)
   const [dashboardEditing, setDashboardEditing] = useState(false)
+  const [compactDashboard, setCompactDashboard] = useState(() => window.matchMedia(dashboardCompactQuery).matches)
   const [mileageOpen, setMileageOpen] = useState(false)
   const [modeOverride, setModeOverride] = useState<{ tenantId: string; mode: Dashboard['mode'] } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(() => ['invitations', 'groups', 'system'].includes(view))
@@ -176,6 +178,13 @@ function FleetWorkspace({
   const [busy, setBusy] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const mobileNavButton = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const media = window.matchMedia(dashboardCompactQuery)
+    const update = () => setCompactDashboard(media.matches)
+    media.addEventListener('change', update)
+    update()
+    return () => media.removeEventListener('change', update)
+  }, [])
   useEffect(() => {
     const read = () => {
       setMobileNavOpen(false)
@@ -428,10 +437,10 @@ function FleetWorkspace({
           </>}>
           <div className="profile-navigation-links glass-surface">
             <Button onClick={() => openProfile(user.id)} disabled={busy}>Saját profil megnyitása</Button>
-            {view === 'dashboard' && dashboardData && !dashboardEditing && <>
+            {view === 'dashboard' && dashboardData && (!dashboardEditing || compactDashboard) && <>
               {dashboardMode === 'Vehicle' ? <Button disabled={busy} onClick={() => selectDashboardMode('Overview')}><LayoutDashboard size={16} aria-hidden="true" />{dashboardData.canReadOverview ? 'Áttekintő nézet' : 'Saját áttekintő'}</Button>
                 : <Button disabled={busy} onClick={() => selectDashboardMode('Vehicle')}><CarFront size={16} aria-hidden="true" />Autós nézet</Button>}
-              <Button disabled={busy} onClick={() => { selectDashboardMode('Overview'); setDashboardEditing(true) }}><Pencil size={16} aria-hidden="true" />Elrendezés szerkesztése</Button>
+              {!compactDashboard && <Button disabled={busy} onClick={() => { selectDashboardMode('Overview'); setDashboardEditing(true) }}><Pencil size={16} aria-hidden="true" />Elrendezés szerkesztése</Button>}
             </>}
             <Button className="logout-button" onClick={onLogout} disabled={loggingOut || busy || createCompany.isPending}>
               <LogOut size={16} aria-hidden="true" />{loggingOut ? 'Kilépés…' : 'Kijelentkezés'}
@@ -506,7 +515,7 @@ function FleetWorkspace({
           ) : view === 'dashboard' ? (
             restoringSite ? <p className="notice" role="status">Munkaterület betöltése…</p>
               : <DashboardPage key={tenant.id} user={user} tenant={tenant} siteId={currentSiteId} sites={workspaceSites.data ?? []} canUnassigned={canReadUnassigned}
-                dashboard={dashboard} mode={dashboardMode} editing={dashboardEditing} onEditingChange={setDashboardEditing} mileageOpen={mileageOpen} onMileage={openMileage}
+                dashboard={dashboard} mode={dashboardMode} compact={compactDashboard} editing={dashboardEditing} onEditingChange={setDashboardEditing} mileageOpen={mileageOpen} onMileage={openMileage}
                 onFleet={nextStatus => { changeView('fleet'); setSelectedVehicleId(null); setStatus(nextStatus ?? 'all'); setVehicleQuery(current => ({ ...current, page: 1 })) }}
                 onVehicle={id => { changeView('fleet'); setSelectedVehicleId(id) }} />
           ) : view === 'partners' ? (

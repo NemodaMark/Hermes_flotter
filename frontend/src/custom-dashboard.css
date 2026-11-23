@@ -102,12 +102,3 @@
   .custom-dashboard-tile .fleet-rank .sera-button { padding-inline: var(--space-3); }
   .custom-dashboard-tile .custom-list-pagination { padding-inline: var(--space-3); flex-wrap: wrap; }
 }
-@media (max-width: 860px) {
-  .custom-tile-resize.icon-button { cursor: ns-resize; }
-}
-@media (max-width: 760px) {
-  .custom-dashboard-tile[data-editing] { --tile-resize-size: 44px; }
-  .custom-tile-controls .icon-button { width: 42px; min-height: 44px; }
-  .custom-module-palette { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .custom-module-palette .custom-module-choice { padding-inline: var(--space-2); }
-}
