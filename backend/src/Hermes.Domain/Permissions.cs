@@ -24,6 +24,11 @@ public static class Permissions
     public const string FuelManage = "vehicles.fuel.manage";
     public const string MileageRecord = "mileage.record";
     public const string MileageManage = "mileage.manage";
+    public const string SettlementsRead = "vehicles.settlements.read";
+    public const string SettlementsRecord = "vehicles.settlements.record";
+    public const string SettlementsManage = "vehicles.settlements.manage";
+    public const string SettlementsApprove = "vehicles.settlements.approve";
+    public const string SettlementsConfigure = "settlements.configure";
     public const string PartnersRead = "partners.read";
     public const string PartnersCreate = "partners.create";
     public const string PartnersUpdate = "partners.update";
@@ -44,6 +49,11 @@ public static class Permissions
     public const string SitesAssignVehicles = "sites.vehicles.assign";
     public static readonly IReadOnlyList<PermissionDescription> Catalog = Array.AsReadOnly(new[]
     {
+        new PermissionDescription(SettlementsRead, "Saját üzemanyag-elszámolás megtekintése"),
+        new(SettlementsRecord, "Saját üzemanyag-elszámolás rögzítése és beküldése"),
+        new(SettlementsManage, "Üzemanyag-elszámolások kezelése és Excel-import"),
+        new(SettlementsApprove, "Üzemanyag-elszámolások jóváhagyása"),
+        new(SettlementsConfigure, "Üzemanyag-elszámolási szabályok beállítása"),
         new PermissionDescription(MileageRecord, "Saját havi km-elszámolás és magánhasználat rögzítése"),
         new PermissionDescription(MileageManage, "Céges km-keretek és havi elszámolások kezelése"),
         new PermissionDescription(VehiclesRead, "Járművek megtekintése"), new(FleetOverviewRead, "Flottaáttekintő megtekintése"), new(VehiclesCreate, "Jármű felvétele"),

@@ -4,6 +4,8 @@ A dokumentum a meglévő flottakezelő adatainak HERMES-be költöztetéséhez s
 
 [Export és átadás](#export-és-átadás) · [Értékkódok](#értékkódok) · [PostgreSQL táblaleírás](#postgresql-táblaleírás)
 
+**2026. november 23-i bővítés:** a havi pénzügyi üzemanyag-elszámolás négy új tábláját (`fuel_settlement_policies`, `fuel_settlements`, `fuel_settlement_vehicles`, `fuel_settlement_history`), az eredeti Excel-fájlok megőrzését és a külön Excel/ZIP betöltési folyamatot a [pénzügyi elszámolás leírása](FUEL_SETTLEMENTS.md#tárolás-és-naplózás) részletezi. Ezek a teljes PostgreSQL-mentés részét képezik; az általános CSV-import nem ír jóváhagyott pénzügyi elszámolást.
+
 ## Export és átadás
 
 ### Az átadandó adatok

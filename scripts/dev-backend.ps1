@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$Migrate,
     [string]$BootstrapSystemAdminUserId,
     [int]$DatabasePort = 0,

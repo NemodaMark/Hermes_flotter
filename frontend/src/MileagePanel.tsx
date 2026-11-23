@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Session, Tenant } from './api'
 import { mileageApi, localMileageDate, mileageMonth } from './mileageApi'
@@ -13,7 +13,20 @@ import './mileage.css'
 
 const km = (value: number) => `${value.toLocaleString('hu-HU')} km`
 const sourceNames: Record<string, string> = { Fuel: 'Tankolás', Odometer: 'Km-rögzítés', Manual: 'Kézi tétel' }
-export function MileagePanel({ tenant, user, initialMonth }: { tenant: Tenant; user: Session; initialMonth?: string }) {
+const FuelSettlementPanel = lazy(() => import('./FuelSettlementPanel').then(m => ({ default: m.FuelSettlementPanel })))
+export function MileagePanel(props: { tenant: Tenant; user: Session; initialMonth?: string }) {
+  const ledger = props.tenant.permissions.some(p => p === 'mileage.record' || p === 'mileage.manage')
+  const settlement = props.tenant.permissions.some(p => p.startsWith('vehicles.settlements.'))
+  const [tab, setTab] = useState(ledger ? 'km' : 'settlement')
+  return <>
+    {ledger && settlement && <div className="mileage-dialog-tabs" role="group" aria-label="Havi elszámolás típusa">
+      <Button className="secondary-button" aria-pressed={tab === 'km'} onClick={() => setTab('km')}>Kilométerek</Button>
+      <Button className="secondary-button" aria-pressed={tab === 'settlement'} onClick={() => setTab('settlement')}>Magánhasználati díj</Button>
+    </div>}
+    {tab === 'km' && ledger ? <MileageLedgerPanel {...props} /> : settlement ? <Suspense fallback={<p role="status">Elszámolás betöltése…</p>}><FuelSettlementPanel {...props} /></Suspense> : <p>Nincs elszámolási jogosultságod.</p>}
+  </>
+}
+function MileageLedgerPanel({ tenant, user, initialMonth }: { tenant: Tenant; user: Session; initialMonth?: string }) {
   const client = useQueryClient()
   const [month, setMonth] = useState(initialMonth ?? mileageMonth(localMileageDate()))
   const [userId, setUserId] = useState(user.id)

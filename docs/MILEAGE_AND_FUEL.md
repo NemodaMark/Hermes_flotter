@@ -2,6 +2,8 @@
 
 Állapot: **2026. november 20.**
 
+2026. november 23-tól a havi felület **Magánhasználati díj** része külön, verziózott pénzügyi elszámolást is kezel. A teljes km-keret és az ingyenes magánkeret külön marad. A díjszámítás, jóváhagyás, Excel-próbaimport és új jogosultságok leírása: [Havi üzemanyag-elszámolás](FUEL_SETTLEMENTS.md).
+
 ## Használat
 
 Az autós kezdőlapon a **Tankolás** és a **Km rögzítése** közvetlen művelet. A jogosult felhasználó a **Foglalások** gombbal az autó meglévő foglalási naptárát nyitja meg; egy foglalás továbbra is legfeljebb hét naptári nap. A további járműrészek a **Továbbiak** menüben maradnak. Rögzítés és elszámolás közben a 3D bemutató megáll.

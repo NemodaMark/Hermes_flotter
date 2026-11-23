@@ -211,6 +211,149 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("company_profiles", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Domain.FuelSettlement", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Calculation")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TenantId", "UserId", "Month");
+
+                    b.ToTable("fuel_settlements", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_settlement_state", "extract(day from \"Month\") = 1 AND \"Status\" IN ('Draft','Submitted','Approved') AND (\"Status\" = 'Approved') = (\"ApprovedAt\" IS NOT NULL AND \"ApprovedBy\" IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Domain.FuelSettlementHistory", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Snapshot")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("TenantId", "UserId", "Month", "Version");
+
+                    b.ToTable("fuel_settlement_history", (string)null);
+                });
+
+            modelBuilder.Entity("Hermes.Domain.FuelSettlementPolicy", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Rules")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TenantId", "Month");
+
+                    b.ToTable("fuel_settlement_policies", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_settlement_policy_month", "extract(day from \"Month\") = 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Domain.FuelSettlementVehicle", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceMetadata")
+                        .HasColumnType("jsonb");
+
+                    b.Property<byte[]>("SourceWorkbook")
+                        .HasColumnType("bytea");
+
+                    b.HasKey("TenantId", "UserId", "Month", "VehicleId");
+
+                    b.HasIndex("TenantId", "VehicleId");
+
+                    b.ToTable("fuel_settlement_vehicles", (string)null);
+                });
+
             modelBuilder.Entity("Hermes.Domain.GroupCompany", b =>
                 {
                     b.Property<Guid>("GroupId")
@@ -670,6 +813,31 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("permission_definitions", (string)null);
 
                     b.HasData(
+                        new
+                        {
+                            Code = "vehicles.settlements.read",
+                            Name = "Saját üzemanyag-elszámolás megtekintése"
+                        },
+                        new
+                        {
+                            Code = "vehicles.settlements.record",
+                            Name = "Saját üzemanyag-elszámolás rögzítése és beküldése"
+                        },
+                        new
+                        {
+                            Code = "vehicles.settlements.manage",
+                            Name = "Üzemanyag-elszámolások kezelése és Excel-import"
+                        },
+                        new
+                        {
+                            Code = "vehicles.settlements.approve",
+                            Name = "Üzemanyag-elszámolások jóváhagyása"
+                        },
+                        new
+                        {
+                            Code = "settlements.configure",
+                            Name = "Üzemanyag-elszámolási szabályok beállítása"
+                        },
                         new
                         {
                             Code = "mileage.record",
@@ -2385,6 +2553,39 @@ namespace Hermes.Infrastructure.Migrations
                     b.HasOne("Hermes.Domain.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.FuelSettlement", b =>
+                {
+                    b.HasOne("Hermes.Domain.TenantMembership", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.FuelSettlementHistory", b =>
+                {
+                    b.HasOne("Hermes.Domain.FuelSettlement", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UserId", "Month")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.FuelSettlementVehicle", b =>
+                {
+                    b.HasOne("Hermes.Domain.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hermes.Domain.FuelSettlement", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UserId", "Month")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

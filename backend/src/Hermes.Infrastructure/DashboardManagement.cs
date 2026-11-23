@@ -17,7 +17,8 @@ public sealed class DashboardManagement(HermesDbContext db, TenantContext contex
             var permissions = accessMember.EffectivePermissions;
             var canRead = permissions.Contains(Permissions.VehiclesRead);
             var canOverview = canRead && permissions.Contains(Permissions.FleetOverviewRead);
-            var canMileage = permissions.Contains(Permissions.MileageRecord) || permissions.Contains(Permissions.MileageManage);
+            var ledger = permissions.Contains(Permissions.MileageRecord) || permissions.Contains(Permissions.MileageManage);
+            var canMileage = ledger || permissions.Any(x => x.StartsWith("vehicles.settlements.", StringComparison.Ordinal));
             var mode = !canOverview || (winners.Length > 0 && winners.All(x => x.DashboardMode == "Vehicle")) ? "Vehicle" : "Overview";
             var source = winners.Length == 1 && winners[0].DashboardMode == mode ? winners[0].Name : null;
             var access = new ResourceAccess(accessMember);
@@ -32,7 +33,7 @@ public sealed class DashboardManagement(HermesDbContext db, TenantContext contex
             {
                 CanReadOverview = canOverview,
                 CanRecordMileage = canMileage,
-                MileageDueMonth = canMileage ? await MileageLedger.Due(db, context.UserSubject!, FleetManagement.LocalDay(DateTimeOffset.UtcNow, zone), ct) : null,
+                MileageDueMonth = ledger ? await MileageLedger.Due(db, context.UserSubject!, FleetManagement.LocalDay(DateTimeOffset.UtcNow, zone), ct) : null,
                 Today = FleetManagement.LocalDay(DateTimeOffset.UtcNow, zone)
             };
         }, ct);

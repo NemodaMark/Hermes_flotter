@@ -196,6 +196,7 @@ app.MapOrganizationEndpoints();
 app.MapFleetManagementEndpoints();
 app.MapFleetOperations();
 app.MapMileage();
+app.MapFuelSettlements();
 app.MapDocumentEndpoints();
 app.MapPeopleAndMediaEndpoints();
 
