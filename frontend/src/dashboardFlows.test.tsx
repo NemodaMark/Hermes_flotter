@@ -9,6 +9,7 @@ import { api } from './api'
 import { PermissionGroups } from './PermissionGroups'
 import { chooseOption } from './selectTestUtils'
 import { vehiclePaint } from './vehicleAppearance'
+import { personalKey } from './personalStorage'
 vi.mock('./VehicleTaskPanel',()=>({VehicleTaskPanel:({section}:{section:string})=><div aria-label="Járműfeladat">Megnyitott rész: {section}</div>}))
 afterEach(()=>vi.restoreAllMocks())
 beforeEach(()=>{
@@ -53,6 +54,31 @@ it('grants a personal garage without ever requesting fleet statistics for an ord
   expect(await screen.findByRole('region', { name: 'Autós dashboard' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Áttekintő' })).not.toBeInTheDocument()
   expect(loadOverview).not.toHaveBeenCalled()
+})
+it('keeps notes across view changes without exposing modules the user cannot read', async () => {
+  const key = personalKey(user.id, 'dashboard-layout-v1', tenant.id)
+  localStorage.removeItem(key)
+  try {
+    const { loadOverview } = mount({ canReadOverview: false, canReadVehicles: false, vehicles: [] })
+    const operator = userEvent.setup()
+    await operator.click(await screen.findByRole('button', { name: 'Egyéni' }))
+    await operator.click(await screen.findByRole('button', { name: 'Első modul hozzáadása' }))
+    const choices = within(screen.getByRole('dialog', { name: 'Modul hozzáadása' }))
+    expect(choices.queryByRole('button', { name: 'Flotta állapota' })).not.toBeInTheDocument()
+    expect(choices.queryByRole('button', { name: 'Járműlista' })).not.toBeInTheDocument()
+    await operator.click(choices.getByRole('button', { name: 'Jegyzet' }))
+    const settings = within(screen.getByRole('dialog', { name: 'Jegyzet · Beállítások' }))
+    await operator.type(settings.getByRole('textbox', { name: 'Cím' }), 'Holnap')
+    await operator.type(settings.getByRole('textbox', { name: 'Jegyzet' }), 'Időpont egyeztetése')
+    await operator.click(settings.getByRole('button', { name: 'Alkalmazás' }))
+    await operator.click(screen.getByRole('button', { name: 'Elrendezés mentése' }))
+    await operator.click(screen.getByRole('button', { name: 'Autós' }))
+    await operator.click(screen.getByRole('button', { name: 'Egyéni' }))
+    expect(within(await screen.findByRole('article', { name: 'Holnap' })).getByText('Időpont egyeztetése')).toBeInTheDocument()
+    expect(loadOverview).not.toHaveBeenCalled()
+  } finally {
+    localStorage.removeItem(key)
+  }
 })
 it('surfaces service deadlines and lets an authorized driver record a missing odometer reading', async () => {
   mount({ canReadOverview: false, vehicles: [{ ...car, nextServiceDate: '2026-10-27', vehicle: {

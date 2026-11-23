@@ -33,7 +33,7 @@ Frissítve: **2026. november 23.** A dokumentum a meglévő arculatot rögzíti;
 
 A flottakezelőben a tankolás és kilométerállás gyors rögzítése, valamint a járműadatok és teendők kezelése az elsődleges. A saját autó garázsa látványos belépési pont; a munkapanelek elrendezését az adott feladat határozza meg.
 
-Minden felület a `--surface`, `--ink`, `--muted`, `--line`, `--primary` és szemantikus állapottokeneket használja. A sötét mód a böngésző beállítását követi: alapfelület `#252b26`, szöveg `#eef0e9`, másodlagos szöveg `#b7c0b5`, alap akcentus `#a9cbb1`. A meglévő járműszín-akcentus megmarad; a hiba/figyelmeztetés/siker szemantikus színeit nem írja felül.
+Minden felület a `--surface`, `--ink`, `--muted`, `--line`, `--primary` és szemantikus állapottokeneket használja. A sötét mód a böngésző beállítását követi. A háttér `#1b1b1b`, az alapfelület `#252525`, a szöveg `#f0f0f0`, az akcentus `#dddddd`. A jármű festése és a hiba, figyelmeztetés, siker állapotszínei a saját színüket használják.
 
 Források: [téma](frontend/src/fleet-theme.css), [közös UI](frontend/src/ui/sera.css), [tipográfia és fókusz](frontend/src/index.css), [járműelrendezés](frontend/src/vehicle-profile.css).
 
@@ -73,3 +73,7 @@ Az elrendezés nem ad új jogot: a tényleges jármű műveletenkénti jogosults
 Bal felül a rendszám, modell és kattintható km-állás; jobb felül a kameravezérlés, alatta a két legsürgősebb teendő; bal alul a napi gyorsműveletek. A teljes teendőlista külön párbeszédablakból érhető el. Nincs belső görgetős értesítésfal vagy megismételt telephely-/karosszéria-/színsor. A modell licence külön hivatkozásként megmarad.
 
 Mobilon a kamera összecsukható eszköztár, a tankolás/km pedig külön, jól olvasható első gombsor. A nyugtafotó-választó natív fájlinputot használ, magyar felirattal és látható fájlnévvel. A jelölőnégyzetek a közös akcentust követik, kényszerített rendszerszíneknél natív megjelenítéssel.
+
+## Kezdőlap
+
+Az **Egyéni** nézet szerkesztőjében a felhasználó rendezheti, szűrheti és átméretezheti a modulokat, valamint saját jegyzeteket vehet fel. A rács két oszlopot használ, kisebb képernyőn egyet. Húzás mellett gombokkal is változtatható a sorrend. A nézet és a legutóbbi telephely felhasználónként és cégenként a helyi böngészőben tárolódik. A flottaadatokat a szerver az adott művelet jogosultsága alapján szűri.

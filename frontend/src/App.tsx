@@ -52,6 +52,7 @@ import { peopleApi } from './peopleApi'
 import { ProtectedImage } from './ProtectedImage'
 import { initials } from './peopleDisplay'
 import { DashboardPage } from './DashboardPage'
+import { isText, personalKey, readPersonal, writePersonal } from './personalStorage'
 import { dateText } from './fleetApi'
 import { consumeEntraResult } from './entra'
 
@@ -156,7 +157,8 @@ function FleetWorkspace({
   accountNotice?: { message: string; error: boolean } | null
 }) {
   const queryClient = useQueryClient()
-  const [tenantId, setTenantId] = useState<string | null>(() => vehicleLinkFromHash()?.tenantId ?? initialTenantId)
+  const companyKey = personalKey(user.id, 'last-company')
+  const [tenantId, setTenantId] = useState<string | null>(() => vehicleLinkFromHash()?.tenantId ?? initialTenantId ?? readPersonal(companyKey, isText) ?? null)
   const [view, setView] = useState<WorkspaceView>(viewFromHash)
   const [settingsOpen, setSettingsOpen] = useState(() => ['invitations', 'groups', 'system'].includes(view))
   const [profileId, setProfileId] = useState<string | null>(profileFromHash)
@@ -211,7 +213,7 @@ function FleetWorkspace({
     return () => window.clearTimeout(timer)
   }, [search])
   const [status, setStatus] = useState('all')
-  const [siteId, setSiteId] = useState('all')
+  const [siteSelection, setSiteSelection] = useState<{ company: string; site: string }>()
   const [formOpen, setFormOpen] = useState(false)
   const [companyOpen, setCompanyOpen] = useState(false)
   const [companyError, setCompanyError] = useState<string | null>(null)
@@ -230,14 +232,17 @@ function FleetWorkspace({
     queryFn: ({ signal }) => api.vehicleSites(tenant!.id, signal),
     enabled: canReadVehicles, retry: false, refetchInterval: 30_000,
   })
-  const currentSiteId = !canReadVehicles || (siteId === 'none' && !canReadUnassigned) ||
-    (workspaceSites.isSuccess && !workspaceSites.data.some(site => site.id === siteId) && siteId !== 'none') ? 'all' : siteId
+  const siteKey = personalKey(user.id, 'last-site', tenant?.id)
+  const savedSite = siteSelection && siteSelection.company === tenant?.id ? siteSelection.site : readPersonal(siteKey, isText)
+  const currentSiteId = canReadVehicles && savedSite === 'none' && canReadUnassigned ? 'none'
+    : canReadVehicles && workspaceSites.isSuccess && workspaceSites.data.some(site => site.id === savedSite) ? savedSite! : 'all'
+  const restoringSite = canReadVehicles && !!savedSite && savedSite !== 'all' && savedSite !== 'none' && workspaceSites.isPending
   const currentSiteName = currentSiteId === 'none' ? 'Telephely nélkül' : workspaceSites.data?.find(site => site.id === currentSiteId)?.name ?? 'Összes telephely'
   const listQuery = { ...vehicleQuery, pageSize: effectivePageSize, status, siteId: currentSiteId }
   const vehicles = useQuery({
     queryKey: [...vehicleKey(user.id, tenant?.id), listQuery, tenant?.permissions, tenant?.permissionScopes],
     queryFn: ({ signal }) => api.searchVehicles(tenant!.id, listQuery, signal),
-    enabled: view === 'fleet' && canReadVehicles,
+    enabled: view === 'fleet' && canReadVehicles && !restoringSite,
     retry: false,
   })
   const ownProfile = useQuery({
@@ -280,12 +285,12 @@ function FleetWorkspace({
 
   function changeTenant(value: string) {
     setTenantId(value)
+    writePersonal(companyKey, value)
     if (view === 'profile') changeView('members')
     setSelectedVehicleId(null)
     setSearch('')
     setVehicleQuery({ search: '', page: 1 })
     setStatus('all')
-    setSiteId('all')
     setFormOpen(false)
   }
   async function saveCompany(name: string) {
@@ -319,7 +324,16 @@ function FleetWorkspace({
             </label>
             {canReadVehicles && <label><span>Telephely</span>
               <Select aria-label="Munkaterület telephelye" value={currentSiteId} disabled={workspaceSites.isPending}
-                onChange={event => { setSiteId(event.target.value); setVehicleQuery(current => ({ ...current, page: 1 })); setSelectedVehicleId(null); setFormOpen(false) }}>
+                onChange={event => {
+                  if (!tenant) return
+                  const site = event.target.value
+                  setSiteSelection({ company: tenant.id, site })
+                  writePersonal(companyKey, tenant.id)
+                  writePersonal(siteKey, site)
+                  setVehicleQuery(current => ({ ...current, page: 1 }))
+                  setSelectedVehicleId(null)
+                  setFormOpen(false)
+                }}>
                 <option value="all">Összes telephely</option>
                 {canReadUnassigned && <option value="none">Telephely nélkül</option>}
                 {workspaceSites.data?.map(site => <option key={site.id} value={site.id}>{site.name} ({site.code})</option>)}
@@ -452,7 +466,10 @@ function FleetWorkspace({
           ) : view === 'members' || view === 'invitations' ? (
             <MembersPage key={`${tenant.id}:${view}`} user={user} tenant={tenant} onProfile={openProfile} mode={view} />
           ) : view === 'dashboard' ? (
-            <DashboardPage key={tenant.id} user={user} tenant={tenant} siteId={currentSiteId} onFleet={nextStatus => { changeView('fleet'); setSelectedVehicleId(null); setStatus(nextStatus ?? 'all'); setVehicleQuery(current => ({ ...current, page: 1 })) }} onVehicle={id => { changeView('fleet'); setSelectedVehicleId(id) }} />
+            restoringSite ? <p className="notice" role="status">Munkaterület betöltése…</p>
+              : <DashboardPage key={tenant.id} user={user} tenant={tenant} siteId={currentSiteId} sites={workspaceSites.data ?? []} canUnassigned={canReadUnassigned}
+                onFleet={nextStatus => { changeView('fleet'); setSelectedVehicleId(null); setStatus(nextStatus ?? 'all'); setVehicleQuery(current => ({ ...current, page: 1 })) }}
+                onVehicle={id => { changeView('fleet'); setSelectedVehicleId(id) }} />
           ) : view === 'partners' ? (
             <PartnersPage key={tenant.id} tenant={tenant} />
           ) : formOpen ? (

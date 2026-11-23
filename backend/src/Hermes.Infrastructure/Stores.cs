@@ -103,39 +103,9 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
     {
         if (options.Page < 1 || options.PageSize is < 1 or > 100)
             throw UserAccounts.Error(400, "invalid_pagination", "Az oldalszám legalább 1, az oldalméret 1–100 közötti egész szám legyen.");
-        var search = options.Search?.Trim() ?? "";
-        if (search.Length > 200)
-            throw UserAccounts.Error(400, "invalid_search", "A keresés legfeljebb 200 karakter lehet.");
-        VehicleStatus? status = null;
-        if (options.Status != "all")
-        {
-            if (!Enum.TryParse<VehicleStatus>(options.Status, out var parsed) || !Enum.IsDefined(parsed) || parsed.ToString() != options.Status)
-                throw UserAccounts.Error(400, "invalid_status", "Válassz érvényes járműállapotot.");
-            status = parsed;
-        }
-        Guid? site = null;
-        if (options.SiteId is not ("all" or "none") && (!Guid.TryParse(options.SiteId, out var parsedSite) || parsedSite == Guid.Empty))
-            throw UserAccounts.Error(400, "invalid_site", "Érvénytelen telephelyszűrő.");
-        if (Guid.TryParse(options.SiteId, out var selectedSite)) site = selectedSite;
-
-        // Apply authorization before both counts, search, site filtering and paging.
-        // Other operation rights never widen the read scope.
-        var query = VehicleAccess.Query(db, access, Permissions.VehiclesRead).AsNoTracking();
-        var availableTotal = await query.CountAsync(ct);
-        if (status is { } vehicleStatus) query = query.Where(v => v.Status == vehicleStatus);
-        if (options.SiteId == "none")
-            query = query.Where(v => !db.VehicleSiteAssignments.Any(a => a.VehicleId == v.Id && a.TenantId == v.TenantId));
-        else if (site is { } siteId)
-            query = query.Where(v => db.VehicleSiteAssignments.Any(a => a.VehicleId == v.Id && a.TenantId == v.TenantId && a.SiteId == siteId));
-        if (search.Length > 0)
-        {
-            // Treat SQL pattern characters as literal text. Built-in UTF-8 collation
-            // keeps accented case matching consistent even in a C-locale database.
-            var pattern = "%" + search.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
-            query = query.Where(v => EF.Functions.ILike(EF.Functions.Collate(v.Registration + " " + v.Make + " " + v.Model, "pg_c_utf8"), pattern, "\\")
-                || db.VehicleRegistrations.Any(r => r.VehicleId == v.Id && r.TenantId == v.TenantId
-                    && EF.Functions.ILike(EF.Functions.Collate(r.Registration, "pg_c_utf8"), pattern, "\\")));
-        }
+        var authorized = VehicleAccess.Query(db, access, Permissions.VehiclesRead).AsNoTracking();
+        var query = VehicleAccess.Filter(db, authorized, options.SiteId, options.Status, options.Search);
+        var availableTotal = await authorized.CountAsync(ct);
         var total = await query.CountAsync(ct);
         // Return the last existing page when a deletion/reassignment shrinks the list.
         // Clamping before multiplication also prevents an overflowing SQL offset.

@@ -34,17 +34,17 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --ink: #eef0e9;
-    --muted: #b7c0b5;
-    --primary: var(--vehicle-accent-dark, #a9cbb1);
-    --on-primary: #101711;
+    --ink: #f0f0f0;
+    --muted: #bdbdbd;
+    --primary: #dddddd;
+    --on-primary: #171717;
     --accent-shade: #fff;
-    --line: #3d463f;
-    --control-border: #788579;
-    --surface: #252b26;
-    --surface-subtle: #2d342e;
-    --fleet-background: #1b211d;
-    --fleet-hover: #333b34;
+    --line: #424242;
+    --control-border: #808080;
+    --surface: #252525;
+    --surface-subtle: #2d2d2d;
+    --fleet-background: #1b1b1b;
+    --fleet-hover: #333333;
     --shadow-color: #0007;
     --backdrop: #0009;
     --success-ink: #a7dbb3;
@@ -58,6 +58,7 @@
     --danger-line: #80504a;
     --destructive: #bd4544;
   }
+  :root .sidebar .brand-mark { background: var(--primary); color: var(--on-primary); }
 }
 
 .fleet-auth.account-page {
@@ -178,6 +179,7 @@
 .app-shell .topbar { min-height: 43px; padding: 7px clamp(16px, 3vw, 44px); background: transparent; }
 .app-shell .topbar .breadcrumb strong { font-weight: 600; font-size: 18px; }
 .app-shell:has(.page-content[data-view=dashboard]) .topbar { display: none; }
+.page-content.page-content-compact[data-view=dashboard]:not(:has(.dashboard-studio)) { max-width: 1344px; }
 .app-shell .list-toolbar { background: var(--surface); }
 .app-shell table th { background: var(--surface-subtle); color: var(--muted); }
 .app-shell table td { border-bottom-color: var(--line); }

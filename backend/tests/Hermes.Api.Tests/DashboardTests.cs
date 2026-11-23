@@ -151,6 +151,18 @@ public sealed partial class PermissionManagementTests
         Assert.Equal(500, top.Kilometers);
         var all = (await driver.Client.GetFromJsonAsync<DashboardOverview>("/api/v1/dashboard/overview"))!;
         Assert.Equal(result.TopVehicles, all.TopVehicles);
+        var filtered = (await driver.Client.GetFromJsonAsync<DashboardOverview>("/api/v1/dashboard/overview?search=fleet-b&status=Active&months=3"))!;
+        Assert.Equal(carB.Id, Assert.Single(filtered.Vehicles).Vehicle.Id);
+        Assert.Equal(3, filtered.MonthlyMileage.Length);
+        Assert.Equal(500, Assert.Single(filtered.TopVehicles).Kilometers);
+        var hidden = (await driver.Client.GetFromJsonAsync<DashboardOverview>("/api/v1/dashboard/overview?search=FLEET-A"))!;
+        Assert.Empty(hidden.Vehicles);
+        Assert.Empty(hidden.TopVehicles);
+        var counts = (await driver.Client.GetFromJsonAsync<DashboardOverview>("/api/v1/dashboard/overview?includeMileage=false"))!;
+        Assert.Equal(2, counts.Vehicles.Length);
+        Assert.Empty(counts.MonthlyMileage);
+        Assert.Empty(counts.TopVehicles);
+        Assert.Equal(HttpStatusCode.BadRequest, (await driver.Client.GetAsync("/api/v1/dashboard/overview?months=13")).StatusCode);
         foreach (var site in new[] { a.Id.ToString(), c.Id.ToString(), "none" })
         {
             var empty = (await driver.Client.GetFromJsonAsync<DashboardOverview>($"/api/v1/dashboard/overview?site={site}"))!;

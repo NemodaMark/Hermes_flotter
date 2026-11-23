@@ -14,6 +14,35 @@ internal static class VehicleAccess
     internal static string[] PermissionsFor(ResourceAccess access, Guid? site) => Domain.Permissions.All
         .Where(code => ResourceAccess.IsScoped(code) && access.Allows(code, site)).ToArray();
 
+    internal static IQueryable<Vehicle> Filter(HermesDbContext db, IQueryable<Vehicle> query, string site, string status, string? searchText)
+    {
+        if (status != "all")
+        {
+            if (!Enum.TryParse<VehicleStatus>(status, out var parsed) || !Enum.IsDefined(parsed) || parsed.ToString() != status)
+                throw UserAccounts.Error(400, "invalid_status", "Válassz érvényes járműállapotot.");
+            query = query.Where(v => v.Status == parsed);
+        }
+        if (site == "none")
+            query = query.Where(v => !db.VehicleSiteAssignments.Any(a => a.VehicleId == v.Id && a.TenantId == v.TenantId));
+        else if (site != "all")
+        {
+            if (!Guid.TryParse(site, out var siteId) || siteId == Guid.Empty)
+                throw UserAccounts.Error(400, "invalid_site", "Érvénytelen telephelyszűrő.");
+            query = query.Where(v => db.VehicleSiteAssignments.Any(a => a.VehicleId == v.Id && a.TenantId == v.TenantId && a.SiteId == siteId));
+        }
+
+        var search = searchText?.Trim() ?? "";
+        if (search.Length > 200)
+            throw UserAccounts.Error(400, "invalid_search", "A keresés legfeljebb 200 karakter lehet.");
+        if (search.Length == 0) return query;
+
+        // Search text is literal, including SQL wildcard characters.
+        var pattern = "%" + search.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+        return query.Where(v => EF.Functions.ILike(EF.Functions.Collate(v.Registration + " " + v.Make + " " + v.Model, "pg_c_utf8"), pattern, "\\")
+            || db.VehicleRegistrations.Any(r => r.VehicleId == v.Id && r.TenantId == v.TenantId
+                && EF.Functions.ILike(EF.Functions.Collate(r.Registration, "pg_c_utf8"), pattern, "\\")));
+    }
+
     internal static async Task<IQueryable<AccessAuditEvent>> AuditQuery(HermesDbContext db, ResourceAccess access, CancellationToken ct)
     {
         if (access.CompanyWide(Domain.Permissions.AuditRead)) return db.AccessAuditEvents;

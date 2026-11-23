@@ -1,10 +1,12 @@
 import { chooseOption } from './selectTestUtils'
-import { expect, it, vi } from 'vitest'
+import { beforeEach, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { api, resetCsrfToken } from './api'
+
+beforeEach(() => localStorage.clear())
 
 function mountApp({
   permissions = ['vehicles.read', 'vehicles.create'],
@@ -92,12 +94,11 @@ function mountApp({
     }),
   )
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
+  return { client, ...render(
     <QueryClientProvider client={client}>
       <App />
     </QueryClientProvider>,
-  )
-  return client
+  ) }
 }
 
 it('opens the dashboard for the root URL while keeping explicit fleet links available', async () => {
@@ -139,8 +140,9 @@ it('uses the uploaded profile photo in the sidebar independently of the selected
   blobUrl.mockRestore(); revoke.mockRestore()
 })
 
-it('filters the fleet by an authorized empty site and resets the site when changing company', async () => {
-  mountApp()
+it('restores the last authorized site per company after switching companies and reloading', async () => {
+  window.history.replaceState(null, '', '/#/vehicles')
+  const { unmount } = mountApp()
   await screen.findByText('DUN-001')
   expect(screen.queryByRole('combobox', { name: 'Munkaterület' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: /Munkaterület váltása: Duna \/ Összes telephely/ }))
@@ -158,6 +160,17 @@ it('filters the fleet by an authorized empty site and resets the site when chang
   await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület' }), 'pannon')
   expect(await screen.findByText('PAN-002')).toBeInTheDocument()
   expect(screen.getByRole('combobox', { name: 'Munkaterület telephelye' })).toHaveValue('Összes telephely')
+  await chooseOption(screen.getByRole('combobox', { name: 'Munkaterület' }), 'duna')
+  await screen.findByRole('button', { name: 'Munkaterület váltása: Duna / Budapest' })
+  unmount()
+
+  mountApp()
+  await screen.findByRole('button', { name: 'Munkaterület váltása: Duna / Budapest' })
+  await waitFor(() => {
+    const queries = vi.mocked(fetch).mock.calls.filter(([path]) => String(path).startsWith('/api/v1/vehicles/search?'))
+    expect(queries.length).toBeGreaterThan(0)
+    expect(queries.every(([path]) => new URL(String(path), 'http://localhost').searchParams.get('siteId') === 'site-a')).toBe(true)
+  })
 })
 
 it('puts fleet search, filtering and creation in the same toolbar without duplicate totals', async () => {
@@ -319,7 +332,7 @@ it('takes an invited account through creating its first company after sign-in', 
 })
 
 it('clears private data on logout and returns to the login form', async () => {
-  const client = mountApp()
+  const { client } = mountApp()
   await screen.findByText('DUN-001')
   await userEvent.click(screen.getByLabelText('Fiókmenü'))
   await userEvent.click(screen.getByRole('button', { name: 'Kijelentkezés' }))
@@ -337,7 +350,7 @@ it('returns to login when a protected request detects an expired session', async
 })
 
 it('clears private data when the periodic session check finds an expired session', async () => {
-  const client = mountApp()
+  const { client } = mountApp()
   await screen.findByText('DUN-001')
   vi.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status: 401 }))
   await client.refetchQueries({ queryKey: ['session'] })

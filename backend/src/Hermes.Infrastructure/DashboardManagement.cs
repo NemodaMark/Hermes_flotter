@@ -38,7 +38,7 @@ public sealed class DashboardManagement(HermesDbContext db, TenantContext contex
             };
         }, ct);
 
-    public Task<DashboardOverview> ReadOverview(string? site, CancellationToken ct)
+    public Task<DashboardOverview> ReadOverview(string? site, string? status, string? search, int months, bool includeMileage, CancellationToken ct)
         => WithAccess(async (_, member, zone) =>
         {
             if (!member.EffectivePermissions.Contains(Permissions.FleetOverviewRead) || !member.EffectivePermissions.Contains(Permissions.VehiclesRead))
@@ -47,26 +47,21 @@ public sealed class DashboardManagement(HermesDbContext db, TenantContext contex
             var overviewScope = VehicleAccess.Query(db, access, Permissions.FleetOverviewRead);
             var visible = VehicleAccess.Query(db, access, Permissions.VehiclesRead)
                 .Where(vehicle => overviewScope.Any(candidate => candidate.Id == vehicle.Id));
-            if (site == "none")
-                visible = visible.Where(v => !db.VehicleSiteAssignments.Any(a => a.VehicleId == v.Id));
-            else if (site is not (null or "all"))
-            {
-                if (!Guid.TryParse(site, out var siteId) || siteId == Guid.Empty)
-                    throw UserAccounts.Error(400, "invalid_site", "Érvénytelen telephelyszűrő.");
-                visible = visible.Where(v => db.VehicleSiteAssignments.Any(a => a.VehicleId == v.Id && a.SiteId == siteId));
-            }
+            visible = VehicleAccess.Filter(db, visible, site ?? "all", status ?? "all", search);
+            if (months is < 1 or > 12)
+                throw UserAccounts.Error(400, "invalid_period", "Az időszak 1 és 12 hónap közötti lehet.");
 
             var now = DateTimeOffset.UtcNow;
             var timeZone = TimeZoneInfo.FindSystemTimeZoneById(zone);
             var today = FleetManagement.LocalDay(now, zone);
             var cars = await ReadVehicles(visible, access, timeZone, ct);
-            return await Mileage(cars, today, now, timeZone, ct);
+            return includeMileage ? await Mileage(cars, today, now, timeZone, months, ct) : new(today, cars, [], []);
         }, ct);
 
     private async Task<DashboardOverview> Mileage(DashboardVehicle[] cars, DateOnly today,
-        DateTimeOffset now, TimeZoneInfo timeZone, CancellationToken ct)
+        DateTimeOffset now, TimeZoneInfo timeZone, int months, CancellationToken ct)
     {
-        var first = new DateOnly(today.Year, today.Month, 1).AddMonths(-5);
+        var first = new DateOnly(today.Year, today.Month, 1).AddMonths(1 - months);
         var boundary = first.ToDateTime(TimeOnly.MinValue);
         var start = new DateTimeOffset(boundary, timeZone.GetUtcOffset(boundary)).ToUniversalTime();
         var ids = cars.Select(x => x.Vehicle.Id).ToArray();
@@ -80,7 +75,7 @@ public sealed class DashboardManagement(HermesDbContext db, TenantContext contex
             .Where(r => r.RecordedAt >= start && r.RecordedAt <= now && ids.Contains(r.VehicleId))
             .OrderBy(r => r.RecordedAt).ThenBy(r => r.Id)
             .Select(r => new { r.VehicleId, r.Kilometers, r.RecordedAt }).ToArrayAsync(ct);
-        var monthly = new long?[6];
+        var monthly = new long?[months];
         var totals = new Dictionary<Guid, long>();
         foreach (var reading in readings)
         {

@@ -17,9 +17,19 @@ export type DashboardOverview = {
   monthlyMileage: { month: string; kilometers: number | null }[]
   topVehicles: { vehicleId: string; registration: string; make: string; model: string; kilometers: number }[]
 }
+export type OverviewFilters = { search: string; status: string; months: number; includeMileage: boolean }
+
 export const dashboardApi = {
   read: (tenantId: string, signal?: AbortSignal) => request<Dashboard>('/api/v1/dashboard', { tenantId, signal }),
-  overview: (tenantId: string, site: string, signal?: AbortSignal) =>
-    request<DashboardOverview>(`/api/v1/dashboard/overview?site=${encodeURIComponent(site)}`, { tenantId, signal }),
+  overview: (tenantId: string, site: string, signal?: AbortSignal, filters?: OverviewFilters) => {
+    const params = new URLSearchParams({ site })
+    if (filters) {
+      params.set('search', filters.search)
+      params.set('status', filters.status)
+      params.set('months', String(filters.months))
+      params.set('includeMileage', String(filters.includeMileage))
+    }
+    return request<DashboardOverview>(`/api/v1/dashboard/overview?${params}`, { tenantId, signal })
+  },
   configure: (id: string, mode: string, priority: number, version: number) => request(`/api/v1/permission-groups/${id}/dashboard`, { method: 'PUT', body: { mode, priority, version } }),
 }

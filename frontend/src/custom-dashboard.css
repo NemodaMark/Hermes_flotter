@@ -1,0 +1,49 @@
+.custom-dashboard { display: grid; gap: var(--space-4); min-width: 0; }
+.custom-dashboard-toolbar, .custom-dashboard-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+}
+.custom-dashboard-toolbar { justify-content: space-between; gap: var(--space-3); }
+.custom-dashboard-toolbar h2 { font-size: 21px; font-weight: 600; }
+.custom-dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.custom-dashboard-tile { min-width: 0; container-type: inline-size; }
+.custom-dashboard-tile[data-wide=true] { grid-column: 1 / -1; }
+.custom-dashboard-tile[data-drop=true] { outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-panel); }
+.custom-dashboard-tile > .access-panel { min-width: 0; }
+.custom-tile-controls {
+  display: flex; align-items: center; gap: 2px; min-width: 0; margin-bottom: var(--space-2);
+  padding: 2px; border-radius: var(--radius-control); background: var(--surface-subtle);
+}
+.custom-tile-controls .icon-button { width: 34px; height: 40px; flex-shrink: 0; }
+.custom-tile-grip { touch-action: none; cursor: grab; }
+.custom-tile-grip:active { cursor: grabbing; }
+.custom-tile-edit-label { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); }
+.custom-tile-filter-summary { margin: 0 0 var(--space-2); color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.custom-module-list { display: grid; }
+.custom-module-list .sera-button { justify-content: space-between; min-height: 44px; text-align: left; white-space: normal; }
+.custom-tile-form { display: grid; gap: var(--space-3); }
+.custom-tile-form textarea { resize: vertical; }
+.custom-tile-form .org-field { min-width: 0; margin: 0; }
+.custom-note { background: var(--surface-subtle); }
+.custom-note .dashboard-section-heading h3 { display: flex; align-items: center; gap: var(--space-2); overflow-wrap: anywhere; }
+.custom-note h3 svg { flex-shrink: 0; color: var(--muted); }
+.custom-note p { min-height: 95px; margin: 0; padding: 0 var(--space-4) var(--space-4); white-space: pre-wrap; overflow-wrap: anywhere; }
+.custom-settlement > button { margin: 0 var(--space-4) var(--space-4); }
+.custom-dashboard > .dashboard-empty .sera-button { margin-top: var(--space-3); }
+.custom-list-pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.custom-list-pagination span { color: var(--muted); font-size: 13px; }
+@container (max-width: 500px) {
+  .custom-dashboard-tile .fleet-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .custom-dashboard-tile .fleet-metric:nth-child(odd) { border-inline-start: 0; }
+  .custom-dashboard-tile .fleet-metric:nth-child(n + 3) { border-block-start: 1px solid var(--line); }
+  .custom-dashboard-tile .dashboard-sites dl { grid-template-columns: 1fr; }
+  .custom-dashboard-tile .dashboard-deadlines .sera-button.dashboard-deadline {
+    grid-template-columns: minmax(0, 1fr) auto; padding-inline: var(--space-3);
+  }
+  .custom-dashboard-tile .dashboard-deadline-detail { grid-column: 1; }
+  .custom-dashboard-tile .dashboard-deadline .sera-badge { grid-column: 2; grid-row: 1 / span 2; }
+}
+@media (max-width: 760px) {
+  .custom-dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+  .custom-dashboard-toolbar { align-items: start; }
+  .custom-tile-controls .icon-button { width: 42px; min-height: 44px; }
+}
