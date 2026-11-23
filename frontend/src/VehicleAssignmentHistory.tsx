@@ -32,7 +32,7 @@ export function VehicleAssignmentHistory({ tenantId, id }: { tenantId: string; i
           <td>{row.releasedBy ? <Person username={row.releasedBy} name={row.releasedByDisplayName ?? row.releasedBy} /> : '—'}</td>
         </tr>)}</tbody>
       </table></div> : <p className="notice">{history.data.total ? 'Ezen az oldalon nincs hozzárendelés.' : 'Ehhez a járműhöz még nem történt felhasználói hozzárendelés.'}</p>}
-      <PageButtons page={page} total={history.data.total} pending={history.isFetching} onPage={setPage} />
+      {history.data.total > 0 && <PageButtons page={page} total={history.data.total} pending={history.isFetching} onPage={setPage} />}
     </>}
   </section>
 }

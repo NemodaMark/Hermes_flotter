@@ -12,6 +12,7 @@ import { Button } from './ui/Button'
 import { Select } from './ui/Select'
 import { Toggle } from './ui/Toggle'
 import { AccessDialog } from './AccessDialog'
+import { VehicleDetailGroup } from './VehicleDetailGroup'
 import { MileageCaptureFields } from './MileageCapture'
 import { useMileageCapture } from './useMileageCapture'
 import './vehicle-operations.css'
@@ -85,6 +86,12 @@ export function VehicleBookingCalendar(p: OperationProps & { userId: string; onC
     } else setEnd(day)
   }
 
+  const monthControl = <div className="vehicle-month-control">
+    <Button type="button" className="icon-button" aria-label="Előző hónap" onClick={() => setMonth(moveMonth(month, -1))}><ChevronLeft size={18} /></Button>
+    <strong aria-live="polite">{first.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', timeZone: 'UTC' })}</strong>
+    <Button type="button" className="icon-button" aria-label="Következő hónap" onClick={() => setMonth(moveMonth(month, 1))}><ChevronRight size={18} /></Button>
+  </div>
+
   return <section className="org-form vehicle-operation" aria-label="Járműfoglalás">
     <div className="vehicle-operation-toolbar"><h3>Foglalási naptár</h3>
       {canManage && enabled !== undefined && <Toggle checked={enabled} disabled={settings.isPending} onChange={value => settings.mutate(value)}>Foglalható</Toggle>}
@@ -93,11 +100,8 @@ export function VehicleBookingCalendar(p: OperationProps & { userId: string; onC
     {settings.error && <p role="alert" className="form-error">{settings.error.message}</p>}
     {canRead && <>
       {enabled === false && <p className="fleet-detail-caption">A jármű foglalása ki van kapcsolva.</p>}
-      <div className="vehicle-month-control">
-        <Button type="button" className="icon-button" aria-label="Előző hónap" onClick={() => setMonth(moveMonth(month, -1))}><ChevronLeft size={18} /></Button>
-        <strong aria-live="polite">{first.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', timeZone: 'UTC' })}</strong>
-        <Button type="button" className="icon-button" aria-label="Következő hónap" onClick={() => setMonth(moveMonth(month, 1))}><ChevronRight size={18} /></Button>
-      </div>
+      {enabled === false && <VehicleDetailGroup title="Korábbi foglalások hónapja">{monthControl}</VehicleDetailGroup>}
+      {enabled && <>{monthControl}
       <div className="vehicle-calendar" aria-label="Napok">
         {['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'].map(day => <span key={day} className="vehicle-calendar-weekday">{day}</span>)}
         {Array.from({ length: offset }, (_, i) => <span key={`empty-${i}`} aria-hidden="true" />)}
@@ -112,6 +116,7 @@ export function VehicleBookingCalendar(p: OperationProps & { userId: string; onC
             : <span key={day} className={className} aria-label={label}><span>{i + 1}</span>{booking && <small>{booking.name}</small>}</span>
         })}
       </div>
+      </>}
       {items.length > 0 && <ul className="vehicle-operation-list" aria-label="Havi foglalások">{items.map(item => <li key={item.id}>
         <div><strong>{item.name}</strong><span>{dateText(item.startsOn)} – {dateText(item.endsOn)}</span></div>
         {p.car.status !== 'Archived' && item.endsOn >= today && (canManage || item.userId === p.userId && canCancelOwn) &&
@@ -191,7 +196,7 @@ export function VehicleFuelForm(p: OperationProps & { userId: string; item?: Fue
   </form>
 }
 
-export function VehicleFuel(p: OperationProps & { userId: string }) {
+export function VehicleFuel(p: OperationProps & { userId: string; showCreate?: boolean }) {
   const tenantId = p.tenant.id
   const url = path(p.car.id)
   const client = useQueryClient()
@@ -219,7 +224,7 @@ export function VehicleFuel(p: OperationProps & { userId: string }) {
       <div className="member-actions">
         {read && <input className="operation-month-input" aria-label="Elszámolás hónapja" type="month" min="1900-01" max="2100-12" value={month.slice(0, 7)} onChange={e => { if (e.target.value) setMonth(e.target.value + '-01') }} />}
         {read && <Button className="secondary-button" disabled={exportMonth.isPending || !data.data?.totals.length} onClick={() => exportMonth.mutate()}><Download size={15} />CSV</Button>}
-        {manage && <Button className="primary-button" onClick={() => setOpen(!open)}>{open ? 'Mégse' : 'Tankolás rögzítése'}</Button>}
+        {manage && p.showCreate !== false && <Button className="primary-button" onClick={() => setOpen(!open)}>{open ? 'Mégse' : 'Tankolás rögzítése'}</Button>}
       </div>
     </div>
     {exportMonth.error && <p role="alert" className="form-error">{exportMonth.error.message}</p>}
@@ -289,7 +294,7 @@ export function VehicleHandovers(p: OperationProps & { onChanged: () => Promise<
         {image === row.id && <ProtectedImage path={`${url}/handovers/${row.id}/photo`} tenantId={tenantId} revision={row.id} alt="Átadáskori állapotfotó" className="operation-image" />}</div>
       {row.hasPhoto && <Button className="secondary-button" onClick={() => setImage(image === row.id ? '' : row.id)}>Fotó</Button>}
     </li>)}</ul> : <p className="notice">Még nincs átadási jegyzőkönyv.</p>}
-    <PageButtons page={page} total={rows.data.total} pending={rows.isFetching} onPage={setPage} /></>}
+    {rows.data.total > 0 && <PageButtons page={page} total={rows.data.total} pending={rows.isFetching} onPage={setPage} />}</>}
   </section>
 }
 

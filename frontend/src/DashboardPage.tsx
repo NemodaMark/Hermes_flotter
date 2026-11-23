@@ -13,8 +13,9 @@ import { Select } from './ui/Select'
 import { Badge } from './ui/Badge'
 import { Disclosure } from './ui/Disclosure'
 import { QueryMessage } from './FleetFields'
-import { VehiclePage } from './VehiclePage'
-import { VehicleActions, VehicleRecordingActions } from './VehicleActions'
+import { VehicleTaskPanel } from './VehicleTaskPanel'
+import { vehicleTaskNames } from './vehicleDetailModel'
+import { VehicleRecordingActions } from './VehicleActions'
 import type { VehicleRecordingMode } from './VehicleActions'
 import { VehicleGarage } from './VehicleGarage'
 import { FleetDashboardOverview } from './FleetDashboardOverview'
@@ -55,7 +56,7 @@ export function DashboardPage({ user, tenant, siteId, onFleet, onVehicle }: {
       {!data.canReadVehicles ? <p className="notice">Nincs jogosultságod járműadatok megtekintéséhez.</p>
         : mode === 'Overview' ? <FleetDashboardOverview userId={user.id} tenantId={tenant.id} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle} />
         : <CarDashboard key={siteId} cars={cars} user={user} tenant={tenant} today={data.today} onFleet={onFleet} viewSwitch={viewSwitch}
-          mileageOpen={mileage} onMileage={data.canRecordMileage ? () => setMileage(true) : undefined} dueMonth={data.mileageDueMonth} />}
+          mileageOpen={mileage} onProfile={onVehicle} onMileage={data.canRecordMileage ? () => setMileage(true) : undefined} dueMonth={data.mileageDueMonth} />}
       {mileage && data.canRecordMileage && <AccessDialog title="Havi km-elszámolás" pending={mileagePending} onClose={() => setMileage(false)} className="mileage-dialog">
         <Suspense fallback={<p role="status">Elszámolás betöltése…</p>}><MileagePanel tenant={tenant} user={user} initialMonth={data.mileageDueMonth ?? undefined} /></Suspense>
       </AccessDialog>}
@@ -66,17 +67,19 @@ export function DashboardPage({ user, tenant, siteId, onFleet, onVehicle }: {
 const icons = { data: CarFront, history: Gauge, services: Wrench, documents: FileText, leases: FileText,
   site: MapPin, photos: Camera, bookings: CalendarDays, fuel: Fuel, handovers: Handshake }
 type VehicleTab = keyof typeof icons
-const extraTabNames = { assignees: 'Használati előzmények', audit: 'Módosítási napló' }
 
-function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileage, dueMonth, mileageOpen }: {
+function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileage, dueMonth, mileageOpen, onProfile }: {
   cars: DashboardCar[]; user: Session; tenant: Tenant; today: string; onFleet: () => void; viewSwitch: ReactNode
   onMileage?: () => void; dueMonth?: string | null; mileageOpen: boolean
+  onProfile: (id: string) => void
 }) {
   const eligible = cars.filter(car => car.vehicle.status !== 'Archived')
   const [selected, setSelected] = useState<string | null>(null)
   const [action, setAction] = useState<StudioAction | null>(null)
   const [opened, setOpened] = useState<StudioSection | null>(null)
   const [recording, setRecording] = useState<VehicleRecordingMode | null>(null)
+  const [allAttention, setAllAttention] = useState(false)
+  const taskPending = useIsMutating() > 0
   const car = eligible.find(car => car.vehicle.id === selected) ?? eligible.find(car => car.isAssignedToMe) ?? eligible[0]
   useVehicleAccent(car?.color ?? null)
   const can = (code: string) => !!car?.vehicle.permissions?.includes(code)
@@ -128,7 +131,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
     else focus(canService ? 'services' : 'data')
   }
   return <>
-    <section className="car-dashboard" aria-label="Autós dashboard">
+    <section className="car-dashboard" aria-label="Autós dashboard" data-task-open={opened !== null || recording !== null || mileageOpen}>
       <VehicleGarage car={car.vehicle} bodyType={car.bodyType} color={car.color} menus={points} action={action} immersive
         onSelect={focus} paused={opened !== null || recording !== null || mileageOpen} onReset={() => moveCamera('home')}
         overlay={<>
@@ -156,9 +159,9 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
             {dueMonth && onMileage && <Button className="car-attention-notice" onClick={onMileage}><Gauge size={17} aria-hidden="true" />Havi km-elszámolás<Badge tone="danger" dot={false}>{dueMonth.slice(0, 7)} lezárandó</Badge></Button>}
             {car.vehicle.status === 'Maintenance' && <div className="car-attention-notice"><Wrench size={17} aria-hidden="true" />Szervizben</div>}
             {missingOdometer && <div className="car-attention-notice"><Gauge size={17} aria-hidden="true" />
-              <span>Rögzítendő kilométerállás</span><VehicleActions key={car.vehicle.id} user={user} tenant={tenant} vehicle={car.vehicle} allowEditing={false} />
+              <Button variant="link" onClick={() => changeRecording('odometer')}>Rögzítendő kilométerállás</Button>
             </div>}
-            {deadlines.map(item => {
+            {(allAttention ? deadlines : deadlines.slice(0, 3)).map(item => {
               const state = deadlineState(item)
               return <Button key={item.kind} className="car-attention-notice" onClick={() => openDeadline(item)}>
                 <CalendarClock size={17} aria-hidden="true" /><span>{item.label}</span>
@@ -166,10 +169,11 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
                 <Badge tone={state.tone} dot={false}>{state.label}</Badge>
               </Button>
             })}
+            {deadlines.length > 3 && <Button className="car-attention-more" aria-expanded={allAttention} onClick={() => setAllAttention(value => !value)}>{allAttention ? 'Kevesebb teendő' : `További teendők (${deadlines.length - 3})`}</Button>}
           </section>}
         </>}>
         <nav className="car-menu" aria-label="Jármű gyorsmenü">
-          <VehicleRecordingActions key={`recording:${car.vehicle.id}`} user={user} tenant={tenant} vehicle={car.vehicle} onModeChange={changeRecording} />
+          <VehicleRecordingActions key={`recording:${car.vehicle.id}`} user={user} tenant={tenant} vehicle={car.vehicle} mode={recording} onModeChange={changeRecording} />
           {menus.filter(menu => quickLabels[menu.key]).map(menu => {
           const Icon = icons[menu.key]
           return <Button key={menu.key} aria-label={menu.label} onClick={() => focus(menu.key)}>
@@ -186,10 +190,10 @@ function CarDashboard({ cars, user, tenant, today, onFleet, viewSwitch, onMileag
         </nav>
       </VehicleGarage>
     </section>
-    {opened && <AccessDialog title={`${car.vehicle.registration} · ${opened === 'assignees' || opened === 'audit' ? extraTabNames[opened] : menus.find(menu => menu.key === opened)?.label ?? 'Jármű'}`}
-      pending={false} onClose={closeDrawer} className="studio-vehicle-dialog">
-      <VehiclePage key={car.vehicle.id} user={user} tenant={tenant} id={car.vehicle.id} initialTab={opened}
-        onBack={closeDrawer} showGarage={false} embedded onSectionChange={focus} />
+    {opened && <AccessDialog title={`${car.vehicle.registration} · ${vehicleTaskNames[opened]}`}
+      pending={taskPending} onClose={closeDrawer} className={`studio-vehicle-dialog vehicle-focused-task task-${opened}`}>
+      <VehicleTaskPanel key={`${car.vehicle.id}:${opened}`} user={user} tenant={tenant} id={car.vehicle.id} section={opened} />
+      {opened === 'data' && <div className="vehicle-task-footer"><Button variant="outline" onClick={() => onProfile(car.vehicle.id)}>Teljes járműadatlap</Button></div>}
     </AccessDialog>}
   </>
 }

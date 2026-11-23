@@ -45,14 +45,15 @@ export function VehiclePhotos({ tenant, car, onChanged }: { tenant: Tenant; car:
   </section>
 }
 
-export function VehicleAssignee({ tenant, car, onChanged, readOnly = false }: { tenant: Tenant; car: Vehicle; onChanged: () => Promise<void>; readOnly?: boolean }) {
+export function VehicleAssignee({ tenant, car, onChanged, readOnly = false, showCurrent = true }: { tenant: Tenant; car: Vehicle; onChanged: () => Promise<void>; readOnly?: boolean; showCurrent?: boolean }) {
   const [selection, setSelection] = useState<string | null>(null)
   const canAssign = !readOnly && (car.permissions ?? tenant.permissions).includes('vehicles.users.assign') && car.status !== 'Archived'
   const current = useQuery({ queryKey: ['vehicle-assignee', tenant.id, car.id], queryFn: ({ signal }) => mediaApi.assignee(tenant.id, car.id, signal), retry: false })
   const options = useQuery({ queryKey: ['vehicle-assignee-options', tenant.id, car.id], queryFn: ({ signal }) => mediaApi.assigneeOptions(tenant.id, car.id, signal), enabled: canAssign, retry: false })
   const selected = selection ?? current.data?.current?.userId ?? ''
   const save = useMutation({ mutationFn: () => mediaApi.assign(tenant.id, car.id, selected || null, car.version!), onSuccess: async () => { setSelection(null); await onChanged() } })
-  return <section className={`vehicle-assignee${readOnly ? ' vehicle-current-user' : ''}`} aria-label={readOnly ? 'Jelenlegi használó' : 'Jármű használója'}><UserRound size={19} aria-hidden="true" /><span>Jelenlegi használó: {current.isPending ? 'Betöltés…' : current.data?.current ? <a href={`#/profile/${encodeURIComponent(current.data.current.userId)}`}>{current.data.current.displayName}</a> : current.isError ? 'Nem tölthető be' : 'Nincs kijelölve'}</span>
+  if (!showCurrent && !canAssign) return null
+  return <section className={`vehicle-assignee${readOnly ? ' vehicle-current-user' : ''}`} aria-label={readOnly ? 'Jelenlegi használó' : 'Jármű használója'}>{showCurrent && <><UserRound size={19} aria-hidden="true" /><span>Jelenlegi használó: {current.isPending ? 'Betöltés…' : current.data?.current ? <a href={`#/profile/${encodeURIComponent(current.data.current.userId)}`}>{current.data.current.displayName}</a> : current.isError ? 'Nem tölthető be' : 'Nincs kijelölve'}</span></>}
     {canAssign && <form onSubmit={e => { e.preventDefault(); save.mutate() }}><Select aria-label="Jármű használója" value={selected} disabled={save.isPending || !options.data} onChange={e => setSelection(e.target.value)}><option value="">Nincs kijelölve</option>{current.data?.current && !options.data?.some(p => p.id === current.data.current?.userId) && <option value={current.data.current.userId}>{current.data.current.displayName}</option>}{options.data?.map(p => <option key={p.id} value={p.id}>{p.displayName} (@{p.id})</option>)}</Select><Button className="secondary-button" disabled={save.isPending || !current.data || selected === (current.data.current?.userId ?? '')}>Hozzárendelés mentése</Button></form>}
     {(current.error || options.error || save.error) && <p className="form-error" role="alert">{current.error?.message ?? options.error?.message ?? save.error?.message}</p>}
   </section>

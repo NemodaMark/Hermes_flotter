@@ -29,10 +29,12 @@ function useVehicleActionRefresh({ user, tenant, vehicle }: VehicleActionProps) 
 
 export function VehicleRecordingActions(props: VehicleActionProps & {
   onModeChange?: (mode: VehicleRecordingMode | null) => void
+  mode?: VehicleRecordingMode | null
 }) {
-  const { tenant, vehicle, onModeChange } = props
+  const { tenant, vehicle, onModeChange, mode: controlledMode } = props
   const refresh = useVehicleActionRefresh(props)
-  const [mode, setMode] = useState<VehicleRecordingMode | null>(null)
+  const [localMode, setMode] = useState<VehicleRecordingMode | null>(null)
+  const mode = controlledMode === undefined ? localMode : controlledMode
   const [message, setMessage] = useState('')
   const allowed = (code: string) => vehicle.status !== 'Archived' && (vehicle.permissions ?? tenant.permissions).includes(code)
   const fuel = allowed('vehicles.fuel.manage'), odometer = allowed('vehicles.odometer.create')

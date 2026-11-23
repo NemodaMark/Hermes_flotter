@@ -9,7 +9,7 @@ import { api } from './api'
 import { PermissionGroups } from './PermissionGroups'
 import { chooseOption } from './selectTestUtils'
 import { vehiclePaint } from './vehicleAppearance'
-vi.mock('./VehiclePage',()=>({VehiclePage:({initialTab}:{initialTab:string})=><div aria-label="Járműadatlap">Megnyitott rész: {initialTab}</div>}))
+vi.mock('./VehicleTaskPanel',()=>({VehicleTaskPanel:({section}:{section:string})=><div aria-label="Járműfeladat">Megnyitott rész: {section}</div>}))
 afterEach(()=>vi.restoreAllMocks())
 beforeEach(()=>{
   HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','')}
@@ -62,7 +62,7 @@ it('surfaces service deadlines and lets an authorized driver record a missing od
   await userEvent.click(within(tasks).getByRole('button', { name: /Következő szerviz.*3 nap múlva/ }))
   expect(await screen.findByText('Megnyitott rész: services')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Bezárás' }))
-  await userEvent.click(within(tasks).getByRole('button', { name: 'Kilométerállás: AAA-001' }))
+  await userEvent.click(within(tasks).getByRole('button', { name: 'Rögzítendő kilométerállás' }))
   expect(await screen.findByRole('dialog', { name: 'Kilométerállás rögzítése' })).toBeInTheDocument()
 })
 it('makes every deadline reachable beyond the compact initial list', async () => {

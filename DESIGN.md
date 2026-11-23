@@ -1,0 +1,68 @@
+---
+version: alpha
+name: HERMES
+description: Céges flottakezelés, gyors napi rögzítéssel és áttekinthető járműadatokkal.
+colors:
+  ground: "#fffefa"
+  ink: "#242821"
+  muted: "#60675c"
+  signal: "#344b3c"
+typography:
+  display:
+    fontFamily: IBM Plex Sans
+    fontSize: 26px
+    fontWeight: 600
+  body:
+    fontFamily: IBM Plex Sans
+    fontSize: 14px
+    lineHeight: 1.5
+rounded:
+  sm: 7px
+  md: 12px
+spacing:
+  sm: 8px
+  md: 16px
+  lg: 24px
+---
+
+# HERMES felületi szerződés
+
+Frissítve: **2026. november 23.** A dokumentum a meglévő arculatot rögzíti; az alapértékek forrása a kód, nem egy második téma.
+
+## Alapok és színek
+
+A flottakezelőben a tankolás és kilométerállás gyors rögzítése, valamint a járműadatok és teendők kezelése az elsődleges. A saját autó garázsa látványos belépési pont; a munkapanelek elrendezését az adott feladat határozza meg.
+
+Minden felület a `--surface`, `--ink`, `--muted`, `--line`, `--primary` és szemantikus állapottokeneket használja. A sötét mód a böngésző beállítását követi: alapfelület `#252b26`, szöveg `#eef0e9`, másodlagos szöveg `#b7c0b5`, alap akcentus `#a9cbb1`. A meglévő járműszín-akcentus megmarad; a hiba/figyelmeztetés/siker szemantikus színeit nem írja felül.
+
+Források: [téma](frontend/src/fleet-theme.css), [közös UI](frontend/src/ui/sera.css), [tipográfia és fókusz](frontend/src/index.css), [járműelrendezés](frontend/src/vehicle-profile.css).
+
+## Tipográfia és elrendezés
+
+Az IBM Plex Sans 400/500/600 súlyai maradnak. A rendszám a jármű elsődleges felirata; a címkék kisebbek és visszafogottabbak az értékeknél.
+
+A teljes járműadatlap öt területre oszlik: **Áttekintés**, **Tankolás és km**, **Használat**, **Szerviz és iratok**, **Előzmények**. Asztalon bal oldali navigáció, mobilon ugyanennek egyetlen kinyitható menüje jelenik meg. Szerkesztés közben csak a meglévő mezőcsoportos szerkesztő navigációja aktív.
+
+A rendszám, gyártó/modell, állapot, aktuális km, telephely és használó tömör fejlécbe kerül. A megtekintési állapot címke–érték párokat mutat; beviteli mezők csak kifejezett szerkesztés után jelennek meg. A garázs panelje egyetlen feladatot tartalmaz, teljes profilnavigáció nélkül.
+
+## Felületek és közös komponensek
+
+Egy munkafelület egy közös keretet kap. A mezőket és ritkább részleteket vonal, térköz vagy kinyitható rész választja el; nem készül minden információ köré új kártya. A közös vezérlő- és panelrádiusz megmarad, új dekoratív árnyék nem kerül be.
+
+A `Button`, `Select`/`ComboBox`, `Toggle`, `AccessDialog`, `QueryMessage`, `PageButtons`, `VehicleRecordingActions` és meglévő üzleti komponensek az elsődleges építőelemek. A `VehicleTaskContent` közös feladattartalmat ad a teljes adatlap és garázs számára.
+
+A `VehicleDetailGroup` tartalmi kinyitásra szolgál. A menükhöz használt `ui/Disclosure` gyermekműveletre bezáródik, ezért űrlaptartalom köré nem alkalmas.
+
+## Mobil és hozzáférhetőség
+
+- A Tankolás és Km rögzítése ugyanazon gombjai mobilon rögzített alsó sávba kerülnek; nincs második példány.
+- A tartalom helyet hagy az alsó sávnak és az eszköz biztonsági margójának.
+- A garázsfeladat mobilon teljes szélességű párbeszédablak, saját görgetéssel és bezárógombbal.
+- A navigáció billentyűzettel használható, látható fókuszt és aktuális állapotot kap. Menüválasztás után a mobil menügomb visszakapja a fókuszt.
+- A meglévő csökkentettmozgás-beállítás, témák és hibaállapotok megmaradnak.
+
+## Megőrzendő szabályok
+
+Nincs új színpaletta, betűcsalád vagy párhuzamos UI-könyvtár. Nincs ismétlődő járműfejléc, egymásba ágyazott fülsor, megtekintéskor letiltott űrlap, üres listán lapozósáv vagy kikapcsolt foglalásnál üres naptár. A korábbi foglalások ettől még elérhetők.
+
+Az elrendezés nem ad új jogot: a tényleges jármű műveletenkénti jogosultsága elsőbbséget élvez a céges összesítéssel szemben. A szerveroldali cég-/telephelykorlátok, verzióellenőrzés és naplózás változatlanok.

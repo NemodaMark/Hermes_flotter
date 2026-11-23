@@ -55,7 +55,7 @@ export function VehicleContracts({ tenant, car, kind, onChanged }: { tenant: Ten
             <MetadataLine version={x.data.version} updatedAt={x.updatedAt} updatedBy={x.updatedBy} />
           </article>)}
           {!query.data.total && <p className="notice">{lease ? 'Még nincs lízingszerződés ehhez a járműhöz.' : 'Még nincs szervizbejegyzés ehhez a járműhöz.'}</p>}
-        </div><PageButtons page={page} total={query.data.total} pending={query.isFetching} onPage={setPage} />
+        </div>{query.data.total > 0 && <PageButtons page={page} total={query.data.total} pending={query.isFetching} onPage={setPage} />}
       </>}
     </>}
     {edit && (lease ? <LeaseDialog tenantId={tenant.id} car={car} item={edit === 'new' ? undefined : edit as Lease} onClose={() => setEdit(null)} onSaved={async saved => {
