@@ -1,17 +1,19 @@
-import { useRef, useState } from 'react'
-import type { PointerEvent, ReactNode } from 'react'
+import { useId, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDown, ArrowRight, ArrowUp, Grip, Pencil, Plus, RotateCcw, Settings2, StickyNote, Trash2 } from 'lucide-react'
+import { ArrowRight, Pencil, Plus, RotateCcw, StickyNote } from 'lucide-react'
 import { api, vehicleKey } from './api'
 import type { Session, Tenant } from './api'
 import { dashboardApi } from './dashboardApi'
-import { dashboardModules, isDashboardLayout, isOverviewModule, makeTile, overviewModules } from './dashboardModules'
+import { dashboardModules, dashboardSize, isOverviewModule, makeTile, overviewModules, readDashboardLayout } from './dashboardModules'
 import type { DashboardTile, ModuleKind, OverviewModule } from './dashboardModules'
+import { DashboardGrid } from './DashboardGrid'
+import type { DashboardDrag, DashboardDrop } from './DashboardGrid'
 import { FleetDashboardOverview, OverviewModuleContent } from './FleetDashboardOverview'
 import { AccessDialog } from './AccessDialog'
 import { QueryMessage } from './FleetFields'
 import { vehicleStatuses } from './fleetApi'
-import { personalKey, readPersonal, removePersonal, writePersonal } from './personalStorage'
+import { personalKey, removePersonal, writePersonal } from './personalStorage'
 import { Button } from './ui/Button'
 import { Select } from './ui/Select'
 import './custom-dashboard.css'
@@ -30,15 +32,14 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
 }) {
   const { user, tenant, siteId, canOverview, canVehicles, onVehicle, onMileage } = props
   const key = personalKey(user.id, 'dashboard-layout-v1', tenant.id)
-  const [saved, setSaved] = useState(() => readPersonal(key, isDashboardLayout))
+  const paletteId = useId()
+  const [saved, setSaved] = useState(() => readDashboardLayout(key))
   const [draft, setDraft] = useState<DashboardTile[] | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
   const [adding, setAdding] = useState(false)
   const [config, setConfig] = useState<DashboardTile | null>(null)
   const [error, setError] = useState('')
   const [announcement, setAnnouncement] = useState('')
-  const [dropTarget, setDropTarget] = useState<string | null>(null)
-  const drag = useRef<{ id: string; y: number } | null>(null)
 
   function allowed(kind: ModuleKind) {
     if (isOverviewModule(kind)) return canOverview
@@ -53,15 +54,26 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
   const showDefaultOverview = !draft && saved === undefined && canOverview
   const catalogue = (Object.keys(dashboardModules) as ModuleKind[]).filter(allowed)
 
-  function move(id: string, targetId: string) {
-    if (!draft || id === targetId) return
-    const from = draft.findIndex(tile => tile.id === id)
-    const to = draft.findIndex(tile => tile.id === targetId)
-    if (from < 0 || to < 0) return
-    const next = [...draft]
-    next.splice(to, 0, next.splice(from, 1)[0]!)
+  function newTile(kind: ModuleKind) {
+    const id = Array.from(crypto.getRandomValues(new Uint32Array(4)), part => part.toString(16).padStart(8, '0')).join('')
+    return makeTile(kind, id)
+  }
+
+  function drop(source: DashboardDrag, target: DashboardDrop) {
+    if (!draft) return
+    const tile = 'kind' in source ? newTile(source.kind) : draft.find(item => item.id === source.id)
+    if (!tile || (target !== 'end' && target.id === tile.id)) return
+    const next = draft.filter(item => item.id !== tile.id)
+    const at = target === 'end' ? next.length : next.findIndex(item => item.id === target.id) + Number(target.after)
+    next.splice(at, 0, tile)
     setDraft(next)
-    setAnnouncement(`${dashboardModules[next[to]!.kind]} áthelyezve.`)
+    setAnnouncement(`${dashboardModules[tile.kind]} ${'kind' in source ? 'hozzáadva' : 'áthelyezve'}.`)
+  }
+
+  function stopEditing() {
+    setDraft(null)
+    setAdding(false)
+    setError('')
   }
 
   function save() {
@@ -71,8 +83,7 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
       return
     }
     setSaved(draft)
-    setDraft(null)
-    setError('')
+    stopEditing()
     setAnnouncement('Az egyéni nézet mentve.')
   }
 
@@ -87,44 +98,14 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
     setAnnouncement('Az alapelrendezés visszaállítva.')
   }
 
-  function targetAt(event: PointerEvent) {
-    return document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-dashboard-tile]')?.dataset.dashboardTile ?? null
-  }
-
-  function dragStart(event: PointerEvent<HTMLButtonElement>, id: string) {
-    if (!event.isPrimary || event.button !== 0) return
-    event.currentTarget.setPointerCapture(event.pointerId)
-    drag.current = { id, y: event.clientY }
-    setDropTarget(id)
-  }
-
-  function dragMove(event: PointerEvent<HTMLButtonElement>) {
-    if (!drag.current) return
-    const delta = event.clientY - drag.current.y
-    if (delta > 0 && event.clientY > window.innerHeight - 64) window.scrollBy(0, delta)
-    if (delta < 0 && event.clientY < 64) window.scrollBy(0, delta)
-    drag.current.y = event.clientY
-    setDropTarget(targetAt(event))
-  }
-
-  function dragEnd(event: PointerEvent<HTMLButtonElement>) {
-    const target = targetAt(event)
-    if (target && drag.current) move(drag.current.id, target)
-    cancelDrag()
-  }
-
-  function cancelDrag() {
-    drag.current = null
-    setDropTarget(null)
-  }
-
   return <div className="dashboard-overview">
     <div className="dashboard-heading">
       {viewSwitch}
       <div className="dashboard-heading-actions">
         {draft ? <>
-          <Button variant="outline" onClick={() => setAdding(true)}><Plus size={17} />Modul hozzáadása</Button>
-          <Button variant="ghost" onClick={() => { setDraft(null); setError('') }}>Mégse</Button>
+          <Button variant="outline" aria-expanded={adding} aria-controls={adding ? paletteId : undefined}
+            onClick={() => setAdding(open => !open)}><Plus size={17} aria-hidden="true" />Modul hozzáadása</Button>
+          <Button variant="ghost" onClick={stopEditing}>Mégse</Button>
           <Button variant="default" onClick={save}>Elrendezés mentése</Button>
         </> : <>
           {quickActions}
@@ -138,43 +119,26 @@ export function DashboardOverview({ viewSwitch, quickActions, onFleet, ...props 
     <span className="sr-only" role="status">{announcement}</span>
     {error && <p className="notice error" role="alert">{error}</p>}
     {showDefaultOverview ? <FleetDashboardOverview userId={user.id} tenantId={tenant.id} siteId={siteId} onFleet={onFleet} onVehicle={onVehicle} />
-      : visible.length === 0 ? <div className="access-panel dashboard-empty">
+      : !draft && visible.length === 0 ? <div className="access-panel dashboard-empty">
         <p>Még nincsenek modulok az áttekintődben.</p>
-        {!draft && <Button variant="outline" onClick={() => { setDraft(layout); setAdding(true) }}><Plus size={17} />Első modul hozzáadása</Button>}
+        <Button variant="outline" onClick={() => { setDraft(layout); setAdding(true) }}><Plus size={17} />Első modul hozzáadása</Button>
       </div>
-      : <div className="custom-dashboard-grid">
-      {visible.map((tile, index) => {
-        const title = tile.kind === 'note' && tile.title.trim() ? tile.title : dashboardModules[tile.kind]
-        return <article key={tile.id} className="custom-dashboard-tile" data-dashboard-tile={tile.id}
-          data-wide={tile.wide} data-drop={dropTarget === tile.id} aria-label={title}>
-          {draft && <div className="custom-tile-controls">
-            <Button className="icon-button custom-tile-grip" aria-label={`${title} mozgatása húzással`} tabIndex={-1}
-              onPointerDown={event => dragStart(event, tile.id)} onPointerMove={dragMove}
-              onPointerUp={dragEnd} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag} title="Mozgatás húzással"><Grip size={18} /></Button>
-            <span className="custom-tile-edit-label">{title}</span>
-            <Button className="icon-button" aria-label={`${title} előrébb`} disabled={index === 0} onClick={() => move(tile.id, visible[index - 1]!.id)}><ArrowUp size={16} /></Button>
-            <Button className="icon-button" aria-label={`${title} hátrébb`} disabled={index === visible.length - 1} onClick={() => move(tile.id, visible[index + 1]!.id)}><ArrowDown size={16} /></Button>
-            <Button className="icon-button" aria-label={`${title} beállításai`} onClick={() => setConfig(tile)}><Settings2 size={16} /></Button>
-            <Button className="icon-button" aria-label={`${title} eltávolítása`} onClick={() => setDraft(draft.filter(item => item.id !== tile.id))}><Trash2 size={16} /></Button>
-          </div>}
-          <DashboardTileContent {...props} tile={tile} />
-        </article>
-      })}
-    </div>}
+      : <DashboardGrid tiles={visible} paletteId={paletteId} editor={draft ? {
+        catalogue: adding ? catalogue : null,
+        onChoose: kind => setConfig(newTile(kind)),
+        onDrop: drop,
+        onResize: (id, size) => {
+          setDraft(draft.map(tile => tile.id === id ? { ...tile, ...size } : tile))
+          setAnnouncement('A modul mérete módosítva.')
+        },
+        onSettings: setConfig,
+        onRemove: id => setDraft(draft.filter(tile => tile.id !== id)),
+      } : undefined}>{tile => <DashboardTileContent {...props} tile={tile} />}</DashboardGrid>}
     {confirmReset && <AccessDialog title="Alapelrendezés visszaállítása" pending={false} onClose={() => setConfirmReset(false)}>
       <p>Az egyéni elrendezés, a szűrők és az áttekintőben mentett jegyzetek törlődnek.</p>
       <div className="dialog-actions">
         <Button type="button" variant="outline" data-autofocus onClick={() => setConfirmReset(false)}>Mégse</Button>
         <Button type="button" variant="destructive" onClick={reset}>Visszaállítás</Button>
-      </div>
-    </AccessDialog>}
-    {adding && draft && <AccessDialog title="Modul hozzáadása" pending={false} onClose={() => setAdding(false)}>
-      <div className="custom-module-list">
-        {catalogue.map(kind => <Button key={kind} variant="ghost" onClick={() => {
-          const id = Array.from(crypto.getRandomValues(new Uint32Array(4)), part => part.toString(16).padStart(8, '0')).join('')
-          setAdding(false)
-          setConfig(makeTile(kind, id))
-        }}>{dashboardModules[kind]}<Plus size={17} aria-hidden="true" /></Button>)}
       </div>
     </AccessDialog>}
     {config && draft && <TileSettings key={config.id} tile={config} sites={props.sites} canUnassigned={props.canUnassigned}
@@ -272,9 +236,12 @@ function TileSettings({ tile, sites, canUnassigned, onClose, onApply }: {
         <label className="org-field"><span>Cím</span><input value={value.title} onChange={e => change({ title: e.target.value })} data-autofocus /></label>
         <label className="org-field"><span>Jegyzet</span><textarea rows={6} value={value.note} onChange={e => change({ note: e.target.value })} /></label>
       </>}
-      <label className="org-field"><span>Szélesség</span><Select value={value.wide ? 'full' : 'half'} onChange={e => change({ wide: e.target.value === 'full' })}>
-        <option value="half">Fél szélesség</option><option value="full">Teljes szélesség</option>
-      </Select></label>
+      <div className="custom-tile-dimensions">
+        <label className="org-field"><span>Szélesség (oszlop)</span><input type="number" min={dashboardSize.minColumns} max={dashboardSize.columns}
+          required value={value.columns || ''} onChange={e => change({ columns: Number(e.target.value) })} /></label>
+        <label className="org-field"><span>Magasság (px)</span><input type="number" min={dashboardSize.minHeight} max={dashboardSize.maxHeight}
+          placeholder="Automatikus" value={value.height ?? ''} onChange={e => change({ height: e.target.value === '' ? null : Number(e.target.value) })} /></label>
+      </div>
       {isData && <>
         <label className="org-field"><span>Telephely</span><Select value={value.site} onChange={e => change({ site: e.target.value })}>
           <option value="workspace">A kiválasztott munkaterület</option><option value="all">Összes telephely</option>

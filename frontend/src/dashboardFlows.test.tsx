@@ -64,7 +64,7 @@ it('keeps notes across view changes without exposing modules the user cannot rea
     const operator = userEvent.setup()
     await operator.click(await screen.findByRole('button', { name: 'Saját áttekintő' }))
     await operator.click(await screen.findByRole('button', { name: 'Első modul hozzáadása' }))
-    const choices = within(screen.getByRole('dialog', { name: 'Modul hozzáadása' }))
+    const choices = within(screen.getByRole('region', { name: 'Elérhető modulok' }))
     expect(choices.queryByRole('button', { name: 'Flotta állapota' })).not.toBeInTheDocument()
     expect(choices.queryByRole('button', { name: 'Járműlista' })).not.toBeInTheDocument()
     await operator.click(choices.getByRole('button', { name: 'Jegyzet' }))
@@ -84,13 +84,14 @@ it('keeps notes across view changes without exposing modules the user cannot rea
 it('opens an existing custom layout in overview and restores the fleet default after confirmation', async () => {
   const key = personalKey(user.id, 'dashboard-layout-v1', tenant.id)
   const otherWorkspace = personalKey(user.id, 'dashboard-layout-v1', 'other-company')
-  const layout = JSON.stringify([{ ...makeTile('note', 'existing-note'), title: 'Szerviz', note: 'Időpont egyeztetése' }])
+  const { columns: _columns, height: _height, ...tile } = makeTile('note', 'existing-note')
+  const layout = JSON.stringify([{ ...tile, wide: false, title: 'Szerviz', note: 'Időpont egyeztetése' }])
   localStorage.setItem(key, layout)
   localStorage.setItem(otherWorkspace, layout)
   try {
     const { loadOverview, unmount } = mount()
     const operator = userEvent.setup()
-    expect(await screen.findByRole('article', { name: 'Szerviz' })).toBeInTheDocument()
+    expect(await screen.findByRole('article', { name: 'Szerviz' })).toHaveStyle('--tile-columns: 6')
     expect(screen.getByRole('button', { name: 'Áttekintő' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('button', { name: 'Egyéni' })).not.toBeInTheDocument()
     expect(loadOverview).not.toHaveBeenCalled()
@@ -115,6 +116,33 @@ it('opens an existing custom layout in overview and restores the fleet default a
   } finally {
     localStorage.removeItem(key)
     localStorage.removeItem(otherWorkspace)
+  }
+})
+it('keeps the configured width and height of an added module after saving and reopening', async () => {
+  const key = personalKey(user.id, 'dashboard-layout-v1', tenant.id)
+  localStorage.removeItem(key)
+  try {
+    const { unmount } = mount()
+    const operator = userEvent.setup()
+    await operator.click(await screen.findByRole('button', { name: 'Elrendezés szerkesztése' }))
+    await operator.click(screen.getByRole('button', { name: 'Modul hozzáadása' }))
+    await operator.click(within(screen.getByRole('region', { name: 'Elérhető modulok' })).getByRole('button', { name: 'Jegyzet' }))
+    const settings = within(screen.getByRole('dialog'))
+    await operator.type(settings.getByRole('textbox', { name: 'Cím' }), 'Műszak')
+    for (const [name, size] of [['Szélesség (oszlop)', '8'], ['Magasság (px)', '240']]) {
+      const field = settings.getByRole('spinbutton', { name })
+      await operator.clear(field)
+      await operator.type(field, size)
+    }
+    await operator.click(settings.getByRole('button', { name: 'Alkalmazás' }))
+    await operator.click(screen.getByRole('button', { name: 'Elrendezés mentése' }))
+    unmount()
+    mount()
+    const note = await screen.findByRole('article', { name: 'Műszak' })
+    expect(note).toHaveStyle('--tile-columns: 8; --tile-height: 240px')
+    expect(within(note).getByRole('region', { name: 'Műszak tartalma' })).toHaveAttribute('tabindex', '0')
+  } finally {
+    localStorage.removeItem(key)
   }
 })
 it('surfaces service deadlines and lets an authorized driver record a missing odometer reading', async () => {

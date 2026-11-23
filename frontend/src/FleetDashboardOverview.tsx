@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, CalendarClock, CarFront, Gauge, Wrench } from 'lucide-react'
 import { dashboardApi } from './dashboardApi'
@@ -155,7 +156,7 @@ function MileageChart({ months }: { months: DashboardOverview['monthlyMileage'] 
   return <section className="access-panel fleet-mileage" aria-labelledby={headingId}>
     <div className="dashboard-section-heading"><h3 id={headingId}>Havi futásteljesítmény</h3>
       <span>{months.some(x => x.kilometers !== null) ? kilometers(total) : 'Nincs mérhető adat'}</span></div>
-    <ul className="fleet-mileage-chart" style={{ gridTemplateColumns: `repeat(${Math.min(6, Math.max(1, months.length))}, minmax(0, 1fr))` }} aria-label={`Havi kilométerek · ${months.length} hónap`}>
+    <ul className="fleet-mileage-chart" style={{ '--chart-months': Math.max(1, months.length) } as CSSProperties} aria-label={`Havi kilométerek · ${months.length} hónap`}>
       {months.map(entry => {
         const date = new Date(entry.month)
         const value = entry.kilometers

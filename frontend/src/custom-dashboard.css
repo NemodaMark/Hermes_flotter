@@ -1,21 +1,57 @@
 .dashboard-overview { display: grid; gap: var(--space-4); min-width: 0; }
-.custom-dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
-.custom-dashboard-tile { display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
-.custom-dashboard-tile[data-wide=true] { grid-column: 1 / -1; }
-.custom-dashboard-tile[data-drop=true] { outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-panel); }
-.custom-dashboard-tile > .access-panel { flex: 1; min-width: 0; }
+.custom-dashboard-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: start; gap: var(--space-4); }
+.custom-dashboard-tile {
+  grid-column: span var(--tile-columns); display: flex; flex-direction: column; position: relative;
+  min-width: 0; container-type: inline-size;
+}
+.custom-dashboard-tile[data-drop] { outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-panel); }
+.custom-dashboard-tile[data-drop]::before {
+  content: ''; position: absolute; pointer-events: none; inset-block: 0; width: 3px;
+  border-radius: var(--radius-control); background: var(--focus-ring);
+}
+.custom-dashboard-tile[data-drop=before]::before { inset-inline-start: calc(-1 * var(--space-2)); }
+.custom-dashboard-tile[data-drop=after]::before { inset-inline-end: calc(-1 * var(--space-2)); }
+.custom-dashboard-drop {
+  grid-column: 1 / -1; display: grid; place-items: center; min-height: 64px; padding: var(--space-3);
+  border: 1px dashed var(--control-border); border-radius: var(--radius-panel); color: var(--muted); font-size: 13px;
+}
+.custom-dashboard-drop[data-active=true] { background: var(--primary-soft); border-color: var(--focus-ring); color: var(--ink); }
+.custom-drag-preview {
+  position: fixed; z-index: 30; pointer-events: none; max-width: 168px; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--control-border); border-radius: var(--radius-control); background: var(--surface); color: var(--ink);
+  box-shadow: 0 4px 16px var(--shadow-color); font-size: 13px;
+}
+.custom-tile-body { min-width: 0; }
+.custom-tile-body[data-sized=true] {
+  height: var(--tile-height); overflow: auto; scrollbar-width: thin; border-radius: var(--radius-panel);
+  overscroll-behavior: contain;
+}
+.custom-tile-body[data-sized=true] > :is(.access-panel, .fleet-metrics) { min-height: 100%; }
+.custom-tile-body[data-sized=true] > .fleet-mileage { display: flex; flex-direction: column; }
+.custom-tile-body[data-sized=true] .fleet-mileage-chart { flex: 1; }
+.custom-tile-body[data-sized=true] .fleet-mileage-chart li { grid-template-rows: auto minmax(42px, 1fr) 24px; }
 .custom-tile-controls {
   display: flex; align-items: center; gap: 2px; min-width: 0; margin-bottom: var(--space-2);
   padding: 2px; border-radius: var(--radius-control); background: var(--surface-subtle);
 }
 .custom-tile-controls .icon-button { width: 34px; height: 40px; flex-shrink: 0; }
-.custom-tile-grip { touch-action: none; cursor: grab; }
+.custom-tile-grip, .custom-module-choice { touch-action: none; cursor: grab; user-select: none; }
 .custom-tile-grip:active { cursor: grabbing; }
-.custom-tile-edit-label { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); }
+.custom-tile-edit-label { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.custom-tile-resize.icon-button {
+  align-self: end; width: 40px; height: 36px; margin-top: var(--space-1);
+  cursor: nwse-resize; touch-action: none; background: var(--surface-subtle);
+}
+.custom-tile-resize svg { transform: scaleX(-1); }
 .custom-tile-filter-summary { margin: 0 0 var(--space-2); color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
-.custom-module-list { display: grid; }
-.custom-module-list .sera-button { justify-content: space-between; min-height: 44px; text-align: left; white-space: normal; }
+.custom-module-palette {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2);
+  padding: var(--space-3); background: var(--surface-subtle); border: 1px solid var(--line); border-radius: var(--radius-panel);
+}
+.custom-module-palette .custom-module-choice { min-width: 0; justify-content: start; min-height: 44px; text-align: left; white-space: normal; }
+.custom-module-choice svg { flex-shrink: 0; color: var(--muted); }
 .custom-tile-form { display: grid; gap: var(--space-3); }
+.custom-tile-dimensions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .custom-tile-form textarea { resize: vertical; }
 .custom-tile-form .org-field { min-width: 0; margin: 0; }
 .custom-note { background: var(--surface-subtle); }
@@ -37,9 +73,22 @@
   .custom-dashboard-tile .dashboard-deadline-detail { grid-column: 1; }
   .custom-dashboard-tile .dashboard-deadline .sera-badge { grid-column: 2; grid-row: 1 / span 2; }
 }
+@container (max-width: 300px) {
+  .custom-dashboard-tile .fleet-mileage-chart { --chart-column-limit: 3; padding-inline: var(--space-3); }
+  .custom-dashboard-tile .fleet-rank .sera-button { padding-inline: var(--space-3); }
+  .custom-dashboard-tile .custom-list-pagination { padding-inline: var(--space-3); flex-wrap: wrap; }
+}
 @media (max-width: 860px) {
   .custom-dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+  .custom-dashboard-tile { grid-column: 1 / -1; }
+  .custom-dashboard-tile[data-drop]::before { inset-inline: 0; inset-block: auto; width: auto; height: 3px; }
+  .custom-dashboard-tile[data-drop=before]::before { inset-block-start: calc(-1 * var(--space-2)); }
+  .custom-dashboard-tile[data-drop=after]::before { inset-block-end: calc(-1 * var(--space-2)); }
+  .custom-tile-resize.icon-button { cursor: ns-resize; }
 }
 @media (max-width: 760px) {
   .custom-tile-controls .icon-button { width: 42px; min-height: 44px; }
+  .custom-tile-resize.icon-button { width: 44px; height: 44px; }
+  .custom-module-palette { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .custom-module-palette .custom-module-choice { padding-inline: var(--space-2); }
 }

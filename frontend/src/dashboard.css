@@ -14,7 +14,7 @@
 .fleet-metrics .fleet-metric:focus-visible { outline-offset: -4px; }
 .fleet-overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .fleet-overview-grid > section { overflow: hidden; }
-.fleet-mileage-chart { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: clamp(4px, 1vw, 18px); padding: 0 var(--space-5); margin: 0; list-style: none; }
+.fleet-mileage-chart { display: grid; grid-template-columns: repeat(min(var(--chart-months, 6), var(--chart-column-limit, 6)), minmax(0, 1fr)); gap: clamp(4px, 1vw, 18px); padding: 0 var(--space-5); margin: 0; list-style: none; }
 .fleet-mileage-chart li { display: grid; grid-template-rows: 23px 86px 24px; align-items: end; gap: 4px; min-width: 0; text-align: center; }
 .fleet-mileage-value { color: var(--ink); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .fleet-mileage-chart time { align-self: center; color: var(--muted); font-size: 12px; }
