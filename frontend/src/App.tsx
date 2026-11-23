@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Settings,
   Search,
+  UserRound,
   Users,
   LayoutDashboard,
 } from 'lucide-react'
@@ -436,13 +437,13 @@ function FleetWorkspace({
             <span>{user.displayName}</span>
           </>}>
           <div className="profile-navigation-links glass-surface">
-            <Button onClick={() => openProfile(user.id)} disabled={busy}>Saját profil megnyitása</Button>
+            <Button variant="ghost" onClick={() => openProfile(user.id)} disabled={busy}><UserRound size={16} aria-hidden="true" />Saját profil megnyitása</Button>
             {view === 'dashboard' && dashboardData && (!dashboardEditing || compactDashboard) && <>
-              {dashboardMode === 'Vehicle' ? <Button disabled={busy} onClick={() => selectDashboardMode('Overview')}><LayoutDashboard size={16} aria-hidden="true" />{dashboardData.canReadOverview ? 'Áttekintő nézet' : 'Saját áttekintő'}</Button>
-                : <Button disabled={busy} onClick={() => selectDashboardMode('Vehicle')}><CarFront size={16} aria-hidden="true" />Autós nézet</Button>}
-              {!compactDashboard && <Button disabled={busy} onClick={() => { selectDashboardMode('Overview'); setDashboardEditing(true) }}><Pencil size={16} aria-hidden="true" />Elrendezés szerkesztése</Button>}
+              {dashboardMode === 'Vehicle' ? <Button variant="ghost" disabled={busy} onClick={() => selectDashboardMode('Overview')}><LayoutDashboard size={16} aria-hidden="true" />{dashboardData.canReadOverview ? 'Áttekintő nézet' : 'Saját áttekintő'}</Button>
+                : <Button variant="ghost" disabled={busy} onClick={() => selectDashboardMode('Vehicle')}><CarFront size={16} aria-hidden="true" />Autós nézet</Button>}
+              {!compactDashboard && <Button variant="ghost" disabled={busy} onClick={() => { selectDashboardMode('Overview'); setDashboardEditing(true) }}><Pencil size={16} aria-hidden="true" />Elrendezés szerkesztése</Button>}
             </>}
-            <Button className="logout-button" onClick={onLogout} disabled={loggingOut || busy || createCompany.isPending}>
+            <Button variant="ghost" onClick={onLogout} disabled={loggingOut || busy || createCompany.isPending}>
               <LogOut size={16} aria-hidden="true" />{loggingOut ? 'Kilépés…' : 'Kijelentkezés'}
             </Button>
           </div>

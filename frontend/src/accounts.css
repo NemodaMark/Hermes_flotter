@@ -130,17 +130,6 @@
 .new-company-button:hover {
   color: #fff;
 }
-.logout-button {
-  font-size: 12px;
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  padding: 8px;
-  border-radius: 4px;
-}
-.logout-button:hover {
-  background: var(--surface-subtle);
-}
 .profile > span:last-child {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -177,10 +166,6 @@
   .new-company-button {
     padding-top: 9px;
     font-size: 11px;
-  }
-  .logout-button {
-    font-size: 11px;
-    padding-right: 0;
   }
 }
 .group-site-fields {
