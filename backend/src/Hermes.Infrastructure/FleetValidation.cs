@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Hermes.Application;
+using Hermes.Domain;
 
 namespace Hermes.Infrastructure;
 
@@ -16,6 +17,8 @@ internal static partial class FleetValidation
     }
     internal static string Choice(string? value, string label, params string[] choices)
         => choices.Contains(value, StringComparer.Ordinal) ? value! : throw Invalid($"{label}: válassz egy érvényes értéket.");
+    internal static VehicleStatus StatusForOwnership(VehicleStatus status, string ownership)
+        => ownership == "Sold" && status != VehicleStatus.Archived ? VehicleStatus.Inactive : status;
     internal static void Range(decimal? value, decimal max, string label, int decimals = 0)
     {
         if (value < 0 || value > max || value is { } x && decimal.Round(x, decimals) != x) throw Invalid($"{label}: 0 és {max} közötti, legfeljebb {decimals} tizedesjegyes számot adj meg.");
@@ -59,7 +62,7 @@ internal static partial class FleetValidation
             BodyType = Choice(x.BodyType, "Karosszéria", "Unknown", "Sedan", "Hatchback", "Estate", "Suv", "Coupe", "Convertible", "Minivan", "Van", "Pickup", "ChassisCab", "Box", "Tipper", "Other"),
             FuelType = Choice(x.FuelType, "Üzemanyag", "Unknown", "Petrol", "Diesel", "Hybrid", "PluginHybrid", "Electric", "Lpg", "Cng", "Hydrogen", "Other"),
             Transmission = Choice(x.Transmission, "Váltó", "Unknown", "Manual", "Automatic", "Other"),
-            Ownership = Choice(x.Ownership, "Tulajdonlás", "Unknown", "Owned", "Leased", "Rented") };
+            Ownership = Choice(x.Ownership, "Tulajdonlás", "Unknown", "Owned", "Leased", "Rented", "Sold") };
     }
     internal static PartnerInput Partner(PartnerInput x)
     {

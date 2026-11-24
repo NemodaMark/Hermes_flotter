@@ -206,7 +206,8 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
         if (request.SiteId is { } siteId && !await db.Sites.AnyAsync(x => x.Id == siteId && !x.IsArchived, ct))
             throw UserAccounts.Error(400, "invalid_site", "Válassz aktív telephelyet ennél a cégnél.");
         var vehicle = new Vehicle { TenantId = TenantId, Registration = FleetManagement.NormalizeRegistration(request.Registration), Make = request.Make.Trim(), Model = request.Model.Trim(),
-            Status = Enum.Parse<VehicleStatus>(request.Status), OdometerKm = request.OdometerKm, CreatedBy = tenantContext.UserSubject };
+            Status = FleetValidation.StatusForOwnership(Enum.Parse<VehicleStatus>(request.Status), data.Ownership),
+            OdometerKm = request.OdometerKm, CreatedBy = tenantContext.UserSubject };
         db.Vehicles.Add(vehicle);
         var profile = new VehicleProfile { TenantId = TenantId, VehicleId = vehicle.Id };
         FleetManagement.Apply(profile, data);
@@ -215,7 +216,7 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
         if (request.OdometerKm is { } km) db.OdometerReadings.Add(new() { TenantId = TenantId, VehicleId = vehicle.Id, Kilometers = km, RecordedBy = tenantContext.UserSubject! });
         await FleetManagement.LearnModel(db, TenantId, vehicle.Make, vehicle.Model, ct);
         if (request.SiteId is { } site) db.VehicleSiteAssignments.Add(new() { TenantId = TenantId, VehicleId = vehicle.Id, SiteId = site });
-        Audit("vehicle.created", new { vehicle.Id, vehicle.Registration, vehicle.Make, vehicle.Model, request.SiteId, data, request.Status, request.OdometerKm });
+        Audit("vehicle.created", new { vehicle.Id, vehicle.Registration, vehicle.Make, vehicle.Model, request.SiteId, data, Status = vehicle.Status.ToString(), request.OdometerKm });
         await db.SaveChangesAsync(ct);
         return await Summary(vehicle, access, ct);
     }, ct);

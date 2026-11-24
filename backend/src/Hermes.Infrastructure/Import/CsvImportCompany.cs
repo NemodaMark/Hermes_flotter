@@ -284,6 +284,7 @@ internal sealed partial class CsvImportCompany(HermesDbContext db, CsvImportPack
                 InsuranceDueDate = row.Date("insurance_due_date"), NextServiceDate = row.Date("next_service_date"), NextServiceKm = row.Long("next_service_km"),
                 PreferredServicePartnerId = partner?.Id, Notes = row.Text("notes")
             });
+            car.Status = FleetValidation.StatusForOwnership(car.Status, data.Ownership);
             Unique(row, plates, car.Registration);
             if (data.Vin is { } vin) Unique(row, vins, vin);
             if (data.FleetNumber is { } fleetNumber) Unique(row, fleetNumbers, fleetNumber);

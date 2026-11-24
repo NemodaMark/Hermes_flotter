@@ -91,7 +91,7 @@ export const vehicleStatuses = { Active: 'Aktív', Maintenance: 'Szervizben', In
 export const categories = { Unknown: 'Nincs megadva', PassengerCar: 'Személyautó', Van: 'Kisteherautó', Truck: 'Teherautó', Bus: 'Autóbusz', Motorcycle: 'Motorkerékpár', Trailer: 'Pótkocsi', Other: 'Egyéb' }
 export const fuels = { Unknown: 'Nincs megadva', Petrol: 'Benzin', Diesel: 'Dízel', Hybrid: 'Hibrid', PluginHybrid: 'Plug-in hibrid', Electric: 'Elektromos', Lpg: 'LPG', Cng: 'CNG', Hydrogen: 'Hidrogén', Other: 'Egyéb' }
 export const transmissions = { Unknown: 'Nincs megadva', Manual: 'Kézi', Automatic: 'Automata', Other: 'Egyéb' }
-export const ownerships = { Unknown: 'Nincs megadva', Owned: 'Saját', Leased: 'Lízingelt', Rented: 'Bérelt' }
+export const ownerships = { Unknown: 'Nincs megadva', Owned: 'Saját', Leased: 'Lízingelt', Rented: 'Bérelt', Sold: 'Eladva' }
 export const frequencies = { Monthly: 'Havi', Quarterly: 'Negyedéves', Annual: 'Éves', Upfront: 'Egyszeri' }
 export const leaseStatuses = { Active: 'Aktív', Closed: 'Lezárt', Cancelled: 'Visszavont' }
 export const dateText = (value: string | null) => value ? new Date(`${value}T12:00:00`).toLocaleDateString('hu-HU') : '–'

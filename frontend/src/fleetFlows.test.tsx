@@ -101,6 +101,21 @@ it('saves the detailed vehicle data with the existing immutable vehicle key and 
   await waitFor(() => expect(onSaved).toHaveBeenCalled())
   expect(save).toHaveBeenCalledWith('company', 'car', expect.objectContaining({ registration: 'NEW-456', version: 9, data: expect.objectContaining({ ownership: 'Leased', powerKw: 110.5, preferredServicePartnerId: 'garage' }) }))
 })
+it('sets and locks inactive status when choosing sold ownership', async () => {
+  vi.spyOn(fleetApi, 'partnerOptions').mockResolvedValue([])
+  const save = vi.spyOn(fleetApi, 'saveVehicle').mockResolvedValue(record)
+  mount(<VehicleDataForm tenantId="company" record={record} editable onSaved={async () => {}} />)
+  await userEvent.click(screen.getByRole('tab', { name: 'Üzemeltetés' }))
+  await userEvent.click(screen.getByRole('combobox', { name: 'Tulajdonlás' }))
+  await userEvent.click(screen.getByRole('option', { name: 'Eladva' }))
+  const state = screen.getByRole('combobox', { name: 'Állapot' })
+  expect(state).toHaveValue('Inaktív')
+  expect(state).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: 'Járműadatok mentése' }))
+  expect(save).toHaveBeenCalledWith('company', 'car', expect.objectContaining({
+    status: 'Inactive', version: 9, data: expect.objectContaining({ ownership: 'Sold' }),
+  }))
+})
 it('creates a partner with multiple categories and a named contact', async () => {
   const save = vi.spyOn(fleetApi, 'savePartner').mockResolvedValue({} as never)
   mount(<PartnerForm tenantId="company" editable onSaved={async () => {}} />)

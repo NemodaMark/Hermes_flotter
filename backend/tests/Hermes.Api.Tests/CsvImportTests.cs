@@ -48,11 +48,11 @@ public sealed class CsvImportTests(FleetFixture fixture) : IClassFixture<FleetFi
             Csv("group_users", "group_ref,user_ref\ndriver,member\n");
             Csv("admin_companies", "company_ref,user_ref\nb,local\n");
             Csv("vehicles", """
-                company_ref,vehicle_ref,registration,make,model,site_ref,odometer_km,notes
-                a,car,AB-CD-123,Škoda,Octavia,site,24500,"Első sor, ""idézet""
+                company_ref,vehicle_ref,registration,make,model,site_ref,odometer_km,ownership,notes
+                a,car,AB-CD-123,Škoda,Octavia,site,24500,Sold,"Első sor, ""idézet""
                 Második sor."
-                a,hidden,AB-CD-124,Škoda,Octavia,other,100,
-                b,car,AB-CD-123,Fiat,Ducato,site,37,
+                a,hidden,AB-CD-124,Škoda,Octavia,other,100,,
+                b,car,AB-CD-123,Fiat,Ducato,site,37,,
                 """);
             Csv("registrations", """
                 company_ref,registration_ref,vehicle_ref,registration,country_code,recorded_at,recorded_by_ref
@@ -127,6 +127,8 @@ public sealed class CsvImportTests(FleetFixture fixture) : IClassFixture<FleetFi
                     Assert.Contains("Első sor, \"idézet\"", profile.Notes);
                     Assert.Contains("Második sor.", profile.Notes);
                     Assert.Equal(24500, car.OdometerKm);
+                    Assert.Equal("Sold", profile.Ownership);
+                    Assert.Equal(VehicleStatus.Inactive, car.Status);
                     Assert.True(await db.VehicleRegistrations.AnyAsync(x => x.VehicleId == car.Id && x.Registration == "ABC-456"
                         && x.RecordedAt == new DateTimeOffset(2020, 1, 4, 7, 30, 0, TimeSpan.Zero)));
                     Assert.True(await db.VehicleBookings.AnyAsync(x => x.VehicleId == car.Id && x.UserId == "anna"));

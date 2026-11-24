@@ -36,9 +36,9 @@ export function VehicleFields({ tenantId, data, setData, disabled, readOnly = fa
     : <NumberField label={label} value={spec[key] as number | null} onChange={x => set(key, x)} max={max} step={step} disabled={disabled} />
   const date = (key: keyof VehicleSpecification, label: string) => readOnly ? <VehicleValue label={label} value={dateText(spec[key] as string | null)} />
     : <DateField label={label} value={spec[key] as string | null} onChange={x => set(key, x)} disabled={disabled} />
-  const choice = (label: string, value: string, options: Record<string, string>, onChange: (value: string) => void) =>
+  const choice = (label: string, value: string, options: Record<string, string>, onChange: (value: string) => void, locked = false) =>
     readOnly ? <VehicleValue label={label} value={options[value] ?? value} />
-      : <SelectField label={label} value={value} options={options} onChange={onChange} disabled={disabled} />
+      : <SelectField label={label} value={value} options={options} onChange={onChange} disabled={disabled || locked} />
   const catalogChoice = (label: string, value: string, options: string[], onChange: (value: string) => void) =>
     readOnly ? <VehicleValue label={label} value={value} />
       : <label className="org-field"><span>{label}</span><ComboBox label={label} value={value} options={options} onChange={onChange} disabled={disabled} /></label>
@@ -78,8 +78,11 @@ export function VehicleFields({ tenantId, data, setData, disabled, readOnly = fa
     </div></fieldset>,
     operation: <fieldset disabled={disabled}><legend>Üzemeltetés</legend><div className="org-form-grid">
       {readOnly && <VehicleValue label="Rendszám országkódja" value={spec.registrationCountry} />}
-      {choice('Állapot', data.status, data.status === 'Archived' ? vehicleStatuses : { Active: 'Aktív', Maintenance: 'Szervizben', Inactive: 'Inaktív' }, x => setData({ ...data, status: x }))}
-      {choice('Tulajdonlás', spec.ownership, ownerships, x => set('ownership', x))}
+      {choice('Állapot', data.status, data.status === 'Archived' ? vehicleStatuses : { Active: 'Aktív', Maintenance: 'Szervizben', Inactive: 'Inaktív' },
+        status => setData({ ...data, status }), spec.ownership === 'Sold')}
+      {choice('Tulajdonlás', spec.ownership, ownerships, ownership => setData({
+        ...data, status: ownership === 'Sold' ? 'Inactive' : data.status, data: { ...spec, ownership },
+      }))}
       {date('firstRegistration', 'Első forgalomba helyezés')}{date('fleetEntryDate', 'Flottába kerülés')}{date('fleetExitDate', 'Flottából kilépés')}
       {!readOnly && <div className="vehicle-wide-field"><NotesField value={spec.notes} onChange={x => set('notes', x)} disabled={disabled} /></div>}
     </div></fieldset>,

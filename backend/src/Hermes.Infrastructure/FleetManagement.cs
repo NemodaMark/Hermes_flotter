@@ -90,13 +90,14 @@ public sealed partial class FleetManagement(HermesDbContext db, ITenantContext c
         FleetValidation.Choice(input.Status, "Jármű állapota", "Active", "Maintenance", "Inactive");
         var p = await Profile(id, ct); var before = await Record(v, p, access, ct);
         if (data.Ownership is not ("Leased" or "Rented") && await db.VehicleLeases.AnyAsync(x => x.VehicleId == id && x.Status == "Active", ct))
-            throw Error(409, "active_lease", "Aktív szerződés mellett a jármű tulajdonlása nem állítható sajátra. Előbb zárd le a szerződést.");
+            throw Error(409, "active_lease", "A tulajdonlás módosítása előtt zárd le az aktív lízingszerződést.");
         if (data.PreferredServicePartnerId is { } partnerId)
             await EligiblePartner(partnerId, false, data.PreferredServicePartnerId == p.PreferredServicePartnerId, ct);
         var registration = NormalizeRegistration(input.Registration);
         if (registration != v.Registration || data.RegistrationCountry != p.RegistrationCountry)
             db.VehicleRegistrations.Add(new() { TenantId = TenantId, VehicleId = id, Registration = registration, CountryCode = data.RegistrationCountry, RecordedBy = Actor });
-        v.Registration = registration; v.Make = input.Make.Trim(); v.Model = input.Model.Trim(); v.Status = Enum.Parse<VehicleStatus>(input.Status);
+        v.Registration = registration; v.Make = input.Make.Trim(); v.Model = input.Model.Trim();
+        v.Status = FleetValidation.StatusForOwnership(Enum.Parse<VehicleStatus>(input.Status), data.Ownership);
         Apply(p, data); Touch(p); v.Version++;
         await LearnModel(db, TenantId, v.Make, v.Model, ct);
         var after = await Record(v, p, access, ct);

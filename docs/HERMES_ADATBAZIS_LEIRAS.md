@@ -158,7 +158,9 @@ Egy dokumentumnak egy szülője lehet. A dokumentumfeltöltés PDF-, JPG/JPEG-, 
 | `body_type` | `Unknown`, `Sedan`, `Hatchback`, `Estate`, `Suv`, `Coupe`, `Convertible`, `Minivan`, `Van`, `Pickup`, `ChassisCab`, `Box`, `Tipper`, `Other` |
 | `fuel_type` | `Unknown`, `Petrol`, `Diesel`, `Hybrid`, `PluginHybrid`, `Electric`, `Lpg`, `Cng`, `Hydrogen`, `Other` |
 | `transmission` | `Unknown`, `Manual`, `Automatic`, `Other` |
-| `ownership` | `Unknown`, `Owned`, `Leased`, `Rented` |
+| `ownership` | `Unknown`, `Owned`, `Leased`, `Rented`, `Sold` |
+
+A `Sold` tulajdonlás `Inactive` járműállapotot eredményez. Az archiváltként importált jármű állapota `Archived` marad.
 
 ### Céges jogosultsági kódok
 

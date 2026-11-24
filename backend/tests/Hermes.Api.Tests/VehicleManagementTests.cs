@@ -62,6 +62,33 @@ public sealed partial class PermissionManagementTests
     }
 
     [Fact]
+    public async Task Sold_ownership_sets_inactive_on_create_and_update()
+    {
+        using var owner = await Register(); using var foreign = await Register();
+        await Company(owner); await Company(foreign);
+        var car = await FleetCar(owner, ownership: "Owned");
+        var url = CarUrl(car);
+        var sale = new SaveVehicleRecord(car.Vehicle.Registration, car.Vehicle.Make, car.Vehicle.Model, "Active", car.Vehicle.Version,
+            car.Data with { Ownership = "Sold" });
+
+        Assert.Equal(HttpStatusCode.NotFound, (await foreign.Client.PutAsJsonAsync(url + "/details", sale)).StatusCode);
+        var sold = await ScopeOk<VehicleRecord>(await owner.Client.PutAsJsonAsync(url + "/details", sale));
+        Assert.Equal("Sold", sold.Data.Ownership);
+        Assert.Equal("Inactive", sold.Vehicle.Status);
+        var attemptedReactivation = await ScopeOk<VehicleRecord>(await owner.Client.PutAsJsonAsync(url + "/details",
+            sale with { Status = "Maintenance", Version = sold.Vehicle.Version }));
+        Assert.Equal("Inactive", attemptedReactivation.Vehicle.Status);
+        Assert.Equal("Inactive", (await owner.Client.GetFromJsonAsync<VehicleRecord>(url + "/details"))!.Vehicle.Status);
+        var log = (await owner.Client.GetFromJsonAsync<PageResult<AuditSummary>>(url + "/audit-events"))!;
+        Assert.Contains(log.Items, e => e.Action == "vehicle.details_updated" && e.Details.Contains("Sold") && e.Details.Contains("Inactive"));
+
+        var historical = await ScopeOk<VehicleSummary>(await owner.Client.PostAsJsonAsync("/api/v1/vehicles",
+            new CreateVehicleRequest("SOLD-002", "Ford", "Focus", Data: new() { Ownership = "Sold" })));
+        Assert.Equal("Inactive", historical.Status);
+        Assert.Equal("Sold", (await owner.Client.GetFromJsonAsync<VehicleRecord>($"/api/v1/vehicles/{historical.Id}/details"))!.Data.Ownership);
+    }
+
+    [Fact]
     public async Task Partners_have_categories_multiple_contacts_archive_recovery_and_company_isolation()
     {
         using var owner = await Register(); using var foreign = await Register(); await Company(owner); await Company(foreign);
@@ -105,6 +132,7 @@ public sealed partial class PermissionManagementTests
         Assert.Equal(HttpStatusCode.Conflict, (await owner.Client.PatchAsJsonAsync($"/api/v1/partners/{partner.Id}/status", new ChangeArchiveStatus(true, "Bezárás", partner.Data.Version))).StatusCode);
         var now = (await owner.Client.GetFromJsonAsync<VehicleRecord>(url + "/details"))!;
         Assert.Equal(HttpStatusCode.Conflict, (await owner.Client.PutAsJsonAsync(url + "/details", new SaveVehicleRecord(now.Vehicle.Registration, "Ford", "Focus", "Active", now.Vehicle.Version, now.Data with { Ownership = "Owned" }))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await owner.Client.PutAsJsonAsync(url + "/details", new SaveVehicleRecord(now.Vehicle.Registration, "Ford", "Focus", "Inactive", now.Vehicle.Version, now.Data with { Ownership = "Sold" }))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await foreign.Client.GetAsync(url + "/leases")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await foreign.Client.PutAsJsonAsync(url + $"/leases/{lease.Id}", lease.Data)).StatusCode);
         var closed = await ScopeOk<LeaseDetails>(await owner.Client.PutAsJsonAsync(url + $"/leases/{lease.Id}", lease.Data with { Status = "Closed" }));
