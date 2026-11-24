@@ -9,8 +9,10 @@ assert.ok(baseUrl.protocol === 'http:' && baseUrl.hostname === '127.0.0.1'
 'Use an isolated local HERMES instance on a separate port.')
 const credentialsPath = process.env.HERMES_BENCHMARK_ACCOUNTS
 assert.ok(credentialsPath, 'Set HERMES_BENCHMARK_ACCOUNTS to the isolated demo login file.')
+const steady = process.argv.includes('--steady')
+const large = process.argv.includes('--large')
 const seconds = Number(process.env.HERMES_BENCHMARK_SECONDS ?? 10)
-assert.ok(Number.isInteger(seconds) && seconds >= 2 && seconds <= 60, 'Use 2–60 seconds per phase.')
+assert.ok(Number.isInteger(seconds) && seconds >= 2 && seconds <= (steady ? 1800 : 60), 'Use 2–60 seconds per phase or up to 1800 with --steady.')
 const credentials = JSON.parse(await readFile(credentialsPath, 'utf8'))
 assert.equal(credentials.company, companyName)
 
@@ -25,7 +27,7 @@ async function json(response, label) {
 
 // Each actor has its own cookie jar. Refresh response cookies between requests
 // because Identity can renew the session even during authenticated GET requests.
-async function signIn(credential) {
+async function signIn(credential, targetCompany = companyName) {
   const jar = new Map()
   const fetchAs = async (path, { method = 'GET', body, csrf, tenant } = {}) => {
     const headers = { Cookie: [...jar.values()].join('; '), Accept: 'application/json' }
@@ -45,12 +47,22 @@ async function signIn(credential) {
   }), 'Login')
   assert.equal(session.id, credential.userName)
   const companies = await json(await fetchAs('/api/v1/tenants'), 'Companies')
-  const tenant = companies.find(company => company.name === companyName)
+  const tenant = companies.find(company => company.name === targetCompany)
   assert.ok(tenant, 'Demo fleet is missing or inaccessible.')
   const get = path => fetchAs(`/api/v1${path}`, { tenant: tenant.id })
   const fleet = await json(await get('/vehicles/search?page=1&pageSize=50'), 'Demo vehicles')
-  assert.ok(fleet.items.length && fleet.items.every(car => /^DEMO-\d{3}$/.test(car.registration)), 'Only synthetic demo vehicles are supported.')
-  return { get, cars: fleet.items, tenantId: tenant.id }
+  if (targetCompany === companyName) {
+    assert.ok(fleet.items.length && fleet.items.every(car => /^DEMO-\d{3}$/.test(car.registration)), 'Only synthetic demo vehicles are supported.')
+    return { get, cars: fleet.items, company: targetCompany }
+  }
+  const cars = [...fleet.items]
+  for (let page = 2; page <= 6; page++) {
+    const next = await json(await get(`/vehicles/search?page=${page}&pageSize=50`), 'QA vehicles')
+    cars.push(...next.items)
+  }
+  assert.equal(new Set(cars.map(car => car.id)).size, 300)
+  assert.ok(cars.every(car => /^QA-\d{3}$/.test(car.registration)), 'The isolated QA fixture is required.')
+  return { get, cars, company: targetCompany }
 }
 
 function workload(actor, manager) {
@@ -96,10 +108,12 @@ for (const profile of profiles) {
   assert.ok(credential, 'Missing demo test account.')
   actors.push(workload(await signIn(credential), profile.group === 'fleet'))
 }
-assert.equal(new Set(actors.map(actor => actor.tenantId)).size, 1)
+const extraActor = large
+  ? workload(await signIn(credentials.users.find(user => user.userName === profiles[0].userName), 'HERMES QA 300'), true)
+  : null
 
 // Warm route compilation and validate permissions before trying to measure load.
-for (const actor of actors) {
+for (const actor of extraActor ? [...actors, extraActor] : actors) {
   for (const [name, path] of actor.operations) {
     await json(await actor.get(path(actor.cars[0])), name)
   }
@@ -117,36 +131,44 @@ async function run(concurrency, thinkMs) {
   const started = performance.now()
   const deadline = started + seconds * 1000
   const samples = []
-  await Promise.all(Array.from({ length: concurrency }, async (_, lane) => {
-    // One in five sessions models a fleet manager. Other sessions use the
-    // seeded dispatcher and site-restricted driver accounts in rotation.
-    const actor = actors[lane % 5 === 0 ? 0 : 1 + lane % (actors.length - 1)]
-    for (let step = lane; performance.now() < deadline; step++) {
-      const [name, path] = actor.operations[step % actor.operations.length]
-      const car = actor.cars[step % actor.cars.length]
-      const before = performance.now()
-      let status
-      try {
-        const response = await actor.get(path(car))
-        await response.arrayBuffer()
-        status = response.status
-      } catch (error) {
-        status = error.name === 'TimeoutError' ? 'timeout' : 'transportError'
+  const progress = steady && seconds >= 120 ? setInterval(() => {
+    console.log(JSON.stringify({ progress: true, seconds: Math.round((performance.now() - started) / 1000), ...stats(samples) }))
+  }, 60000) : null
+  try {
+    await Promise.all(Array.from({ length: concurrency }, async (_, lane) => {
+      // Use the seeded manager, dispatcher and site-restricted drivers in rotation.
+      // In the large scenario, every other lane uses the second company.
+      const actor = extraActor && lane % 2 === 0 ? extraActor : actors[lane % 5 === 0 ? 0 : 1 + lane % (actors.length - 1)]
+      for (let step = lane; performance.now() < deadline; step++) {
+        const [name, path] = actor.operations[step % actor.operations.length]
+        const car = actor.cars[step % actor.cars.length]
+        const before = performance.now()
+        let status
+        try {
+          const response = await actor.get(path(car))
+          await response.arrayBuffer()
+          status = response.status
+        } catch (error) {
+          status = error.name === 'TimeoutError' ? 'timeout' : 'transportError'
+        }
+        samples.push({ name, company: actor.company, ms: performance.now() - before, status })
+        if (thinkMs) await sleep(thinkMs)
       }
-      samples.push({ name, ms: performance.now() - before, status })
-      if (thinkMs) await sleep(thinkMs)
-    }
-  }))
+    }))
+  } finally { clearInterval(progress) }
   const elapsedSeconds = (performance.now() - started) / 1000
   const byOperation = Object.fromEntries([...new Set(samples.map(sample => sample.name))].sort()
     .map(name => [name, stats(samples.filter(sample => sample.name === name))]))
+  const byCompany = Object.fromEntries([...new Set(samples.map(sample => sample.company))].sort()
+    .map(company => [company, stats(samples.filter(sample => sample.company === company))]))
   return { concurrency, thinkMs, requestsPerSecond: Math.round(samples.length / elapsedSeconds * 10) / 10,
-    ...stats(samples), byOperation }
+    ...stats(samples), byOperation, byCompany }
 }
 
-console.log(JSON.stringify({ environment: version.environment, measuredSecondsPerPhase: seconds, distinctAccounts: actors.length }))
+console.log(JSON.stringify({ environment: version.environment, measuredSecondsPerPhase: seconds, distinctAccounts: actors.length, large }))
 let failed = false
-for (const [concurrency, thinkMs] of [[1, 0], [15, 450], [15, 0], [30, 0], [60, 0]]) {
+const phases = steady ? [[15, 450]] : [[1, 0], [15, 450], [15, 0], [30, 0], [60, 0]]
+for (const [concurrency, thinkMs] of phases) {
   const result = await run(concurrency, thinkMs)
   console.log(JSON.stringify(result))
   if (Object.keys(result.statuses).some(status => status !== '200')) failed = true

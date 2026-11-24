@@ -189,7 +189,7 @@
 .app-shell .topbar { min-height: 43px; padding: 7px clamp(16px, 3vw, 44px); background: transparent; }
 .app-shell .topbar .breadcrumb strong { font-weight: 600; font-size: 18px; }
 .app-shell:has(.page-content[data-view=dashboard]) .topbar { display: none; }
-.page-content.page-content-compact[data-view=dashboard]:not(:has(.dashboard-studio, .dashboard-overview)) { max-width: 1344px; }
+.page-content.page-content-compact[data-view=dashboard]:not(:has(.dashboard-overview, .car-dashboard--studio)) { max-width: 1344px; }
 .page-content.page-content-compact[data-view=dashboard]:has(.dashboard-overview) { max-width: none; }
 .app-shell .list-toolbar:where(:not(.liquid-glass)) { background: var(--surface); }
 .app-shell table th { background: var(--surface-subtle); color: var(--muted); }
@@ -205,16 +205,16 @@
 .app-shell .profile-tabs .sera-tab[aria-selected=true] { color: var(--primary-hover); background: var(--primary-soft); }
 .app-shell .admin-navigation .nav-item { margin: 0; width: 100%; }
 .app-shell :is(.fleet-panel, .organization-panel, .access-panel, .profile-summary) { background: var(--surface); border-color: var(--line); }
-.app-shell:has(:is(.dashboard-studio, .parking-panel)) { display: grid; grid-template: auto minmax(0, 1fr) / minmax(0, 1fr); height: 100dvh; }
-.app-shell:has(:is(.dashboard-studio, .parking-panel)) > main { display: flex; min-height: 0; }
+.app-shell:has(.car-dashboard--studio, .parking-panel) { display: grid; grid-template: auto minmax(0, 1fr) / minmax(0, 1fr); height: 100dvh; }
+.app-shell:has(.car-dashboard--studio, .parking-panel) > main { display: flex; min-height: 0; }
 .app-shell:has(.parking-panel) .topbar { display: none; }
-.page-content.page-content-compact:has(:is(.dashboard-studio, .parking-panel)) { display: flex; flex-direction: column; width: 100%; max-width: none; min-height: 0; margin: 0; padding: 0; }
-.dashboard-page.dashboard-studio { display: flex; flex: 1; flex-direction: column; gap: 0; min-height: 0; }
-.dashboard-studio .car-dashboard { flex: 1; }
+.page-content.page-content-compact:has(.car-dashboard--studio, .parking-panel) { display: flex; flex-direction: column; width: 100%; max-width: none; min-height: 0; margin: 0; padding: 0; }
+.dashboard-page:has(.car-dashboard--studio) { display: flex; flex: 1; flex-direction: column; gap: 0; min-height: 0; }
+.car-dashboard--studio { flex: 1; }
 
 @media (prefers-reduced-motion: no-preference) {
   .page-content[data-view] { animation: workspace-arrival 160ms ease-out; }
-  .page-content:has(.dashboard-studio) { animation-name: garage-arrival; }
+  .page-content:has(.car-dashboard--studio) { animation-name: garage-arrival; }
   .fleet-auth-backdrop img {
     animation: login-camera-arrival 1100ms cubic-bezier(.16, .75, .32, 1) both;
     transform: translate(var(--login-camera-x, 0%), var(--login-camera-y, 0%)) scale(var(--login-camera-zoom, 1));

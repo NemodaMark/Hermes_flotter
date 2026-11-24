@@ -44,3 +44,5 @@ SHA-256 of the checked-in, unmodified source files:
 - `studio-small-03.hdr` — `30933d55e45f0795daf49f3cbefbe0e5ebcb821ee04fb0a2818c02ffc3938817`
 
 The box truck, chassis cab and tipper have a separate [Innerscene notice](../vehicle-bodies/LICENSE.md). The previously used Car Concept has a [Khronos notice](../khronos-car/LICENSE.md).
+
+The models in the compact rendering profile use reduced geometry and texture resolution. They share the attribution of their corresponding full-quality models. The compact Studio Small 03 environment is downsampled in linear light.

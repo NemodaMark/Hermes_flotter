@@ -6,6 +6,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
 import studioLight from './assets/vehicles/studio-small-03.hdr?url'
+import compactStudioLight from './assets/vehicles/compact/studio-small-03.hdr?url'
+import { preferCompactVehicleRendering, vehicleModelUrl } from './vehicleModels'
 import { batchVehicleMeshes, createContactShadow as contactShadow, disposeVehicleModel, prepareVehicleModel, setVehiclePaint } from './vehicleSceneModel'
 import type { VehicleShape } from './vehicleSceneModel'
 import { vehiclePaint } from './vehicleAppearance'
@@ -81,10 +83,11 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
 
   useEffect(() => {
     const container = host.current!
-    if (!window.WebGL2RenderingContext) return
+    if (!window.WebGL2RenderingContext) { queueMicrotask(() => setUnavailable(true)); return }
+    const compact = preferCompactVehicleRendering()
     queueMicrotask(() => setLoadState('loading'))
     let renderer: T.WebGLRenderer
-    try { renderer = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' }) }
+    try { renderer = new T.WebGLRenderer({ antialias: !compact, alpha: false, powerPreference: compact ? 'low-power' : 'high-performance' }) }
     catch { queueMicrotask(() => setUnavailable(true)); return }
     let disposed = false, contextLost = false
     let renderNeeded = true, frame = 0, previousFrame = 0
@@ -95,7 +98,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     function invalidateFrame() { renderNeeded = true; requestFrame() }
     invalidate.current = invalidateFrame
     function setResolution() {
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.35, Math.sqrt(1_100_000 / (width * height))) * quality
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, compact ? 1 : 1.35, Math.sqrt((compact ? 500_000 : 1_100_000) / (width * height))) * quality
       if (resolution !== pixelRatio) { resolution = pixelRatio; renderer.setPixelRatio(pixelRatio) }
     }
     function adjustQuality(elapsed: number) {
@@ -110,6 +113,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     }
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap
     renderer.shadowMap.autoUpdate = false
+    if (compact) renderer.transmissionResolutionScale = .5
     renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08
     renderer.domElement.setAttribute('aria-label', 'Forgatható 3D járműmodell')
     renderer.domElement.setAttribute('role', 'img')
@@ -119,20 +123,28 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     scene.background = new T.Color('#171a19')
     scene.fog = new T.FogExp2('#171a19', .032 / garageScale)
     scene.add(buildStudioGarage(garageScale))
-    const pmrem = new T.PMREMGenerator(renderer), room = new RoomEnvironment(), environment = pmrem.fromScene(room, .04)
-    scene.environment = environment.texture; room.dispose(); pmrem.dispose()
+    let environment: T.WebGLRenderTarget | undefined
     let lighting: T.DataTexture | undefined
-    void new HDRLoader().loadAsync(studioLight).then(texture => {
+    void new HDRLoader().loadAsync(compact ? compactStudioLight : studioLight).then(texture => {
       if (disposed || contextLost) { texture.dispose(); return }
       texture.mapping = T.EquirectangularReflectionMapping
       scene.environment = lighting = texture
       scene.environmentIntensity = .8
       scene.environmentRotation.y = Math.PI * .25
       invalidateFrame()
-    }).catch(() => { /* The local room environment remains available. */ })
+    }).catch(() => {
+      if (disposed || contextLost) return
+      const pmrem = new T.PMREMGenerator(renderer), room = new RoomEnvironment()
+      try {
+        environment = pmrem.fromScene(room, .04)
+        scene.environment = environment.texture
+        invalidateFrame()
+      } catch { /* The direct lights can still illuminate the model. */ }
+      finally { room.dispose(); pmrem.dispose() }
+    })
     scene.add(new T.HemisphereLight('#e6e9e3', '#414b49', .58))
     const key = new T.DirectionalLight('#fff1df', 1.85); key.position.set(3, 7, 4); key.castShadow = true
-    key.shadow.mapSize.set(1024, 1024); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6
+    key.shadow.mapSize.setScalar(compact ? 512 : 1024); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6
     key.shadow.normalBias = .015; key.shadow.radius = 3; scene.add(key)
     const fill = new T.DirectionalLight('#e4ebee', .95); fill.position.set(-4, 3, -5); scene.add(fill)
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -295,7 +307,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       invalidateFrame()
     }
     const resize = new ResizeObserver(() => fit()); resize.observe(container)
-    void new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(model.url).then(gltf => {
+    void new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(vehicleModelUrl(model, compact)).then(gltf => {
       if (disposed || contextLost) { disposeVehicleModel(gltf.scene); return }
       let vehicle: ReturnType<typeof prepareVehicleModel>
       try { vehicle = prepareVehicleModel(gltf.scene, paintRef.current, model) }
@@ -403,7 +415,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       renderer.domElement.removeEventListener('pointerdown', manualCamera, true); renderer.domElement.removeEventListener('wheel', manualCamera, true)
       garage.removeEventListener('click', garageClick, true)
       renderer.domElement.removeEventListener('webglcontextlost', lost)
-      disposeVehicleModel(scene); environment.dispose(); lighting?.dispose(); renderer.dispose(); renderer.domElement.remove()
+      disposeVehicleModel(scene); environment?.dispose(); lighting?.dispose()
+      renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove()
     }
   }, [attempt, immersive, model])
   useEffect(() => {

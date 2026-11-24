@@ -6,7 +6,7 @@ import { expect, it } from 'vitest'
 import { Box3, Mesh, MeshStandardMaterial, Texture } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
-import { vehicleModel } from './vehicleModels'
+import { vehicleModel, vehicleModelUrl } from './vehicleModels'
 import { bodyNames } from './vehicleAppearance'
 import { batchVehicleMeshes, disposeVehicleModel, prepareVehicleModel } from './vehicleSceneModel'
 import { vehicleHotspots } from './vehicleHotspots'
@@ -31,9 +31,17 @@ it('selects a different asset for every known body and prefers verified models f
   expect(vehicleModel('Box', { make: 'Mercedes-Benz', model: 'Sprinter' }).key).toBe('box')
 })
 const examples = [...bodies.map(body => ({ body, make: '', model: '', key: vehicleModel(body).key })), ...matchedModels]
-it.each(examples)('loads and paints $key with valid ground-level proportions', async ({ body, make, model: name }) => {
-  const appearance = vehicleModel(body, { make, model: name }), bytes = readFileSync(resolve(`src/assets/vehicles/${appearance.key}.glb`))
-  expect(createHash('sha256').update(bytes).digest('hex')).toBe(prepared.find(asset => asset.key === appearance.key)?.sha256)
+const versions = examples.flatMap(example => {
+  const model = vehicleModel(example.body, example)
+  const full = { ...example, quality: 'full' }
+  return vehicleModelUrl(model, true) === model.url ? [full] : [full, { ...example, quality: 'compact' }]
+})
+it.each(versions)('loads and paints $key ($quality) with valid ground-level proportions', async ({ body, make, model: name, quality }) => {
+  const appearance = vehicleModel(body, { make, model: name })
+  const original = readFileSync(resolve(`src/assets/vehicles/${appearance.key}.glb`))
+  const bytes = quality === 'compact' ? readFileSync(resolve(`src/assets/vehicles/compact/${appearance.key}.glb`)) : original
+  if (quality === 'compact') expect(bytes.byteLength).toBeLessThan(original.byteLength * .9)
+  else expect(createHash('sha256').update(bytes).digest('hex')).toBe(prepared.find(asset => asset.key === appearance.key)?.sha256)
   const doc = JSON.parse(bytes.toString('utf8', 20, 20 + bytes.readUInt32LE(12)))
   expect(doc.buffers.length).toBeGreaterThanOrEqual(1)
   expect(doc.buffers.every((buffer: { uri?: string }) => buffer.uri === undefined)).toBe(true)

@@ -14,19 +14,19 @@ const emptyMenus: StudioMenu[] = []
 const ignore = () => {}
 
 export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action, onSelect = ignore,
-  onReset, paused = false, immersive = false, overlay, children }: {
+  onReset, paused = false, immersive = false, showStudio = true, overlay, children }: {
   car: Vehicle; bodyType: string; color: string | null; menus?: StudioMenu[]; action: StudioAction | null
   onSelect?: (key: StudioSection) => void
-  onReset: () => void; paused?: boolean; immersive?: boolean; overlay?: ReactNode; children?: ReactNode
+  onReset: () => void; paused?: boolean; immersive?: boolean; showStudio?: boolean; overlay?: ReactNode; children?: ReactNode
 }) {
-  const model = vehicleModel(bodyType, car)
+  const model = showStudio ? vehicleModel(bodyType, car) : null
   const paint = vehiclePaint(color)
   return <>
     <div className="car-stage-wrap">
-      <Suspense fallback={<div className="vehicle-studio studio-loading" role="status">Garázs betöltése…</div>}>
+      {model && <Suspense fallback={<div className="vehicle-studio studio-loading" role="status">Garázs betöltése…</div>}>
         <VehicleStudio key={model.key} model={model} color={color} menus={menus} action={action}
           onSelect={onSelect} onFocused={ignore} onCancelled={ignore} onReset={onReset} immersive={immersive} paused={paused} />
-      </Suspense>
+      </Suspense>}
       {overlay && <div className="car-stage-overlay">{overlay}</div>}
       {!immersive && <div className="car-stage-meta">
         <span>{bodyType !== 'Unknown' && bodyNames[bodyType]}<i style={{ backgroundColor: paint.hex }} />{color ?? 'Szín nincs megadva'}</span>
@@ -36,10 +36,10 @@ export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action
       </div>}
     </div>
     {children}
-    <div className="studio-credit">
+    {model && <div className="studio-credit">
       <a href={`${import.meta.env.BASE_URL}${model.license}`} target="_blank" rel="noreferrer"
         aria-label={`3D illusztráció: ${model.credit}`} title={model.credit}>{immersive && <span className="studio-credit-compact">3D illusztráció</span>}<span>3D illusztráció · {model.title}</span></a>
-    </div>
+    </div>}
   </>
 }
 

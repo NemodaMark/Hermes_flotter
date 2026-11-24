@@ -6,7 +6,7 @@ import type { PerspectiveCamera } from 'three'
 import VehicleStudio from './VehicleStudio'
 import { vehicleModel } from './vehicleModels'
 
-const mocks = vi.hoisted(() => ({ load: vi.fn(), render: vi.fn(), dispose: vi.fn() }))
+const mocks = vi.hoisted(() => ({ load: vi.fn(), render: vi.fn(), dispose: vi.fn(), forceContextLoss: vi.fn() }))
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three')
   return { ...actual,
@@ -16,6 +16,7 @@ vi.mock('three', async () => {
       setPixelRatio() {} setSize() {}
       render = mocks.render
       dispose = mocks.dispose
+      forceContextLoss = mocks.forceContextLoss
     },
     PMREMGenerator: class { fromScene() { return { texture: new actual.Texture(), dispose() {} } } dispose() {} },
   }
@@ -38,7 +39,7 @@ vi.mock('three/addons/controls/OrbitControls.js', () => ({ OrbitControls: class 
 } }))
 let frames: Map<number, FrameRequestCallback>, sequence: number
 beforeEach(() => {
-  mocks.load.mockReset(); mocks.render.mockClear(); mocks.dispose.mockClear()
+  mocks.load.mockReset(); mocks.render.mockClear(); mocks.dispose.mockClear(); mocks.forceContextLoss.mockClear()
   frames = new Map(); sequence = 0
   vi.stubGlobal('WebGL2RenderingContext', class {})
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
@@ -257,5 +258,6 @@ it('disposes a late-arriving model after unmount without reviving its renderer',
   view.unmount()
   await act(async () => { complete(gltf) })
   expect(dispose).toHaveBeenCalledTimes(1); expect(mocks.dispose).toHaveBeenCalledTimes(1)
+  expect(mocks.forceContextLoss).toHaveBeenCalledTimes(1)
   expect(frames.size).toBe(0)
 })
