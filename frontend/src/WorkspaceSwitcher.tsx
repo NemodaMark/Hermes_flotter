@@ -5,9 +5,8 @@ import { ChevronDown, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import './workspace-switcher.css'
 
-export function WorkspaceSwitcher({ company, site, disabled, children }: {
+export function WorkspaceSwitcher({ company, disabled, children }: {
   company: string
-  site?: string
   disabled: boolean
   children: ReactNode
 }) {
@@ -17,7 +16,6 @@ export function WorkspaceSwitcher({ company, site, disabled, children }: {
   const [requestedOpen, setOpen] = useState(false)
   const [position, setPosition] = useState<CSSProperties>({})
   const open = requestedOpen && !disabled
-  const location = site ? `${site}, ${company}` : company
 
   function close() { setOpen(false); trigger.current?.focus() }
 
@@ -51,10 +49,10 @@ export function WorkspaceSwitcher({ company, site, disabled, children }: {
   }, [open])
 
   return <>
-    <Button ref={trigger} type="button" className="workspace-trigger" aria-label={`Munkaterület váltása: ${location}`}
-      title={location} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined} disabled={disabled}
+    <Button ref={trigger} type="button" className="workspace-trigger" aria-label={`Munkaterület váltása: ${company}`}
+      title={company} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined} disabled={disabled}
       onClick={() => setOpen(value => !value)}>
-      <span className="workspace-location"><span>{site ?? company}</span>{site && <small>{company}</small>}</span>
+      <span className="workspace-company">{company}</span>
       <ChevronDown size={15} aria-hidden="true" />
     </Button>
     {open && createPortal(<div ref={panel} id={id} className="workspace-panel glass-surface" popover="manual" data-choice-root

@@ -23,14 +23,13 @@ function LocalPhoto({ file }: { file: File }) {
   }, [file])
   return url ? <img className="vehicle-photo-preview" src={url} alt={file.name} /> : null
 }
-export function VehicleCreatePage({ user, tenant, initialSiteId, onBack, onCreated, onBusyChange }: { user: Session; tenant: Tenant; initialSiteId?: string; onBack: () => void; onCreated: (car: Vehicle) => void; onBusyChange?: (busy: boolean) => void }) {
+export function VehicleCreatePage({ user, tenant, onBack, onCreated, onBusyChange }: { user: Session; tenant: Tenant; onBack: () => void; onCreated: (car: Vehicle) => void; onBusyChange?: (busy: boolean) => void }) {
   const client = useQueryClient()
   const [data, setData] = useState<SaveVehicle>({ registration: '', make: '', model: '', status: 'Active', version: 1, data: emptySpecification })
-  const [chosenSite, setSite] = useState<string | null>(null), [km, setKm] = useState<number | null>(null)
+  const [site, setSite] = useState(''), [km, setKm] = useState<number | null>(null)
   const [files, setFiles] = useState<File[]>([]), [fileError, setFileError] = useState('')
   const [created, setCreated] = useState<Vehicle | null>(null)
   const options = useQuery({ queryKey: ['vehicle-create-options', tenant.id], queryFn: ({ signal }) => api.vehicleCreationOptions(tenant.id, signal), retry: false })
-  const site = chosenSite ?? (options.data?.sites.some(item => item.id === initialSiteId) ? initialSiteId! : '')
   const save = useMutation({ mutationFn: async () => {
     let car = created
     if (!car) { car = await api.createVehicle(tenant.id, { registration: data.registration, make: data.make, model: data.model, siteId: site || null, data: data.data, status: data.status, odometerKm: km }); setCreated(car) }

@@ -6,27 +6,27 @@ import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { Select } from './ui/Select'
 
 function Fixture() {
-  const [site, setSite] = useState('all')
-  return <><WorkspaceSwitcher company="D-Fuvar" site={site === 'all' ? 'Összes telephely' : 'Budapest'} disabled={false}>
-    <Select aria-label="Telephely" value={site} onChange={event => setSite(event.target.value)}>
-      <option value="all">Összes telephely</option><option value="bp">Budapest</option>
+  const [company, setCompany] = useState('D-Fuvar')
+  return <><WorkspaceSwitcher company={company} disabled={false}>
+    <Select aria-label="Cég" value={company} onChange={event => setCompany(event.target.value)}>
+      <option>D-Fuvar</option><option>Pannon</option>
     </Select>
   </WorkspaceSwitcher><button>Másik művelet</button></>
 }
 
-it('keeps nested choices open, updates the combined location and restores focus after Escape', async () => {
+it('keeps the company selector open, updates the company name and restores focus after Escape', async () => {
   render(<Fixture />)
-  const trigger = screen.getByRole('button', { name: 'Munkaterület váltása: Összes telephely, D-Fuvar' })
+  const trigger = screen.getByRole('button', { name: 'Munkaterület váltása: D-Fuvar' })
   expect(trigger).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   await userEvent.click(trigger)
-  const site = screen.getByRole('combobox', { name: 'Telephely' })
-  expect(site).toHaveFocus()
-  await userEvent.click(site)
-  await userEvent.click(screen.getByRole('option', { name: 'Budapest' }))
+  const company = screen.getByRole('combobox', { name: 'Cég' })
+  expect(company).toHaveFocus()
+  await userEvent.click(company)
+  await userEvent.click(screen.getByRole('option', { name: 'Pannon' }))
   expect(screen.getByRole('dialog', { name: 'Munkaterület váltása' })).toBeInTheDocument()
-  expect(trigger).toHaveAccessibleName('Munkaterület váltása: Budapest, D-Fuvar')
-  await userEvent.click(site)
+  expect(trigger).toHaveAccessibleName('Munkaterület váltása: Pannon')
+  await userEvent.click(company)
   await userEvent.keyboard('{Escape}')
   expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -50,7 +50,7 @@ it('dismisses on an outside action without stealing focus and needs no confirmat
   expect(trigger).toHaveAttribute('aria-expanded', 'false')
 })
 
-it('shows only the company when site selection is unavailable and disables switching while busy', async () => {
+it('disables company switching while busy', async () => {
   render(<WorkspaceSwitcher company="D-Fuvar" disabled><span>Választó</span></WorkspaceSwitcher>)
   const trigger = screen.getByRole('button', { name: 'Munkaterület váltása: D-Fuvar' })
   expect(trigger).toBeDisabled()
