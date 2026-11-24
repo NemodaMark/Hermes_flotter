@@ -7,8 +7,24 @@
 .fleet-parking-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, #161d2126, transparent 35%, transparent 65%, #161d2173); }
 .fleet-parking-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .fleet-parking-stage canvas:active { cursor: grabbing; }
-.app-shell .parking-panel > .list-toolbar { position: relative; z-index: 2; margin: 18px 24px 0; padding: 10px 12px; gap: 12px; border: 0; border-radius: var(--radius-panel); background: var(--glass-fill); }
+.parking-panel :is(.list-toolbar, .parking-vehicles).liquid-glass {
+  --glass-base: #242424;
+  --liquid-brightness: .38;
+  --parking-glass-ink: #f4f4f4;
+  --parking-glass-muted: #e0e0e0;
+  --action-secondary: rgb(255 255 255 / 7%);
+  --action-hover: rgb(255 255 255 / 13%);
+  --focus-ring: var(--parking-glass-ink);
+  color: var(--parking-glass-ink);
+}
+.app-shell .parking-panel > .list-toolbar { position: relative; z-index: 2; margin: 18px 24px 0; padding: 10px 12px; gap: 12px; border: 0; border-radius: var(--radius-panel); }
 .parking-panel > .list-toolbar .list-toolbar-main { flex-basis: 400px; }
+.app-shell .parking-panel .list-toolbar :is(.search-field, .status-filter.choice) { background: var(--action-secondary); border-color: rgb(255 255 255 / 24%); }
+.parking-panel .list-toolbar :is(.search-field input, .status-filter.choice, .fleet-mileage-action, .view-mode-switch .sera-button) { color: var(--parking-glass-ink); }
+.parking-panel .list-toolbar .search-field svg,
+.parking-panel .list-toolbar .search-field input::placeholder { color: var(--parking-glass-muted); opacity: 1; }
+.parking-panel .list-toolbar .search-field:focus-within { outline-color: var(--focus-ring); }
+.parking-panel .view-mode-switch .sera-button[aria-pressed="true"] { background: var(--action-hover); }
 .app-shell .parking-panel > .table-footer { position: relative; z-index: 2; margin-top: auto; border: 0; border-radius: 0; background: var(--glass-fill); padding: 10px 24px; }
 .app-shell .parking-panel .fleet-page-controls { display: flex; width: auto; flex-wrap: nowrap; }
 .parking-page-icon { display: none; }
@@ -21,12 +37,12 @@
 .parking-scene-controls .sera-button { color: var(--ink); background: var(--glass-fill); border-radius: var(--radius-control); min-height: 36px; padding: 6px 11px; }
 .parking-scene-controls .sera-button:hover { background: var(--action-hover); }
 .parking-vehicles { position: absolute; bottom: 90px; inset-inline: 24px; display: grid; max-width: 1320px; margin-inline: auto; gap: var(--space-1); padding: var(--space-1); }
-.parking-vehicles .parking-vehicle { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; align-items: center; justify-items: start; gap: 3px 8px; min-width: 0; text-align: left; background: transparent; border: 0; border-radius: var(--radius-control); padding: 12px 18px; white-space: normal; }
-.parking-vehicles .parking-vehicle:is(:hover, :focus-visible) { background: var(--primary-soft); }
+.parking-vehicles .parking-vehicle { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; align-items: center; justify-items: start; gap: 3px 8px; min-width: 0; text-align: left; color: inherit; background: transparent; border: 0; border-radius: var(--radius-control); padding: 12px 18px; white-space: normal; }
+.parking-vehicles .parking-vehicle:is(:hover, :focus-visible) { background: var(--action-hover); }
 .parking-vehicles .parking-vehicle:focus-visible { outline-offset: -3px; }
 .parking-vehicle strong { font-size: 19px; }
 .parking-vehicle .sera-badge { grid-column: 2; grid-row: 1; }
-.parking-vehicle > span:not(.sera-badge), .parking-vehicle small { grid-column: 1 / -1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 13px; }
+.parking-vehicle > span:not(.sera-badge), .parking-vehicle small { grid-column: 1 / -1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--parking-glass-muted); font-size: 13px; }
 @media (max-width: 760px) { .fleet-mileage-action > span { display: none; } }
 .parking-credit { position: absolute; bottom: 62px; inset-inline-end: 24px; color: #faf8ee; text-shadow: 0 1px 3px #111; text-align: right; font-size: 11px; }
 .showcase-grid { padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }

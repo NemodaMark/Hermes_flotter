@@ -42,8 +42,8 @@ function edgeMap(width: number, height: number, radius: number) {
   return { url: canvas.toDataURL(), width, height }
 }
 
-export function LiquidGlass({ as: Surface = 'div', className = '', children, ref, ...props }: HTMLAttributes<HTMLElement> & {
-  as?: 'div' | 'nav' | 'section'; ref?: RefObject<HTMLElement | null>
+export function LiquidGlass({ as: Surface = 'div', className = '', children, enabled = true, ref, ...props }: HTMLAttributes<HTMLElement> & {
+  as?: 'div' | 'nav' | 'section'; enabled?: boolean; ref?: RefObject<HTMLElement | null>
 }) {
   const id = useId()
   const localRef = useRef<HTMLElement>(null)
@@ -51,6 +51,7 @@ export function LiquidGlass({ as: Surface = 'div', className = '', children, ref
   const [map, setMap] = useState<ReturnType<typeof edgeMap>>(null)
 
   useEffect(() => {
+    if (!enabled) return
     // Blink can composite SVG displacement as a backdrop. Blur is the CSS fallback.
     if (!window.CSS?.supports?.('-webkit-app-region', 'drag') || !window.CSS.supports('backdrop-filter', `url("#${id}")`)
         || typeof ResizeObserver === 'undefined') return
@@ -81,13 +82,14 @@ export function LiquidGlass({ as: Surface = 'div', className = '', children, ref
       desktop.removeEventListener('change', update)
       reduced.removeEventListener('change', update)
     }
-  }, [id, root])
+  }, [enabled, id, root])
 
-  const lens = map ? { '--liquid-lens': `url("#${id}")` } as CSSProperties : undefined
-  return <Surface {...props} ref={element => { root.current = element }} className={`glass-surface liquid-glass ${className}`} style={{ ...props.style, ...lens }}>
-    {map && <svg aria-hidden="true" className="liquid-glass-filter" width="0" height="0">
+  const activeMap = enabled ? map : null
+  const lens = activeMap ? { '--liquid-lens': `url("#${id}")` } as CSSProperties : undefined
+  return <Surface {...props} ref={element => { root.current = element }} className={enabled ? `glass-surface liquid-glass ${className}` : className} style={{ ...props.style, ...lens }}>
+    {activeMap && <svg aria-hidden="true" className="liquid-glass-filter" width="0" height="0">
       <defs><filter id={id} x="0%" y="0%" width="100%" height="100%" colorInterpolationFilters="sRGB">
-        <feImage href={map.url} width={map.width} height={map.height} result="edge" />
+        <feImage href={activeMap.url} width={activeMap.width} height={activeMap.height} result="edge" />
         <feDisplacementMap in="SourceGraphic" in2="edge" scale={displacement} xChannelSelector="R" yChannelSelector="G" />
       </filter></defs>
     </svg>}

@@ -191,7 +191,7 @@
 .app-shell:has(.page-content[data-view=dashboard]) .topbar { display: none; }
 .page-content.page-content-compact[data-view=dashboard]:not(:has(.dashboard-studio, .dashboard-overview)) { max-width: 1344px; }
 .page-content.page-content-compact[data-view=dashboard]:has(.dashboard-overview) { max-width: none; }
-.app-shell .list-toolbar { background: var(--surface); }
+.app-shell .list-toolbar:where(:not(.liquid-glass)) { background: var(--surface); }
 .app-shell table th { background: var(--surface-subtle); color: var(--muted); }
 .app-shell table td { border-bottom-color: var(--line); }
 .app-shell table.responsive-list tbody tr:nth-child(even) { background: var(--surface-subtle); }

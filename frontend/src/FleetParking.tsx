@@ -12,6 +12,7 @@ import { batchVehicleMeshes, createContactShadow, disposeVehicleModel, prepareVe
 import { buildParkingLot, parkingLayout, parkingLighting } from './parkingEnvironment'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
+import { LiquidGlass } from './ui/LiquidGlass'
 import './showcase.css'
 
 export default function FleetParking({ vehicles, onOpen }: { vehicles: Vehicle[]; onOpen: (id: string) => void }) {
@@ -119,10 +120,10 @@ export default function FleetParking({ vehicles, onOpen }: { vehicles: Vehicle[]
     {state === 'ready' && cameraMoved && <div className="parking-scene-controls">
       <Button className="glass-surface" size="sm" onClick={() => resetView.current()} aria-label="Parkolónézet visszaállítása"><RotateCcw size={16} aria-hidden="true" /><span>Alapnézet</span></Button>
     </div>}
-    <div className="parking-vehicles glass-surface" style={{ gridTemplateColumns: `repeat(${vehicles.length}, minmax(0, 1fr))` }}>{vehicles.map(car => <Button key={car.id} className="parking-vehicle" aria-label={`Jármű megnyitása: ${car.registration}`} onClick={() => onOpen(car.id)}>
+    <LiquidGlass className="parking-vehicles" style={{ gridTemplateColumns: `repeat(${vehicles.length}, minmax(0, 1fr))` }}>{vehicles.map(car => <Button key={car.id} className="parking-vehicle" aria-label={`Jármű megnyitása: ${car.registration}`} onClick={() => onOpen(car.id)}>
       <strong>{car.registration}</strong><span>{car.make} {car.model}</span><Badge tone={car.status === 'Active' ? 'success' : car.status === 'Maintenance' ? 'warning' : 'neutral'}>{car.status === 'Active' ? 'Aktív' : car.status === 'Maintenance' ? 'Szervizben' : car.status === 'Archived' ? 'Archivált' : 'Inaktív'}</Badge>
       <small>{car.siteName ?? 'Telephely nélkül'}</small>
-    </Button>)}</div>
+    </Button>)}</LiquidGlass>
     <a className="parking-credit" href={`${import.meta.env.BASE_URL}models/studio/LICENSE.md`} target="_blank" rel="noreferrer">3D modellek és licencek</a>
   </section>
 }

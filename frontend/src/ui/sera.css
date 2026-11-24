@@ -79,7 +79,7 @@
 .breadcrumb strong { font-weight: 500; font-size: 16px; line-height: 1.4; }
 .page-content.page-content-compact { max-width: 1580px; padding: 24px 32px 40px; }
 .app-shell :is(.fleet-panel, .access-panel, .organization-panel), .account-panel, .onboarding-panel { border-radius: var(--radius-panel); box-shadow: var(--shadow-panel); border-color: var(--line); }
-.app-shell .list-toolbar { padding: 18px 20px; background: var(--surface); border-radius: var(--radius-panel) var(--radius-panel) 0 0; gap: 12px; }
+.app-shell .list-toolbar { padding: 18px 20px; border-radius: var(--radius-panel) var(--radius-panel) 0 0; gap: 12px; }
 .list-toolbar .search-field { border-radius: var(--radius-control); background: var(--surface-subtle); border-color: var(--control-border); min-height: 40px; }
 .search-field svg { color: var(--muted); flex-shrink: 0; }
 .list-toolbar .search-field input { font-size: 14px; }
