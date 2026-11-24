@@ -10,6 +10,7 @@ import { Button } from './ui/Button'
 import { Select } from './ui/Select'
 import { Badge } from './ui/Badge'
 import { Disclosure } from './ui/Disclosure'
+import { LiquidGlass } from './ui/LiquidGlass'
 import { QueryMessage } from './FleetFields'
 import { VehicleTaskPanel } from './VehicleTaskPanel'
 import { vehicleTaskNames } from './vehicleDetailModel'
@@ -160,7 +161,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, allowVehiclePicker, 
             {notices.length > 2 && <Button className="car-attention-more" onClick={() => setAllAttention(true)}>Minden teendő ({notices.length})<ArrowRight size={14} aria-hidden="true" /></Button>}
           </section>}
         </>}>
-        <nav className="car-menu glass-surface" aria-label="Jármű gyorsmenü">
+        <LiquidGlass as="nav" className="car-menu" aria-label="Jármű gyorsmenü">
           <VehicleRecordingActions key={`recording:${car.vehicle.id}`} user={user} tenant={tenant} vehicle={car.vehicle} mode={recording} onModeChange={changeRecording} />
           {menus.filter(menu => quickLabels[menu.key]).map(menu => {
           const Icon = icons[menu.key]
@@ -175,7 +176,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, allowVehiclePicker, 
               return <Button key={menu.key} onClick={() => focus(menu.key)}><Icon size={17} aria-hidden="true" />{menu.label}</Button>
             })}</div>
           </Disclosure>
-        </nav>
+        </LiquidGlass>
       </VehicleGarage>
     </section>
     {allAttention && <AccessDialog title={`${car.vehicle.registration} · Teendők`} pending={false} onClose={() => setAllAttention(false)} className="car-attention-dialog"><div className="car-attention-list">{notices}</div></AccessDialog>}

@@ -86,7 +86,7 @@
   content: '';
   pointer-events: none;
   z-index: 1;
-  background: linear-gradient(180deg, #101512d9, #1015123d 20%, transparent 42%, transparent 65%, #101512a6 88%, #101512ed);
+  background: linear-gradient(180deg, #101512bd, #1015123d 20%, transparent 42%, transparent 65%, #10151275 88%, #101512a8);
 }
 .car-stage-overlay {
   position: absolute;
@@ -365,7 +365,7 @@
   }
   .car-dashboard, .car-stage-wrap { background: var(--fleet-background); }
   .car-dashboard .vehicle-studio::after {
-    background: linear-gradient(180deg, #151515d9, #1515153d 20%, transparent 42%, transparent 65%, #151515a6 88%, #151515ed);
+    background: linear-gradient(180deg, #151515bd, #1515153d 20%, transparent 42%, transparent 65%, #15151575 88%, #151515a8);
   }
   .studio-hotspot > span { background: var(--garage-accent); border-color: var(--garage-on-accent); }
 }

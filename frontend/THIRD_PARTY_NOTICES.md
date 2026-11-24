@@ -13,12 +13,15 @@ Adapted sources:
 - `src/app/docs/doctabs/doctabs-vertical.tsx` → `src/ui/TabButton.tsx`, field navigation styling
 
 The [Liquid Glass documentation](https://seraui.com/docs/liquid-glass) informs
-the subtle CSS backdrop treatment in `src/ui/glass.css`. It uses browser blur
-with opaque surfaces when reduced transparency is requested or blur is unavailable.
+the CSS backdrop treatment in `src/ui/glass.css` and the original SVG edge
+refraction in `src/ui/LiquidGlass.tsx`. The garage uses refraction on its camera
+controls and quick actions on supported desktop browsers. It uses blur on touch
+screens and other compatible browsers, and opaque surfaces when reduced
+transparency is requested or blur is unavailable.
 
 Styles are translated from Tailwind utilities to HERMES CSS tokens in
 `src/ui/sera.css`. The app keeps IBM Plex Sans and its navy/teal palette.
-Decorative effects and Framer Motion are omitted; press and focus feedback use
+The upstream button ripple and Framer Motion are omitted; press and focus feedback use
 CSS with reduced-motion support. The badge is deliberately noninteractive.
 Native button/submit behavior, disabled states, ARIA, controlled panels and
 validation remain in the app. No Tailwind preflight or external runtime is added.

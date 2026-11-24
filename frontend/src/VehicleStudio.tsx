@@ -16,6 +16,7 @@ import { buildStudioGarage } from './studioGarageScene'
 import { vehicleInteractionLayout } from './vehicleInteractionLayout'
 import { ChevronLeft, ChevronRight, Maximize, Minimize, Minus, Pause, Play, Plus, RotateCcw, SlidersHorizontal } from 'lucide-react'
 import { Button } from './ui/Button'
+import { LiquidGlass } from './ui/LiquidGlass'
 
 export type StudioSection = 'data' | 'history' | 'services' | 'documents' | 'leases' | 'site' | 'photos' | 'bookings' | 'fuel' | 'handovers' | 'assignees' | 'audit'
 type CameraAction = 'home' | 'resume' | 'left' | 'right' | 'closer' | 'farther'
@@ -415,8 +416,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       {loadState !== 'ready' && <div className="studio-model-status" role="status">{loadState === 'loading' ? <p>Járműmodell betöltése…</p> : <><p>A járműmodell nem tölthető be. A gyorsmenü továbbra is használható.</p><button type="button" onClick={() => { setLoadState('loading'); setAttempt(value => value + 1) }}>Újrapróbálom</button></>}</div>}
       <div className="studio-hotspots" ref={overlay}>{menus.map(menu => <button type="button" key={menu.key} data-hotspot={menu.key} className="studio-hotspot" aria-label={`3D pont: ${menu.label}`} onClick={() => { controls.current?.stopPresentation(); onSelect(menu.key) }}><span aria-hidden="true" /><i aria-hidden="true" /><strong>{menu.label}</strong></button>)}</div>
       {loadState === 'ready' && <div className="studio-camera-container">
-        <Button type="button" className="studio-camera-toggle glass-surface" aria-label="Kameravezérlés megnyitása" aria-controls={cameraControlsId} aria-expanded={cameraMenu} onClick={() => setCameraMenu(value => !value)}><SlidersHorizontal size={17} /><span>Kamera</span></Button>
-        <div id={cameraControlsId} className={`studio-camera-controls glass-surface${cameraMenu ? ' is-open' : ''}`} role="group" aria-label="Kamera vezérlése">
+        <Button type="button" className="studio-camera-toggle glass-surface liquid-glass" aria-label="Kameravezérlés megnyitása" aria-controls={cameraControlsId} aria-expanded={cameraMenu} onClick={() => setCameraMenu(value => !value)}><SlidersHorizontal size={17} /><span>Kamera</span></Button>
+        <LiquidGlass id={cameraControlsId} className={`studio-camera-controls${cameraMenu ? ' is-open' : ''}`} role="group" aria-label="Kamera vezérlése">
         <button type="button" aria-label="Forgatás balra" onClick={() => controls.current?.focus('left')}><ChevronLeft size={17} /></button>
         <button type="button" aria-label="Forgatás jobbra" onClick={() => controls.current?.focus('right')}><ChevronRight size={17} /></button>
         <button type="button" aria-label="Kamera közelítése" onClick={() => controls.current?.focus('closer')}><Plus size={17} /></button>
@@ -429,7 +430,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
           {presentationActive ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
           <span>Bemutató mód</span>
         </Button>
-        </div>
+        </LiquidGlass>
       </div>}
     </>}
   </div>
