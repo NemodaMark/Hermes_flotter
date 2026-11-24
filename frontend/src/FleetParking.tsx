@@ -6,9 +6,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { RotateCcw } from 'lucide-react'
 import type { Vehicle } from './api'
-import { preferCompactVehicleRendering, vehicleModel, vehicleModelUrl } from './vehicleModels'
+import { vehicleModel } from './vehicleModels'
 import { vehiclePaint } from './vehicleAppearance'
-import { batchVehicleMeshes, createContactShadow, disposeVehicleModel, prepareVehicleModel } from './vehicleSceneModel'
+import { batchVehicleMeshes, createContactShadow, disposeVehicleModel, prepareVehicleModel, vehiclePixelRatio } from './vehicleSceneModel'
 import { buildParkingLot, parkingLayout, parkingLighting } from './parkingEnvironment'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
@@ -27,9 +27,8 @@ export default function FleetParking({ vehicles, onOpen }: { vehicles: Vehicle[]
   useEffect(() => { const timer = window.setInterval(() => setHour(new Date().getHours()), 60000); return () => clearInterval(timer) }, [])
   useEffect(() => {
     const container = host.current!
-    const compact = preferCompactVehicleRendering()
     let renderer: T.WebGLRenderer
-    try { renderer = new T.WebGLRenderer({ antialias: !compact, powerPreference: 'low-power' }) }
+    try { renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'low-power' }) }
     catch { queueMicrotask(() => setState('fallback')); return }
     queueMicrotask(() => setState('loading'))
     let disposed = false, contextLost = false, frame = 0
@@ -70,7 +69,7 @@ export default function FleetParking({ vehicles, onOpen }: { vehicles: Vehicle[]
     const resize = new ResizeObserver(() => {
       const width = container.clientWidth, height = container.clientHeight
       if (!width || !height) return
-      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, compact ? 1 : 1.5, Math.sqrt((compact ? 600_000 : 1_400_000) / (width * height))))
+      renderer.setPixelRatio(vehiclePixelRatio(width, height))
       renderer.setSize(width, height); camera.aspect = width / height; camera.fov = width < 700 ? 46 : 40; camera.updateProjectionMatrix()
       home()
     }); resize.observe(container)
@@ -94,7 +93,7 @@ export default function FleetParking({ vehicles, onOpen }: { vehicles: Vehicle[]
     void (async () => {
       for (const [index, car] of sceneCars.entries()) {
         const appearance = vehicleModel(car.bodyType ?? 'Unknown', car)
-        const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(vehicleModelUrl(appearance, compact))
+        const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(appearance.url)
         if (disposed || contextLost) { disposeVehicleModel(gltf.scene); return }
         const prepared = prepareVehicleModel(gltf.scene, vehiclePaint(car.color ?? null).hex, appearance)
         batchVehicleMeshes(prepared.model)

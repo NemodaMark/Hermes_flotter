@@ -4,6 +4,10 @@ import { restorePassatWheels } from './vehicleModelRepairs'
 
 export type VehicleShape = { length: number; width: number; roof: number; frontAxle: number; rearAxle: number }
 
+export function vehiclePixelRatio(width: number, height: number) {
+  return Math.min(window.devicePixelRatio || 1, 1.5, Math.sqrt(2_400_000 / (width * height)))
+}
+
 export function setVehiclePaint(model: T.Object3D, color: string, paintMaterials: readonly string[] = ['Paint 1', 'Paint 2']) {
   model.traverse(object => {
     if (!(object instanceof T.Mesh)) return

@@ -1,6 +1,6 @@
 # Garázs, parkoló és képes nézetek
 
-Állapot: **2026. november 23.**
+Állapot **2026. november 24.**
 
 ## Saját autó és hozzáférés
 
@@ -15,6 +15,8 @@ Kód: [DashboardManagement.cs](../backend/src/Hermes.Infrastructure/DashboardMan
 A kattintható pontok vetítése a tényleges modell felületére történik, takarásvizsgálattal. Magas furgonoknál az adatpont az oldalfalra kerül, személyautóknál a tetőre; a km-pont a vezetőfülke közelébe, a tankolási pont a megfelelő karosszériarészre. A kiosztás karosszériaarány szerinti közelítés, nem minden gyári típus tanksapkájának pontos digitális másolata. A hátoldalon takart pont és vezetővonala rejtve marad.
 
 Asztali gépen a Tankolás/Km gyorsművelet oldalra nyíló űrlapot kap, enyhébb háttérsötétítéssel. A kamera közben a kiválasztott művelethez fordul; a személyautó és magas furgon tankolási nézete eltér. Mobilon a megszokott, olvasható párbeszédablak marad. Csökkentett mozgás kérésénél az átmenet nem animálódik. A bemutató továbbra is kikapcsolva indul, kézi forgatás és menünyitás leállítja.
+
+A garázs eredeti járműmodelleket használ élsimítással. Tartósan lassú kameramozgás közben csökkentheti a belső felbontást. A kamera megállásakor éles képet rajzol, majd vár a következő műveletre.
 
 Az ellenőrzött jelenlegi modellek nem tartalmaznak kész ajtó-/motorháztető-nyitási animációt. Nem lett a karosszériára pontatlan nyitási animáció ráerőltetve. Később megfelelően tagolt, forgásponttal/animációval szállított modellel ez bővíthető; a jelenlegi geometriaösszevonás a gyermekobjektumos és `articulated` jelölésű elemeket meghagyja külön.
 
@@ -40,10 +42,10 @@ A készülék helyi órája alapján a megjelenítés hajnalban (05–07), nappa
 
 Terheléskorlátok:
 
-- Egyetlen WebGL vászon; 600 px szélességig egy, 601–1000 px között kettő, nagyobb kijelzőn legfeljebb négy modell oldalanként. Legfeljebb négy logikai processzor jelzésekor a nagyobb nézet is kettőre korlátozódik. Az összes jogosultan elérhető autó a szerveroldali lapozással bejárható.
+- Egyetlen WebGL-vászon. 600 px szélességig egy, 601–1000 px között kettő, nagyobb kijelzőn legfeljebb négy modell jelenik meg oldalanként. Az összes jogosultan elérhető autó a szerveroldali lapozással bejárható.
 - A modellek sorban töltődnek be. Másik oldal/navigáció elengedi a geometriát, anyagokat, textúrákat, vezérlőket és eseménykezelőket.
 - Nincs folyamatos automatikus kameramozgás, dinamikus árnyéktérkép vagy folyamatos képkockahurok. Álló kameránál nem rajzol újra; rejtett böngészőlapon sem rajzol.
-- Legfeljebb 1 400 000 belső képpont és 1,5-es pixelsűrűség: a nagyobb vászon élesebb marad, miközben a nagy felbontású kijelző sem növeli korlátlanul a terhelést. A járművek alatt a garázséval közös olcsó kontaktárnyék szerepel.
+- A parkoló és a garázs élsimítást használ, legfeljebb 2 400 000 belső képponttal és 1,5-szeres pixelsűrűséggel. A parkolóban a járművek alatt a garázséval közös kontaktárnyék jelenik meg.
 - WebGL- vagy modellbetöltési hiba esetén a rendszámokból továbbra is megnyitható az adatlap, és a lista nézet használható.
 
 Ez korlátozza a terhelést, de ismeretlen eszközön nem jelent garantált 60 FPS-t. A böngészős ellenőrzés az álló parkolóban **0 új draw callt** mért 800 ms alatt. Mozgás közbeni FPS-célhoz a végleges célgépeken kell GPU-profilt mérni.

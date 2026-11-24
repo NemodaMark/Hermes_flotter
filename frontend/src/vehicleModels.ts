@@ -19,17 +19,6 @@ export type VehicleModel = {
   paintMaterials?: readonly string[]
 }
 
-const compactModels = import.meta.glob<string>('./assets/vehicles/compact/*.glb', { query: '?url', import: 'default', eager: true })
-
-export function preferCompactVehicleRendering() {
-  return window.matchMedia('(max-width: 760px), (pointer: coarse), (prefers-reduced-data: reduce)').matches
-    || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 4)
-}
-
-export function vehicleModelUrl(model: VehicleModel, compact: boolean) {
-  return (compact && compactModels[`./assets/vehicles/compact/${model.key}.glb`]) || model.url
-}
-
 const road = (key: string, url: string, length: number, rotation: number, title: string, author: string, paintMaterials: string[]): VehicleModel => ({
   key, url, length, rotation, title, paintMaterials,
   credit: `${title} · ${author} · CC BY 4.0 · módosítva`, license: 'models/studio/LICENSE.md',

@@ -74,7 +74,7 @@ const statuses: Record<string, string> = {
 }
 
 function parkingCapacity() {
-  return window.innerWidth <= 600 ? 1 : window.innerWidth <= 1000 || navigator.hardwareConcurrency <= 4 ? 2 : 4
+  return window.innerWidth <= 600 ? 1 : window.innerWidth <= 1000 ? 2 : 4
 }
 
 type WorkspaceView = 'dashboard' | 'fleet' | 'organization' | 'members' | 'system' | 'partners' | 'profile' | 'invitations' | 'groups'

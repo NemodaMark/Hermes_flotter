@@ -7,8 +7,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
 import studioLight from './assets/vehicles/studio-small-03.hdr?url'
 import compactStudioLight from './assets/vehicles/compact/studio-small-03.hdr?url'
-import { preferCompactVehicleRendering, vehicleModelUrl } from './vehicleModels'
-import { batchVehicleMeshes, createContactShadow as contactShadow, disposeVehicleModel, prepareVehicleModel, setVehiclePaint } from './vehicleSceneModel'
+import { batchVehicleMeshes, createContactShadow as contactShadow, disposeVehicleModel, prepareVehicleModel, setVehiclePaint, vehiclePixelRatio } from './vehicleSceneModel'
 import type { VehicleShape } from './vehicleSceneModel'
 import { vehiclePaint } from './vehicleAppearance'
 import type { VehicleModel } from './vehicleModels'
@@ -84,10 +83,10 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
   useEffect(() => {
     const container = host.current!
     if (!window.WebGL2RenderingContext) { queueMicrotask(() => setUnavailable(true)); return }
-    const compact = preferCompactVehicleRendering()
+    const compactLighting = window.matchMedia('(max-width: 760px), (prefers-reduced-data: reduce)').matches
     queueMicrotask(() => setLoadState('loading'))
     let renderer: T.WebGLRenderer
-    try { renderer = new T.WebGLRenderer({ antialias: !compact, alpha: false, powerPreference: compact ? 'low-power' : 'high-performance' }) }
+    try { renderer = new T.WebGLRenderer({ antialias: true, alpha: false }) }
     catch { queueMicrotask(() => setUnavailable(true)); return }
     let disposed = false, contextLost = false
     let renderNeeded = true, frame = 0, previousFrame = 0
@@ -98,14 +97,14 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     function invalidateFrame() { renderNeeded = true; requestFrame() }
     invalidate.current = invalidateFrame
     function setResolution() {
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, compact ? 1 : 1.35, Math.sqrt((compact ? 500_000 : 1_100_000) / (width * height))) * quality
+      const pixelRatio = vehiclePixelRatio(width, height) * quality
       if (resolution !== pixelRatio) { resolution = pixelRatio; renderer.setPixelRatio(pixelRatio) }
     }
     function adjustQuality(elapsed: number) {
       if (!elapsed) return
       slowFrames = elapsed > 36 ? slowFrames + 2 : elapsed > 21 ? slowFrames + 1 : 0
       fastFrames = elapsed < 18 ? fastFrames + 1 : 0
-      if (slowFrames >= 4 && quality > .32) quality = Math.max(.32, quality * (elapsed > 36 ? .72 : .86))
+      if (slowFrames >= 4 && quality > .5) quality = Math.max(.5, quality * (elapsed > 36 ? .72 : .86))
       else if (fastFrames >= 80 && quality < 1) quality = Math.min(1, quality * 1.12)
       else return
       setResolution()
@@ -113,7 +112,6 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     }
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap
     renderer.shadowMap.autoUpdate = false
-    if (compact) renderer.transmissionResolutionScale = .5
     renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08
     renderer.domElement.setAttribute('aria-label', 'Forgatható 3D járműmodell')
     renderer.domElement.setAttribute('role', 'img')
@@ -125,7 +123,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     scene.add(buildStudioGarage(garageScale))
     let environment: T.WebGLRenderTarget | undefined
     let lighting: T.DataTexture | undefined
-    void new HDRLoader().loadAsync(compact ? compactStudioLight : studioLight).then(texture => {
+    void new HDRLoader().loadAsync(compactLighting ? compactStudioLight : studioLight).then(texture => {
       if (disposed || contextLost) { texture.dispose(); return }
       texture.mapping = T.EquirectangularReflectionMapping
       scene.environment = lighting = texture
@@ -144,7 +142,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     })
     scene.add(new T.HemisphereLight('#e6e9e3', '#414b49', .58))
     const key = new T.DirectionalLight('#fff1df', 1.85); key.position.set(3, 7, 4); key.castShadow = true
-    key.shadow.mapSize.setScalar(compact ? 512 : 1024); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6
+    key.shadow.mapSize.setScalar(1024); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6
     key.shadow.normalBias = .015; key.shadow.radius = 3; scene.add(key)
     const fill = new T.DirectionalLight('#e4ebee', .95); fill.position.set(-4, 3, -5); scene.add(fill)
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -307,7 +305,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       invalidateFrame()
     }
     const resize = new ResizeObserver(() => fit()); resize.observe(container)
-    void new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(vehicleModelUrl(model, compact)).then(gltf => {
+    void new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(model.url).then(gltf => {
       if (disposed || contextLost) { disposeVehicleModel(gltf.scene); return }
       let vehicle: ReturnType<typeof prepareVehicleModel>
       try { vehicle = prepareVehicleModel(gltf.scene, paintRef.current, model) }
@@ -332,7 +330,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     let lastOcclusion = -Infinity
     function animate(time: number) {
       frame = 0
-      if (disposed || container.ownerDocument.hidden || (pausedRef.current && !flight && !renderNeeded)) { previousFrame = 0; return }
+      if (disposed || container.ownerDocument.hidden || (pausedRef.current && !flight && !renderNeeded && quality === 1)) { previousFrame = 0; return }
       if (flight) {
         renderNeeded = true
         const t = reduceMotion.matches ? 1 : T.MathUtils.clamp((time - flight.started) / flight.duration, 0, 1)
@@ -364,8 +362,17 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       orbit.update()
       camera.updateMatrixWorld()
       const cameraChanged = !lastCamera.equals(camera.matrixWorld) || !lastProjection.equals(camera.projectionMatrix)
+      const moving = flight || presentation || (cameraChanged && !pausedRef.current)
+      if (moving) adjustQuality(previousFrame ? time - previousFrame : 0)
+      else {
+        slowFrames = fastFrames = 0
+        if (quality !== 1) {
+          quality = 1
+          setResolution()
+          renderNeeded = true
+        }
+      }
       if (!renderNeeded && !cameraChanged) { previousFrame = 0; return }
-      adjustQuality(previousFrame ? time - previousFrame : 0)
       renderNeeded = false
       renderer.render(scene, camera)
       const checkOcclusion = time - lastOcclusion >= 80 || !cameraChanged
@@ -398,7 +405,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       }
       if (checkOcclusion) lastOcclusion = time
       lastCamera.copy(camera.matrixWorld); lastProjection.copy(camera.projectionMatrix)
-      if (flight || presentation || cameraChanged) {
+      if (moving) {
         previousFrame = time
         requestFrame()
       } else previousFrame = 0

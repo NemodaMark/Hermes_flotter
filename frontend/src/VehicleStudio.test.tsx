@@ -6,14 +6,16 @@ import type { PerspectiveCamera } from 'three'
 import VehicleStudio from './VehicleStudio'
 import { vehicleModel } from './vehicleModels'
 
-const mocks = vi.hoisted(() => ({ load: vi.fn(), render: vi.fn(), dispose: vi.fn(), forceContextLoss: vi.fn() }))
+const mocks = vi.hoisted(() => ({ load: vi.fn(), render: vi.fn(), rendererOptions: vi.fn(), pixelRatio: vi.fn(), dispose: vi.fn(), forceContextLoss: vi.fn() }))
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three')
   return { ...actual,
     WebGLRenderer: class {
       domElement = document.createElement('canvas')
       shadowMap = { enabled: false, type: 0 }
-      setPixelRatio() {} setSize() {}
+      constructor(options: unknown) { mocks.rendererOptions(options) }
+      setPixelRatio = mocks.pixelRatio
+      setSize() {}
       render = mocks.render
       dispose = mocks.dispose
       forceContextLoss = mocks.forceContextLoss
@@ -40,8 +42,10 @@ vi.mock('three/addons/controls/OrbitControls.js', () => ({ OrbitControls: class 
 let frames: Map<number, FrameRequestCallback>, sequence: number
 beforeEach(() => {
   mocks.load.mockReset(); mocks.render.mockClear(); mocks.dispose.mockClear(); mocks.forceContextLoss.mockClear()
+  mocks.rendererOptions.mockClear(); mocks.pixelRatio.mockClear()
   frames = new Map(); sequence = 0
   vi.stubGlobal('WebGL2RenderingContext', class {})
+  vi.stubGlobal('devicePixelRatio', 1)
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.set(++sequence, callback); return sequence })
   vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id) })
@@ -110,6 +114,31 @@ it('renders consecutive 60 Hz camera frames and stops scheduling frames at rest'
 
   await frame(1000)
   await frame(1017)
+  expect(frames.size).toBe(0)
+})
+it('keeps the original model and antialiasing on phones, then restores resolution after slow motion', async () => {
+  const model = vehicleModel('Sedan')
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('max-width: 760px') }))
+  vi.stubGlobal('devicePixelRatio', 2)
+  mocks.load.mockResolvedValue(asset().gltf)
+  const view = render(<VehicleStudio {...props()} model={model} />)
+  Object.defineProperties(view.container.querySelector('.vehicle-studio')!, {
+    clientWidth: { value: 390 }, clientHeight: { value: 800 },
+  })
+  const toggle = await screen.findByRole('button', { name: 'Bemutató mód' })
+  expect(mocks.load).toHaveBeenCalledWith(model.url)
+  expect(mocks.rendererOptions).toHaveBeenCalledWith(expect.objectContaining({ antialias: true }))
+  await frame(100)
+  await frame(117)
+  expect(mocks.pixelRatio).toHaveBeenLastCalledWith(1.5)
+
+  fireEvent.click(toggle)
+  for (const time of [200, 250, 300, 350, 400]) await frame(time)
+  expect(mocks.pixelRatio.mock.lastCall?.[0]).toBeLessThan(1.5)
+
+  fireEvent.click(toggle)
+  await frame(450)
+  expect(mocks.pixelRatio).toHaveBeenLastCalledWith(1.5)
   expect(frames.size).toBe(0)
 })
 it('starts a slow time-based presentation on request and stops on manual input', async () => {

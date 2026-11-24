@@ -1,12 +1,12 @@
 /// <reference types="node" />
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createHash } from 'node:crypto'
 import { expect, it } from 'vitest'
 import { Box3, Mesh, MeshStandardMaterial, Texture } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
-import { vehicleModel, vehicleModelUrl } from './vehicleModels'
+import { vehicleModel } from './vehicleModels'
 import { bodyNames } from './vehicleAppearance'
 import { batchVehicleMeshes, disposeVehicleModel, prepareVehicleModel } from './vehicleSceneModel'
 import { vehicleHotspots } from './vehicleHotspots'
@@ -32,9 +32,8 @@ it('selects a different asset for every known body and prefers verified models f
 })
 const examples = [...bodies.map(body => ({ body, make: '', model: '', key: vehicleModel(body).key })), ...matchedModels]
 const versions = examples.flatMap(example => {
-  const model = vehicleModel(example.body, example)
   const full = { ...example, quality: 'full' }
-  return vehicleModelUrl(model, true) === model.url ? [full] : [full, { ...example, quality: 'compact' }]
+  return existsSync(resolve(`src/assets/vehicles/compact/${example.key}.glb`)) ? [full, { ...example, quality: 'compact' }] : [full]
 })
 it.each(versions)('loads and paints $key ($quality) with valid ground-level proportions', async ({ body, make, model: name, quality }) => {
   const appearance = vehicleModel(body, { make, model: name })
