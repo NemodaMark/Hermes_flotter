@@ -148,7 +148,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, allowVehiclePicker, 
             </div>
             {allowVehiclePicker && eligible.length > 1 && <div className="car-dashboard-actions">
               <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
-                <Select value={car.vehicle.id} onChange={event => { setSelected(event.target.value); moveCamera('home') }}>
+                <Select liquidGlass value={car.vehicle.id} onChange={event => { setSelected(event.target.value); moveCamera('home') }}>
                   {eligible.map(item => <option key={item.vehicle.id} value={item.vehicle.id}>
                     {item.vehicle.registration}
                   </option>)}
@@ -156,7 +156,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, allowVehiclePicker, 
               </label>
             </div>}
           </div>
-          {notices.length > 0 && <section className="car-attention glass-surface" aria-label="Jármű teendői">
+          {notices.length > 0 && <section className="car-attention glass-surface liquid-glass" aria-label="Jármű teendői">
             {notices.slice(0, 2)}
             {notices.length > 2 && <Button className="car-attention-more" onClick={() => setAllAttention(true)}>Minden teendő ({notices.length})<ArrowRight size={14} aria-hidden="true" /></Button>}
           </section>}
@@ -171,7 +171,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, allowVehiclePicker, 
         })}
           <Disclosure className="car-menu-more" key={`more:${car.vehicle.id}`}
             trigger={<><Ellipsis size={18} aria-hidden="true" /><span>Továbbiak</span></>}>
-            <div className="glass-surface">{onMileage && <Button onClick={onMileage}><Gauge size={17} aria-hidden="true" />Havi km-elszámolás</Button>}{menus.filter(menu => !quickLabels[menu.key]).map(menu => {
+            <div className="glass-surface liquid-glass">{onMileage && <Button onClick={onMileage}><Gauge size={17} aria-hidden="true" />Havi km-elszámolás</Button>}{menus.filter(menu => !quickLabels[menu.key]).map(menu => {
               const Icon = icons[menu.key]
               return <Button key={menu.key} onClick={() => focus(menu.key)}><Icon size={17} aria-hidden="true" />{menu.label}</Button>
             })}</div>

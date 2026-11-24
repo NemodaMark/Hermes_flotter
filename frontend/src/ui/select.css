@@ -8,6 +8,15 @@
 .choice[data-disabled], fieldset:disabled .choice { background: var(--surface-subtle); border-color: var(--line); color: var(--muted); }
 .choice[data-disabled] input, fieldset:disabled .choice input { cursor: default; opacity: 1; }
 .choice-popup { position: fixed; z-index: 1000; inset: auto; margin: 0; display: block; padding: 5px; overflow: auto; overscroll-behavior: contain; color: var(--ink); box-shadow: 0 4px 16px var(--shadow-color); font: 14px/1.5 'IBM Plex Sans', sans-serif; --glass-opacity: 94%; }
+.choice.liquid-glass { border: 0; }
+.choice-popup.liquid-glass { --glass-base: #242424; --liquid-soften: blur(4px); color: #f4f4f4; }
+.choice-popup.liquid-glass .choice-option[aria-selected=true] { color: inherit; }
+.choice-popup.liquid-glass .choice-option[data-active=true] { background: rgb(255 255 255 / 7%); box-shadow: inset 2px 0 currentColor; }
+.choice-popup.liquid-glass :is(.choice-search-hint, .choice-empty) { color: inherit; }
+.choice.liquid-glass input::placeholder { color: inherit; opacity: .85; }
+@media (forced-colors: active) {
+  .choice-popup.liquid-glass { color: CanvasText; }
+}
 .choice-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 8px 10px; border-radius: var(--radius-control); cursor: pointer; overflow-wrap: anywhere; }
 .choice-option[aria-selected=true] { color: var(--primary); font-weight: 500; }
 .choice-option[data-active=true] { background: var(--primary-soft); box-shadow: inset 2px 0 var(--primary); }

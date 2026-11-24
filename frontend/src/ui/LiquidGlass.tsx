@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { CSSProperties, HTMLAttributes } from 'react'
+import type { CSSProperties, HTMLAttributes, RefObject } from 'react'
 
 const desktopLens = '(min-width: 761px) and (hover: hover) and (pointer: fine)'
 const simplerGlass = '(prefers-reduced-transparency: reduce), (forced-colors: active), (prefers-reduced-data: reduce)'
@@ -42,9 +42,12 @@ function edgeMap(width: number, height: number, radius: number) {
   return { url: canvas.toDataURL(), width, height }
 }
 
-export function LiquidGlass({ as: Surface = 'div', className = '', children, ...props }: HTMLAttributes<HTMLElement> & { as?: 'div' | 'nav' }) {
+export function LiquidGlass({ as: Surface = 'div', className = '', children, ref, ...props }: HTMLAttributes<HTMLElement> & {
+  as?: 'div' | 'nav'; ref?: RefObject<HTMLElement | null>
+}) {
   const id = useId()
-  const root = useRef<HTMLElement | null>(null)
+  const localRef = useRef<HTMLElement>(null)
+  const root = ref ?? localRef
   const [map, setMap] = useState<ReturnType<typeof edgeMap>>(null)
 
   useEffect(() => {
@@ -78,7 +81,7 @@ export function LiquidGlass({ as: Surface = 'div', className = '', children, ...
       desktop.removeEventListener('change', update)
       reduced.removeEventListener('change', update)
     }
-  }, [id])
+  }, [id, root])
 
   const lens = map ? { '--liquid-lens': `url("#${id}")` } as CSSProperties : undefined
   return <Surface {...props} ref={element => { root.current = element }} className={`glass-surface liquid-glass ${className}`} style={{ ...props.style, ...lens }}>

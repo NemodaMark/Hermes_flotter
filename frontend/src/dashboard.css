@@ -59,7 +59,8 @@
   --garage-panel: color-mix(in srgb, #171b19ee 92%, var(--garage-accent));
   --glass-base: color-mix(in srgb, #171b19 92%, var(--garage-accent));
   --garage-line: color-mix(in srgb, var(--garage-accent) 38%, transparent);
-  --garage-hover: color-mix(in srgb, #171b19 76%, var(--garage-accent));
+  --garage-hover: color-mix(in srgb, var(--garage-accent) 9%, transparent);
+  --garage-label-bg: color-mix(in srgb, var(--glass-base) 67%, transparent);
 }
 .car-dashboard {
   --garage-inset: clamp(16px, 2.65vw, 44px);
@@ -106,7 +107,7 @@
 .car-location .sera-badge { margin-inline-start: 4px; }
 .car-dashboard-actions { display: flex; align-items: start; gap: var(--space-2); pointer-events: auto; }
 .car-picker { min-width: 0; width: clamp(118px, 15vw, 200px); }
-.app-shell .car-picker .choice { width: 100%; background: var(--garage-panel); border-color: var(--garage-line); color: var(--garage-ink); }
+.app-shell .car-picker .choice { color: var(--garage-ink); }
 .car-picker .choice input, .car-picker .choice .choice-arrow { color: inherit; }
 .car-picker .choice:focus-within { outline-color: var(--garage-accent); outline-offset: 1px; }
 .car-picker .choice .choice-arrow { color: var(--garage-accent); }
@@ -145,7 +146,7 @@
 .studio-hotspots { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
 .studio-hotspot { pointer-events: auto; position: absolute; top: 0; left: 0; transform: translate3d(var(--hotspot-x, 0px), var(--hotspot-y, 0px), 0) translate(-50%, -50%); display: grid; place-items: center; width: 36px; height: 36px; border: 0; padding: 0; border-radius: 50%; background: transparent; color: var(--garage-ink, var(--ink)); font: inherit; cursor: pointer; visibility: hidden; }
 .studio-hotspot > span { width: 17px; height: 17px; border: 3px solid var(--vehicle-paint-edge, #fffefa); border-radius: 50%; background: var(--vehicle-paint, #344b3c); box-shadow: 0 0 0 1px var(--garage-accent), 0 1px 8px #101512b3; }
-.studio-hotspot strong { position: absolute; left: calc(50% + var(--label-x)); top: calc(50% + var(--label-y)); transform: translate(-50%, -50%); font-size: 12px; font-weight: 500; padding: 6px 9px; border: 1px solid var(--garage-line); background: var(--garage-panel); border-radius: var(--radius-control); white-space: nowrap; }
+.studio-hotspot strong { position: absolute; left: calc(50% + var(--label-x)); top: calc(50% + var(--label-y)); transform: translate(-50%, -50%); font-size: 12px; font-weight: 500; padding: 6px 9px; background: var(--garage-label-bg); border-radius: var(--radius-control); white-space: nowrap; }
 .studio-hotspot > i { position: absolute; left: 50%; top: 50%; width: var(--leader-length); height: 1px; background: var(--garage-accent); opacity: .65; transform: rotate(var(--leader-angle)); transform-origin: 0 0; pointer-events: none; z-index: -1; }
 .studio-hotspot:is(:hover, :focus-visible) > span { box-shadow: 0 0 0 4px color-mix(in srgb, var(--garage-accent) 55%, transparent); }
 .car-stage-meta {
@@ -219,15 +220,12 @@
 .car-menu .vehicle-recording-actions > button {
   min-height: calc(var(--garage-dock) - 10px);
   padding-inline: 8px;
-  background: var(--garage-accent);
-  color: var(--garage-on-accent);
   font-weight: 600;
 }
 .car-menu .vehicle-recording-actions > button + button { margin-inline-start: 4px; }
-.car-menu .vehicle-recording-actions > button svg { color: inherit; }
-.car-menu .vehicle-recording-actions > button:hover { color: var(--garage-on-accent); background: color-mix(in srgb, var(--garage-accent) 85%, white); }
 .car-menu .vehicle-recording-feedback { background: var(--garage-panel); color: var(--garage-ink); border-color: var(--garage-line); }
-.car-menu > button:hover, .car-menu-more > div button:hover, .car-menu-more > summary:hover, .car-menu-more[open] > summary { color: var(--garage-ink); background: var(--garage-hover); }
+.car-menu > button:hover, .car-menu .vehicle-recording-actions > button:hover, .car-menu-more > div button:hover,
+.car-menu-more > summary:hover, .car-menu-more[open] > summary { color: var(--garage-ink); background: var(--garage-hover); }
 .car-menu-more > summary::-webkit-details-marker { display: none; }
 .car-menu-more > div {
   position: absolute;
@@ -238,9 +236,8 @@
   max-height: calc(100dvh - 160px);
   overflow: auto;
   padding: 5px;
-  --glass-opacity: 96%;
 }
-.car-menu-more > div .sera-button { justify-content: start; color: var(--garage-ink); min-height: 44px; text-align: left; }
+.car-menu-more > div .sera-button { justify-content: start; color: var(--garage-ink); background: transparent; min-height: 44px; text-align: left; }
 .studio-unavailable, .studio-loading { display: grid; min-height: 100%; place-content: center; text-align: center; padding: 28px; gap: 6px; color: var(--garage-ink); }
 .studio-unavailable p { margin: 0; font-weight: 600; }
 .studio-unavailable span { font-size: 13px; }
@@ -361,11 +358,13 @@
     --garage-panel: #242424f0;
     --glass-base: #242424;
     --garage-line: #666;
-    --garage-hover: #383838;
   }
   .car-dashboard, .car-stage-wrap { background: var(--fleet-background); }
   .car-dashboard .vehicle-studio::after {
     background: linear-gradient(180deg, #151515bd, #1515153d 20%, transparent 42%, transparent 65%, #15151575 88%, #151515a8);
   }
   .studio-hotspot > span { background: var(--garage-accent); border-color: var(--garage-on-accent); }
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  :is(.car-dashboard, .profile-garage) { --garage-label-bg: var(--glass-base); }
 }

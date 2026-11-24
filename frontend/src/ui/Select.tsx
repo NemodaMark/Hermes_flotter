@@ -3,6 +3,7 @@ import type { ChangeEventHandler, CSSProperties, ReactNode, SelectHTMLAttributes
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import { Button } from './Button'
+import { LiquidGlass } from './LiquidGlass'
 import './select.css'
 
 type Option = { value: string; label: string; disabled?: boolean }
@@ -17,8 +18,8 @@ function readOptions(children: ReactNode): Option[] {
   })
 }
 
-function Choice({ options, value, onValue, label, id, disabled, required, invalid, errorId, maxLength, placeholder, creatable = false, className = '', native }:
-  { options: Option[]; value: string; onValue: (value: string) => void; label?: string; id?: string; disabled?: boolean; required?: boolean; invalid?: boolean; errorId?: string; maxLength?: number; placeholder?: string; creatable?: boolean; className?: string; native?: ReactNode }) {
+function Choice({ options, value, onValue, label, id, disabled, required, invalid, errorId, maxLength, placeholder, creatable = false, className = '', native, liquidGlass = false }:
+  { options: Option[]; value: string; onValue: (value: string) => void; label?: string; id?: string; disabled?: boolean; required?: boolean; invalid?: boolean; errorId?: string; maxLength?: number; placeholder?: string; creatable?: boolean; className?: string; native?: ReactNode; liquidGlass?: boolean }) {
   const uid = useId(), inputId = id ?? `${uid}-input`, listId = `${uid}-list`
   const root = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null), popup = useRef<HTMLDivElement>(null)
   const [requestedOpen, setOpen] = useState(false), [query, setQuery] = useState(''), [active, setActive] = useState(0)
@@ -30,6 +31,7 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
   const enabled = filtered.filter(option => !option.disabled)
   const current = enabled[Math.min(active, Math.max(0, enabled.length - 1))]
   const display = creatable ? value : open ? query : selected?.label ?? value
+  const Surface = liquidGlass ? LiquidGlass : 'div'
 
   useLayoutEffect(() => {
     if (label) return
@@ -43,7 +45,8 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
       const rect = root.current!.getBoundingClientRect(), width = Math.min(Math.max(rect.width, 220), viewportWidth - 24)
       const below = window.innerHeight - rect.bottom - 12, above = rect.top - 12
       const up = below < 220 && above > below, height = Math.min(320, Math.max(100, up ? above : below))
-      setPosition({ width, left: Math.max(12, Math.min(rect.left, viewportWidth - width - 12)), maxHeight: height,
+      const left = liquidGlass ? rect.right - width : rect.left
+      setPosition({ width, left: Math.max(12, Math.min(left, viewportWidth - width - 12)), maxHeight: height,
         ...(up ? { bottom: window.innerHeight - rect.top + 6, top: 'auto' } : { top: rect.bottom + 6, bottom: 'auto' }) })
     }
     place()
@@ -51,7 +54,7 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
     window.addEventListener('resize', place)
     window.addEventListener('scroll', place, true)
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
-  }, [open])
+  }, [open, liquidGlass])
   useEffect(() => {
     if (!open) return
     const outside = (event: PointerEvent | FocusEvent) => {
@@ -67,7 +70,7 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
   }, [active, query, open])
   function show() { if (!disabled && !input.current?.matches(':disabled')) { setPortalRoot(root.current?.closest<HTMLElement>('dialog, [data-choice-root]') ?? document.body); setQuery(''); setActive(Math.max(0, options.filter(x => !x.disabled).findIndex(x => x.value === value))); setOpen(true) } }
   function choose(option: Option) { if (input.current?.matches(':disabled')) return; onValue(option.value); setOpen(false); setQuery(''); input.current?.focus() }
-  return <div className={`choice ${className}`} ref={root} data-open={open || undefined} data-disabled={disabled || undefined} data-invalid={invalid || undefined}>
+  return <Surface className={`choice ${className}`} ref={root} data-open={open || undefined} data-disabled={disabled || undefined} data-invalid={invalid || undefined}>
     <input ref={input} id={inputId} role="combobox" aria-label={accessibleLabel} aria-autocomplete="list" aria-haspopup="listbox"
       aria-expanded={open} aria-required={required || undefined} aria-invalid={invalid || undefined} aria-describedby={errorId} aria-controls={open ? listId : undefined} aria-activedescendant={open && current ? `${uid}-${options.indexOf(current)}` : undefined}
       value={display} disabled={disabled} required={creatable && required} maxLength={maxLength} autoComplete="off"
@@ -87,7 +90,7 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
     <Button type="button" className="choice-arrow" aria-label={`${accessibleLabel ?? label ?? 'Választás'} lehetőségei`} tabIndex={-1} disabled={disabled}
       onMouseDown={event => event.preventDefault()} onClick={() => { input.current?.focus(); if (open) setOpen(false); else show() }}><ChevronDown size={16} aria-hidden="true" /></Button>
     {native}
-    {open && portalRoot && createPortal(<div className="choice-popup glass-surface" popover="manual" ref={popup} style={{ ...position, display: 'block' }}>
+    {open && portalRoot && createPortal(<Surface className={liquidGlass ? 'choice-popup' : 'choice-popup glass-surface'} popover="manual" ref={popup} style={{ ...position, display: 'block' }}>
       {options.length > 8 && <div className="choice-search-hint"><Search size={14} aria-hidden="true" />Gépeléssel kereshetsz</div>}
       <div role="listbox" id={listId} aria-label={accessibleLabel}>
         {filtered.map(option => <div key={option.value} role="option" id={`${uid}-${options.indexOf(option)}`} aria-selected={option.value === value}
@@ -98,11 +101,12 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
         </div>)}
         {!filtered.length && <div className="choice-empty">{creatable ? value ? `Új érték: ${value}` : 'Nincs korábbi érték. Írj be újat.' : 'Nincs találat.'}</div>}
       </div>
-    </div>, portalRoot)}
-  </div>
+    </Surface>, portalRoot)}
+  </Surface>
 }
 
-export function Select({ children, value, onChange, disabled, required, id, className, 'aria-label': label, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ children, value, onChange, disabled, required, id, className, 'aria-label': label, liquidGlass, ...props }:
+  SelectHTMLAttributes<HTMLSelectElement> & { liquidGlass?: boolean }) {
   const native = useRef<HTMLSelectElement>(null)
   const errorId = useId()
   const [wasInvalid, setInvalid] = useState(false)
@@ -113,7 +117,7 @@ export function Select({ children, value, onChange, disabled, required, id, clas
     element.dispatchEvent(new Event('change', { bubbles: true }))
   }
   return <><Choice options={readOptions(children)} value={String(value ?? '')} onValue={change} label={label} id={id}
-    className={className} disabled={disabled} required={required} invalid={invalid} errorId={invalid ? errorId : undefined} native={<select {...props} ref={native} value={value} onChange={onChange as ChangeEventHandler<HTMLSelectElement>}
+    className={className} liquidGlass={liquidGlass} disabled={disabled} required={required} invalid={invalid} errorId={invalid ? errorId : undefined} native={<select {...props} ref={native} value={value} onChange={onChange as ChangeEventHandler<HTMLSelectElement>}
       required={required} disabled={disabled} className="choice-native" aria-hidden="true" tabIndex={-1}
       onFocus={event => event.currentTarget.parentElement?.querySelector('input')?.focus()}
       onInvalid={event => { if (!event.currentTarget.closest('[hidden]')) { event.preventDefault(); setInvalid(true); event.currentTarget.parentElement?.querySelector('input')?.focus() } }}>
