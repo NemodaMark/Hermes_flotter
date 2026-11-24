@@ -31,18 +31,20 @@ const sectionAngles: Record<StudioSection, [azimuth: number, elevation: number]>
 }
 
 type ScreenPoint = [number, number]
-const hotspotTouchSize = 44
-const hotspotOffsets: ScreenPoint[] = [
-  [0, 0], [0, -44], [0, 44], [-44, 0], [44, 0],
-  [-32, -32], [32, -32], [-32, 32], [32, 32], [0, -88], [0, 88], [-88, 0], [88, 0],
-]
+const touchSections = ['data', 'services', 'site', 'documents', 'photos', 'fuel', 'history', 'leases']
+const touchLabelWidth = 116, touchLabelHeight = 44, touchLabelGap = 8
 
-function placeTouchHotspot(x: number, y: number, width: number, height: number, occupied: ScreenPoint[]) {
-  const inset = hotspotTouchSize / 2
-  for (const [dx, dy] of hotspotOffsets) {
-    const left = T.MathUtils.clamp(x + dx, inset, width - inset)
-    const top = T.MathUtils.clamp(y + dy, inset, height - inset)
-    if (occupied.every(([otherX, otherY]) => Math.hypot(otherX - left, otherY - top) >= hotspotTouchSize)) {
+function placeTouchLabel(x: number, y: number, width: number, height: number, occupied: ScreenPoint[]) {
+  const outward = x < width / 2 ? -1 : 1
+  const vertical = y < height * .56 ? -1 : 1
+  const offsets: ScreenPoint[] = [[36 * outward, 54 * vertical], [0, 54 * vertical], [-48 * outward, 54 * vertical],
+    [36 * outward, -54 * vertical], [0, -54 * vertical], [-48 * outward, -54 * vertical], [0, 92 * vertical]]
+  const side = touchLabelWidth / 2 + touchLabelGap, edge = touchLabelHeight / 2 + touchLabelGap
+  for (const [dx, dy] of offsets) {
+    const left = T.MathUtils.clamp(x + dx, side, width - side)
+    const top = T.MathUtils.clamp(y + dy, edge, height - edge)
+    if (occupied.every(([otherX, otherY]) => Math.abs(otherX - left) >= touchLabelWidth + touchLabelGap
+      || Math.abs(otherY - top) >= touchLabelHeight + touchLabelGap)) {
       const placed: ScreenPoint = [left, top]
       occupied.push(placed)
       return placed
@@ -73,6 +75,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
   }, [paused])
   const [presentationActive, setPresentationActive] = useState(false)
   const [cameraMenu, setCameraMenu] = useState(false)
+  const cameraToggle = useRef<HTMLButtonElement>(null)
   const cameraControlsId = useId()
   const [unavailable, setUnavailable] = useState(() => !window.WebGL2RenderingContext)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -287,7 +290,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     renderer.domElement.addEventListener('wheel', manualCamera, { capture: true, passive: true })
     const garage = container.closest('.car-dashboard, .profile-garage') ?? container
     const garageClick = (event: Event) => {
-      if (event.target instanceof Element && !event.target.closest('.studio-presentation-toggle')) stopPresentation()
+      if (event.target instanceof Element && !event.target.closest('.studio-presentation-toggle, .studio-camera-toggle')) stopPresentation()
     }
     garage.addEventListener('click', garageClick, true)
     const compactView = () => immersive && width > 0 && width <= 760
@@ -403,7 +406,9 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       const checkOcclusion = time - lastOcclusion >= 80 || !cameraChanged
       const touchLayout = compactView()
       occupied.length = 0
-      for (const button of overlay.current?.querySelectorAll<HTMLButtonElement>('[data-hotspot]') ?? []) {
+      const buttons = overlay.current?.querySelectorAll<HTMLButtonElement>('[data-hotspot]') ?? []
+      const ordered = touchLayout ? Array.from(buttons).sort((a, b) => touchSections.indexOf(a.dataset.hotspot!) - touchSections.indexOf(b.dataset.hotspot!)) : buttons
+      for (const button of ordered) {
         const section = button.dataset.hotspot as StudioSection, hotspot = positions[section]
         const label = labels[section]
         if (!hotspot || !hotspots || !label) continue
@@ -411,20 +416,19 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         projected.copy(point).project(camera)
         const onScreen = projected.z >= -1 && projected.z <= 1 && Math.abs(projected.x) <= 1.05 && Math.abs(projected.y) <= 1.05
         const facingViewer = viewDirection.subVectors(camera.position, point).normalize().dot(hotspot.outward) > .015
-        const candidate = !pausedRef.current && onScreen && facingViewer
+        const candidate = !pausedRef.current && onScreen && facingViewer && (!touchLayout || occupied.length < 3)
         if (!candidate) visiblePoints.delete(section)
         else if (checkOcclusion || !visiblePoints.has(section)) visiblePoints.set(section, hotspots.visible(hotspot, camera.position))
         let visible = candidate && visiblePoints.get(section) === true
         if (visible) {
           const anchorX = (projected.x * .5 + .5) * width, anchorY = (-projected.y * .5 + .5) * height
-          const placed = touchLayout ? placeTouchHotspot(anchorX, anchorY, width, height, occupied) : [anchorX, anchorY]
+          const placed = touchLayout ? placeTouchLabel(anchorX, anchorY, width, height, occupied) : [anchorX, anchorY]
           visible = placed !== undefined
           if (placed) {
             const [x, y] = placed
             const dx = (touchLayout ? anchorX : label[0] * width) - x
             const dy = (touchLayout ? anchorY : label[1] * height) - y
             const leader = Math.hypot(dx, dy)
-            button.toggleAttribute('data-offset', touchLayout && leader > 8)
             button.style.setProperty('--hotspot-x', `${x}px`); button.style.setProperty('--hotspot-y', `${y}px`)
             button.style.setProperty('--label-x', `${dx}px`); button.style.setProperty('--label-y', `${dy}px`)
             button.style.setProperty('--leader-length', `${leader}px`); button.style.setProperty('--leader-angle', `${Math.atan2(dy, dx)}rad`)
@@ -470,8 +474,14 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     {unavailable ? <div className="studio-unavailable" role="status"><p>A 3D nézet ezen az eszközön nem érhető el.</p><span>A jármű összes engedélyezett funkciója a menüből használható.</span></div> : <>
       {loadState !== 'ready' && <div className="studio-model-status" role="status">{loadState === 'loading' ? <p>Járműmodell betöltése…</p> : <><p>A járműmodell nem tölthető be. A gyorsmenü továbbra is használható.</p><button type="button" onClick={() => { setLoadState('loading'); setAttempt(value => value + 1) }}>Újrapróbálom</button></>}</div>}
       <div className="studio-hotspots" ref={overlay}>{menus.map(menu => <button type="button" key={menu.key} data-hotspot={menu.key} className="studio-hotspot" aria-label={`3D pont: ${menu.label}`} onClick={() => { controls.current?.stopPresentation(); onSelect(menu.key) }}><span aria-hidden="true" /><i aria-hidden="true" /><strong>{menu.label}</strong></button>)}</div>
-      {loadState === 'ready' && <div className="studio-camera-container">
-        <Button type="button" className="studio-camera-toggle glass-surface liquid-glass" aria-label="Kameravezérlés megnyitása" aria-controls={cameraControlsId} aria-expanded={cameraMenu} onClick={() => setCameraMenu(value => !value)}><SlidersHorizontal size={17} /><span>Kamera</span></Button>
+      {loadState === 'ready' && <div className="studio-camera-container" onKeyDown={event => {
+        if (event.key !== 'Escape' || !cameraMenu) return
+        event.preventDefault()
+        event.stopPropagation()
+        setCameraMenu(false)
+        cameraToggle.current?.focus()
+      }}>
+        <Button ref={cameraToggle} type="button" className="studio-camera-toggle glass-surface liquid-glass" aria-label={cameraMenu ? 'Kameravezérlés bezárása' : 'Kameravezérlés megnyitása'} aria-controls={cameraControlsId} aria-expanded={cameraMenu} onClick={() => setCameraMenu(value => !value)}><SlidersHorizontal size={17} /><span>Kamera</span></Button>
         <LiquidGlass id={cameraControlsId} className={`studio-camera-controls${cameraMenu ? ' is-open' : ''}`} role="group" aria-label="Kamera vezérlése">
         <button type="button" aria-label="Forgatás balra" onClick={() => controls.current?.focus('left')}><ChevronLeft size={17} /></button>
         <button type="button" aria-label="Forgatás jobbra" onClick={() => controls.current?.focus('right')}><ChevronRight size={17} /></button>

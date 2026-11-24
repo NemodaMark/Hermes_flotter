@@ -69,11 +69,43 @@
     line-height: 1.1;
     text-align: center;
   }
-  .car-menu-more > div { right: 8px; }
+  .car-menu-more > div.liquid-glass {
+    right: max(8px, env(safe-area-inset-right));
+    width: min(252px, calc(100% - 16px));
+    background: var(--glass-base);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    overscroll-behavior: contain;
+  }
   .car-dashboard > .studio-credit { right: auto; left: var(--garage-inset); bottom: calc(var(--garage-dock) + env(safe-area-inset-bottom) + var(--garage-inset)); padding: 12px 0; }
-  .car-dashboard .studio-hotspot { width: 44px; height: 44px; }
-  .car-dashboard .studio-hotspot :is(strong, i) { display: none; }
-  .car-dashboard .studio-hotspot[data-offset] > i { display: block; background: var(--garage-ink); }
+  .car-dashboard .studio-hotspot { width: 116px; height: 44px; border-radius: var(--radius-control); }
+  .car-dashboard .studio-hotspot > span { display: none; }
+  .car-dashboard .studio-hotspot > strong {
+    position: static;
+    transform: none;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 4px 8px;
+    background: var(--glass-base);
+    box-shadow: inset 0 0 0 1px var(--garage-line);
+    line-height: 1.2;
+    white-space: normal;
+    text-align: center;
+  }
+  .car-dashboard .studio-hotspot > i { display: block; opacity: .85; background: var(--garage-ink); }
+  .car-dashboard .studio-hotspot > i::after {
+    content: '';
+    position: absolute;
+    right: -3px;
+    top: -2.5px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: inherit;
+  }
+  .car-dashboard .studio-hotspot:focus-visible > strong { outline: 2px solid var(--garage-accent); outline-offset: -2px; }
   .car-dashboard .studio-camera-container { top: auto; bottom: var(--garage-inset); }
   .studio-camera-toggle { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: var(--space-2); color: var(--garage-ink); border-radius: var(--radius-control); font-size: 12px; }
   .studio-camera-container .studio-camera-controls { display: none; }

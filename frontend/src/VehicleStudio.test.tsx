@@ -196,6 +196,31 @@ it('stops a presentation when a menu opens and requires an explicit restart afte
   await frame(performance.now() + 1100)
   expect(frames.size).toBe(0)
 })
+it('keeps a presentation running when the camera controls close and reopen', async () => {
+  mocks.load.mockResolvedValue(asset().gltf)
+  render(<VehicleStudio {...props()} immersive />)
+  const camera = await screen.findByRole('button', { name: 'Kameravezérlés megnyitása' })
+  fireEvent.click(camera)
+  const presentation = screen.getByRole('button', { name: 'Bemutató mód' })
+  fireEvent.click(presentation)
+  await frame(1000)
+  const position = renderedPosition()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Kameravezérlés bezárása' }))
+  expect(camera).toHaveAttribute('aria-expanded', 'false')
+  expect(presentation).toHaveAttribute('aria-pressed', 'true')
+  await frame(1050)
+  expect(renderedPosition().distanceTo(position)).toBeGreaterThan(0)
+
+  fireEvent.click(camera)
+  fireEvent.keyDown(presentation, { key: 'Escape' })
+  expect(camera).toHaveAttribute('aria-expanded', 'false')
+  expect(camera).toHaveFocus()
+  expect(presentation).toHaveAttribute('aria-pressed', 'true')
+  fireEvent.click(camera)
+  fireEvent.click(presentation)
+  expect(presentation).toHaveAttribute('aria-pressed', 'false')
+})
 it('returns to the user’s orbit and zoom after inspecting multiple desktop sections', async () => {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('min-width') }))
   mocks.load.mockResolvedValue(asset().gltf)
@@ -266,11 +291,12 @@ it('hides a side hotspot with its label and leader when rotated behind the car, 
   }
   expect(hotspot).toHaveStyle({ visibility: 'visible' }); expect(hotspot).toBeEnabled()
 })
-it('separates nearby touch targets in portrait and keeps both vehicle points actionable', async () => {
+it('limits portrait hotspots to three separate labeled buttons and keeps them actionable', async () => {
   mocks.load.mockResolvedValue(asset().gltf)
   const studio = props()
   const view = render(<VehicleStudio {...studio} immersive menus={[
-    { key: 'history', label: 'Kilométerállás' }, { key: 'documents', label: 'Dokumentumok' },
+    { key: 'data', label: 'Járműadatok' }, { key: 'history', label: 'Kilométerállás' },
+    { key: 'documents', label: 'Dokumentumok' }, { key: 'site', label: 'Telephely és használó' },
   ]} />)
   Object.defineProperties(view.container.querySelector('.vehicle-studio')!, {
     clientWidth: { value: 390 }, clientHeight: { value: 750 },
@@ -278,15 +304,17 @@ it('separates nearby touch targets in portrait and keeps both vehicle points act
   await screen.findByRole('button', { name: 'Forgatás jobbra' })
   await frame(100)
 
-  const history = screen.getByRole('button', { name: '3D pont: Kilométerállás' })
-  const documents = screen.getByRole('button', { name: '3D pont: Dokumentumok' })
+  const labels = screen.getAllByRole('button', { name: /^3D pont:/ })
   const coordinate = (button: HTMLElement, axis: 'x' | 'y') => parseFloat(button.style.getPropertyValue(`--hotspot-${axis}`))
-  expect(Math.hypot(coordinate(history, 'x') - coordinate(documents, 'x'), coordinate(history, 'y') - coordinate(documents, 'y'))).toBeGreaterThanOrEqual(44)
-  expect(documents).toHaveAttribute('data-offset')
-  expect(parseFloat(documents.style.getPropertyValue('--leader-length'))).toBeGreaterThan(0)
-  fireEvent.click(history)
-  fireEvent.click(documents)
-  expect(studio.onSelect.mock.calls).toEqual([['history'], ['documents']])
+  expect(labels).toHaveLength(3)
+  expect(screen.queryByRole('button', { name: '3D pont: Kilométerállás' })).not.toBeInTheDocument()
+  for (const [index, label] of labels.entries()) {
+    for (const other of labels.slice(0, index))
+      expect(Math.abs(coordinate(label, 'x') - coordinate(other, 'x')) >= 116 || Math.abs(coordinate(label, 'y') - coordinate(other, 'y')) >= 44).toBe(true)
+    expect(parseFloat(label.style.getPropertyValue('--leader-length'))).toBeGreaterThan(0)
+    fireEvent.click(label)
+  }
+  expect(studio.onSelect.mock.calls).toEqual([['data'], ['documents'], ['site']])
 })
 it('switches to the requested body asset and discards a previous body that finishes late', async () => {
   let complete!: (gltf: GLTF) => void
