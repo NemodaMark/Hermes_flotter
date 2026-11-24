@@ -1,11 +1,11 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useRef, useState } from 'react'
 import { useIsMutating } from '@tanstack/react-query'
 import { ArrowRight, CalendarClock, CalendarDays, Camera, CarFront, Ellipsis, FileText, Fuel, Gauge, Handshake, MapPin, Wrench } from 'lucide-react'
 import type { Dashboard, DashboardCar, useDashboard } from './dashboardApi'
 import { dashboardDeadlines, deadlineState } from './dashboardDeadlines'
 import type { DashboardDeadline } from './dashboardDeadlines'
 import type { Session, Tenant } from './api'
-import type { StudioAction, StudioSection } from './VehicleStudio'
+import type { StudioAction, StudioSection, StudioMenu } from './VehicleStudio'
 import { Button } from './ui/Button'
 import { Select } from './ui/Select'
 import { Badge } from './ui/Badge'
@@ -63,6 +63,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, onMileage, dueMonth,
   const [opened, setOpened] = useState<StudioSection | null>(null)
   const [recording, setRecording] = useState<VehicleRecordingMode | null>(null)
   const [allAttention, setAllAttention] = useState(false)
+  const moreMenu = useRef<HTMLDetailsElement>(null)
   const taskPending = useIsMutating() > 0
   const car = eligible.find(car => car.vehicle.id === selected) ?? eligible.find(car => car.isAssignedToMe) ?? eligible[0]
   useVehicleAccent(car?.color ?? null)
@@ -86,6 +87,14 @@ function CarDashboard({ cars, user, tenant, today, onFleet, onMileage, dueMonth,
     ...points,
     ...(canBook ? [{ key: 'bookings' as const, label: 'Foglalások' }] : []),
     { key: 'handovers', label: 'Átadás-átvétel' },
+  ]
+  const touchLabels: Partial<Record<VehicleTab, string>> = { ...quickLabels,
+    ...(can('vehicles.fuel.manage') ? { fuel: 'Tankolás' } : {}), ...(can('vehicles.odometer.create') ? { history: 'Km rögzítése' } : {}),
+  }
+  const studioMenus: StudioMenu[] = [
+    ...points.map(point => ({ ...point, touchLabel: touchLabels[point.key] })),
+    ...(canBook ? [{ key: 'bookings' as const, label: 'Foglalások', touchLabel: 'Foglalások' }] : []),
+    { key: 'more', label: 'Továbbiak', touchLabel: 'Továbbiak' },
   ]
   const focus = (key: StudioSection) => {
     setAllAttention(false)
@@ -129,8 +138,13 @@ function CarDashboard({ cars, user, tenant, today, onFleet, onMileage, dueMonth,
   ]
   return <>
     <section className="car-dashboard car-dashboard--studio" aria-label="Autós dashboard" data-task-open={opened !== null || recording !== null || mileageOpen || allAttention}>
-      <VehicleGarage car={car.vehicle} bodyType={car.bodyType} color={car.color} menus={points} action={action} immersive
-        onSelect={focus} paused={opened !== null || recording !== null || mileageOpen || allAttention} onReset={() => moveCamera('home')}
+      <VehicleGarage car={car.vehicle} bodyType={car.bodyType} color={car.color} menus={studioMenus} action={action} immersive
+        onSelect={key => {
+          if (key !== 'more') { focus(key); return }
+          const summary = moreMenu.current?.querySelector('summary')
+          summary?.click()
+          summary?.focus()
+        }} paused={opened !== null || recording !== null || mileageOpen || allAttention} onReset={() => moveCamera('home')}
         overlay={<>
           <div className="car-dashboard-toolbar">
             <div className="car-identity">
@@ -167,7 +181,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, onMileage, dueMonth,
             <Icon size={18} aria-hidden="true" /><span>{quickLabels[menu.key]}</span>
           </Button>
         })}
-          <Disclosure className="car-menu-more" key={`more:${car.vehicle.id}`}
+          <Disclosure className="car-menu-more" key={`more:${car.vehicle.id}`} detailsRef={moreMenu}
             trigger={<><Ellipsis size={18} aria-hidden="true" /><span>Továbbiak</span></>}>
             <div className="glass-surface liquid-glass">{onMileage && <Button onClick={onMileage}><Gauge size={17} aria-hidden="true" />Havi km-elszámolás</Button>}{menus.filter(menu => !quickLabels[menu.key]).map(menu => {
               const Icon = icons[menu.key]

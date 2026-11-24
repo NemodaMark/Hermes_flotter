@@ -10,6 +10,7 @@ import { vehicleModel } from './vehicleModels'
 import { bodyNames } from './vehicleAppearance'
 import { batchVehicleMeshes, disposeVehicleModel, prepareVehicleModel } from './vehicleSceneModel'
 import { vehicleHotspots } from './vehicleHotspots'
+import { vehicleModelControls } from './vehicleModelControls'
 import { Raycaster, Vector3 } from 'three'
 
 const bodies = Object.keys(bodyNames).filter(body => !['Unknown', 'Other'].includes(body))
@@ -35,6 +36,40 @@ const versions = examples.flatMap(example => {
   const full = { ...example, quality: 'full' }
   return existsSync(resolve(`src/assets/vehicles/compact/${example.key}.glb`)) ? [full, { ...example, quality: 'compact' }] : [full]
 })
+it('opens the Mustang’s separate panels after batching and toggles the original headlights', async () => {
+  const appearance = vehicleModel('Coupe')
+  const bytes = readFileSync(resolve('src/assets/vehicles', `${appearance.key}.glb`))
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
+    .register(() => ({ name: 'skip_test_image_decode', loadTexture: async () => new Texture() }))
+  const asset = await loader.parseAsync(Uint8Array.from(bytes).buffer, '')
+  const { model } = prepareVehicleModel(asset.scene, '#214d81', appearance)
+  try {
+    const controls = vehicleModelControls(model, appearance.key)
+    expect(controls.map(part => part.id)).toEqual(['hood', 'door-L', 'door-R', 'trunk', 'headlamps'])
+    model.updateMatrixWorld(true)
+    batchVehicleMeshes(model)
+    const openable = [['hood', 'GT500Hood'], ['door-R', 'GT500DoorGlassR'], ['door-L', 'GT500MirrorL'], ['trunk', 'GT500Wing']]
+    for (const [id, node] of openable) {
+      const part = controls.find(control => control.id === id)!
+      const group = model.getObjectByName(node)!
+      const original = new Box3().setFromObject(group, true).getCenter(new Vector3())
+      part.apply(1)
+      model.updateMatrixWorld(true)
+      expect(new Box3().setFromObject(group, true).getCenter(new Vector3()).distanceTo(original)).toBeGreaterThan(.15)
+      part.apply(0)
+      model.updateMatrixWorld(true)
+      expect(new Box3().setFromObject(group, true).getCenter(new Vector3()).distanceTo(original)).toBeLessThan(.0001)
+      expect(group.children.every(child => child.visible)).toBe(true)
+    }
+    const lamps = model.getObjectByName('GT500HeadlightL_light_0') as Mesh
+    const material = lamps.material as MeshStandardMaterial
+    const lights = controls.find(control => control.id === 'headlamps')!
+    lights.apply(1)
+    expect(material.emissiveIntensity).toBeGreaterThan(0)
+    lights.apply(0)
+    expect(material.emissiveIntensity).toBe(0)
+  } finally { disposeVehicleModel(model) }
+}, 15000)
 it.each(versions)('loads and paints $key ($quality) with valid ground-level proportions', async ({ body, make, model: name, quality }) => {
   const appearance = vehicleModel(body, { make, model: name })
   const original = readFileSync(resolve(`src/assets/vehicles/${appearance.key}.glb`))

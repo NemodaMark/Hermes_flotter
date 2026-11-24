@@ -4,7 +4,7 @@ import { Gauge } from 'lucide-react'
 import { bodyNames, vehiclePaint } from './vehicleAppearance'
 import { vehicleModel } from './vehicleModels'
 import type { Vehicle } from './api'
-import type { StudioAction, StudioMenu, StudioSection } from './VehicleStudio'
+import type { StudioAction, StudioMenu, StudioHotspotKey } from './VehicleStudio'
 import { useVehicleAccent } from './useVehicleAccent'
 import './dashboard.css'
 import './garage-hud.css'
@@ -16,7 +16,7 @@ const ignore = () => {}
 export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action, onSelect = ignore,
   onReset, paused = false, immersive = false, overlay, children }: {
   car: Vehicle; bodyType: string; color: string | null; menus?: StudioMenu[]; action: StudioAction | null
-  onSelect?: (key: StudioSection) => void
+  onSelect?: (key: StudioHotspotKey) => void
   onReset: () => void; paused?: boolean; immersive?: boolean; overlay?: ReactNode; children?: ReactNode
 }) {
   const model = vehicleModel(bodyType, car)
@@ -24,7 +24,7 @@ export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action
   return <>
     <div className="car-stage-wrap">
       {model && <Suspense fallback={<div className="vehicle-studio studio-loading" role="status">Garázs betöltése…</div>}>
-        <VehicleStudio key={model.key} model={model} color={color} menus={menus} action={action}
+        <VehicleStudio key={model.key} model={model} vehicleId={car.id} color={color} menus={menus} action={action}
           onSelect={onSelect} onFocused={ignore} onCancelled={ignore} onReset={onReset} immersive={immersive} paused={paused} />
       </Suspense>}
       {overlay && <div className="car-stage-overlay">{overlay}</div>}

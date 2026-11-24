@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
-import type { ReactNode } from 'react'
+import type { ReactNode, RefObject } from 'react'
 
-export function Disclosure({ className, summaryClassName, label, trigger, children }: {
-  className: string; summaryClassName?: string; label?: string; trigger: ReactNode; children: ReactNode
+export function Disclosure({ className, summaryClassName, label, trigger, children, detailsRef }: {
+  className: string; summaryClassName?: string; label?: string; trigger: ReactNode; children: ReactNode; detailsRef?: RefObject<HTMLDetailsElement | null>
 }) {
-  const root = useRef<HTMLDetailsElement>(null)
+  const local = useRef<HTMLDetailsElement>(null)
+  const root = detailsRef ?? local
   const close = (restoreFocus = false) => {
     if (!root.current) return
     root.current.open = false
@@ -17,7 +18,7 @@ export function Disclosure({ className, summaryClassName, label, trigger, childr
     }
     document.addEventListener('pointerdown', outside)
     return () => document.removeEventListener('pointerdown', outside)
-  }, [])
+  }, [root])
   return <details className={className} ref={root}
     onClick={event => {
       if (event.target instanceof Element && event.target.closest('button, a[href]')) close(true)

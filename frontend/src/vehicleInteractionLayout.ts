@@ -14,5 +14,7 @@ export function vehicleInteractionLayout(shape: VehicleShape) {
     leases: point(-length * .4, roof * .55, 0, -1, 0, 0),
     site: point(-length * .08, roof * .5, width * .44),
     photos: point(-length * .38, roof * .30, width * .42),
+    bookings: point(-length * .27, roof * .72, 0, 0, 1, 0),
+    more: point(length * .42, roof * .25, 0, 1, 0, 0),
   }
 }

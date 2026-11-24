@@ -26,6 +26,27 @@
 .car-dashboard .studio-camera-controls button { width: 36px; height: 36px; }
 .car-dashboard .studio-camera-controls button.studio-presentation-toggle { position: static; width: auto; min-height: 36px; padding-inline: var(--space-3); background: transparent; }
 .car-dashboard .studio-camera-controls button.studio-presentation-toggle:is(:hover, [aria-pressed=true]) { background: var(--garage-hover); }
+.studio-camera-controls button.studio-model-mode { display: flex; align-items: center; justify-content: center; gap: 6px; width: auto; padding: 0 8px; white-space: nowrap; font-size: 12px; }
+.studio-camera-controls button.studio-model-mode[aria-pressed=true] { background: var(--garage-hover); color: var(--garage-ink); }
+.studio-model-empty { align-self: center; max-width: 154px; margin: 0; padding: 4px 8px; color: var(--garage-ink); font-size: 11px; line-height: 1.3; }
+.studio-hotspot.studio-hotspot--part { width: 116px; height: 44px; border-radius: var(--radius-control); }
+.studio-hotspot > .studio-hotspot-touch-label {
+  position: static;
+  transform: none;
+  display: none;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 4px 8px;
+  background: var(--glass-base);
+  box-shadow: inset 0 0 0 1px var(--garage-line);
+  line-height: 1.2;
+  white-space: normal;
+  text-align: center;
+}
+.studio-hotspot.studio-hotspot--part > .studio-hotspot-touch-label { display: grid; }
+.studio-hotspot.studio-hotspot--part[aria-pressed=true] > strong { box-shadow: inset 0 0 0 2px var(--garage-accent); }
+.studio-hotspot.studio-hotspot--part > i { display: block; opacity: .85; background: var(--garage-ink); }
 .car-dashboard > .studio-credit { font-size: 10px; bottom: max(18px, env(safe-area-inset-bottom)); }
 .car-dashboard .studio-credit .studio-credit-compact { display: inline; }
 .car-dashboard .studio-credit .studio-credit-compact + span { display: none; }
@@ -80,20 +101,8 @@
   .car-dashboard > .studio-credit { right: auto; left: var(--garage-inset); bottom: calc(var(--garage-dock) + env(safe-area-inset-bottom) + var(--garage-inset)); padding: 12px 0; }
   .car-dashboard .studio-hotspot { width: 116px; height: 44px; border-radius: var(--radius-control); }
   .car-dashboard .studio-hotspot > span { display: none; }
-  .car-dashboard .studio-hotspot > strong {
-    position: static;
-    transform: none;
-    display: grid;
-    place-items: center;
-    width: 100%;
-    height: 100%;
-    padding: 4px 8px;
-    background: var(--glass-base);
-    box-shadow: inset 0 0 0 1px var(--garage-line);
-    line-height: 1.2;
-    white-space: normal;
-    text-align: center;
-  }
+  .car-dashboard .studio-hotspot > .studio-hotspot-touch-label { display: grid; }
+  .car-dashboard .studio-hotspot > .studio-hotspot-desktop-label { display: none; }
   .car-dashboard .studio-hotspot > i { display: block; opacity: .85; background: var(--garage-ink); }
   .car-dashboard .studio-hotspot > i::after {
     content: '';
@@ -114,6 +123,7 @@
   .studio-camera-container .studio-camera-controls button { width: 44px; height: 44px; border: 0; }
   .studio-camera-container .studio-camera-controls button.studio-presentation-toggle { position: static; grid-column: 1 / -1; width: 100%; min-height: 44px; padding: var(--space-2); border: 0; }
   .studio-camera-container .studio-camera-controls button.studio-presentation-toggle span { display: inline; }
+  .studio-camera-container .studio-camera-controls :is(button.studio-model-mode, .studio-model-empty) { grid-column: 1 / -1; width: 100%; }
 }
 
 @media (max-height: 490px) and (orientation: landscape) {

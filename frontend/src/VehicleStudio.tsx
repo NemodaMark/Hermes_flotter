@@ -15,14 +15,17 @@ import { vehicleHotspots } from './vehicleHotspots'
 import type { VehicleHotspot } from './vehicleHotspots'
 import { buildStudioGarage } from './studioGarageScene'
 import { vehicleInteractionLayout } from './vehicleInteractionLayout'
-import { ChevronLeft, ChevronRight, Maximize, Minimize, Minus, Pause, Play, Plus, RotateCcw, SlidersHorizontal } from 'lucide-react'
+import { vehicleModelControls } from './vehicleModelControls'
+import type { ModelControl } from './vehicleModelControls'
+import { Box, ChevronLeft, ChevronRight, Maximize, Minimize, Minus, Pause, Play, Plus, RotateCcw, SlidersHorizontal } from 'lucide-react'
 import { Button } from './ui/Button'
 import { LiquidGlass } from './ui/LiquidGlass'
 
 export type StudioSection = 'data' | 'history' | 'services' | 'documents' | 'leases' | 'site' | 'photos' | 'bookings' | 'fuel' | 'handovers' | 'assignees' | 'audit'
 type CameraAction = 'home' | 'resume' | 'left' | 'right' | 'closer' | 'farther'
 export type StudioAction = { key: StudioSection | CameraAction; sequence: number }
-export type StudioMenu = { key: StudioSection; label: string }
+export type StudioHotspotKey = StudioSection | 'more'
+export type StudioMenu = { key: StudioHotspotKey; label: string; touchLabel?: string }
 const isSection = (key: StudioAction['key']): key is StudioSection => !['home', 'resume', 'left', 'right', 'closer', 'farther'].includes(key)
 const sectionAngles: Record<StudioSection, [azimuth: number, elevation: number]> = {
   data: [42, 21], history: [59, 8], services: [83, 15], documents: [25, 25],
@@ -31,31 +34,46 @@ const sectionAngles: Record<StudioSection, [azimuth: number, elevation: number]>
 }
 
 type ScreenPoint = [number, number]
-const touchSections = ['data', 'services', 'site', 'documents', 'photos', 'fuel', 'history', 'leases']
+const touchSections = ['data', 'fuel', 'history', 'photos', 'bookings', 'more']
 const touchLabelWidth = 116, touchLabelHeight = 44, touchLabelGap = 8
 
 function placeTouchLabel(x: number, y: number, width: number, height: number, occupied: ScreenPoint[]) {
   const outward = x < width / 2 ? -1 : 1
   const vertical = y < height * .56 ? -1 : 1
   const offsets: ScreenPoint[] = [[36 * outward, 54 * vertical], [0, 54 * vertical], [-48 * outward, 54 * vertical],
-    [36 * outward, -54 * vertical], [0, -54 * vertical], [-48 * outward, -54 * vertical], [0, 92 * vertical]]
+    [36 * outward, -54 * vertical], [0, -54 * vertical], [-48 * outward, -54 * vertical],
+    [66 * outward, 106 * vertical], [66 * outward, -106 * vertical], [-66 * outward, 106 * vertical], [-66 * outward, -106 * vertical],
+    [-124 * outward, 54 * vertical], [-124 * outward, -54 * vertical]]
   const side = touchLabelWidth / 2 + touchLabelGap, edge = touchLabelHeight / 2 + touchLabelGap
+  const available = (left: number, top: number) => occupied.every(([otherX, otherY]) => Math.abs(otherX - left) >= touchLabelWidth + touchLabelGap
+    || Math.abs(otherY - top) >= touchLabelHeight + touchLabelGap)
   for (const [dx, dy] of offsets) {
     const left = T.MathUtils.clamp(x + dx, side, width - side)
     const top = T.MathUtils.clamp(y + dy, edge, height - edge)
-    if (occupied.every(([otherX, otherY]) => Math.abs(otherX - left) >= touchLabelWidth + touchLabelGap
-      || Math.abs(otherY - top) >= touchLabelHeight + touchLabelGap)) {
+    if (available(left, top)) {
       const placed: ScreenPoint = [left, top]
       occupied.push(placed)
       return placed
     }
   }
+  // On short screens, use the nearest free row instead of dropping a control.
+  let best: ScreenPoint | undefined, distance = Infinity
+  for (let top = edge; top <= height - edge; top += touchLabelHeight + touchLabelGap) {
+    for (let left = side; left <= width - side; left += touchLabelWidth + touchLabelGap) {
+      const cost = Math.hypot(x - left, y - top)
+      if (cost >= distance || !available(left, top)) continue
+      distance = cost
+      best = [left, top]
+    }
+  }
+  if (best) occupied.push(best)
+  return best
 }
 
 
-export default function VehicleStudio({ model, color, menus, action, onSelect, onFocused, onCancelled, onReset, immersive = false, paused = false }: {
-  model: VehicleModel; color: string | null; menus: StudioMenu[]; action: StudioAction | null; paused?: boolean; immersive?: boolean
-  onSelect: (key: StudioSection) => void; onFocused: (key: StudioSection) => void; onCancelled: () => void
+export default function VehicleStudio({ model, vehicleId, color, menus, action, onSelect, onFocused, onCancelled, onReset, immersive = false, paused = false }: {
+  model: VehicleModel; vehicleId?: string; color: string | null; menus: StudioMenu[]; action: StudioAction | null; paused?: boolean; immersive?: boolean
+  onSelect: (key: StudioHotspotKey) => void; onFocused: (key: StudioSection) => void; onCancelled: () => void
   onReset?: () => void
 }) {
   const host = useRef<HTMLDivElement>(null), overlay = useRef<HTMLDivElement>(null)
@@ -63,6 +81,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     focus: (key: StudioAction['key']) => void
     togglePresentation: () => void
     stopPresentation: () => void
+    togglePart: (id: string) => void
+    resetParts: () => void
   } | null>(null)
   const invalidate = useRef<(() => void) | null>(null)
   const callbacks = useRef({ onFocused, onCancelled })
@@ -75,6 +95,11 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
   }, [paused])
   const [presentationActive, setPresentationActive] = useState(false)
   const [cameraMenu, setCameraMenu] = useState(false)
+  const [modelView, setModelView] = useState({ vehicleId, active: false })
+  const modelMode = modelView.vehicleId === vehicleId && modelView.active
+  if (modelView.vehicleId !== vehicleId) setModelView({ vehicleId, active: false })
+  const [modelParts, setModelParts] = useState<Pick<ModelControl, 'id' | 'label'>[]>([])
+  const [openedParts, setOpenedParts] = useState<ReadonlySet<string>>(new Set())
   const cameraToggle = useRef<HTMLButtonElement>(null)
   const cameraControlsId = useId()
   const [unavailable, setUnavailable] = useState(() => !window.WebGL2RenderingContext)
@@ -101,7 +126,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       invalidate.current?.()
     }
   }, [paint, model.paintMaterials])
-  useEffect(() => { invalidate.current?.() }, [menus])
+  useEffect(() => { invalidate.current?.() }, [menus, modelMode, modelParts])
+  useEffect(() => { controls.current?.resetParts() }, [vehicleId])
 
   useEffect(() => {
     const container = host.current!
@@ -179,9 +205,10 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     orbit.minPolarAngle = 1.06; orbit.maxPolarAngle = Math.PI / 2 - .075; orbit.update()
     orbit.addEventListener('change', requestFrame)
     let shape: VehicleShape | null = null
-    const positions: Partial<Record<StudioSection, VehicleHotspot>> = {}
+    const positions: Partial<Record<StudioHotspotKey, VehicleHotspot>> = {}
     let hotspots: ReturnType<typeof vehicleHotspots> | null = null
-    const labels: Partial<Record<StudioSection, [number, number]>> = { data: [.36, .25], history: [.79, .69], fuel: [.22, .46], services: [.85, .4], documents: [.69, .23], leases: [.22, .42], site: [.38, .73], photos: [.21, .63] }
+    const labels: Partial<Record<StudioHotspotKey, ScreenPoint>> = { data: [.36, .25], history: [.79, .69], fuel: [.22, .46], services: [.85, .4], documents: [.69, .23], leases: [.22, .42], site: [.38, .73], photos: [.21, .63] }
+    const parts = new Map<string, { control: ModelControl; value: number; start: number; from: number; to: number }>()
     let framing = 0, lastFit = 0
     let section: StudioSection | null = null
     let presentation = false, presentationTime = 0
@@ -271,7 +298,27 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         frameFrom: framing, frameTo, clearance: frameTo && framing === 1 ? to.radius * .09 * angle : 0 }
       requestFrame()
     }
-    controls.current = { focus, togglePresentation, stopPresentation }
+    controls.current = { focus, togglePresentation, stopPresentation,
+      togglePart(id) {
+        const part = parts.get(id)
+        if (!part || pausedRef.current) return
+        part.from = part.value
+        part.to = part.to === 1 ? 0 : 1
+        part.start = performance.now()
+        setOpenedParts(new Set([...parts].filter(([, item]) => item.to === 1).map(([key]) => key)))
+        invalidateFrame()
+      },
+      resetParts() {
+        if (![...parts.values()].some(part => part.value !== 0 || part.to !== 0)) return
+        for (const part of parts.values()) {
+          part.value = part.from = part.to = 0
+          part.control.apply(0)
+        }
+        setOpenedParts(new Set())
+        renderer.shadowMap.needsUpdate = true
+        invalidateFrame()
+      },
+    }
     function cancelFlight() {
       if (!flight) return
       if (flight.key === 'resume') {
@@ -345,15 +392,19 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       hotspots = vehicleHotspots(vehicle.model, length)
       orbit.minDistance = Math.max(4.5, length * .8)
       for (const [section, { seed, outward }] of Object.entries(vehicleInteractionLayout(shape)))
-        positions[section as StudioSection] = hotspots.anchor(seed, outward)
+        positions[section as StudioHotspotKey] = hotspots.anchor(seed, outward)
+      for (const control of vehicleModelControls(vehicle.model, model.key))
+        parts.set(control.id, { control, value: 0, start: 0, from: 0, to: 0 })
       batchVehicleMeshes(vehicle.model)
       renderer.shadowMap.needsUpdate = true
       fit(true)
       if (section && pausedRef.current) focus(section)
+      setModelParts([...parts.values()].map(({ control: { id, label } }) => ({ id, label })))
+      setOpenedParts(new Set())
       invalidateFrame(); setLoadState('ready')
     }).catch(() => { if (!disposed && !contextLost) setLoadState('error') })
     const projected = new T.Vector3(), viewDirection = new T.Vector3()
-    const lastCamera = new T.Matrix4(), lastProjection = new T.Matrix4(), visiblePoints = new Map<StudioSection, boolean>()
+    const lastCamera = new T.Matrix4(), lastProjection = new T.Matrix4(), visiblePoints = new Map<StudioHotspotKey, boolean>()
     const occupied: ScreenPoint[] = []
     let lastOcclusion = -Infinity
     function animate(time: number) {
@@ -387,6 +438,16 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         camera.position.setFromSpherical(presentationOffset).add(orbit.target)
         renderNeeded = true
       }
+      let partsMoving = false
+      for (const part of parts.values()) {
+        if (part.value === part.to) continue
+        const progress = reduceMotion.matches ? 1 : T.MathUtils.clamp((time - part.start) / 290, 0, 1)
+        part.value = T.MathUtils.lerp(part.from, part.to, progress * progress * (3 - 2 * progress))
+        part.control.apply(part.value)
+        renderer.shadowMap.needsUpdate = true
+        renderNeeded = true
+        partsMoving ||= progress < 1
+      }
       orbit.update()
       camera.updateMatrixWorld()
       const cameraChanged = !lastCamera.equals(camera.matrixWorld) || !lastProjection.equals(camera.projectionMatrix)
@@ -406,28 +467,40 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       const checkOcclusion = time - lastOcclusion >= 80 || !cameraChanged
       const touchLayout = compactView()
       occupied.length = 0
-      const buttons = overlay.current?.querySelectorAll<HTMLButtonElement>('[data-hotspot]') ?? []
-      const ordered = touchLayout ? Array.from(buttons).sort((a, b) => touchSections.indexOf(a.dataset.hotspot!) - touchSections.indexOf(b.dataset.hotspot!)) : buttons
+      const buttons = overlay.current?.querySelectorAll<HTMLButtonElement>('button') ?? []
+      const touchOrder = (button: HTMLButtonElement) => touchSections.indexOf(button.dataset.hotspot ?? '')
+      const ordered = touchLayout ? Array.from(buttons).sort((a, b) => touchOrder(a) - touchOrder(b)) : buttons
       for (const button of ordered) {
-        const section = button.dataset.hotspot as StudioSection, hotspot = positions[section]
+        const part = parts.get(button.dataset.modelPart ?? '')
+        const section = button.dataset.hotspot as StudioHotspotKey, hotspot = positions[section]
         const label = labels[section]
-        if (!hotspot || !hotspots || !label) continue
-        const { point } = hotspot
+        const useTouchLabel = touchLayout || part !== undefined
+        const point = part?.control.point(viewDirection) ?? hotspot?.point
+        if (!point) continue
         projected.copy(point).project(camera)
-        const onScreen = projected.z >= -1 && projected.z <= 1 && Math.abs(projected.x) <= 1.05 && Math.abs(projected.y) <= 1.05
-        const facingViewer = viewDirection.subVectors(camera.position, point).normalize().dot(hotspot.outward) > .015
-        const candidate = !pausedRef.current && onScreen && facingViewer && (!touchLayout || occupied.length < 3)
-        if (!candidate) visiblePoints.delete(section)
-        else if (checkOcclusion || !visiblePoints.has(section)) visiblePoints.set(section, hotspots.visible(hotspot, camera.position))
-        let visible = candidate && visiblePoints.get(section) === true
+        const inDepth = projected.z >= -1 && projected.z <= 1
+        const onScreen = Math.abs(projected.x) <= 1.05 && Math.abs(projected.y) <= 1.05
+        let visible = !pausedRef.current && inDepth && (useTouchLabel || onScreen)
+        if (!part) {
+          const facingViewer = hotspot && viewDirection.subVectors(camera.position, point).normalize().dot(hotspot.outward) > .015
+          if (touchLayout) visible &&= !!button.dataset.touchLabel
+          else {
+            visible &&= !!(label && hotspot && hotspots && facingViewer)
+            if (!visible) visiblePoints.delete(section)
+            else if (hotspot && hotspots && (checkOcclusion || !visiblePoints.has(section)))
+              visiblePoints.set(section, hotspots.visible(hotspot, camera.position))
+            visible &&= visiblePoints.get(section) === true
+          }
+        }
         if (visible) {
-          const anchorX = (projected.x * .5 + .5) * width, anchorY = (-projected.y * .5 + .5) * height
-          const placed = touchLayout ? placeTouchLabel(anchorX, anchorY, width, height, occupied) : [anchorX, anchorY]
+          const anchorX = T.MathUtils.clamp((projected.x * .5 + .5) * width, 0, width)
+          const anchorY = T.MathUtils.clamp((-projected.y * .5 + .5) * height, 0, height)
+          const placed = useTouchLabel ? placeTouchLabel(anchorX, anchorY, width, height, occupied) : [anchorX, anchorY]
           visible = placed !== undefined
           if (placed) {
             const [x, y] = placed
-            const dx = (touchLayout ? anchorX : label[0] * width) - x
-            const dy = (touchLayout ? anchorY : label[1] * height) - y
+            const dx = (useTouchLabel ? anchorX : (label?.[0] ?? 0) * width) - x
+            const dy = (useTouchLabel ? anchorY : (label?.[1] ?? 0) * height) - y
             const leader = Math.hypot(dx, dy)
             button.style.setProperty('--hotspot-x', `${x}px`); button.style.setProperty('--hotspot-y', `${y}px`)
             button.style.setProperty('--label-x', `${dx}px`); button.style.setProperty('--label-y', `${dy}px`)
@@ -444,7 +517,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       }
       if (checkOcclusion) lastOcclusion = time
       lastCamera.copy(camera.matrixWorld); lastProjection.copy(camera.projectionMatrix)
-      if (moving) {
+      if (moving || partsMoving) {
         previousFrame = time
         requestFrame()
       } else previousFrame = 0
@@ -473,7 +546,14 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
   return <div className="vehicle-studio" ref={host} aria-busy={!unavailable && loadState === 'loading'}>
     {unavailable ? <div className="studio-unavailable" role="status"><p>A 3D nézet ezen az eszközön nem érhető el.</p><span>A jármű összes engedélyezett funkciója a menüből használható.</span></div> : <>
       {loadState !== 'ready' && <div className="studio-model-status" role="status">{loadState === 'loading' ? <p>Járműmodell betöltése…</p> : <><p>A járműmodell nem tölthető be. A gyorsmenü továbbra is használható.</p><button type="button" onClick={() => { setLoadState('loading'); setAttempt(value => value + 1) }}>Újrapróbálom</button></>}</div>}
-      <div className="studio-hotspots" ref={overlay}>{menus.map(menu => <button type="button" key={menu.key} data-hotspot={menu.key} className="studio-hotspot" aria-label={`3D pont: ${menu.label}`} onClick={() => { controls.current?.stopPresentation(); onSelect(menu.key) }}><span aria-hidden="true" /><i aria-hidden="true" /><strong>{menu.label}</strong></button>)}</div>
+      <div className="studio-hotspots" ref={overlay}>{modelMode ? modelParts.map(part => <button type="button" key={part.id} data-model-part={part.id}
+        className="studio-hotspot studio-hotspot--part" aria-pressed={openedParts.has(part.id)} onClick={() => controls.current?.togglePart(part.id)}>
+        <i aria-hidden="true" /><strong className="studio-hotspot-touch-label">{part.label}</strong>
+      </button>) : menus.map(menu => <button type="button" key={menu.key} data-hotspot={menu.key} data-touch-label={menu.touchLabel}
+        className="studio-hotspot" aria-label={`3D pont: ${menu.label}`} onClick={() => { controls.current?.stopPresentation(); onSelect(menu.key) }}>
+        <span aria-hidden="true" /><i aria-hidden="true" /><strong className="studio-hotspot-desktop-label">{menu.label}</strong>
+        {menu.touchLabel && <strong className="studio-hotspot-touch-label">{menu.touchLabel}</strong>}
+      </button>)}</div>
       {loadState === 'ready' && <div className="studio-camera-container" onKeyDown={event => {
         if (event.key !== 'Escape' || !cameraMenu) return
         event.preventDefault()
@@ -495,6 +575,10 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
           {presentationActive ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
           <span>Bemutató mód</span>
         </Button>
+        <Button type="button" className="studio-model-mode" aria-pressed={modelMode} onClick={() => setModelView({ vehicleId, active: !modelMode })}>
+          <Box size={16} aria-hidden="true" />Modellvezérlés
+        </Button>
+        {modelMode && modelParts.length === 0 && <p className="studio-model-empty" role="status">Ehhez a modellhez nincs vezérelhető alkatrész.</p>}
         </LiquidGlass>
       </div>}
     </>}

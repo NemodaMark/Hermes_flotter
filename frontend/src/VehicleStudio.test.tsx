@@ -221,6 +221,18 @@ it('keeps a presentation running when the camera controls close and reopen', asy
   fireEvent.click(presentation)
   expect(presentation).toHaveAttribute('aria-pressed', 'false')
 })
+it('switches off operation hotspots and explains when the loaded asset has no controls', async () => {
+  mocks.load.mockResolvedValue(asset().gltf)
+  render(<VehicleStudio {...props()} immersive />)
+  const mode = await screen.findByRole('button', { name: 'Modellvezérlés' })
+  expect(screen.getByRole('button', { name: '3D pont: Járműadatok' })).toBeInTheDocument()
+  fireEvent.click(mode)
+  expect(mode).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.queryByRole('button', { name: '3D pont: Járműadatok' })).not.toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent('Ehhez a modellhez nincs vezérelhető alkatrész.')
+  fireEvent.click(mode)
+  expect(screen.getByRole('button', { name: '3D pont: Járműadatok' })).toBeInTheDocument()
+})
 it('returns to the user’s orbit and zoom after inspecting multiple desktop sections', async () => {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('min-width') }))
   mocks.load.mockResolvedValue(asset().gltf)
@@ -291,12 +303,13 @@ it('hides a side hotspot with its label and leader when rotated behind the car, 
   }
   expect(hotspot).toHaveStyle({ visibility: 'visible' }); expect(hotspot).toBeEnabled()
 })
-it('limits portrait hotspots to three separate labeled buttons and keeps them actionable', async () => {
+it('shows the dock actions as separate labeled portrait hotspots', async () => {
   mocks.load.mockResolvedValue(asset().gltf)
   const studio = props()
   const view = render(<VehicleStudio {...studio} immersive menus={[
-    { key: 'data', label: 'Járműadatok' }, { key: 'history', label: 'Kilométerállás' },
-    { key: 'documents', label: 'Dokumentumok' }, { key: 'site', label: 'Telephely és használó' },
+    { key: 'data', label: 'Járműadatok', touchLabel: 'Adatlap' }, { key: 'history', label: 'Kilométerállás', touchLabel: 'Km rögzítése' },
+    { key: 'fuel', label: 'Tankolás', touchLabel: 'Tankolás' }, { key: 'photos', label: 'Képek', touchLabel: 'Képek' },
+    { key: 'more', label: 'Továbbiak', touchLabel: 'Továbbiak' }, { key: 'documents', label: 'Dokumentumok' },
   ]} />)
   Object.defineProperties(view.container.querySelector('.vehicle-studio')!, {
     clientWidth: { value: 390 }, clientHeight: { value: 750 },
@@ -306,15 +319,15 @@ it('limits portrait hotspots to three separate labeled buttons and keeps them ac
 
   const labels = screen.getAllByRole('button', { name: /^3D pont:/ })
   const coordinate = (button: HTMLElement, axis: 'x' | 'y') => parseFloat(button.style.getPropertyValue(`--hotspot-${axis}`))
-  expect(labels).toHaveLength(3)
-  expect(screen.queryByRole('button', { name: '3D pont: Kilométerállás' })).not.toBeInTheDocument()
+  expect(labels).toHaveLength(5)
+  expect(screen.queryByRole('button', { name: '3D pont: Dokumentumok' })).not.toBeInTheDocument()
   for (const [index, label] of labels.entries()) {
     for (const other of labels.slice(0, index))
       expect(Math.abs(coordinate(label, 'x') - coordinate(other, 'x')) >= 116 || Math.abs(coordinate(label, 'y') - coordinate(other, 'y')) >= 44).toBe(true)
     expect(parseFloat(label.style.getPropertyValue('--leader-length'))).toBeGreaterThan(0)
     fireEvent.click(label)
   }
-  expect(studio.onSelect.mock.calls).toEqual([['data'], ['documents'], ['site']])
+  expect(studio.onSelect.mock.calls).toEqual([['data'], ['history'], ['fuel'], ['photos'], ['more']])
 })
 it('switches to the requested body asset and discards a previous body that finishes late', async () => {
   let complete!: (gltf: GLTF) => void
