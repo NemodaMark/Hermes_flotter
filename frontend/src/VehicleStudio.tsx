@@ -30,6 +30,26 @@ const sectionAngles: Record<StudioSection, [azimuth: number, elevation: number]>
   fuel: [-55, 13], handovers: [111, 13], assignees: [-24, 10], audit: [-125, 23],
 }
 
+type ScreenPoint = [number, number]
+const hotspotTouchSize = 44
+const hotspotOffsets: ScreenPoint[] = [
+  [0, 0], [0, -44], [0, 44], [-44, 0], [44, 0],
+  [-32, -32], [32, -32], [-32, 32], [32, 32], [0, -88], [0, 88], [-88, 0], [88, 0],
+]
+
+function placeTouchHotspot(x: number, y: number, width: number, height: number, occupied: ScreenPoint[]) {
+  const inset = hotspotTouchSize / 2
+  for (const [dx, dy] of hotspotOffsets) {
+    const left = T.MathUtils.clamp(x + dx, inset, width - inset)
+    const top = T.MathUtils.clamp(y + dy, inset, height - inset)
+    if (occupied.every(([otherX, otherY]) => Math.hypot(otherX - left, otherY - top) >= hotspotTouchSize)) {
+      const placed: ScreenPoint = [left, top]
+      occupied.push(placed)
+      return placed
+    }
+  }
+}
+
 
 export default function VehicleStudio({ model, color, menus, action, onSelect, onFocused, onCancelled, onReset, immersive = false, paused = false }: {
   model: VehicleModel; color: string | null; menus: StudioMenu[]; action: StudioAction | null; paused?: boolean; immersive?: boolean
@@ -270,13 +290,17 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       if (event.target instanceof Element && !event.target.closest('.studio-presentation-toggle')) stopPresentation()
     }
     garage.addEventListener('click', garageClick, true)
+    const compactView = () => immersive && width > 0 && width <= 760
+    const portraitView = () => compactView() && height > width
     function drawerWidth() { return section === 'fuel' || section === 'history' ? Math.min(width * .43, 620) : Math.min(width * .68, 1280) }
     function projection() {
       if (!width || !height) return
       // Reserve the drawer's screen space while keeping the same camera orbit.
       const drawerOffset = widescreen.matches ? drawerWidth() / 2 * framing : 0
       const taskRail = immersive && height < 490 && width > height && width <= 1000 ? width * .15 : 0
-      camera.setViewOffset(width, height, drawerOffset + taskRail, immersive && camera.aspect < 1 ? height * .016 : 0, width, height)
+      let verticalOffset = immersive && camera.aspect < 1 ? height * .016 : 0
+      if (portraitView()) verticalOffset = -Math.min(height * .075, 58)
+      camera.setViewOffset(width, height, drawerOffset + taskRail, verticalOffset, width, height)
     }
     const fit = (reset = false) => {
       width = container.clientWidth; height = container.clientHeight
@@ -290,7 +314,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       const wide = length * homeDirection.z + bodyWidth * homeDirection.x
       const deep = length * homeDirection.x + bodyWidth * homeDirection.z
       const tall = roof + deep * homeDirection.y
-      const safeWidth = immersive && camera.aspect < 1 ? .72 : .81
+      const safeWidth = immersive && camera.aspect < 1 && !portraitView() ? .72 : .81
       const distance = Math.max(wide / (2 * halfFov * camera.aspect * safeWidth), tall / (2 * halfFov * .65)) + deep * .19
       homeTarget.y = roof * .48
       orbit.maxDistance = 16 * garageScale
@@ -327,6 +351,7 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
     }).catch(() => { if (!disposed && !contextLost) setLoadState('error') })
     const projected = new T.Vector3(), viewDirection = new T.Vector3()
     const lastCamera = new T.Matrix4(), lastProjection = new T.Matrix4(), visiblePoints = new Map<StudioSection, boolean>()
+    const occupied: ScreenPoint[] = []
     let lastOcclusion = -Infinity
     function animate(time: number) {
       frame = 0
@@ -376,6 +401,8 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
       renderNeeded = false
       renderer.render(scene, camera)
       const checkOcclusion = time - lastOcclusion >= 80 || !cameraChanged
+      const touchLayout = compactView()
+      occupied.length = 0
       for (const button of overlay.current?.querySelectorAll<HTMLButtonElement>('[data-hotspot]') ?? []) {
         const section = button.dataset.hotspot as StudioSection, hotspot = positions[section]
         const label = labels[section]
@@ -387,13 +414,21 @@ export default function VehicleStudio({ model, color, menus, action, onSelect, o
         const candidate = !pausedRef.current && onScreen && facingViewer
         if (!candidate) visiblePoints.delete(section)
         else if (checkOcclusion || !visiblePoints.has(section)) visiblePoints.set(section, hotspots.visible(hotspot, camera.position))
-        const visible = candidate && visiblePoints.get(section) === true
+        let visible = candidate && visiblePoints.get(section) === true
         if (visible) {
-          const x = (projected.x * .5 + .5) * width, y = (-projected.y * .5 + .5) * height
-          const dx = label[0] * width - x, dy = label[1] * height - y
-          button.style.setProperty('--hotspot-x', `${x}px`); button.style.setProperty('--hotspot-y', `${y}px`)
-          button.style.setProperty('--label-x', `${dx}px`); button.style.setProperty('--label-y', `${dy}px`)
-          button.style.setProperty('--leader-length', `${Math.hypot(dx, dy)}px`); button.style.setProperty('--leader-angle', `${Math.atan2(dy, dx)}rad`)
+          const anchorX = (projected.x * .5 + .5) * width, anchorY = (-projected.y * .5 + .5) * height
+          const placed = touchLayout ? placeTouchHotspot(anchorX, anchorY, width, height, occupied) : [anchorX, anchorY]
+          visible = placed !== undefined
+          if (placed) {
+            const [x, y] = placed
+            const dx = (touchLayout ? anchorX : label[0] * width) - x
+            const dy = (touchLayout ? anchorY : label[1] * height) - y
+            const leader = Math.hypot(dx, dy)
+            button.toggleAttribute('data-offset', touchLayout && leader > 8)
+            button.style.setProperty('--hotspot-x', `${x}px`); button.style.setProperty('--hotspot-y', `${y}px`)
+            button.style.setProperty('--label-x', `${dx}px`); button.style.setProperty('--label-y', `${dy}px`)
+            button.style.setProperty('--leader-length', `${leader}px`); button.style.setProperty('--leader-angle', `${Math.atan2(dy, dx)}rad`)
+          }
         }
         // One parent controls the dot, leader and label together, including
         // keyboard and assistive-technology access to the hidden button.

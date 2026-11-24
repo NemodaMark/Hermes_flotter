@@ -18,8 +18,8 @@ function readOptions(children: ReactNode): Option[] {
   })
 }
 
-function Choice({ options, value, onValue, label, id, disabled, required, invalid, errorId, maxLength, placeholder, creatable = false, className = '', native, liquidGlass = false }:
-  { options: Option[]; value: string; onValue: (value: string) => void; label?: string; id?: string; disabled?: boolean; required?: boolean; invalid?: boolean; errorId?: string; maxLength?: number; placeholder?: string; creatable?: boolean; className?: string; native?: ReactNode; liquidGlass?: boolean }) {
+function Choice({ options, value, onValue, label, id, disabled, required, invalid, errorId, maxLength, placeholder, triggerText, creatable = false, className = '', native, liquidGlass = false }:
+  { options: Option[]; value: string; onValue: (value: string) => void; label?: string; id?: string; disabled?: boolean; required?: boolean; invalid?: boolean; errorId?: string; maxLength?: number; placeholder?: string; triggerText?: string; creatable?: boolean; className?: string; native?: ReactNode; liquidGlass?: boolean }) {
   const uid = useId(), inputId = id ?? `${uid}-input`, listId = `${uid}-list`
   const root = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null), popup = useRef<HTMLDivElement>(null)
   const [requestedOpen, setOpen] = useState(false), [query, setQuery] = useState(''), [active, setActive] = useState(0)
@@ -30,7 +30,7 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
   const filtered = options.filter(option => option.label.toLocaleLowerCase('hu').includes(query.toLocaleLowerCase('hu')))
   const enabled = filtered.filter(option => !option.disabled)
   const current = enabled[Math.min(active, Math.max(0, enabled.length - 1))]
-  const display = creatable ? value : open ? query : selected?.label ?? value
+  const display = creatable ? value : open ? query : triggerText ?? selected?.label ?? value
   const Surface = liquidGlass ? LiquidGlass : 'div'
 
   useLayoutEffect(() => {
@@ -105,8 +105,8 @@ function Choice({ options, value, onValue, label, id, disabled, required, invali
   </Surface>
 }
 
-export function Select({ children, value, onChange, disabled, required, id, className, 'aria-label': label, liquidGlass, ...props }:
-  SelectHTMLAttributes<HTMLSelectElement> & { liquidGlass?: boolean }) {
+export function Select({ children, value, onChange, disabled, required, id, className, 'aria-label': label, liquidGlass, triggerText, ...props }:
+  SelectHTMLAttributes<HTMLSelectElement> & { liquidGlass?: boolean; triggerText?: string }) {
   const native = useRef<HTMLSelectElement>(null)
   const errorId = useId()
   const [wasInvalid, setInvalid] = useState(false)
@@ -117,7 +117,7 @@ export function Select({ children, value, onChange, disabled, required, id, clas
     element.dispatchEvent(new Event('change', { bubbles: true }))
   }
   return <><Choice options={readOptions(children)} value={String(value ?? '')} onValue={change} label={label} id={id}
-    className={className} liquidGlass={liquidGlass} disabled={disabled} required={required} invalid={invalid} errorId={invalid ? errorId : undefined} native={<select {...props} ref={native} value={value} onChange={onChange as ChangeEventHandler<HTMLSelectElement>}
+    className={className} liquidGlass={liquidGlass} triggerText={triggerText} disabled={disabled} required={required} invalid={invalid} errorId={invalid ? errorId : undefined} native={<select {...props} ref={native} value={value} onChange={onChange as ChangeEventHandler<HTMLSelectElement>}
       required={required} disabled={disabled} className="choice-native" aria-hidden="true" tabIndex={-1}
       onFocus={event => event.currentTarget.parentElement?.querySelector('input')?.focus()}
       onInvalid={event => { if (!event.currentTarget.closest('[hidden]')) { event.preventDefault(); setInvalid(true); event.currentTarget.parentElement?.querySelector('input')?.focus() } }}>

@@ -32,16 +32,19 @@
 @media (max-width: 760px) {
   .car-dashboard { --garage-dock: 62px; }
   .car-dashboard > .car-stage-wrap { margin-bottom: calc(var(--garage-dock) + env(safe-area-inset-bottom)); }
-  .car-dashboard .car-stage-overlay { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
-  .car-identity { max-width: calc(100% - 88px); }
+  .car-dashboard .car-stage-overlay { grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-2); }
+  .car-identity { gap: 4px; }
   .car-identity-heading { gap: 4px var(--space-3); }
   .car-registration { font-size: 27px; }
   .car-dashboard-model { font-size: 12px; }
   .car-identity .car-mileage { min-height: 32px; }
   .car-mileage strong { font-size: 18px; }
-  .car-dashboard-actions { grid-column: 1; grid-row: 2; width: 100%; margin: 0; flex-direction: row; justify-content: end; }
-  .car-dashboard .car-attention { grid-column: 1; grid-row: 3; }
+  .car-dashboard-actions { grid-column: 2; grid-row: 1; margin: 0; }
+  .car-dashboard .car-attention { grid-column: 1 / -1; grid-row: 2; --liquid-shadow: none; --liquid-tint: var(--garage-label-bg); }
   .car-dashboard .car-attention-notice { min-height: 34px; font-size: 12px; padding-block: 6px; }
+  .car-dashboard .car-attention-notice .sera-badge { color: var(--garage-ink); background: transparent; }
+  .car-dashboard .car-attention-notice .sera-badge[data-tone=danger] { color: #ffb8ae; }
+  .car-dashboard .car-attention-notice .sera-badge[data-tone=warning] { color: #f5d19a; }
   .car-dashboard .car-attention-more { min-height: 32px; padding-block: 6px; }
   .car-dashboard .car-menu {
     position: fixed;
@@ -67,10 +70,15 @@
     text-align: center;
   }
   .car-menu-more > div { right: 8px; }
-  .car-dashboard > .studio-credit { bottom: calc(var(--garage-dock) + env(safe-area-inset-bottom) + 10px); }
+  .car-dashboard > .studio-credit { right: auto; left: var(--garage-inset); bottom: calc(var(--garage-dock) + env(safe-area-inset-bottom) + var(--garage-inset)); padding: 12px 0; }
+  .car-dashboard .studio-hotspot { width: 44px; height: 44px; }
+  .car-dashboard .studio-hotspot :is(strong, i) { display: none; }
+  .car-dashboard .studio-hotspot[data-offset] > i { display: block; background: var(--garage-ink); }
+  .car-dashboard .studio-camera-container { top: auto; bottom: var(--garage-inset); }
   .studio-camera-toggle { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: var(--space-2); color: var(--garage-ink); border-radius: var(--radius-control); font-size: 12px; }
   .studio-camera-container .studio-camera-controls { display: none; }
   .studio-camera-container .studio-camera-controls.is-open { position: absolute; display: grid; grid-template-columns: repeat(3, 44px); top: calc(100% + 6px); right: 0; bottom: auto; padding: var(--space-1); gap: 2px; }
+  .car-dashboard .studio-camera-container .studio-camera-controls.is-open { inset: auto 0 calc(100% + 6px) auto; }
   .studio-camera-container .studio-camera-controls button { width: 44px; height: 44px; border: 0; }
   .studio-camera-container .studio-camera-controls button.studio-presentation-toggle { position: static; grid-column: 1 / -1; width: 100%; min-height: 44px; padding: var(--space-2); border: 0; }
   .studio-camera-container .studio-camera-controls button.studio-presentation-toggle span { display: inline; }

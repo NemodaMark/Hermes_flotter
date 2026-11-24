@@ -266,6 +266,28 @@ it('hides a side hotspot with its label and leader when rotated behind the car, 
   }
   expect(hotspot).toHaveStyle({ visibility: 'visible' }); expect(hotspot).toBeEnabled()
 })
+it('separates nearby touch targets in portrait and keeps both vehicle points actionable', async () => {
+  mocks.load.mockResolvedValue(asset().gltf)
+  const studio = props()
+  const view = render(<VehicleStudio {...studio} immersive menus={[
+    { key: 'history', label: 'Kilométerállás' }, { key: 'documents', label: 'Dokumentumok' },
+  ]} />)
+  Object.defineProperties(view.container.querySelector('.vehicle-studio')!, {
+    clientWidth: { value: 390 }, clientHeight: { value: 750 },
+  })
+  await screen.findByRole('button', { name: 'Forgatás jobbra' })
+  await frame(100)
+
+  const history = screen.getByRole('button', { name: '3D pont: Kilométerállás' })
+  const documents = screen.getByRole('button', { name: '3D pont: Dokumentumok' })
+  const coordinate = (button: HTMLElement, axis: 'x' | 'y') => parseFloat(button.style.getPropertyValue(`--hotspot-${axis}`))
+  expect(Math.hypot(coordinate(history, 'x') - coordinate(documents, 'x'), coordinate(history, 'y') - coordinate(documents, 'y'))).toBeGreaterThanOrEqual(44)
+  expect(documents).toHaveAttribute('data-offset')
+  expect(parseFloat(documents.style.getPropertyValue('--leader-length'))).toBeGreaterThan(0)
+  fireEvent.click(history)
+  fireEvent.click(documents)
+  expect(studio.onSelect.mock.calls).toEqual([['history'], ['documents']])
+})
 it('switches to the requested body asset and discards a previous body that finishes late', async () => {
   let complete!: (gltf: GLTF) => void
   const old = asset(), next = asset(), disposed = vi.spyOn(old.geometry, 'dispose')

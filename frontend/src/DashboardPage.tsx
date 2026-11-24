@@ -146,7 +146,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, onMileage, dueMonth,
             </div>
             {eligible.length > 1 && <div className="car-dashboard-actions">
               <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
-                <Select liquidGlass value={car.vehicle.id} onChange={event => { setSelected(event.target.value); moveCamera('home') }}>
+                <Select liquidGlass triggerText="Másik autó" value={car.vehicle.id} onChange={event => { setSelected(event.target.value); moveCamera('home') }}>
                   {eligible.map(item => <option key={item.vehicle.id} value={item.vehicle.id}>
                     {item.vehicle.registration}
                   </option>)}

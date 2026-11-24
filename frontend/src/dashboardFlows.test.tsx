@@ -263,6 +263,7 @@ it('chooses an assigned active vehicle and keeps unauthorized menus hidden even 
 it('changes the selected car, body and operation menus without reusing the previous car permissions',async()=>{
   mount({mode:'Vehicle',vehicles:[car,{...car,vehicle:{...car.vehicle,id:'second',registration:'SECOND-002',permissions:['vehicles.read','vehicles.service.read']},bodyType:'Van',color:'#cc1122'}]})
   const picker=await screen.findByRole('combobox',{name:'Jármű kiválasztása'})
+  expect(picker).toHaveValue('Másik autó')
   const styles = document.documentElement.style
   expect(styles.getPropertyValue('--vehicle-paint')).toBe('#214d81')
   await chooseOption(picker,'second')
