@@ -39,9 +39,17 @@ public sealed partial class PermissionManagementTests
         Assert.Equal(HttpStatusCode.Conflict, (await driver.Client.PostAsJsonAsync(path, week)).StatusCode);
         (await owner.Client.PutAsJsonAsync(CarUrl(car) + "/booking-settings", new BookingSettingsInput(true))).EnsureSuccessStatusCode();
         Assert.Equal(HttpStatusCode.BadRequest, (await driver.Client.PostAsJsonAsync(path, week with { EndsOn = start.AddDays(7) })).StatusCode);
-        var results = await Task.WhenAll(driver.Client.PostAsJsonAsync(path, week), owner.Client.PostAsJsonAsync(path, week));
-        Assert.Single(results, x => x.StatusCode == HttpStatusCode.OK);
-        Assert.Single(results, x => x.StatusCode == HttpStatusCode.Conflict);
+        var attempts = Enumerable.Range(0, 15).Select(index => (index % 2 == 0 ? driver : owner).Client.PostAsJsonAsync(path, week));
+        var results = await Task.WhenAll(attempts);
+        try
+        {
+            Assert.Single(results, x => x.StatusCode == HttpStatusCode.OK);
+            Assert.Equal(14, results.Count(x => x.StatusCode == HttpStatusCode.Conflict));
+        }
+        finally
+        {
+            foreach (var result in results) result.Dispose();
+        }
         var calendar = (await driver.Client.GetFromJsonAsync<BookingCalendar>(CarUrl(car) + suffix))!;
         Assert.True(calendar.Enabled);
         var current = Assert.Single(calendar.Items);

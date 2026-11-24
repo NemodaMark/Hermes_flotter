@@ -23,6 +23,10 @@ public sealed partial class PermissionManagementTests
         Assert.Equal(31, first.AvailableTotal);
         Assert.Equal(25, first.PageSize);
         Assert.Equal(25, first.Items.Length);
+        var blankSearch = await SearchCars(owner, "search=%20%20");
+        Assert.Equal(first.Total, blankSearch.Total);
+        Assert.Equal(first.AvailableTotal, blankSearch.AvailableTotal);
+        Assert.Equal(first.Items.Select(x => x.Id), blankSearch.Items.Select(x => x.Id));
         Assert.Equal(6, last.Items.Length);
         Assert.Equal("PAGE-001", first.Items[0].Registration);
         Assert.Equal("PAGE-025", first.Items[^1].Registration);

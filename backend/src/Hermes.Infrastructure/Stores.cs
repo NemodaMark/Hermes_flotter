@@ -106,7 +106,8 @@ public sealed class VehicleStore(HermesDbContext db, ITenantContext tenantContex
         var authorized = VehicleAccess.Query(db, access, Permissions.VehiclesRead).AsNoTracking();
         var query = VehicleAccess.Filter(db, authorized, options.SiteId, options.Status, options.Search);
         var availableTotal = await authorized.CountAsync(ct);
-        var total = await query.CountAsync(ct);
+        var unfiltered = options.SiteId == "all" && options.Status == "all" && string.IsNullOrWhiteSpace(options.Search);
+        var total = unfiltered ? availableTotal : await query.CountAsync(ct);
         // Return the last existing page when a deletion/reassignment shrinks the list.
         // Clamping before multiplication also prevents an overflowing SQL offset.
         var page = Math.Min(options.Page, total == 0 ? 1 : (total - 1) / options.PageSize + 1);
