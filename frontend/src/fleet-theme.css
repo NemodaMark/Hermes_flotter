@@ -98,15 +98,17 @@
   --liquid-tint: color-mix(in srgb, var(--surface) 65%, transparent);
   --liquid-brightness: 1;
   --liquid-soften: blur(4px);
+  --liquid-shadow: 0 8px 24px var(--shadow-color);
   width: 100%; max-width: none; margin: 0;
-  padding: clamp(24px, 2.7vw, 38px);
+  padding: clamp(24px, 2.7vw, 38px); border: 0;
 }
 @media (prefers-color-scheme: dark) {
   .fleet-auth .account-panel { --liquid-tint: transparent; --liquid-brightness: .4; }
 }
 .fleet-auth .account-panel h1 { font-size: clamp(28px, 2.65vw, 36px); font-weight: 600; letter-spacing: -.035em; }
 .fleet-auth .account-form label { margin-top: 16px; }
-.fleet-auth .account-form input { min-height: 44px; }
+.fleet-auth .account-form input { min-height: 44px; border: 0; background: var(--action-secondary); }
+.fleet-auth .account-form input:focus-visible { outline-offset: 2px; }
 .fleet-auth .account-submit { min-height: 44px; margin-top: 20px; }
 .fleet-auth .invitation-context { width: 100%; max-width: none; margin: 0; }
 .fleet-auth .dialog-actions { justify-content: start; }
