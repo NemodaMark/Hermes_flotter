@@ -168,23 +168,68 @@ public sealed partial class FleetManagement
         var rows = entries.Where(x => x.FueledOn >= month).Reverse()
             .Select(x => x with { LitersPer100Km = averages.TryGetValue(x.Id, out var average) ? average : null }).ToArray();
         return new FuelMonth(rows, rows.Where(x => !x.IsVoided).GroupBy(x => x.Currency).OrderBy(x => x.Key)
-            .Select(x => new FuelTotal(x.Key, x.Sum(y => y.Liters), x.Sum(y => y.Amount))).ToArray())
+            .Select(x => new FuelTotal(x.Key, x.Sum(y => y.Liters), x.Key is null ? null : x.Sum(y => y.Amount))).ToArray())
         {
             MeasuredKilometers = measuredKm,
             LitersPer100Km = measuredKm > 0 ? Math.Round(100 * measuredLiters / measuredKm, 2) : null
         };
     }, ct);
 
+    private async Task ValidateFuelDay(DateOnly date, long kilometers, CancellationToken ct)
+    {
+        FleetValidation.Date(date);
+        if (date > await CompanyToday(ct)) throw FleetValidation.Invalid("A tankolás dátuma nem lehet jövőbeli.");
+        FleetValidation.Range(kilometers, 100_000_000, "Kilométerállás");
+    }
+
     private async Task ValidateFuel(FuelEntryInput input, CancellationToken ct)
     {
-        FleetValidation.Date(input.FueledOn);
-        if (input.FueledOn > await CompanyToday(ct)) throw FleetValidation.Invalid("A tankolás dátuma nem lehet jövőbeli.");
-        FleetValidation.Range(input.Kilometers, 100_000_000, "Kilométerállás");
+        await ValidateFuelDay(input.FueledOn, input.Kilometers, ct);
         FleetValidation.Range(input.Liters, 999_999, "Liter", 3);
         FleetValidation.Range(input.Amount, 999_999_999_999.99m, "Összeg", 2);
         if (input.Liters == 0) throw FleetValidation.Invalid("Adj meg pozitív mennyiséget.");
-        FleetValidation.Currency(input.Currency);
+        if (input.Amount is not null) FleetValidation.Currency(input.Currency);
+        else if (input.Currency is not null) throw FleetValidation.Invalid("Pénznemet összeggel együtt adj meg.");
         FleetValidation.Text(input.ReceiptNumber, 100, "Bizonylatszám");
+    }
+
+    public Task<FuelMileagePreview> PreviewFuelMileage(Guid id, DateOnly date, long kilometers, CancellationToken ct) => Scoped(Permissions.FuelManage, async access =>
+    {
+        await Car(id, access, Permissions.FuelManage, ct, write: true);
+        await MileageLedger.AuthorizeCapture(db, context, ct);
+        await ValidateFuelDay(date, kilometers, ct);
+        return new FuelMileagePreview(await FuelMileageDistance(id, date, kilometers, ct));
+    }, ct);
+
+    private async Task<long?> FuelMileageDistance(Guid id, DateOnly date, long kilometers, CancellationToken ct)
+    {
+        var zone = await db.Tenants.Where(x => x.Id == TenantId).Select(x => x.TimeZone).SingleAsync(ct);
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(zone);
+        DateTimeOffset Midnight(DateOnly day) => TimeZoneInfo.ConvertTimeToUtc(day.ToDateTime(TimeOnly.MinValue), timeZone);
+        var month = MileageLedger.MonthOf(date);
+        var begin = Midnight(month);
+        var end = Midnight(date.AddDays(1));
+        var assignments = db.VehicleUserAssignments.Where(x => x.VehicleId == id && x.AssignedAt < end);
+        var assignment = await assignments.Where(x => x.ReleasedAt == null || x.ReleasedAt >= end)
+            .Select(x => new { x.UserId, x.AssignedAt }).SingleOrDefaultAsync(ct);
+        if (assignment is not null && assignment.UserId != Actor) return null;
+        var change = assignment?.AssignedAt ?? await assignments.MaxAsync(x => x.ReleasedAt < end ? x.ReleasedAt : null, ct);
+        if (change > begin) begin = change.Value;
+        var fromDay = LocalDay(begin, zone);
+        var fromMidnight = begin == Midnight(fromDay);
+        var odometers = db.OdometerReadings.Where(x => x.VehicleId == id && x.RecordedAt >= begin && x.RecordedAt < end);
+        var fuels = db.VehicleFuelEntries.Where(x => x.VehicleId == id && x.VoidedAt == null && x.FueledOn >= fromDay && x.FueledOn <= date);
+        var entries = db.MileageEntries.Where(x => x.VehicleId == id && x.VoidedAt == null && x.OccurredOn >= fromDay && x.OccurredOn <= date);
+
+        // The latest physical reading is also a barrier when it cannot be attributed to this driver.
+        var readings = odometers.Select(x => new { Km = (long?)x.Kilometers, Own = assignment != null || x.RecordedBy == Actor })
+            .Concat(fuels.Select(x => new { Km = (long?)x.Kilometers, Own = (x.FueledOn > fromDay || fromMidnight || x.RecordedAt >= begin)
+                && (assignment != null || x.RecordedBy == Actor) }))
+            .Concat(entries.Select(x => new { Km = x.EndKilometers, Own = x.UserId == Actor && (x.OccurredOn > fromDay || fromMidnight || x.RecordedAt >= begin) }));
+        var previous = await readings.Where(x => x.Km != null).OrderByDescending(x => x.Km).ThenByDescending(x => x.Own).FirstOrDefaultAsync(ct);
+        if (previous is not { Own: true, Km: { } start } || start > kilometers) return null;
+        var distance = kilometers - start;
+        return await MileageLedger.HasOverlap(db, id, kilometers, distance, null, ct) ? null : distance;
     }
 
     private static FuelEntryRow FuelRow(VehicleFuelEntry item) => new(item.Id, item.FueledOn, item.Kilometers, item.Liters, item.Amount,
@@ -198,15 +243,25 @@ public sealed partial class FleetManagement
     {
         await Car(id, access, Permissions.FuelManage, ct, write: true);
         await ValidateFuel(input, ct);
-        var currency = FleetValidation.Currency(input.Currency);
+        if (input.Usage is not null && input.AutomaticMileage is not null)
+            throw FleetValidation.Invalid("Egyféle km-elszámolást adj meg.");
+        var usage = input.Usage;
+        if (input.AutomaticMileage is { } automatic)
+        {
+            await MileageLedger.AuthorizeCapture(db, context, ct);
+            var distance = await FuelMileageDistance(id, input.FueledOn, input.Kilometers, ct);
+            if (distance is null || distance != automatic.TotalKm)
+                throw Error(409, "fuel_mileage_changed", "Az elszámolható távolság időközben megváltozott. Ellenőrizd az új értéket.");
+            usage = new(MileageLedger.MonthOf(input.FueledOn), distance.Value, automatic.PrivateKm);
+        }
         var item = new VehicleFuelEntry
         {
             TenantId = TenantId, VehicleId = id, FueledOn = input.FueledOn, Kilometers = input.Kilometers, Liters = input.Liters,
-            Amount = input.Amount, Currency = currency, RecordedBy = Actor, Receipt = receipt,
+            Amount = input.Amount, Currency = input.Amount is null ? null : FleetValidation.Currency(input.Currency), RecordedBy = Actor, Receipt = receipt,
             ReceiptNumber = FleetValidation.Text(input.ReceiptNumber, 100, "Bizonylatszám"), IsFullTank = input.IsFullTank
         };
         db.VehicleFuelEntries.Add(item);
-        await MileageLedger.Capture(db, context, id, "Fuel", item.Id, item.FueledOn, item.Kilometers, input.Usage, ct);
+        await MileageLedger.Capture(db, context, id, "Fuel", item.Id, item.FueledOn, item.Kilometers, usage, ct);
         var row = FuelRow(item);
         Audit("vehicle.fuel_recorded", item.Id, null, row, id);
         await db.SaveChangesAsync(ct);
@@ -222,15 +277,19 @@ public sealed partial class FleetManagement
         if (input.Version != item.Version) throw Error(409, "fuel_conflict", "A tankolás időközben megváltozott. Frissítsd a listát.");
         var reason = FleetValidation.Text(input.Reason, 500, "Módosítás indoka", required: true);
         if (input.Data is null) throw FleetValidation.Invalid("Add meg a tankolás adatait.");
-        if (input.Data.Usage is not null) throw FleetValidation.Invalid("A korábban elszámolt kilométert a havi elszámolásban javítsd.");
+        if (input.Data.Usage is not null || input.Data.AutomaticMileage is not null) throw FleetValidation.Invalid("A korábban elszámolt kilométert a havi elszámolásban javítsd.");
         await ValidateFuel(input.Data, ct);
         var before = FuelRow(item);
         item.FueledOn = input.Data.FueledOn;
         item.Kilometers = input.Data.Kilometers;
         item.Liters = input.Data.Liters;
-        item.Amount = input.Data.Amount;
-        item.Currency = FleetValidation.Currency(input.Data.Currency);
-        item.ReceiptNumber = FleetValidation.Text(input.Data.ReceiptNumber, 100, "Bizonylatszám");
+        if (input.Data.Amount is not null)
+        {
+            item.Amount = input.Data.Amount;
+            item.Currency = FleetValidation.Currency(input.Data.Currency);
+        }
+        if (input.Data.ReceiptNumber is not null || input.Data.Amount is not null)
+            item.ReceiptNumber = FleetValidation.Text(input.Data.ReceiptNumber, 100, "Bizonylatszám");
         item.IsFullTank = input.Data.IsFullTank;
         item.Version++;
         item.UpdatedBy = Actor;

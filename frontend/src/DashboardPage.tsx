@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import { useIsMutating } from '@tanstack/react-query'
-import { ArrowRight, Box, CalendarClock, CalendarDays, Camera, CarFront, Ellipsis, FileText, Fuel, Gauge, Handshake, MapPin, Wrench } from 'lucide-react'
+import { ArrowRight, CalendarClock, CalendarDays, Camera, CarFront, Ellipsis, FileText, Fuel, Gauge, Handshake, MapPin, Wrench } from 'lucide-react'
 import type { Dashboard, DashboardCar, useDashboard } from './dashboardApi'
 import { dashboardDeadlines, deadlineState } from './dashboardDeadlines'
 import type { DashboardDeadline } from './dashboardDeadlines'
@@ -42,7 +42,7 @@ export function DashboardPage({ user, tenant, siteId, sites = [], canUnassigned 
           canOverview={data.canReadOverview} canVehicles={data.canReadVehicles} canReadMileage={data.canReadMileage === true} onVehicle={onVehicle} onFleet={onFleet}
           onMileage={onMileage} dueMonth={data.mileageDueMonth} compact={compact} editing={editing} onEditingChange={onEditingChange} />
       </Suspense> : !data.canReadVehicles ? <p className="notice">Nincs jogosultságod járműadatok megtekintéséhez.</p>
-        : <CarDashboard key={siteId} cars={cars} user={user} tenant={tenant} today={data.today} onFleet={onFleet} allowVehiclePicker={data.canReadOverview}
+        : <CarDashboard key={siteId} cars={cars} user={user} tenant={tenant} today={data.today} onFleet={onFleet}
           mileageOpen={mileageOpen} onProfile={onVehicle} onMileage={onMileage} dueMonth={data.mileageDueMonth} />}
     </>}
   </section>
@@ -52,14 +52,12 @@ const icons = { data: CarFront, history: Gauge, services: Wrench, documents: Fil
   site: MapPin, photos: Camera, bookings: CalendarDays, fuel: Fuel, handovers: Handshake }
 type VehicleTab = keyof typeof icons
 
-function CarDashboard({ cars, user, tenant, today, onFleet, allowVehiclePicker, onMileage, dueMonth, mileageOpen, onProfile }: {
+function CarDashboard({ cars, user, tenant, today, onFleet, onMileage, dueMonth, mileageOpen, onProfile }: {
   cars: DashboardCar[]; user: Session; tenant: Tenant; today: string; onFleet: () => void
   onMileage?: () => void; dueMonth?: string | null; mileageOpen: boolean
   onProfile: (id: string) => void
-  allowVehiclePicker: boolean
 }) {
   const eligible = cars.filter(car => car.vehicle.status !== 'Archived')
-  const [showStudio, setShowStudio] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const [action, setAction] = useState<StudioAction | null>(null)
   const [opened, setOpened] = useState<StudioSection | null>(null)
@@ -130,8 +128,8 @@ function CarDashboard({ cars, user, tenant, today, onFleet, allowVehiclePicker, 
     }),
   ]
   return <>
-    <section className={`car-dashboard car-dashboard--${showStudio ? 'studio' : 'quick'}`} aria-label="Autós dashboard" data-task-open={opened !== null || recording !== null || mileageOpen || allAttention}>
-      <VehicleGarage car={car.vehicle} bodyType={car.bodyType} color={car.color} menus={points} action={action} immersive showStudio={showStudio}
+    <section className="car-dashboard car-dashboard--studio" aria-label="Autós dashboard" data-task-open={opened !== null || recording !== null || mileageOpen || allAttention}>
+      <VehicleGarage car={car.vehicle} bodyType={car.bodyType} color={car.color} menus={points} action={action} immersive
         onSelect={focus} paused={opened !== null || recording !== null || mileageOpen || allAttention} onReset={() => moveCamera('home')}
         overlay={<>
           <div className="car-dashboard-toolbar">
@@ -146,26 +144,22 @@ function CarDashboard({ cars, user, tenant, today, onFleet, allowVehiclePicker, 
                 {car.vehicle.status === 'Inactive' && <Badge tone="neutral" dot={false}>Inaktív</Badge>}
               </div>
             </div>
-            <div className="car-dashboard-actions">
-              {allowVehiclePicker && eligible.length > 1 && <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
-                <Select liquidGlass={showStudio} value={car.vehicle.id} onChange={event => { setSelected(event.target.value); moveCamera('home') }}>
+            {eligible.length > 1 && <div className="car-dashboard-actions">
+              <label className="car-picker"><span className="sr-only">Jármű kiválasztása</span>
+                <Select liquidGlass value={car.vehicle.id} onChange={event => { setSelected(event.target.value); moveCamera('home') }}>
                   {eligible.map(item => <option key={item.vehicle.id} value={item.vehicle.id}>
                     {item.vehicle.registration}
                   </option>)}
                 </Select>
-              </label>}
-              <Button className="car-view-toggle" onClick={() => { moveCamera('home'); setShowStudio(value => !value) }}>
-                {showStudio ? <CarFront size={17} aria-hidden="true" /> : <Box size={17} aria-hidden="true" />}
-                {showStudio ? 'Gyorsnézet' : '3D garázs'}
-              </Button>
-            </div>
+              </label>
+            </div>}
           </div>
-          {notices.length > 0 && <section className={showStudio ? 'car-attention glass-surface liquid-glass' : 'car-attention'} aria-label="Jármű teendői">
+          {notices.length > 0 && <section className="car-attention glass-surface liquid-glass" aria-label="Jármű teendői">
             {notices.slice(0, 2)}
             {notices.length > 2 && <Button className="car-attention-more" onClick={() => setAllAttention(true)}>Minden teendő ({notices.length})<ArrowRight size={14} aria-hidden="true" /></Button>}
           </section>}
         </>}>
-        <LiquidGlass as="nav" enabled={showStudio} className="car-menu" aria-label="Jármű gyorsmenü">
+        <LiquidGlass as="nav" className="car-menu" aria-label="Jármű gyorsmenü">
           <VehicleRecordingActions key={`recording:${car.vehicle.id}`} user={user} tenant={tenant} vehicle={car.vehicle} mode={recording} onModeChange={changeRecording} />
           {menus.filter(menu => quickLabels[menu.key]).map(menu => {
           const Icon = icons[menu.key]
@@ -175,7 +169,7 @@ function CarDashboard({ cars, user, tenant, today, onFleet, allowVehiclePicker, 
         })}
           <Disclosure className="car-menu-more" key={`more:${car.vehicle.id}`}
             trigger={<><Ellipsis size={18} aria-hidden="true" /><span>Továbbiak</span></>}>
-            <div className={showStudio ? 'glass-surface liquid-glass' : undefined}>{onMileage && <Button onClick={onMileage}><Gauge size={17} aria-hidden="true" />Havi km-elszámolás</Button>}{menus.filter(menu => !quickLabels[menu.key]).map(menu => {
+            <div className="glass-surface liquid-glass">{onMileage && <Button onClick={onMileage}><Gauge size={17} aria-hidden="true" />Havi km-elszámolás</Button>}{menus.filter(menu => !quickLabels[menu.key]).map(menu => {
               const Icon = icons[menu.key]
               return <Button key={menu.key} onClick={() => focus(menu.key)}><Icon size={17} aria-hidden="true" />{menu.label}</Button>
             })}</div>

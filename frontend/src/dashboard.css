@@ -216,7 +216,7 @@
   font-size: 13px;
   cursor: pointer;
 }
-.car-menu svg { color: var(--garage-accent); }
+.car-menu > button svg, .car-menu .vehicle-recording-actions > button svg, .car-menu-more svg { color: var(--garage-accent); }
 .car-menu .vehicle-recording-actions > button {
   min-height: calc(var(--garage-dock) - 10px);
   padding-inline: 8px;

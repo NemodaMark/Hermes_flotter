@@ -12,14 +12,14 @@ A **Km rögzítése → Havi elszámolás** nézetben, illetve a kezdőlap **Tov
 
 A felhasználó választhat:
 
-- **Tételes rögzítés:** tankoláskor vagy kilométeróra-állás rögzítésekor megadja az elszámolandó megtett távolságot és az ebből magánhasználatot. Utólag, önálló km-tételeket is felvehet a havi nézetben. Az összeg automatikus.
+- **Tételes rögzítés:** tankoláskor a szerver kiszámítja az elszámolható távolságot, a felhasználó csak a magánkilométert adja meg. Kilométeróra-állás rögzítésekor mindkét távolság megadható. A havi nézet utólagos tételeket is fogad, és automatikusan összesíti őket.
 - **Havi összesítő:** havonta egy teljes futásteljesítmény- és magánkilométer-értéket ad meg. Ilyenkor a tankolás/óraállás felvitele nem ad új elszámolási tételt.
 
 A választás következő hónapokra is alapértelmezés. Meglévő, lezáratlan hónapon külön módosítható. Módváltáskor a korábbi tételek megmaradnak, de **vagy a tételek összege, vagy a havi összesítő számít**. Nem adódnak össze. Tételes módra visszaváltás a megőrzött, érvényes tételekből újraszámol.
 
 **Mindkét módnál le kell zárni a hónapot.** Nulla használatot külön meg kell erősíteni. A fordulónap a naptári hónap első napja, a cég időzónájában. A legrégebbi hiányzó zárás a kezdőlapon megjelenik. Az elszámolási kötelezettség az első beállított vagy ténylegesen használt hónaptól indul; nem keletkezik korlátlan visszamenőleges tartozás.
 
-Az óraállás két leolvasása közötti út hónaphatáron átnyúlhat. A rendszer ezért nem sorolja automatikusan az egész különbséget az új hónaphoz: csak az adott hónapban megtett, még el nem számolt részt kell beírni. A két hónapra eső részek külön havi tételekkel vagy havi összesítőkkel rögzíthetők. A magánkilométer mindig a teljes távolság része, nem azon felüli mennyiség.
+Tankoláskor a rendszer a jármű adott havi, a használóhoz köthető előző állásától számol. Hónapváltás, használóváltás, hiányzó kezdőállás vagy már elszámolt szakasz esetén a tankolás önállóan menthető. A hiányzó távolság az érintett hónapokban kézzel rögzíthető. A magánkilométer a teljes megtett távolság része.
 
 ## Havi keret és javítások
 
@@ -31,7 +31,7 @@ A jármű tényleges kilométeróra-előzménye továbbra is hozzáfűzött, ada
 
 ## Tankolás és fogyasztás
 
-A felületen kötelező a bizonylatszám, dátum, kilométerállás, liter, összeg és pénznem. Nyugtafotó opcionális; a szerver a meglévő JPG/PNG-sanitizálást használja, a képet PostgreSQL tárolja. A **Teletankoltam** jelölésből számolható valósabb fogyasztás.
+A felületen kötelező a dátum, a kilométerállás és a liter. Az opcionális JPG/PNG-nyugtafotót a szerver újrakódolja, majd PostgreSQL-ben tárolja. A **Teletankoltam** jelölés a fogyasztásméréshez használható. A korábban megadott összegek, pénznemek és bizonylatszámok megmaradnak.
 
 Két érvényes teletank között:
 
@@ -61,8 +61,9 @@ A `mileage.*` személyes elszámolási jogok céges szintűek: nem adnak jármű
 A meglévő végpontok bővítése:
 
 - `POST /api/v1/vehicles/{id}/odometer`: opcionális `usage: { month, totalKm, privateKm }`.
-- `POST /api/v1/vehicles/{id}/fuel`: `receiptNumber`, `isFullTank`, opcionális `usage`; JSON vagy az eddigi multipart `data` + `file`.
-- `PUT /api/v1/vehicles/{id}/fuel/{entry}`: `{ data, version, reason }`. A korábbi elszámolás külön javítandó; itt új `usage` nem küldhető.
+- `GET /api/v1/vehicles/{id}/fuel/mileage-preview?date=...&kilometers=...` → `{ totalKm }`, megbízható előző állás hiányában `null`. A jármű tankoláskezelési és a személyes elszámolási joga is szükséges.
+- `POST /api/v1/vehicles/{id}/fuel` — `fueledOn`, `kilometers`, `liters`, opcionális `isFullTank`, `automaticMileage: { totalKm, privateKm }`. Mentéskor a szerver újraszámolja a távolságot. A JSON és a multipart `data` + `file` formátum, valamint a korábbi `usage` és pénzügyi mezők továbbra is használhatók.
+- `PUT /api/v1/vehicles/{id}/fuel/{entry}` — `{ data, version, reason }`. A személyes km-tételt a havi elszámolásban lehet javítani.
 - `GET /api/v1/mileage/accounts`, `PUT /api/v1/mileage/accounts/{userId}`: kezelői név/keret/verzió lista, illetve keretbeállítás.
 - `GET/PUT /api/v1/mileage/months/{yyyy-MM-01}?userId=...`: saját vagy jogosultan kiválasztott havi riport, mentés/zárás.
 - `PUT .../mode`: `{ mode: "Entries" | "Monthly", version }`.

@@ -40,10 +40,12 @@ public static class FleetOperationsEndpoints
             var csv = new StringBuilder("Dátum;Kilométerállás;Liter;Összeg;Pénznem;Bizonylatszám;Teletank;Fogyasztás (l/100 km)\r\n");
             var culture = CultureInfo.GetCultureInfo("hu-HU");
             foreach (var row in entries.Items.Where(x => !x.IsVoided))
-                csv.Append(CultureInfo.InvariantCulture, $"{row.FueledOn:yyyy-MM-dd};{row.Kilometers};{row.Liters.ToString("0.###", culture)};{row.Amount.ToString("0.00", culture)};{row.Currency};{CsvCell(row.ReceiptNumber)};{(row.IsFullTank ? "Igen" : "Nem")};{row.LitersPer100Km?.ToString("0.00", culture)}\r\n");
+                csv.Append(CultureInfo.InvariantCulture, $"{row.FueledOn:yyyy-MM-dd};{row.Kilometers};{row.Liters.ToString("0.###", culture)};{row.Amount?.ToString("0.00", culture)};{row.Currency};{CsvCell(row.ReceiptNumber)};{(row.IsFullTank ? "Igen" : "Nem")};{row.LitersPer100Km?.ToString("0.00", culture)}\r\n");
             http.Response.Headers.CacheControl = "private, no-store";
             return Results.File(Encoding.UTF8.GetBytes("\uFEFF" + csv), "text/csv; charset=utf-8", $"tankolas-{month:yyyy-MM}.csv");
         }).RequireAuthorization(Permissions.FuelRead);
+        vehicles.MapGet("/fuel/mileage-preview", async (Guid id, DateOnly date, long kilometers, FleetManagement fleet, CancellationToken ct)
+            => Results.Ok(await fleet.PreviewFuelMileage(id, date, kilometers, ct))).RequireAuthorization(Permissions.FuelManage);
         vehicles.MapPost("/fuel", async (Guid id, HttpContext http, FleetManagement fleet, CancellationToken ct) =>
         {
             await fleet.CheckOperationUpload(id, true, ct);

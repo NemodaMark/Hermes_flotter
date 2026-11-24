@@ -140,6 +140,57 @@ public sealed partial class PermissionManagementTests
     }
 
     [Fact]
+    public async Task Fuel_preview_and_save_calculate_personal_mileage_across_vehicles_and_respect_handover_and_scope()
+    {
+        using var owner = await Register(); using var driver = await Register(); using var colleague = await Register(); using var outsider = await Register();
+        var company = await Company(owner); await Company(outsider);
+        var site = await ScopeSite(owner, "AUTO-A"); var deniedSite = await ScopeSite(owner, "AUTO-B");
+        var first = await FleetCar(owner, "AUTO-001", site.Id); var second = await FleetCar(owner, "AUTO-002", site.Id);
+        var denied = await FleetCar(owner, "AUTO-003", deniedSite.Id);
+        var group = await ScopedGroup(owner, "Automatikus elszámolás", company.Id, [site.Id], Permissions.FuelManage, Permissions.OdometerCreate, Permissions.MileageRecord);
+        await CompanyAssign(owner, driver.User.Id, group.Id); Select(driver, company.Id);
+        await Join(owner, colleague, company.Id, Permissions.FuelManage);
+        var day = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow, "Europe/Budapest").DateTime);
+        var month = new DateOnly(day.Year, day.Month, 1);
+        var url = CarUrl(first) + "/fuel";
+        string Preview(VehicleRecord car, long kilometers) => CarUrl(car) + $"/fuel/mileage-preview?date={day:yyyy-MM-dd}&kilometers={kilometers}";
+        var input = new FuelEntryInput(day, 1120, 25, AutomaticMileage: new(120, 40));
+
+        Assert.Null((await ScopeOk<FuelMileagePreview>(await driver.Client.GetAsync(Preview(first, 1120)))).TotalKm);
+        Assert.Equal(HttpStatusCode.NotFound, (await driver.Client.GetAsync(Preview(denied, 1120))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await outsider.Client.GetAsync(Preview(first, 1120))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await colleague.Client.GetAsync(Preview(first, 1120))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await driver.Client.PostAsJsonAsync(url, input)).StatusCode);
+
+        (await owner.Client.PostAsJsonAsync(CarUrl(first) + "/handovers", new HandoverInput(driver.User.Id, 1000, "Rendben", null, first.Vehicle.Version))).EnsureSuccessStatusCode();
+        Assert.Equal(120, (await ScopeOk<FuelMileagePreview>(await driver.Client.GetAsync(Preview(first, 1120)))).TotalKm);
+        Assert.Equal(HttpStatusCode.BadRequest, (await driver.Client.PostAsJsonAsync(url, input with { AutomaticMileage = new(120, 121) })).StatusCode);
+        var saved = await ScopeOk<FuelEntryRow>(await driver.Client.PostAsJsonAsync(url, input));
+        Assert.Null(saved.Amount); Assert.Null(saved.Currency); Assert.Null(saved.ReceiptNumber);
+        Assert.Equal(HttpStatusCode.Conflict, (await driver.Client.PostAsJsonAsync(url, input)).StatusCode);
+
+        var read = (await owner.Client.GetFromJsonAsync<FuelMonth>(url + $"?month={month:yyyy-MM-dd}"))!;
+        Assert.Single(read.Items); Assert.Equal(new FuelTotal(null, 25, null), Assert.Single(read.Totals));
+        var secondUrl = CarUrl(second) + "/fuel";
+        var legacy = await ScopeOk<FuelEntryRow>(await driver.Client.PostAsJsonAsync(secondUrl, new FuelEntryInput(day, 3000, 20, 130m, "EUR", "OLD-1")));
+        Assert.Equal(60, (await ScopeOk<FuelMileagePreview>(await driver.Client.GetAsync(Preview(second, 3060)))).TotalKm);
+        (await driver.Client.PostAsJsonAsync(secondUrl, input with { Kilometers = 3060, AutomaticMileage = new(60, 10) })).EnsureSuccessStatusCode();
+        var edited = await ScopeOk<FuelEntryRow>(await driver.Client.PutAsJsonAsync(secondUrl + $"/{legacy.Id}",
+            new UpdateFuelEntryInput(new(day, 3000, 21), legacy.Version, "Liter javítása")));
+        Assert.Equal(130m, edited.Amount); Assert.Equal("EUR", edited.Currency); Assert.Equal("OLD-1", edited.ReceiptNumber);
+
+        var report = (await driver.Client.GetFromJsonAsync<MileageReport>(MileageUrl(month)))!;
+        Assert.Equal(180, report.TotalKm); Assert.Equal(50, report.PrivateKm); Assert.Equal(2, report.Entries.Length);
+        Assert.Equal(0, (await owner.Client.GetFromJsonAsync<MileageReport>(MileageUrl(month)))!.TotalKm);
+        Assert.Equal(HttpStatusCode.Forbidden, (await colleague.Client.GetAsync(MileageUrl(month, driver.User.Id))).StatusCode);
+
+        var current = (await owner.Client.GetFromJsonAsync<VehicleRecord>(CarUrl(first) + "/details"))!.Vehicle;
+        (await owner.Client.PutAsJsonAsync(CarUrl(first) + "/assignee", new AssignUserInput(owner.User.Id, current.Version))).EnsureSuccessStatusCode();
+        Assert.Null((await ScopeOk<FuelMileagePreview>(await owner.Client.GetAsync(Preview(first, 1200)))).TotalKm);
+        Assert.Null((await ScopeOk<FuelMileagePreview>(await driver.Client.GetAsync(Preview(first, 1200)))).TotalKm);
+    }
+
+    [Fact]
     public async Task Fuel_corrections_preserve_receipt_audit_and_compute_full_tank_consumption_with_partial_fills()
     {
         using var owner = await Register(); using var driver = await Register(); using var outsider = await Register();

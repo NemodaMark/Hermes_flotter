@@ -35,8 +35,8 @@ public sealed class VehicleFuelEntry : ITenantEntity
     public DateOnly FueledOn { get; set; }
     public long Kilometers { get; set; }
     public decimal Liters { get; set; }
-    public decimal Amount { get; set; }
-    public required string Currency { get; set; }
+    public decimal? Amount { get; set; }
+    public string? Currency { get; set; }
     public string? ReceiptNumber { get; set; }
     public bool IsFullTank { get; set; }
     public long Version { get; set; } = 1;

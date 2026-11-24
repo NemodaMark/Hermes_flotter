@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
-import { request } from './api'
+import { ApiError, request } from './api'
 import type { Page, Tenant, Vehicle } from './api'
-import { CurrencyField, NotesField, QueryMessage, ReasonDialog } from './FleetFields'
+import { NotesField, QueryMessage, ReasonDialog } from './FleetFields'
 import { dateText, moneyText } from './fleetApi'
 import { mediaApi } from './peopleApi'
 import { ProtectedImage } from './ProtectedImage'
@@ -15,15 +15,16 @@ import { AccessDialog } from './AccessDialog'
 import { FileInput } from './ui/FileInput'
 import { VehicleDetailGroup } from './VehicleDetailGroup'
 import { MileageCaptureFields } from './MileageCapture'
+import { mileageApi } from './mileageApi'
 import { useMileageCapture } from './useMileageCapture'
 import './vehicle-operations.css'
 
 type OperationProps = { tenant: Tenant; car: Vehicle }
 type Booking = { id: string; userId: string; name: string; startsOn: string; endsOn: string }
 type Calendar = { enabled: boolean; today: string; items: Booking[] }
-type FuelEntry = { id: string; fueledOn: string; kilometers: number; liters: number; amount: number; currency: string; hasReceipt: boolean; isVoided: boolean;
+type FuelEntry = { id: string; fueledOn: string; kilometers: number; liters: number; amount: number | null; currency: string | null; hasReceipt: boolean; isVoided: boolean;
   receiptNumber: string | null; isFullTank: boolean; version: number; recordedBy: string | null; updatedBy: string | null; updatedAt: string | null; litersPer100Km: number | null }
-type FuelMonth = { items: FuelEntry[]; totals: { currency: string; amount: number; liters: number }[]; litersPer100Km: number | null; measuredKilometers: number }
+type FuelMonth = { items: FuelEntry[]; totals: { currency: string | null; amount: number | null; liters: number }[]; litersPer100Km: number | null; measuredKilometers: number }
 type Handover = { id: string; previousUserId: string | null; nextUserId: string | null; recordedBy: string; recordedAt: string; kilometers: number; condition: string; notes: string | null; hasPhoto: boolean }
 type Appointment = { startsAt: string; notes: string | null }
 
@@ -158,42 +159,54 @@ export function VehicleFuelDialog(p: OperationProps & { userId: string; item?: F
 export function VehicleFuelForm(p: OperationProps & { userId: string; item?: FuelEntry; onSaved: (row: FuelEntry) => void; onPendingChange?: (pending: boolean) => void }) {
   const client = useQueryClient()
   const { onPendingChange } = p
-  const [currency, setCurrency] = useState(p.item?.currency ?? 'HUF')
   const [date, setDate] = useState(p.item?.fueledOn ?? localDateTime().slice(0, 10))
-  const capture = useMileageCapture(p.tenant, p.userId, date, !p.item)
+  const [kilometers, setKilometers] = useState(String(p.item?.kilometers ?? p.car.odometerKm ?? ''))
+  const [previewKm, setPreviewKm] = useState(kilometers)
+  const canManageFuel = editable(p, 'vehicles.fuel.manage')
+  const capture = useMileageCapture(p.tenant, p.userId, date, !p.item && canManageFuel)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPreviewKm(kilometers), 180)
+    return () => window.clearTimeout(timer)
+  }, [kilometers])
+  const validKm = /^\d+$/.test(kilometers) && Number(kilometers) <= 100000000
+  const preview = useQuery({ queryKey: ['mileage', p.tenant.id, p.userId, 'fuel-preview', p.car.id, date, previewKm],
+    queryFn: ({ signal }) => mileageApi.fuelPreview(p.tenant.id, p.car.id, date, previewKm, signal),
+    enabled: capture.active && validKm && kilometers === previewKm, retry: false })
+  const totalKm = preview.data?.totalKm
+  const ready = capture.ready && (!capture.active || (validKm && kilometers === previewKm && preview.isSuccess && !preview.isFetching
+    && (totalKm === null ? Number(capture.personal) === 0 : totalKm != null && Number(capture.personal) <= totalKm)))
   const save = useMutation({ mutationFn: (form: FormData) => {
     const data = {
       fueledOn: String(form.get('date')), kilometers: Number(form.get('km')), liters: Number(form.get('liters')),
-      amount: Number(form.get('amount')), currency, receiptNumber: String(form.get('receiptNumber')), isFullTank: form.get('fullTank') === 'on',
-      usage: capture.usage(),
+      isFullTank: form.get('fullTank') === 'on',
+      ...(capture.active && totalKm != null && { automaticMileage: { totalKm, privateKm: Number(capture.personal) } }),
     }
     return p.item ? request<FuelEntry>(`${path(p.car.id)}/fuel/${p.item.id}`, { tenantId: p.tenant.id, method: 'PUT', body: { data, version: p.item.version, reason: String(form.get('reason')) } })
       : request<FuelEntry>(`${path(p.car.id)}/fuel`, { tenantId: p.tenant.id, body: payload(data, uploadedFile(form)) })
   }, onSuccess: async row => {
     await Promise.all([client.invalidateQueries({ queryKey: ['fleet-management', p.tenant.id, p.car.id] }), client.invalidateQueries({ queryKey: ['mileage', p.tenant.id] }), client.invalidateQueries({ queryKey: ['dashboard'] })])
     p.onSaved(row)
+  }, onError: async error => {
+    if (error instanceof ApiError && error.code === 'fuel_mileage_changed') await preview.refetch()
   } })
   useEffect(() => { onPendingChange?.(save.isPending) }, [onPendingChange, save.isPending])
-  if (!editable(p, 'vehicles.fuel.manage')) return null
-  return <form className="operation-form" aria-label={p.item ? 'Tankolás módosítása' : 'Tankolás rögzítése'} onSubmit={e => { e.preventDefault(); if (capture.ready) save.mutate(new FormData(e.currentTarget)) }}>
+  if (!canManageFuel) return null
+  return <form className="operation-form" aria-label={p.item ? 'Tankolás módosítása' : 'Tankolás rögzítése'} onSubmit={e => { e.preventDefault(); if (ready) save.mutate(new FormData(e.currentTarget)) }}>
     <fieldset disabled={save.isPending}>
       <legend className="sr-only">Tankolás adatai</legend>
       <div className="org-form-grid">
-        <label className="org-field"><span>Bizonylatszám</span><input name="receiptNumber" defaultValue={p.item?.receiptNumber ?? ''} maxLength={100} required data-autofocus /></label>
         <label className="org-field"><span>Tankolás napja</span><input name="date" type="date" value={date} onChange={e => setDate(e.target.value)} max={localDateTime().slice(0, 10)} required /></label>
-        <label className="org-field"><span>Kilométerállás</span><input name="km" type="number" inputMode="numeric" defaultValue={p.item?.kilometers ?? p.car.odometerKm ?? ''} min={0} max={100000000} required /></label>
+        <label className="org-field"><span>Kilométerállás</span><input name="km" type="number" inputMode="numeric" value={kilometers} onChange={e => setKilometers(e.target.value)} min={0} max={100000000} required data-autofocus /></label>
         <label className="org-field"><span>Liter</span><input name="liters" type="number" inputMode="decimal" defaultValue={p.item?.liters} step="0.001" min="0.001" max="999999" required /></label>
-        <label className="org-field"><span>Összeg</span><input name="amount" type="number" inputMode="decimal" defaultValue={p.item?.amount} step="0.01" min="0" max="999999999999.99" required /></label>
-        <CurrencyField value={currency} onChange={setCurrency} />
         {!p.item && <FileInput label="Nyugtafotó (JPG, PNG)" name="file" accept={fileTypes} />}
       </div>
       <label className="checkbox-label"><input type="checkbox" name="fullTank" defaultChecked={p.item?.isFullTank ?? false} />Teletankoltam</label>
-      <MileageCaptureFields capture={capture} />
+      <MileageCaptureFields capture={capture} automatic={preview} calculating={validKm && kilometers !== previewKm} />
       {p.item && <p className="field-hint">A megtett utat és a magánhasználatot a havi km-elszámolásban külön javíthatod. Az eredeti bizonylat megmarad.</p>}
       {p.item && <label className="org-field"><span>Módosítás indoka</span><textarea name="reason" rows={2} maxLength={500} required /></label>}
     </fieldset>
     {save.error && <p role="alert" className="form-error">{save.error.message}</p>}
-    <div className="dialog-actions"><Button className="primary-button" disabled={!capture.ready} loading={save.isPending}>Tankolás mentése</Button></div>
+    <div className="dialog-actions"><Button className="primary-button" disabled={!ready} loading={save.isPending}>Tankolás mentése</Button></div>
   </form>
 }
 
@@ -233,11 +246,12 @@ export function VehicleFuel(p: OperationProps & { userId: string; showCreate?: b
     {editItem && <VehicleFuelDialog {...p} item={editItem} onClose={() => setEditItem(null)} onSaved={row => { setMonth(row.fueledOn.slice(0, 7) + '-01'); setEditItem(null) }} />}
     {read && <>
       <QueryMessage pending={data.isPending} error={data.error} retry={() => void data.refetch()} />
-      {data.data?.totals.length ? <p className="fleet-detail-caption">Havi összesen · {data.data.totals.map(x => `${formatNumber(x.liters)} l · ${moneyText(x.amount, x.currency)}`).join(' / ')}</p> : null}
+      {data.data?.totals.length ? <p className="fleet-detail-caption">Havi összesen · {formatNumber(data.data.totals.reduce((liters, row) => liters + row.liters, 0))} l
+        {data.data.totals.map(x => x.amount != null && x.currency && <span key={x.currency}> · {moneyText(x.amount, x.currency)}</span>)}</p> : null}
       {data.data && (data.data.litersPer100Km != null ? <p className="fleet-detail-caption"><strong>{formatNumber(data.data.litersPer100Km)} l/100 km</strong> · {formatNumber(data.data.measuredKilometers)} km, teletankok közötti mérés</p>
         : <p className="field-hint">Átlagfogyasztáshoz két teletankos rögzítés és növekvő kilométerállás szükséges.</p>)}
       {data.data && (data.data.items.length ? <ul className="vehicle-operation-list">{data.data.items.map(row => <li key={row.id}>
-        <div><strong>{dateText(row.fueledOn)} · {moneyText(row.amount, row.currency)}</strong><span>{formatNumber(row.kilometers)} km · {formatNumber(row.liters)} l{row.isVoided ? ' · Érvénytelenítve' : ''}</span>
+        <div><strong>{dateText(row.fueledOn)}{row.amount != null && row.currency && ` · ${moneyText(row.amount, row.currency)}`}</strong><span>{formatNumber(row.kilometers)} km · {formatNumber(row.liters)} l{row.isVoided ? ' · Érvénytelenítve' : ''}</span>
           {row.receiptNumber && <span>Bizonylat: {row.receiptNumber}</span>}
           {row.litersPer100Km != null && <span>{formatNumber(row.litersPer100Km)} l/100 km</span>}
           {(row.updatedBy || row.recordedBy) && <small>{row.updatedBy ? `Módosította: ${row.updatedBy}` : `Rögzítette: ${row.recordedBy}`}</small>}

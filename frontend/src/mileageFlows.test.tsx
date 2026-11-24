@@ -56,19 +56,20 @@ it('submits a monthly total independently of historical entries and requires an 
   await userEvent.click(screen.getByRole('button', { name: 'Hónap lezárása' }))
   await waitFor(() => expect(save).toHaveBeenCalledWith('demo', expect.objectContaining({ version: 4 }), { totalKm: 800, privateKm: 120, submit: true, confirmNoUsage: false, reason: '' }))
 })
-it('opens the same quick fuel form and submits the receipt number and a separately stated private distance', async () => {
+it('shows the server-calculated distance and sends only the entered private kilometers with it', async () => {
   const request = vi.spyOn(apiModule, 'request').mockResolvedValue({ id: 'fuel', fueledOn: localMileageDate() })
+  vi.spyOn(mileageApi, 'fuelPreview').mockImplementation(async (_tenant, _car, _date, kilometers) => ({ totalKm: Number(kilometers) - 1000 }))
   mount(<VehicleFuelForm tenant={tenant} car={vehicle} userId={user.id} onSaved={vi.fn()} />)
-  fireEvent.change(screen.getByLabelText('Bizonylatszám'), { target: { value: 'BILL-001' } })
+  for (const label of ['Bizonylatszám', 'Összeg', 'Pénznem']) expect(screen.queryByLabelText(label)).not.toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('Kilométerállás'), { target: { value: '1200' } })
   fireEvent.change(screen.getByLabelText('Liter'), { target: { value: '35.5' } })
-  fireEvent.change(screen.getByLabelText('Összeg'), { target: { value: '22000' } })
-  await screen.findByLabelText('Elszámolandó megtett út (km)')
-  fireEvent.change(screen.getByLabelText('Elszámolandó megtett út (km)'), { target: { value: '200' } })
+  expect(await screen.findByText('200 km')).toHaveProperty('tagName', 'OUTPUT')
   fireEvent.change(screen.getByLabelText('Ebből magánhasználat (km)'), { target: { value: '50' } })
   await userEvent.click(screen.getByLabelText('Teletankoltam'))
   await userEvent.click(screen.getByRole('button', { name: 'Tankolás mentése' }))
-  await waitFor(() => expect(request).toHaveBeenCalledWith('/api/v1/vehicles/car/fuel', expect.objectContaining({ body: expect.objectContaining({ receiptNumber: 'BILL-001', liters: 35.5, kilometers: 1200, isFullTank: true, usage: { month, totalKm: 200, privateKm: 50 } }) })))
+  await waitFor(() => expect(request).toHaveBeenCalledWith('/api/v1/vehicles/car/fuel', { tenantId: tenant.id, body: {
+    fueledOn: localMileageDate(), liters: 35.5, kilometers: 1200, isFullTank: true, automaticMileage: { totalKm: 200, privateKm: 50 },
+  } }))
 })
 it('allows a user to switch modes without introducing separate accounting routes', async () => {
   const mode = vi.spyOn(mileageApi, 'mode').mockResolvedValue({ ...report, mode: 'Monthly', version: 2 })

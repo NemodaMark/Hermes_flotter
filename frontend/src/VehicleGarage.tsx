@@ -14,12 +14,12 @@ const emptyMenus: StudioMenu[] = []
 const ignore = () => {}
 
 export function VehicleGarage({ car, bodyType, color, menus = emptyMenus, action, onSelect = ignore,
-  onReset, paused = false, immersive = false, showStudio = true, overlay, children }: {
+  onReset, paused = false, immersive = false, overlay, children }: {
   car: Vehicle; bodyType: string; color: string | null; menus?: StudioMenu[]; action: StudioAction | null
   onSelect?: (key: StudioSection) => void
-  onReset: () => void; paused?: boolean; immersive?: boolean; showStudio?: boolean; overlay?: ReactNode; children?: ReactNode
+  onReset: () => void; paused?: boolean; immersive?: boolean; overlay?: ReactNode; children?: ReactNode
 }) {
-  const model = showStudio ? vehicleModel(bodyType, car) : null
+  const model = vehicleModel(bodyType, car)
   const paint = vehiclePaint(color)
   return <>
     <div className="car-stage-wrap">

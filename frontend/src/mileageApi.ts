@@ -8,6 +8,8 @@ export type MileageUser = { userId: string; name: string; monthlyLimitKm: number
 const monthUrl = (month: string, userId: string, suffix = '') => `/api/v1/mileage/months/${month}${suffix}?userId=${encodeURIComponent(userId)}`
 export const mileageApi = {
   read: (tenantId: string, userId: string, month: string, signal?: AbortSignal) => request<MileageReport>(monthUrl(month, userId), { tenantId, signal }),
+  fuelPreview: (tenantId: string, vehicleId: string, date: string, kilometers: string, signal?: AbortSignal) => request<{ totalKm: number | null }>(
+    `/api/v1/vehicles/${vehicleId}/fuel/mileage-preview?${new URLSearchParams({ date, kilometers })}`, { tenantId, signal }),
   users: (tenantId: string, signal?: AbortSignal) => request<MileageUser[]>('/api/v1/mileage/accounts', { tenantId, signal }),
   limit: (tenantId: string, user: MileageUser, monthlyLimitKm: number | null) => request<MileageUser>(`/api/v1/mileage/accounts/${encodeURIComponent(user.userId)}`, { tenantId, method: 'PUT', body: { monthlyLimitKm, version: user.version } }),
   mode: (tenantId: string, report: MileageReport, mode: MileageMode) => request<MileageReport>(monthUrl(report.month, report.userId, '/mode'), { tenantId, method: 'PUT', body: { mode, version: report.version } }),

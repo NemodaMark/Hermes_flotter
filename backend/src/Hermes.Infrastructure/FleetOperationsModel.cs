@@ -49,7 +49,7 @@ public sealed partial class HermesDbContext
             e.Property(x => x.Currency).HasMaxLength(3);
             e.Property(x => x.Liters).HasPrecision(9, 3);
             e.Property(x => x.Amount).HasPrecision(14, 2);
-            e.ToTable(t => t.HasCheckConstraint("CK_vehicle_fuel_values", """ "Kilometers" BETWEEN 0 AND 100000000 AND "Liters" > 0 AND "Amount" >= 0 AND ("Receipt" IS NULL OR octet_length("Receipt") BETWEEN 1 AND 5242880) """));
+            e.ToTable(t => t.HasCheckConstraint("CK_vehicle_fuel_values", """ "Kilometers" BETWEEN 0 AND 100000000 AND "Liters" > 0 AND ("Amount" IS NULL) = ("Currency" IS NULL) AND ("Amount" IS NULL OR "Amount" >= 0) AND ("Receipt" IS NULL OR octet_length("Receipt") BETWEEN 1 AND 5242880) """));
         });
         model.Entity<VehicleHandover>(e =>
         {

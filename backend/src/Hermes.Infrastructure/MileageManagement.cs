@@ -66,11 +66,17 @@ internal static class MileageLedger
     internal static async Task CheckInterval(HermesDbContext db, Guid vehicle, long end, long distance, Guid? except, CancellationToken ct)
     {
         if (distance > end) throw FleetValidation.Invalid("A megtett távolság nagyobb a megadott kilométerállásnál.");
-        var start = end - distance;
-        if (distance > 0 && await db.MileageEntries.AnyAsync(x => x.VehicleId == vehicle && x.Id != except && x.VoidedAt == null
-            && x.StartKilometers < end && x.EndKilometers > start, ct))
+        if (await HasOverlap(db, vehicle, end, distance, except, ct))
             throw UserAccounts.Error(409, "mileage_overlap", "Ezt a kilométerszakaszt már elszámoltad. A havi elszámolásban javítsd a meglévő tételt.");
     }
+
+    internal static async Task<bool> HasOverlap(HermesDbContext db, Guid vehicle, long end, long distance, Guid? except, CancellationToken ct)
+        => distance > 0 && await db.MileageEntries.AnyAsync(x => x.VehicleId == vehicle && x.Id != except && x.VoidedAt == null
+            && x.StartKilometers < end && x.EndKilometers > end - distance, ct);
+
+    internal static Task AuthorizeCapture(HermesDbContext db, ITenantContext context, CancellationToken ct)
+        => AccessRules.Authorize(db, context.TenantId!.Value, context.UserSubject!,
+            context.Permissions.Contains(Permissions.MileageManage) ? Permissions.MileageManage : Permissions.MileageRecord, ct);
 
     // Caller already holds the company transaction and lock; capture and the source operation commit together.
     internal static async Task Capture(HermesDbContext db, ITenantContext context, Guid vehicle, string source, Guid sourceId,
@@ -79,7 +85,7 @@ internal static class MileageLedger
         if (input is null) return;
         var tenant = context.TenantId!.Value;
         var actor = context.UserSubject!;
-        await AccessRules.Authorize(db, tenant, actor, context.Permissions.Contains(Permissions.MileageManage) ? Permissions.MileageManage : Permissions.MileageRecord, ct);
+        await AuthorizeCapture(db, context, ct);
         Numbers(input.TotalKm, input.PrivateKm);
         await CheckInterval(db, vehicle, endKilometers, input.TotalKm, null, ct);
         if (input.Month != MonthOf(occurredOn)) throw FleetValidation.Invalid("Az elszámolási tétel a rögzítés naptári hónapjához tartozzon. A hónaphatárt külön havi tételekkel számold el.");

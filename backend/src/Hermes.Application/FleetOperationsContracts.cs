@@ -5,10 +5,12 @@ public sealed record BookingInput(DateOnly StartsOn, DateOnly EndsOn);
 public sealed record BookingRow(Guid Id, string UserId, string Name, DateOnly StartsOn, DateOnly EndsOn);
 public sealed record BookingCalendar(bool Enabled, DateOnly Today, BookingRow[] Items);
 public sealed record ServiceAppointmentInput(DateTimeOffset StartsAt, string? Notes);
-public sealed record FuelEntryInput(DateOnly FueledOn, long Kilometers, decimal Liters, decimal Amount, string Currency,
-    string? ReceiptNumber = null, bool IsFullTank = false, MileageUsageInput? Usage = null);
+public sealed record FuelMileage(long TotalKm, long PrivateKm);
+public sealed record FuelMileagePreview(long? TotalKm);
+public sealed record FuelEntryInput(DateOnly FueledOn, long Kilometers, decimal Liters, decimal? Amount = null, string? Currency = null,
+    string? ReceiptNumber = null, bool IsFullTank = false, MileageUsageInput? Usage = null, FuelMileage? AutomaticMileage = null);
 public sealed record UpdateFuelEntryInput(FuelEntryInput Data, long Version, string Reason);
-public sealed record FuelEntryRow(Guid Id, DateOnly FueledOn, long Kilometers, decimal Liters, decimal Amount, string Currency, bool HasReceipt, bool IsVoided)
+public sealed record FuelEntryRow(Guid Id, DateOnly FueledOn, long Kilometers, decimal Liters, decimal? Amount, string? Currency, bool HasReceipt, bool IsVoided)
 {
     public string? ReceiptNumber { get; init; }
     public bool IsFullTank { get; init; }
@@ -19,7 +21,7 @@ public sealed record FuelEntryRow(Guid Id, DateOnly FueledOn, long Kilometers, d
     public DateTimeOffset? UpdatedAt { get; init; }
     public decimal? LitersPer100Km { get; init; }
 }
-public sealed record FuelTotal(string Currency, decimal Liters, decimal Amount);
+public sealed record FuelTotal(string? Currency, decimal Liters, decimal? Amount);
 public sealed record FuelMonth(FuelEntryRow[] Items, FuelTotal[] Totals)
 {
     public decimal? LitersPer100Km { get; init; }
