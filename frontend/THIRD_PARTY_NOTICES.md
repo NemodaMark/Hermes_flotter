@@ -14,10 +14,10 @@ Adapted sources:
 
 The [Liquid Glass documentation](https://seraui.com/docs/liquid-glass) informs
 the CSS backdrop treatment in `src/ui/glass.css` and the original SVG edge
-refraction in `src/ui/LiquidGlass.tsx`. The garage uses refraction on its camera
-controls, quick actions and vehicle selector on supported desktop browsers. It
-uses blur on touch screens and other compatible browsers, and opaque surfaces
-when reduced transparency is requested or blur is unavailable.
+refraction in `src/ui/LiquidGlass.tsx`. The sign-in panel and the garage camera
+controls, quick actions and vehicle selector use it on supported desktop
+browsers. It uses blur on touch screens and other compatible browsers, and
+opaque surfaces when reduced transparency is requested or blur is unavailable.
 
 Styles are translated from Tailwind utilities to HERMES CSS tokens in
 `src/ui/sera.css`. The app keeps IBM Plex Sans and its navy/teal palette.

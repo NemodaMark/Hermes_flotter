@@ -1,4 +1,5 @@
 import { Button } from './ui/Button'
+import { LiquidGlass } from './ui/LiquidGlass'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowRight, Building2, LoaderCircle, X } from 'lucide-react'
@@ -84,7 +85,7 @@ export function AuthScreen({
           után itt folytathatod a csatlakozást.
         </p>
       )}
-      <section className="account-panel" aria-labelledby="account-title">
+      <LiquidGlass as="section" className="account-panel" aria-labelledby="account-title">
         {mode !== 'login' && <Button type="button" variant="link" disabled={pending}
           onClick={() => { setMode('login'); setError(null); setNotice(null) }}>Vissza a bejelentkezéshez</Button>}
         <h1 id="account-title">{mode === 'login' ? 'Bejelentkezés' : mode === 'forgot' ? 'Elfelejtett jelszó' : 'E-mail-cím megerősítése'}</h1>
@@ -140,7 +141,7 @@ export function AuthScreen({
           <Button type="button" variant="link" disabled={pending} onClick={() => { setMode('forgot'); setError(null); setNotice(null) }}>Elfelejtett jelszó</Button>
           <Button type="button" variant="link" disabled={pending} onClick={() => { setMode('resend'); setError(null); setNotice(null) }}>Megerősítő levél kérése</Button>
         </div>}
-      </section>
+      </LiquidGlass>
       </div>
       <footer className="fleet-auth-footer">
         <a className="fleet-auth-credit" href={`${import.meta.env.BASE_URL}models/studio/LICENSE.md`}>Golf 8 GTI · GT Cars: Hyperspeed · CC BY 4.0</a>

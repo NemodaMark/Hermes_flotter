@@ -43,7 +43,7 @@ function edgeMap(width: number, height: number, radius: number) {
 }
 
 export function LiquidGlass({ as: Surface = 'div', className = '', children, ref, ...props }: HTMLAttributes<HTMLElement> & {
-  as?: 'div' | 'nav'; ref?: RefObject<HTMLElement | null>
+  as?: 'div' | 'nav' | 'section'; ref?: RefObject<HTMLElement | null>
 }) {
   const id = useId()
   const localRef = useRef<HTMLElement>(null)
