@@ -11,6 +11,8 @@ public static class Permissions
     public const string VehiclesAssignUsers = "vehicles.users.assign";
     public const string OdometerCreate = "vehicles.odometer.create";
     public const string VehiclesArchive = "vehicles.archive";
+    public const string VehicleEventsRead = "vehicles.events.read";
+    public const string VehicleEventsManage = "vehicles.events.manage";
     public const string LeasingRead = "vehicles.leasing.read";
     public const string LeasingManage = "vehicles.leasing.manage";
     public const string ServicesRead = "vehicles.service.read";
@@ -60,6 +62,7 @@ public static class Permissions
         new(VehiclesUpdate, "Járműadatok szerkesztése"), new(OdometerCreate, "Kilométerállás rögzítése"),
         new(VehiclesAssignUsers, "Jármű felhasználóhoz rendelése"),
         new(VehiclesArchive, "Jármű archiválása és visszaállítása"),
+        new(VehicleEventsRead, "Flottaesemények megtekintése"), new(VehicleEventsManage, "Flottaesemények ütemezése és kezelése"),
         new(LeasingRead, "Jármű lízingszerződéseinek megtekintése"), new(LeasingManage, "Jármű lízingszerződéseinek kezelése"),
         new(ServicesRead, "Jármű szervizelőzményeinek megtekintése"), new(ServicesManage, "Jármű szervizbejegyzéseinek kezelése"),
         new(DocumentsRead, "Járműokmányok megtekintése"), new(DocumentsManage, "Járműokmányok kezelése"),

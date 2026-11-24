@@ -7,6 +7,7 @@ import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/
 import {
   ArrowRight,
   Building2,
+  CalendarDays,
   CarFront,
   ChevronDown,
   ChevronLeft,
@@ -65,6 +66,7 @@ import { consumeEntraResult } from './entra'
 
 const entraResult = consumeEntraResult()
 const MileagePanel = lazy(() => import('./MileagePanel').then(module => ({ default: module.MileagePanel })))
+const FleetEvents = lazy(() => import('./FleetEvents'))
 
 const statuses: Record<string, string> = {
   Active: 'Aktív',
@@ -171,6 +173,7 @@ function FleetWorkspace({
   const [dashboardEditing, setDashboardEditing] = useState(false)
   const [compactDashboard, setCompactDashboard] = useState(() => window.matchMedia(dashboardCompactQuery).matches)
   const [mileageOpen, setMileageOpen] = useState(false)
+  const [fleetEventsOpen, setFleetEventsOpen] = useState(false)
   const [modeOverride, setModeOverride] = useState<{ tenantId: string; mode: Dashboard['mode'] } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(() => ['invitations', 'groups', 'system'].includes(view))
   const [profileId, setProfileId] = useState<string | null>(profileFromHash)
@@ -192,6 +195,7 @@ function FleetWorkspace({
       const id = profileFromHash(); setProfileId(id)
       if (id || viewFromHash() !== 'dashboard') setDashboardEditing(false)
       setMileageOpen(false)
+      setFleetEventsOpen(false)
       const link = vehicleLinkFromHash()
       if (link) { setTenantId(link.tenantId); setSelectedVehicleId(link.id) }
       if (id) setView(current => { if (current !== 'profile') profileReturn.current = current; return 'profile' })
@@ -207,6 +211,7 @@ function FleetWorkspace({
     if (next === 'profile') return
     if (next !== 'dashboard') setDashboardEditing(false)
     setMileageOpen(false)
+    setFleetEventsOpen(false)
     if (['invitations', 'groups', 'system'].includes(next)) setSettingsOpen(true)
     window.location.hash = workspacePaths[next]
     setView(next)
@@ -248,6 +253,7 @@ function FleetWorkspace({
   const tenant: Tenant | undefined =
     tenants.data?.find((item) => item.id === tenantId) ?? tenants.data?.[0]
   const canReadVehicles = !!tenant?.permissions.includes('vehicles.read')
+  const canReadFleetEvents = canReadVehicles && tenant?.permissions.some(code => code === 'vehicles.events.read' || code === 'vehicles.events.manage')
   const hasMileageAccess = tenant?.permissions.some(code => code === 'mileage.record' || code === 'mileage.manage' || code.startsWith('vehicles.settlements.'))
   const dashboard = useDashboard(user.id, tenant?.id, view === 'dashboard')
   const dashboardData = dashboard.error ? undefined : dashboard.data
@@ -321,6 +327,7 @@ function FleetWorkspace({
     setTenantId(value)
     setDashboardEditing(false)
     setMileageOpen(false)
+    setFleetEventsOpen(false)
     writePersonal(companyKey, value)
     if (view === 'profile') changeView('members')
     setSelectedVehicleId(null)
@@ -507,6 +514,9 @@ function FleetWorkspace({
             <section className={`fleet-panel${parking ? ' parking-panel' : ''}`} aria-label="Járműlista" aria-busy={vehicles.isFetching}>
               <ListToolbar label="Járművek keresése és műveletei" glass={parking} actions={<>
                 {fleetMileageAction}
+                {canReadFleetEvents && <Button type="button" variant="secondary" onClick={() => setFleetEventsOpen(true)}>
+                  <CalendarDays size={17} aria-hidden="true" />Események
+                </Button>}
                 <ViewModeSwitch visual={parking} label="Parkoló" onChange={value => { setParking(value); setVehicleQuery(current => ({ ...current, page: 1 })) }} />{canCreate && <Button className="primary-button" onClick={() => setFormOpen(true)}><Plus size={18} />Új jármű</Button>}</>}>
                 <div className="list-toolbar-form">
                   <div className="search-field"><Search size={18} /><input aria-label="Jármű keresése" placeholder={parking ? 'Keresés' : 'Rendszám, gyártó vagy modell'} maxLength={200} value={search} onChange={event => setSearch(event.target.value)} /></div>
@@ -546,6 +556,9 @@ function FleetWorkspace({
           )}
         </div>
       </main>
+      {tenant && fleetEventsOpen && canReadFleetEvents && view === 'fleet' && <Suspense fallback={<p role="status">Események betöltése…</p>}>
+        <FleetEvents key={tenant.id} tenant={tenant} onClose={() => setFleetEventsOpen(false)} />
+      </Suspense>}
       {tenant && mileageOpen && canRecordMileage && <AccessDialog title="Havi km-elszámolás" pending={mileagePending} onClose={() => setMileageOpen(false)} className="mileage-dialog">
         <Suspense fallback={<p role="status">Elszámolás betöltése…</p>}><MileagePanel tenant={tenant} user={user} initialMonth={dashboardData?.mileageDueMonth ?? undefined} /></Suspense>
       </AccessDialog>}

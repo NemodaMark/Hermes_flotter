@@ -12,9 +12,27 @@ public sealed partial class HermesDbContext
     public DbSet<VehicleFuelEntry> VehicleFuelEntries => Set<VehicleFuelEntry>();
     public DbSet<VehicleHandover> VehicleHandovers => Set<VehicleHandover>();
     public DbSet<VehicleReminderDelivery> VehicleReminderDeliveries => Set<VehicleReminderDelivery>();
+    public DbSet<FleetEvent> FleetEvents => Set<FleetEvent>();
 
     private void ConfigureFleetOperations(ModelBuilder model)
     {
+        model.Entity<FleetEvent>(e =>
+        {
+            VehicleOwned(e, "fleet_events");
+            e.HasKey(x => new { x.TenantId, x.Id });
+            e.HasOne<Vehicle>().WithMany().HasForeignKey(x => new { x.TenantId, x.VehicleId }).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.TenantId, x.StartsOn });
+            e.Property(x => x.Title).HasMaxLength(120);
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.Property(x => x.Repeat).HasMaxLength(8);
+            e.Property(x => x.Version).IsConcurrencyToken();
+            e.ToTable(t => t.HasCheckConstraint("CK_fleet_event_schedule", """
+                "StartsOn" BETWEEN DATE '1900-01-01' AND DATE '2100-12-31' AND "Version" > 0 AND
+                ("EndsOn" IS NULL OR "EndsOn" BETWEEN "StartsOn" AND DATE '2100-12-31') AND
+                (("Repeat" = 'Once' AND "Every" = 1 AND "EndsOn" IS NULL) OR
+                 ("Repeat" IN ('Day','Week','Month','Year') AND "Every" BETWEEN 1 AND 999))
+                """));
+        });
         model.Entity<VehicleBookingSettings>(e =>
         {
             Operation(e, "vehicle_booking_settings");

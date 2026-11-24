@@ -12,6 +12,18 @@ public static class FleetOperationsEndpoints
 {
     public static void MapFleetOperations(this WebApplication app)
     {
+        var events = app.MapGroup("/api/v1/vehicles/events").RequireAuthorization(Permissions.VehiclesRead).WithMetadata(new TenantRequired());
+        events.MapGet("/", async (DateOnly month, int? page, FleetManagement fleet, CancellationToken ct)
+            => Results.Ok(await fleet.ReadFleetEvents(month, page ?? 1, ct)));
+        events.MapGet("/targets", async (string? search, FleetManagement fleet, CancellationToken ct)
+            => Results.Ok(await fleet.FleetEventTargets(search, ct))).RequireAuthorization(Permissions.VehicleEventsManage);
+        events.MapPost("/", async (FleetEventInput body, FleetManagement fleet, CancellationToken ct)
+            => Results.Ok(await fleet.SaveFleetEvent(null, body, ct))).RequireAuthorization(Permissions.VehicleEventsManage);
+        events.MapPut("/{id:guid}", async (Guid id, FleetEventInput body, FleetManagement fleet, CancellationToken ct)
+            => Results.Ok(await fleet.SaveFleetEvent(id, body, ct))).RequireAuthorization(Permissions.VehicleEventsManage);
+        events.MapPost("/{id:guid}/stop", async (Guid id, FleetEventStop body, FleetManagement fleet, CancellationToken ct)
+            => Results.Ok(await fleet.StopFleetEvent(id, body, ct))).RequireAuthorization(Permissions.VehicleEventsManage);
+
         var vehicles = app.MapGroup("/api/v1/vehicles/{id:guid}").RequireAuthorization().WithMetadata(new TenantRequired());
 
         vehicles.MapGet("/bookings", async (Guid id, DateOnly month, FleetManagement fleet, CancellationToken ct)

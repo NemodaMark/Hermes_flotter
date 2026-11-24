@@ -211,6 +211,59 @@ namespace Hermes.Infrastructure.Migrations
                     b.ToTable("company_profiles", (string)null);
                 });
 
+            modelBuilder.Entity("Hermes.Domain.FleetEvent", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("EndsOn")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Every")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Repeat")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<DateOnly>("StartsOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("StoppedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid?>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "StartsOn");
+
+                    b.HasIndex("TenantId", "VehicleId");
+
+                    b.ToTable("fleet_events", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_fleet_event_schedule", "\"StartsOn\" BETWEEN DATE '1900-01-01' AND DATE '2100-12-31' AND \"Version\" > 0 AND\n(\"EndsOn\" IS NULL OR \"EndsOn\" BETWEEN \"StartsOn\" AND DATE '2100-12-31') AND\n((\"Repeat\" = 'Once' AND \"Every\" = 1 AND \"EndsOn\" IS NULL) OR\n (\"Repeat\" IN ('Day','Week','Month','Year') AND \"Every\" BETWEEN 1 AND 999))");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Domain.FuelSettlement", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -882,6 +935,16 @@ namespace Hermes.Infrastructure.Migrations
                         {
                             Code = "vehicles.archive",
                             Name = "Jármű archiválása és visszaállítása"
+                        },
+                        new
+                        {
+                            Code = "vehicles.events.read",
+                            Name = "Flottaesemények megtekintése"
+                        },
+                        new
+                        {
+                            Code = "vehicles.events.manage",
+                            Name = "Flottaesemények ütemezése és kezelése"
                         },
                         new
                         {
@@ -2554,6 +2617,14 @@ namespace Hermes.Infrastructure.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Domain.FleetEvent", b =>
+                {
+                    b.HasOne("Hermes.Domain.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Hermes.Domain.FuelSettlement", b =>
