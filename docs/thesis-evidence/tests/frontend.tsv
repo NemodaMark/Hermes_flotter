@@ -1,0 +1,258 @@
+suite	case	outcome
+src/AccountRecovery.test.tsx	keeps the Microsoft button visible with a reason when it is unavailable	Passed
+src/AccountRecovery.test.tsx	rejects incomplete links and clears the fragment without retaining secrets	Passed
+src/AccountRecovery.test.tsx	removes account tokens from the URL even when the viewer is already signed in	Passed
+src/AccountRecovery.test.tsx	requests a reset email with the generic response and does not sign in	Passed
+src/AccountRecovery.test.tsx	requires an explicit confirmation click before consuming the token	Passed
+src/AccountRecovery.test.tsx	starts Entra login from the Microsoft button and allows retry after a failure	Passed
+src/AccountRecovery.test.tsx	validates both new passwords and allows retry after an expired token error	Passed
+src/App.test.tsx	cancels stale company searches and never replaces a newer workspace with their late response	Passed
+src/App.test.tsx	clears private data on logout and returns to the login form	Passed
+src/App.test.tsx	clears private data when the periodic session check finds an expired session	Passed
+src/App.test.tsx	debounces search and trusts historical plate matches from the server without filtering the page again	Passed
+src/App.test.tsx	does not fetch or display vehicles without read permission, even with create permission	Passed
+src/App.test.tsx	keeps editing and view switching in the account menu and exposes mileage in the fleet toolbar	Passed
+src/App.test.tsx	logs in and offers company creation to a user without memberships	Passed
+src/App.test.tsx	offers vehicle creation only with the explicit permission	Passed
+src/App.test.tsx	opens the dashboard for the root URL while keeping explicit fleet links available	Passed
+src/App.test.tsx	opens users, invitations and groups as independent pages with distinct URLs	Passed
+src/App.test.tsx	pages the server results and resets page on filters, page size and workspace changes	Passed
+src/App.test.tsx	puts fleet search, filtering and creation in the same toolbar without duplicate totals	Passed
+src/App.test.tsx	replaces the visible fleet when a different company is selected	Passed
+src/App.test.tsx	requires an allowed site for vehicle creation with a site-restricted permission	Passed
+src/App.test.tsx	restores an invitation page from its URL and denies it without the company permission	Passed
+src/App.test.tsx	returns to login when a protected request detects an expired session	Passed
+src/App.test.tsx	shows the saved layout without edit controls when the dashboard becomes compact	Passed
+src/App.test.tsx	switches companies without applying older site preferences to the fleet or the creation form	Passed
+src/App.test.tsx	takes an invited account through creating its first company after sign-in	Passed
+src/App.test.tsx	uses the uploaded profile photo in the sidebar independently of the selected company	Passed
+src/MainNavigation.test.tsx	keeps native receipt selection accessible while displaying the selected filename	Passed
+src/MainNavigation.test.tsx	uses one modal offcanvas navigation on mobile and prevents closing during a pending operation	Passed
+src/VehicleStudio.test.tsx	disposes a late-arriving model after unmount without reviving its renderer	Passed
+src/VehicleStudio.test.tsx	hides a side hotspot with its label and leader when rotated behind the car, then restores it	Passed
+src/VehicleStudio.test.tsx	keeps a presentation running when the camera controls close and reopen	Passed
+src/VehicleStudio.test.tsx	keeps direct menu access after a load failure and can retry the local asset	Passed
+src/VehicleStudio.test.tsx	keeps the orbit still while a mobile drawer is open	Passed
+src/VehicleStudio.test.tsx	keeps the original model and antialiasing on phones, then restores resolution after slow motion	Passed
+src/VehicleStudio.test.tsx	loads once, follows color changes and opens the requested menu only after the camera flight	Passed
+src/VehicleStudio.test.tsx	renders consecutive 60 Hz camera frames and stops scheduling frames at rest	Passed
+src/VehicleStudio.test.tsx	returns to the user’s orbit and zoom after inspecting multiple desktop sections	Passed
+src/VehicleStudio.test.tsx	shows the dock actions as separate labeled portrait hotspots	Passed
+src/VehicleStudio.test.tsx	starts a slow time-based presentation on request and stops on manual input	Passed
+src/VehicleStudio.test.tsx	stops a presentation when a menu opens and requires an explicit restart after closing	Passed
+src/VehicleStudio.test.tsx	switches off operation hotspots and explains when the loaded asset has no controls	Passed
+src/VehicleStudio.test.tsx	switches to the requested body asset and discards a previous body that finishes late	Passed
+src/WorkspaceSwitcher.test.tsx	disables company switching while busy	Passed
+src/WorkspaceSwitcher.test.tsx	dismisses on an outside action without stealing focus and needs no confirmation button	Passed
+src/WorkspaceSwitcher.test.tsx	keeps the company selector open, updates the company name and restores focus after Escape	Passed
+src/api.test.ts	authenticated API requests > discards the previous identitys CSRF token when a session expires	Passed
+src/api.test.ts	authenticated API requests > encodes vehicle search and pagination and forwards the tenant and cancellation signal	Passed
+src/api.test.ts	authenticated API requests > handles a successful empty logout response	Passed
+src/api.test.ts	authenticated API requests > keeps multipart boundaries browser-owned and sends company, cookie and CSRF protection	Passed
+src/api.test.ts	authenticated API requests > preserves cancellation when the company changes	Passed
+src/api.test.ts	authenticated API requests > receives binary content through the authenticated client and preserves forbidden errors	Passed
+src/api.test.ts	authenticated API requests > refreshes CSRF after a login changes the authenticated identity	Passed
+src/api.test.ts	authenticated API requests > rejects forbidden tenant access	Passed
+src/api.test.ts	authenticated API requests > reports duplicate registration conflicts	Passed
+src/api.test.ts	authenticated API requests > sends the tenant and browser credentials without development identity headers	Passed
+src/api.test.ts	authenticated API requests > treats an unauthenticated session as logged out	Passed
+src/api.test.ts	authenticated API requests > uses the username login field independently of the email field	Passed
+src/assignmentHistoryFlows.test.tsx	loads the next page using the current company and vehicle and supports paging back	Passed
+src/assignmentHistoryFlows.test.tsx	preserves the server access error and retries before showing an empty history	Passed
+src/assignmentHistoryFlows.test.tsx	refreshes the history after assigning a different user on the actual vehicle page	Passed
+src/assignmentHistoryFlows.test.tsx	shows previous and current periods with distinct assignment and release actors	Passed
+src/dashboardFlows.test.tsx	changes the selected car, body and operation menus without reusing the previous car permissions	Passed
+src/dashboardFlows.test.tsx	chooses an assigned active vehicle and keeps unauthorized menus hidden even with company-wide aggregate rights	Passed
+src/dashboardFlows.test.tsx	configures a chart by shape and filters several people without editing the dashboard	Passed
+src/dashboardFlows.test.tsx	edits the protected admin dashboard without exposing protected name or permission editing	Passed
+src/dashboardFlows.test.tsx	grants a personal garage without ever requesting fleet statistics for an ordinary driver	Passed
+src/dashboardFlows.test.tsx	keeps a single recording group through repeated car switches, dialogs and permission changes	Passed
+src/dashboardFlows.test.tsx	keeps notes across view changes without exposing modules the user cannot read	Passed
+src/dashboardFlows.test.tsx	keeps status shortcuts connected to the corresponding fleet filter	Passed
+src/dashboardFlows.test.tsx	keeps the configured width and height of an added module after saving and reopening	Passed
+src/dashboardFlows.test.tsx	makes every deadline reachable beyond the compact initial list	Passed
+src/dashboardFlows.test.tsx	never offers an ordinary driver a car switcher or substitutes someone else’s vehicle	Passed
+src/dashboardFlows.test.tsx	offers one empty state without a duplicate fleet shortcut when the selected site has no vehicles	Passed
+src/dashboardFlows.test.tsx	opens an existing custom layout in overview and restores the fleet default after confirmation	Passed
+src/dashboardFlows.test.tsx	resolves Hungarian color names and hex values and identifies unknown colors honestly	Passed
+src/dashboardFlows.test.tsx	shows no vehicle summary or studio when vehicle reading is forbidden	Passed
+src/dashboardFlows.test.tsx	shows the booking shortcut only for an enabled authorized car: false	Passed
+src/dashboardFlows.test.tsx	shows the booking shortcut only for an enabled authorized car: null	Passed
+src/dashboardFlows.test.tsx	shows the booking shortcut only for an enabled authorized car: true	Passed
+src/dashboardFlows.test.tsx	summarizes only the selected site and opens a due vehicle through its authorized ID	Passed
+src/dashboardFlows.test.tsx	surfaces service deadlines and lets an authorized driver record a missing odometer reading	Passed
+src/dashboardPlacement.test.ts	places legacy modules in order without overlapping a taller neighbor	Passed
+src/dashboardPlacement.test.ts	preserves an explicit gap above and beside an anchored tile after reload	Passed
+src/dashboardPlacement.test.ts	resolves height changes only for tiles in the occupied columns	Passed
+src/documentFlows.test.tsx	aborts a pending preview when leaving it and discards a late response	Passed
+src/documentFlows.test.tsx	blocks empty, oversized and unsupported selections before sending a request	Passed
+src/documentFlows.test.tsx	does not fetch the private list for a manage-only user	Passed
+src/documentFlows.test.tsx	does not offer previews for withdrawn files or office documents	Passed
+src/documentFlows.test.tsx	downloads with read permission while hiding all modifying controls	Passed
+src/documentFlows.test.tsx	filters vehicle documents by category and keeps withdrawn history behind the existing switch	Passed
+src/documentFlows.test.tsx	keeps a failed upload selected and retries using the refreshed parent version	Passed
+src/documentFlows.test.tsx	keeps historical documents readable when the record cannot be modified	Passed
+src/documentFlows.test.tsx	opens the same protected image preview from an inline vehicle document without a contract	Passed
+src/documentFlows.test.tsx	previews PDF pages with paging and zoom while keeping the download behind a fresh request	Passed
+src/documentFlows.test.tsx	releases image URLs on close and preserves an upload draft while viewing another document	Passed
+src/documentFlows.test.tsx	reports a fresh authorization failure without rendering old content and allows a retry	Passed
+src/documentFlows.test.tsx	requires a reason and sends both document and parent versions when withdrawing	Passed
+src/documentFlows.test.tsx	shows a useful error for password-protected PDF files and keeps download available	Passed
+src/documentFlows.test.tsx	shows withdrawn files only on request and never offers their download	Passed
+src/documentFlows.test.tsx	uploads a selected vehicle document category inline using the vehicle version	Passed
+src/documentFlows.test.tsx	uploads to the selected record with its current version and refreshes the list	Passed
+src/fleetEvents.test.tsx	saves one recurring fleet event and shows the projected date when the saved month opens	Passed
+src/fleetEvents.test.tsx	shows occurrences while hiding editing actions for read-only viewers	Passed
+src/fleetFlows.test.tsx	allows partner creation without reading the partner directory	Passed
+src/fleetFlows.test.tsx	creates a partner with multiple categories and a named contact	Passed
+src/fleetFlows.test.tsx	keeps a stale lease draft open and shows the server conflict instead of closing it	Passed
+src/fleetFlows.test.tsx	keeps the saved cents visible in leasing and service amounts	Passed
+src/fleetFlows.test.tsx	opens file upload for the actual saved service record immediately after creation	Passed
+src/fleetFlows.test.tsx	records a historical service reading independently from the current odometer	Passed
+src/fleetFlows.test.tsx	records the current odometer from the vehicle profile with its actual permission and version	Passed
+src/fleetFlows.test.tsx	reveals an invalid partner field in another section before allowing submission	Passed
+src/fleetFlows.test.tsx	saves the detailed vehicle data with the existing immutable vehicle key and version	Passed
+src/fleetFlows.test.tsx	searches partners while typing, resets the page atomically and uses a switch for archived records	Passed
+src/fleetFlows.test.tsx	sets and locks inactive status when choosing sold ownership	Passed
+src/fleetFlows.test.tsx	shows the vehicle document tab with the actual document permission without granting upload	Passed
+src/fleetFlows.test.tsx	uses the actual vehicle permissions for financial tabs, editing and archival	Passed
+src/memberFlows.test.tsx	allows invitation-only members to invite without reading members or assigning rights	Passed
+src/memberFlows.test.tsx	clears private data and returns to login if a management mutation finds an expired session	Passed
+src/memberFlows.test.tsx	confirms company-local suspension and supports reactivation using the refreshed version	Passed
+src/memberFlows.test.tsx	creates a manual invitation link without putting its secret in the HTTP query string	Passed
+src/memberFlows.test.tsx	edits direct grants with the correct company, CSRF token and membership version	Passed
+src/memberFlows.test.tsx	handles incomplete invitation links without sending a malformed acceptance	Passed
+src/memberFlows.test.tsx	keeps a pending invitation through login and selects its company only after explicit acceptance	Passed
+src/memberFlows.test.tsx	keeps existing grants outside the actors delegation scope locked and unchanged	Passed
+src/memberFlows.test.tsx	keeps permission-only management on the profile without fetching a member-reader endpoint	Passed
+src/memberFlows.test.tsx	offers read-only member access without any mutation controls	Passed
+src/memberFlows.test.tsx	reloads stale grants explicitly before retrying with the new version	Passed
+src/memberFlows.test.tsx	resets private editor state when the current company changes during an open dialog	Passed
+src/memberFlows.test.tsx	shows the last-manager protection error without pretending suspension succeeded	Passed
+src/mileageFlows.test.tsx	allows a user to switch modes without introducing separate accounting routes	Passed
+src/mileageFlows.test.tsx	keeps monthly reporters out of per-refuelling accounting and makes the monthly editor reachable	Passed
+src/mileageFlows.test.tsx	records personal usage with the odometer and stops the car presentation while the form is open	Passed
+src/mileageFlows.test.tsx	shows the server-calculated distance and sends only the entered private kilometers with it	Passed
+src/mileageFlows.test.tsx	submits a monthly total independently of historical entries and requires an explicit month close	Passed
+src/organizationFlows.test.tsx	allows site creation without company-profile access and sends structured address data	Passed
+src/organizationFlows.test.tsx	assigns a vehicle with assignment permission while lacking vehicle or site editing permission	Passed
+src/organizationFlows.test.tsx	creates a company contact through the dialog	Passed
+src/organizationFlows.test.tsx	filters the company directory and keeps inactive company management reachable	Passed
+src/organizationFlows.test.tsx	hides every site write action for a viewer	Passed
+src/organizationFlows.test.tsx	keeps company edits across field groups and company sections, then discards every group together	Passed
+src/organizationFlows.test.tsx	keeps company field groups readable but disabled without company editing permission	Passed
+src/organizationFlows.test.tsx	keeps the create-only site permission usable without exposing existing sites	Passed
+src/organizationFlows.test.tsx	keeps unsaved values after a conflict until the user reloads the current revision	Passed
+src/organizationFlows.test.tsx	permits company status management independently of access to its legal profile	Passed
+src/organizationFlows.test.tsx	preserves saved settings outside the dropdown catalog when another company field changes	Passed
+src/organizationFlows.test.tsx	requires an explicit reason and shows an archive conflict without closing the dialog	Passed
+src/organizationFlows.test.tsx	reveals an invalid hidden company address and focuses the required country without sending a request	Passed
+src/organizationFlows.test.tsx	saves all site groups with the existing contact and version without exposing the company profile	Passed
+src/organizationFlows.test.tsx	saves company fields with the selected company, revision and CSRF token	Passed
+src/organizationFlows.test.tsx	shows who changed company data and exposes the recorded before and after values	Passed
+src/peopleMediaFlows.test.tsx	creates with the complete editable fields and no mandatory photograph	Passed
+src/peopleMediaFlows.test.tsx	limits selection to five photos and retries only remaining uploads without duplicating the car	Passed
+src/peopleMediaFlows.test.tsx	shows the colleague directory without management rights or a global-user toggle	Passed
+src/peopleMediaFlows.test.tsx	uploads and removes a personal card background and shows it behind the portrait in the directory	Passed
+src/profileFlows.test.tsx	cancels an unconfirmed security operation when leaving its tab	Passed
+src/profileFlows.test.tsx	checks confirmation and reuse, then clears the restriction after a successful change	Passed
+src/profileFlows.test.tsx	does not expose account or company management tabs or fetch private account data for a colleague viewer	Passed
+src/profileFlows.test.tsx	hides global profile actions from users with company permissions only	Passed
+src/profileFlows.test.tsx	keeps global user management available before the first company is created	Passed
+src/profileFlows.test.tsx	keeps stale profile edits unsaved and explicitly reloads the fresh revision	Passed
+src/profileFlows.test.tsx	lists system users and shows who changed what in the central journal	Passed
+src/profileFlows.test.tsx	opens the global directory from Users and filters admins or accounts without company access	Passed
+src/profileFlows.test.tsx	opens the profile from the company members, shows immutable ID and saves editable fields with the revision	Passed
+src/profileFlows.test.tsx	opens the selected colleague’s mileage for a company mileage manager	Passed
+src/profileFlows.test.tsx	requires a deliberate confirmation before forcing a password change or granting global access	Passed
+src/profileFlows.test.tsx	requires the password change before the workspace or an invitation can be used	Passed
+src/profileFlows.test.tsx	separates the profile panels, supports keyboard navigation and retains drafts across security changes	Passed
+src/profileFlows.test.tsx	shows the current company mileage and opens the report for the signed-in person	Passed
+src/profileFlows.test.tsx	switches immediately to the forced change screen on the server restriction response	Passed
+src/settlementFlows.test.tsx	exposes approval only for submitted reports with the approval permission and sends the current revision	Passed
+src/settlementFlows.test.tsx	keeps incomplete saved reports unsubmitted and never confuses the private allowance with the full mileage limit	Passed
+src/settlementFlows.test.tsx	preserves blank private mileage and sends explicit zero through the authorized server preview	Passed
+src/settlementFlows.test.tsx	previews the file without writing and requires explicit canonical user and vehicle mapping before importing	Passed
+src/showcaseFlows.test.tsx	keeps operation-specific site permissions in the visual site view	Passed
+src/showcaseFlows.test.tsx	switches to portraits without loading another directory or exposing extra user permissions	Passed
+src/showcaseFlows.test.tsx	uses subdued daytime and night presets and changes hotspot placement for high-sided vehicles	Passed
+src/ui/Button.test.tsx	Sera Button integration > blocks repeated operations while loading even with disabled=false	Passed
+src/ui/Button.test.tsx	Sera Button integration > keeps native form submission and explicit cancel button behavior	Passed
+src/ui/Button.test.tsx	Sera Button integration > preserves refs and native tab ARIA without applying primary action styling	Passed
+src/ui/Select.test.tsx	shared searchable choices > allows a new make and selecting a known suggestion with the same popup	Passed
+src/ui/Select.test.tsx	shared searchable choices > filters by typing, commits with Enter and retains the underlying form value	Passed
+src/ui/Select.test.tsx	shared searchable choices > keeps required form validation and focuses the visible control	Passed
+src/ui/Select.test.tsx	shared searchable choices > reveals a required selector in a hidden form section before focusing it	Passed
+src/ui/Select.test.tsx	shared searchable choices > supports arrows, skips disabled values and cancels without selecting typed text	Passed
+src/ui/Select.test.tsx	shared searchable choices > uses Escape to close only the popup and honours a disabled fieldset	Passed
+src/ui/Table.test.tsx	opens a complete row by click or keyboard while preserving independent actions	Passed
+src/unifiedGroupFlows.test.tsx	assigns only editable user groups and preserves the unmanaged-assignment notice	Passed
+src/unifiedGroupFlows.test.tsx	keeps a restricted site selection when editing only the group name	Passed
+src/unifiedGroupFlows.test.tsx	keeps the admin scope when reloading an assignment conflict	Passed
+src/unifiedGroupFlows.test.tsx	limits a manager permission picker to the sites where that permission may be delegated	Passed
+src/unifiedGroupFlows.test.tsx	offers one standalone group page for groups with either one or multiple companies	Passed
+src/unifiedGroupFlows.test.tsx	reloads the current user version after an assignment conflict	Passed
+src/unifiedGroupFlows.test.tsx	renders vehicle actions using the rights for that particular vehicle	Passed
+src/unifiedGroupFlows.test.tsx	selects multiple managed companies and restricts permissions to their intersection	Passed
+src/unifiedGroupFlows.test.tsx	selects sites independently inside each company and requires a nonempty restricted selection	Passed
+src/unifiedGroupFlows.test.tsx	shows every affected company before deleting a group and renders a last-manager refusal	Passed
+src/unifiedGroupFlows.test.tsx	shows one protected admin definition and selects its companies when assigning a user	Passed
+src/unifiedGroupFlows.test.tsx	supports future expanding administrator access only in companies where it may be granted	Passed
+src/unifiedGroupFlows.test.tsx	updates a group using its version and sends the changed company list	Passed
+src/vehicleBodyModels.test.ts	loads and paints audi-tt-2014-roadster (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints bmw-7-series-f01 (compact) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints bmw-7-series-f01 (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints box (compact) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints box (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints chassis (compact) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints chassis (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints dacia-duster-2010 (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints fiat-ducato (compact) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints fiat-ducato (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints ford-mustang (compact) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints ford-mustang (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints gmc-hummer-2021 (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints hyundai-tucson-2015 (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints mercedes-benz-sprinter (compact) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints mercedes-benz-sprinter (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints mitsubishi-delica-1986 (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints nissan-350z-2003 (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints tipper (compact) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints tipper (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints toyota-corolla-2014 (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints volvo-v60-polestar-2013 (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints vw-golf (compact) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	loads and paints vw-golf (full) with valid ground-level proportions	Passed
+src/vehicleBodyModels.test.ts	opens the Mustang’s separate panels after batching and toggles the original headlights	Passed
+src/vehicleBodyModels.test.ts	opens the OpenX panels and isolates the low beams on audi-tt-2014-roadster	Passed
+src/vehicleBodyModels.test.ts	opens the OpenX panels and isolates the low beams on dacia-duster-2010	Passed
+src/vehicleBodyModels.test.ts	opens the OpenX panels and isolates the low beams on gmc-hummer-2021	Passed
+src/vehicleBodyModels.test.ts	opens the OpenX panels and isolates the low beams on hyundai-tucson-2015	Passed
+src/vehicleBodyModels.test.ts	opens the OpenX panels and isolates the low beams on mitsubishi-delica-1986	Passed
+src/vehicleBodyModels.test.ts	opens the OpenX panels and isolates the low beams on nissan-350z-2003	Passed
+src/vehicleBodyModels.test.ts	opens the OpenX panels and isolates the low beams on toyota-corolla-2014	Passed
+src/vehicleBodyModels.test.ts	opens the OpenX panels and isolates the low beams on volvo-v60-polestar-2013	Passed
+src/vehicleBodyModels.test.ts	selects a different asset for every known body and prefers verified models for matching records	Passed
+src/vehicleHotspots.test.ts	hides a forward-facing point when another part of the vehicle occludes it	Passed
+src/vehicleHotspots.test.ts	keeps roof points visible from above and does not show far-side points through glazing	Passed
+src/vehicleHotspots.test.ts	places an interior seed on the outer surface and hides it from the opposite side	Passed
+src/vehicleLayoutFlows.test.tsx	discards edits in every group and disables an unchanged save	Passed
+src/vehicleLayoutFlows.test.tsx	focuses the first required field when several hidden required values are missing	Passed
+src/vehicleLayoutFlows.test.tsx	reveals and focuses an invalid hidden field without submitting the draft	Passed
+src/vehicleLayoutFlows.test.tsx	shows data without inputs and loads photos and assignment options only when their sections are opened	Passed
+src/vehicleLayoutFlows.test.tsx	shows one field group, supports arrow navigation and keeps edits across groups	Passed
+src/vehicleSceneModel.test.ts	normalizes the real model to the floor, centers it and keeps passenger-car proportions	Passed
+src/vehicleSceneModel.test.ts	recolors exterior paints with a glossy coat while preserving glass and cabin materials	Passed
+src/vehicleSceneModel.test.ts	releases shared geometry, material and image resources once when leaving the studio	Passed
+src/vehicleSceneModel.test.ts	ships the Passat with normal dielectric reflections and non-emissive lamp materials	Passed
+src/vehicleSceneModel.test.ts	ships the pinned self-contained asset without logo textures or sample variants	Passed
+src/vehicleWorkspaceFlows.test.tsx	hides cached task content when a background authorization check fails	Passed
+src/vehicleWorkspaceFlows.test.tsx	hides disabled booking in the profile except for its authorized manager: manage	Passed
+src/vehicleWorkspaceFlows.test.tsx	hides disabled booking in the profile except for its authorized manager: read	Passed
+src/vehicleWorkspaceFlows.test.tsx	keeps a disabled booking calendar compact and never offers management through read permission	Passed
+src/vehicleWorkspaceFlows.test.tsx	keeps history sources isolated and never requests audit data without its vehicle permission	Passed
+src/vehicleWorkspaceFlows.test.tsx	keeps the garage data task read-only even for a vehicle editor	Passed
+src/vehicleWorkspaceFlows.test.tsx	opens only one garage task and never exposes financial content through broader company permissions	Passed
+src/vehicleWorkspaceFlows.test.tsx	preserves access to earlier bookings while booking is disabled without showing an empty calendar	Passed
+src/vehicleWorkspaceFlows.test.tsx	preserves the original edit version and draft after a background refresh and a failed save	Passed
+src/vehicleWorkspaceFlows.test.tsx	uses five flat sections and readable data without disabled form fields or duplicate assignee summaries	Passed

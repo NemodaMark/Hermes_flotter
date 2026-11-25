@@ -1,0 +1,19 @@
+Böngészőprofil	Kimenet
+desktop	Passed
+slow-mobile	Passed
+software	Passed
+no-webgl	Passed
+
+PNG	Hash útvonal
+01-flotta-attekinto.png	#/dashboard
+02-jarmulista.png	#/vehicles
+03-jarmuadatlap.png	#/vehicles
+04-tankolas-validacio.png	#/vehicles
+05-tankolas-adatbevitel.png	#/vehicles
+06-tankolas-eredmeny.png	#/vehicles
+07-szervizelozmenyek.png	#/vehicles
+08-dokumentumelonezet.png	#/vehicles
+09-ismetlodoflottaesemeny.png	#/vehicles
+10-jogosultsagcsoport.png	#/permission-groups
+11-szemelyes-km-profil.png	#/profile/admin
+12-mobil-jarmuadatlap.png	#/vehicles

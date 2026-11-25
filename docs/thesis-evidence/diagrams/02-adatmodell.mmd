@@ -1,0 +1,78 @@
+erDiagram
+  direction LR
+  tenants ||--o{ tenant_memberships : tartalmaz
+  identity_users ||..o{ tenant_memberships : "UserSubject logikai kapcsolat"
+  tenant_memberships ||--o{ company_access_memberships : jogosultságforrás
+  company_access_groups ||--o{ company_access_scopes : céges kör
+  company_access_scopes ||--o{ company_access_memberships : cégszint
+  company_access_groups ||--o{ company_access_permissions : jogkód
+  company_access_scopes ||--o{ company_access_site_scopes : korlátozható
+  company_sites ||--o{ company_access_site_scopes : telephely
+  tenants ||--o{ company_sites : szervezet
+  tenants ||--o{ vehicles : flotta
+  vehicles ||--o| vehicle_site_assignments : "aktualis hely"
+  company_sites ||..o{ vehicle_site_assignments : hozzárendelés
+  vehicles ||..o{ vehicle_registration_history : előző rendszám
+  vehicles ||..o{ vehicle_fuel_entries : tankolás
+  vehicles ||..o{ vehicle_services : napló
+  vehicles ||..o{ vehicle_leases : szerződés
+  vehicles o|..o{ vehicle_documents : közvetlen okmány
+  vehicle_services o|..o{ vehicle_documents : szervizirat
+  vehicle_leases o|..o{ vehicle_documents : lízingirat
+  vehicle_documents ||--o| vehicle_document_contents : bajtok
+  vehicles o|..o{ fleet_events : "üres VehicleId esetén teljes flotta"
+  tenant_memberships ||--o| mileage_accounts : "személyi profil"
+  mileage_accounts ||--o{ mileage_months : hónap
+  mileage_months ||..o{ mileage_entries : tétel
+  vehicles o|..o{ mileage_entries : forrásjármű
+  identity_users {
+    string Id PK "kanonikus UserName"
+  }
+  tenants {
+    uuid Id PK
+  }
+  tenant_memberships {
+    uuid TenantId PK,FK
+    string UserSubject PK
+  }
+  vehicles {
+    uuid TenantId PK,FK
+    uuid Id PK
+    string Registration
+    long OdometerKm
+  }
+  company_sites {
+    uuid TenantId PK,FK
+    uuid Id PK
+  }
+  company_access_scopes {
+    uuid GroupId PK,FK
+    uuid TenantId PK,FK
+    bool AllSites
+  }
+  vehicle_documents {
+    uuid TenantId PK,FK "összetett szülőkulcs része"
+    uuid Id PK
+    uuid VehicleId FK "vagy LeaseId vagy ServiceId"
+    uuid LeaseId FK
+    uuid ServiceId FK
+  }
+  mileage_accounts {
+    uuid TenantId PK,FK
+    string UserId PK,FK
+    long MonthlyLimitKm
+  }
+  mileage_months {
+    uuid TenantId PK,FK
+    string UserId PK,FK
+    date Month PK
+    long TotalKm
+    long PrivateKm
+  }
+  mileage_entries {
+    uuid TenantId PK,FK
+    uuid Id PK
+    string UserId FK
+    date Month FK
+    uuid VehicleId FK
+  }

@@ -1,0 +1,69 @@
+classDiagram
+  direction LR
+  class FleetManagement {
+    +RecordFuel()
+    +PreviewFuelMileage()
+    +SaveFleetEvent()
+    +UploadDocument()
+    -Scoped()
+    -Car()
+  }
+  class TenantTransaction {
+    +RunAsync()$
+  }
+  class HermesDbContext {
+    +Vehicles
+    +VehicleFuelEntries
+    +MileageEntries
+    +AccessAuditEvents
+  }
+  class ITenantContext {
+    <<interface>>
+    +TenantId
+    +UserSubject
+    +Permissions
+  }
+  class VehicleAccess {
+    ~Query()$
+  }
+  class ResourceAccess {
+    +CompanyWide()
+    +Sites()
+    +Allows()
+  }
+  class MileageLedger {
+    ~AuthorizeCapture()$
+    ~Capture()$
+  }
+  class Vehicle {
+    +Registration
+    +OdometerKm
+    +Status
+  }
+  class VehicleFuelEntry {
+    +VehicleId
+    +FueledOn
+    +Kilometers
+    +Liters
+  }
+  class MileageEntry {
+    +UserId
+    +VehicleId
+    +TotalKm
+    +PrivateKm
+    +SourceId
+  }
+  FleetManagement --> HermesDbContext : konstruktor
+  FleetManagement --> ITenantContext : konstruktor
+  FleetManagement ..> TenantTransaction : Scoped
+  FleetManagement ..> VehicleAccess : Car
+  FleetManagement ..> MileageLedger : RecordFuel
+  FleetManagement ..> ResourceAccess : Scoped
+  VehicleAccess ..> ResourceAccess : jogonként
+  VehicleAccess ..> Vehicle : IQueryable
+  TenantTransaction ..> HermesDbContext : tranzakció
+  MileageLedger ..> HermesDbContext : rögzítés
+  MileageLedger ..> MileageEntry : létrehoz
+  HermesDbContext --> VehicleFuelEntry : DbSet
+  HermesDbContext --> Vehicle : DbSet
+  HermesDbContext --> MileageEntry : DbSet

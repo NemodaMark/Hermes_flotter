@@ -1,0 +1,36 @@
+sequenceDiagram
+  actor U as Felhasználó
+  participant UI as VehicleFuelForm
+  participant API as Hermes.Api
+  participant F as FleetManagement
+  participant ML as MileageLedger
+  participant PG as PostgreSQL
+  U->>UI: Dátum és km-állás
+  UI->>API: GET fuel/mileage-preview
+  API->>F: PreviewFuelMileage
+  F->>PG: Cég, jog, dátum és korábbi állás
+  alt Jövőbeli dátum
+    F-->>API: Validációs hiba
+    API-->>UI: HTTP 400
+    UI-->>U: Hiba a dátumhoz kapcsolódó elszámolásnál
+  else Számítható táv
+    API-->>UI: totalKm
+    U->>UI: Liter, magán-km, mentés
+    UI->>API: POST fuel · munkamenet, cég, CSRF
+    API->>F: RecordFuel
+    F->>PG: BEGIN, app.tenant_id, zárolás, aktuális jog
+    F->>PG: Távolság újbóli kiszámítása
+    alt A táv megváltozott
+      F-->>API: fuel_mileage_changed
+      API-->>UI: HTTP 409
+      UI->>API: Előnézet frissítése
+    else A táv egyezik
+      F->>ML: Capture céges munkamenet és felhasználó szerint
+      ML->>PG: Előzmények és havi állapot ellenőrzése
+      ML-->>F: Követett havi sor és tétel
+      F->>PG: SaveChanges és COMMIT, audittal
+      API-->>UI: HTTP 200 és FuelEntryRow
+      UI->>API: Cache érvénytelenítés után lekérdezés
+      UI-->>U: Mentési visszajelzés és tankolási lista
+    end
+  end

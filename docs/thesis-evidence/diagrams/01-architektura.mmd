@@ -1,0 +1,17 @@
+flowchart TB
+  person["Flottakezelő / járműhasználó"] --> spa["React SPA<br/>Hash útvonalak · TanStack Query"]
+  local["Böngészői tároló<br/>Személyes elrendezés"] <--> spa
+  spa --> media["Three.js · PDF.js<br/>Kliensoldali megjelenítés"]
+  spa -->|"HTTPS éles telepítési terv"| proxy["Caddy<br/>SPA kiszolgálás és API proxy"]
+  proxy -->|"statikus felület"| nginx["nginx<br/>Frontend-konténer"]
+  proxy -->|"API és health"| api["Hermes.Api<br/>Minimal API · Identity · CSRF"]
+  nginx -.->|"Helyi Compose API proxy"| api
+  spa -.->|"Vite proxy helyi futáskor"| api
+  api --> app["Hermes.Application<br/>DTO-k és szerződések"]
+  api --> infra["Hermes.Infrastructure<br/>Jogi ellenőrzés · EF Core"]
+  infra --> app
+  infra --> domain["Hermes.Domain<br/>Entitások és jogkódok"]
+  infra -->|"Npgsql / céges tranzakció"| db[("PostgreSQL<br/>RLS · audit · fájlbájtok")]
+  api -.->|"OpenID Connect, ha konfigurált"| entra["Microsoft Entra ID"]
+  api -.->|"SMTP, ha konfigurált"| smtp["SMTP-szolgáltató"]
+  migrator["Külön migrációs futtatás"] -->|"sémamódosítás"| db
