@@ -1,5 +1,5 @@
 import { Button } from './ui/Button'
-import { lazy, Suspense, useId, useRef, useState } from 'react'
+import { lazy, Suspense, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowUpRight, Building2, CarFront, Camera, Gauge, Pencil, ShieldCheck, Trash2, UserRound } from 'lucide-react'
@@ -131,15 +131,14 @@ type ProfileSection = { id: string; label: string; icon: ReactNode; content: (ac
 
 function ProfileSections({ sections }: { sections: ProfileSection[] }) {
   const uid = useId()
-  const tabs = useRef<HTMLDivElement>(null)
   const [selection, setSelection] = useState({ id: 'data', opened: ['data'] })
   const active = sections.some(section => section.id === selection.id) ? selection.id : sections[0].id
   const openTab = (id: string, focus = true) => {
     setSelection(previous => ({ id, opened: previous.opened.includes(id) ? previous.opened : [...previous.opened, id] }))
-    if (focus) tabs.current?.querySelector<HTMLButtonElement>(`[data-profile-tab="${id}"]`)?.focus()
+    if (focus) document.getElementById(`${uid}-${id}-tab`)?.focus()
   }
   return <section className="profile-tabbed-panel">
-    <div className="profile-tabs" ref={tabs} role="tablist" aria-label="Felhasználói adatlap részei" onKeyDown={event => {
+    <div className="profile-tabs" role="tablist" aria-label="Felhasználói adatlap részei" onKeyDown={event => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
       event.preventDefault()
       const index = sections.findIndex(section => section.id === active)
@@ -147,7 +146,7 @@ function ProfileSections({ sections }: { sections: ProfileSection[] }) {
         : sections[(index + (event.key === 'ArrowRight' ? 1 : sections.length - 1)) % sections.length]
       openTab(next.id)
     }}>
-      {sections.map(section => <TabButton key={section.id} role="tab" id={`${uid}-${section.id}-tab`} data-profile-tab={section.id}
+      {sections.map(section => <TabButton key={section.id} role="tab" id={`${uid}-${section.id}-tab`}
         aria-selected={active === section.id} aria-controls={`${uid}-${section.id}`} tabIndex={active === section.id ? 0 : -1}
         onClick={() => openTab(section.id, false)}>{section.icon}{section.label}</TabButton>)}
     </div>
