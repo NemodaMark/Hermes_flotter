@@ -38,8 +38,15 @@ public sealed class PeopleManagement(HermesDbContext db, TenantContext context, 
         var result = await Run(); await tx.CommitAsync(ct); return result;
     }
 
-    private async Task<PersonSummary> Summary(ApplicationUser u, CancellationToken ct)
-        => new(u.Id, u.DisplayName, u.Email!, u.PhoneNumber, await db.UserAvatars.Where(x => x.UserId == u.Id).Select(x => x.Sha256).SingleOrDefaultAsync(ct));
+    private IQueryable<PersonSummary> Summaries(IQueryable<ApplicationUser> users)
+        => users.Select(u => new PersonSummary(u.Id, u.DisplayName, u.Email!, u.PhoneNumber,
+            db.UserAvatars.Where(x => x.UserId == u.Id).Select(x => x.Sha256).FirstOrDefault())
+        {
+            CardBackgroundRevision = db.UserCardBackgrounds.Where(x => x.UserId == u.Id).Select(x => x.Sha256).FirstOrDefault()
+        });
+
+    private Task<PersonSummary> Summary(ApplicationUser user, CancellationToken ct)
+        => Summaries(db.Users.AsNoTracking().Where(x => x.Id == user.Id)).SingleAsync(ct);
 
     public Task<PageResult<PersonSummary>> Colleagues(string actor, Guid company, int page, string? search, CancellationToken ct)
         => Read(actor, actor, company, async (_, _) =>
@@ -55,10 +62,8 @@ public sealed class PeopleManagement(HermesDbContext db, TenantContext context, 
                 q = q.Where(x => x.NormalizedUserName!.Contains(text) || x.NormalizedEmail!.Contains(text) || EF.Functions.Collate(x.DisplayName, "unicode").ToUpper().Contains(text));
             }
             var total = await q.CountAsync(ct);
-            var rows = await q.OrderBy(x => x.Id).Skip((page - 1) * 25).Take(25).ToArrayAsync(ct);
-            var result = new List<PersonSummary>();
-            foreach (var row in rows) result.Add(await Summary(row, ct));
-            return new PageResult<PersonSummary>(result.ToArray(), total, page, 25);
+            var rows = await Summaries(q.OrderBy(x => x.Id).Skip((page - 1) * 25).Take(25)).ToArrayAsync(ct);
+            return new PageResult<PersonSummary>(rows, total, page, 25);
         }, ct);
 
     public Task<PersonProfile> Profile(string actor, string target, Guid? company, CancellationToken ct)
@@ -84,6 +89,10 @@ public sealed class PeopleManagement(HermesDbContext db, TenantContext context, 
     public Task<byte[]> Avatar(string actor, string target, Guid? company, CancellationToken ct)
         => Read(actor, target, company, async (_, _) => await db.UserAvatars.Where(x => x.UserId == target).Select(x => x.Bytes).SingleOrDefaultAsync(ct)
             ?? throw UserAccounts.Error(404, "avatar_not_found", "Nincs feltöltött profilkép."), ct);
+
+    public Task<byte[]> CardBackground(string actor, string target, Guid? company, CancellationToken ct)
+        => Read(actor, target, company, async (_, _) => await db.UserCardBackgrounds.Where(x => x.UserId == target).Select(x => x.Bytes).SingleOrDefaultAsync(ct)
+            ?? throw UserAccounts.Error(404, "card_background_not_found", "Nincs feltöltött kártyaháttér."), ct);
 
     private async Task<T> Write<T>(string actor, string target, long version, Func<ApplicationUser, Task<T>> action, CancellationToken ct)
     {
@@ -125,6 +134,38 @@ public sealed class PeopleManagement(HermesDbContext db, TenantContext context, 
         {
             db.UserAvatars.Remove(avatar); user.ProfileVersion++;
             UserAccounts.Audit(db, actor, target, "user.avatar_deleted", new { before = avatar.Sha256 }); await db.SaveChangesAsync(ct);
+        }
+        return await Summary(user, ct);
+    }, ct);
+
+    public async Task<PersonSummary> UploadCardBackground(string actor, Func<Task<ImageUpload>> read, CancellationToken ct)
+    {
+        var upload = await read();
+        var bytes = ImageProcessing.NormalizeCardBackground(upload);
+        var hash = Convert.ToHexStringLower(SHA256.HashData(bytes));
+        return await Write(actor, actor, upload.Version, async user =>
+        {
+            var background = await db.UserCardBackgrounds.SingleOrDefaultAsync(x => x.UserId == actor, ct);
+            var before = background?.Sha256;
+            if (before == hash) return await Summary(user, ct);
+            if (background is null) db.UserCardBackgrounds.Add(new() { UserId = actor, Bytes = bytes, Sha256 = hash });
+            else { background.Bytes = bytes; background.Sha256 = hash; }
+            user.ProfileVersion++;
+            UserAccounts.Audit(db, actor, actor, "user.card_background_changed", new { before, after = hash });
+            await db.SaveChangesAsync(ct);
+            return await Summary(user, ct);
+        }, ct);
+    }
+
+    public Task<PersonSummary> DeleteCardBackground(string actor, long version, CancellationToken ct) => Write(actor, actor, version, async user =>
+    {
+        var background = await db.UserCardBackgrounds.SingleOrDefaultAsync(x => x.UserId == actor, ct);
+        if (background is not null)
+        {
+            db.UserCardBackgrounds.Remove(background);
+            user.ProfileVersion++;
+            UserAccounts.Audit(db, actor, actor, "user.card_background_deleted", new { before = background.Sha256 });
+            await db.SaveChangesAsync(ct);
         }
         return await Summary(user, ct);
     }, ct);

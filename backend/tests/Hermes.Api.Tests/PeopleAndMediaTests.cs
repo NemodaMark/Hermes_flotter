@@ -163,6 +163,48 @@ public sealed partial class PermissionManagementTests
     }
 
     [Fact]
+    public async Task Portrait_card_background_is_optional_versioned_and_only_editable_by_its_owner()
+    {
+        using var owner = await Register(); using var colleague = await Register(); using var foreign = await Register();
+        var company = await Company(owner); await Join(owner, colleague, company.Id); await Company(foreign);
+        const string own = "/api/v1/people/me/card-background";
+        var profileUrl = $"/api/v1/people/{owner.User.Id}";
+        var path = profileUrl + "/card-background";
+        var initial = (await owner.Client.GetFromJsonAsync<PersonProfile>(profileUrl))!;
+        Assert.Null(initial.Person.CardBackgroundRevision);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.Client.GetAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await SendPhoto(owner, own, initial.Version, "<svg/>"u8.ToArray())).StatusCode);
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, (await SendPhoto(colleague, path, initial.Version)).StatusCode);
+
+        var saved = await ScopeOk<PersonSummary>(await SendPhoto(owner, own, initial.Version));
+        Assert.NotNull(saved.CardBackgroundRevision);
+        Assert.Null(saved.AvatarRevision);
+        Assert.Equal(HttpStatusCode.Conflict, (await owner.Client.DeleteAsync(own + $"?version={initial.Version}")).StatusCode);
+        var image = await colleague.Client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, image.StatusCode);
+        Assert.Equal("image/jpeg", image.Content.Headers.ContentType?.MediaType);
+        Assert.True(image.Headers.CacheControl?.NoStore);
+        Assert.Equal(HttpStatusCode.NotFound, (await foreign.Client.GetAsync(path)).StatusCode);
+        var people = (await colleague.Client.GetFromJsonAsync<PageResult<PersonSummary>>("/api/v1/people"))!;
+        var members = (await owner.Client.GetFromJsonAsync<PageResult<MemberSummary>>("/api/v1/members"))!;
+        Assert.Equal(saved.CardBackgroundRevision, Assert.Single(people.Items, x => x.Id == owner.User.Id).CardBackgroundRevision);
+        Assert.Equal(saved.CardBackgroundRevision, Assert.Single(members.Items, x => x.UserId == owner.User.Id).CardBackgroundRevision);
+        using var registrar = await fixture.ClientAsync(null);
+        await FleetFixture.SignInAsync(registrar, "test.registrar");
+        var system = (await registrar.GetFromJsonAsync<PageResult<UserProfile>>("/api/v1/system/users?search=" + owner.User.Id))!;
+        Assert.Equal(saved.CardBackgroundRevision, Assert.Single(system.Items).CardBackgroundRevision);
+
+        var published = (await owner.Client.GetFromJsonAsync<PersonProfile>(profileUrl))!;
+        var removed = await ScopeOk<PersonSummary>(await owner.Client.DeleteAsync(own + $"?version={published.Version}"));
+        Assert.Null(removed.CardBackgroundRevision);
+        Assert.Equal(HttpStatusCode.NotFound, (await colleague.Client.GetAsync(path)).StatusCode);
+        await using var db = FleetFixture.CreateContext(fixture.ApplicationConnection, new TenantContext());
+        var audit = await db.SystemAuditEvents.Where(x => x.TargetSubject == owner.User.Id).Select(x => x.Action).ToArrayAsync();
+        Assert.Contains("user.card_background_changed", audit);
+        Assert.Contains("user.card_background_deleted", audit);
+    }
+
+    [Fact]
     public async Task Photo_upload_rechecks_site_access_after_reading_the_image_without_holding_a_company_lock()
     {
         using var owner = await Register(); using var member = await Register();

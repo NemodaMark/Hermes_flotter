@@ -6,6 +6,7 @@ public sealed record UserProfile(string Id, string DisplayName, string Email, st
 {
     public bool IsAdministrator { get; init; }
     public string? AvatarRevision { get; init; }
+    public string? CardBackgroundRevision { get; init; }
     public UserCompanyAccess[] CompanyAccess { get; init; } = [];
 }
 public sealed record UserCompanyAccess(Guid Id, string Name, bool HasAccess, bool IsAdmin, bool IsSuspended);

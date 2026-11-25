@@ -12,6 +12,7 @@ public sealed record MemberSummary(string UserId, string? DisplayName, string? E
     public string[] DirectPermissions { get; init; } = [];
     public AssignedGroup[] Groups { get; init; } = [];
     public string? AvatarRevision { get; init; }
+    public string? CardBackgroundRevision { get; init; }
 }
 public sealed record ChangePermissionsRequest(string[] Permissions, long Version);
 public sealed record ChangeMemberStatusRequest(bool? IsActive, long Version);

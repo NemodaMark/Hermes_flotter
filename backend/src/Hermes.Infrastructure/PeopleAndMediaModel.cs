@@ -6,6 +6,7 @@ namespace Hermes.Infrastructure;
 public sealed partial class HermesDbContext
 {
     public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
+    public DbSet<UserCardBackground> UserCardBackgrounds => Set<UserCardBackground>();
     public DbSet<VehiclePhoto> VehiclePhotos => Set<VehiclePhoto>();
     public DbSet<VehicleUserAssignment> VehicleUserAssignments => Set<VehicleUserAssignment>();
     public DbSet<VehicleModelOption> VehicleModelOptions => Set<VehicleModelOption>();
@@ -19,6 +20,14 @@ public sealed partial class HermesDbContext
             e.Property(x => x.UserId).HasMaxLength(256);
             e.Property(x => x.Sha256).HasMaxLength(64);
             e.HasOne<ApplicationUser>().WithOne().HasForeignKey<UserAvatar>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        });
+        model.Entity<UserCardBackground>(e =>
+        {
+            e.ToTable("user_card_backgrounds", t => t.HasCheckConstraint("CK_user_card_background_bytes", "octet_length(\"Bytes\") BETWEEN 1 AND 5242880"));
+            e.HasKey(x => x.UserId);
+            e.Property(x => x.UserId).HasMaxLength(256);
+            e.Property(x => x.Sha256).HasMaxLength(64);
+            e.HasOne<ApplicationUser>().WithOne().HasForeignKey<UserCardBackground>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         });
         model.Entity<VehiclePhoto>(e =>
         {

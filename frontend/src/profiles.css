@@ -50,6 +50,8 @@
 .profile-card-heading h3 { margin: 0; }
 .profile-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-bottom: var(--space-3); margin-bottom: var(--space-3); border-bottom: 1px solid var(--line); }
 .profile-photo-actions .field-hint { flex-basis: 100%; margin: 0; }
+.profile-card-background h4 { margin: 0 0 var(--space-2); font-size: 14px; }
+.profile-card-background .showcase-cover { max-width: 280px; margin-bottom: var(--space-2); border-radius: var(--radius-control); }
 .profile-contact { display: grid; gap: var(--space-3); margin: 0; overflow-wrap: anywhere; }
 .profile-contact > div, .profile-mileage-split > div { display: block; padding: 0; border: 0; min-width: 0; }
 .profile-contact dt { color: var(--muted); font-size: 12px; }

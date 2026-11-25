@@ -9,6 +9,7 @@ export type RegistrationResult = { id: string; displayName: string; email: strin
 export type AccountToken = { userId: string; email: string; token: string }
 export type UserProfile = {
   avatarRevision?: string | null
+  cardBackgroundRevision?: string | null
   id: string
   displayName: string
   email: string
@@ -128,6 +129,7 @@ export type MemberAccess = {
 }
 export type Member = Omit<MemberAccess, 'tenantId'> & {
   avatarRevision?: string | null
+  cardBackgroundRevision?: string | null
   displayName: string | null
   email: string | null
   joinedAt: string | null

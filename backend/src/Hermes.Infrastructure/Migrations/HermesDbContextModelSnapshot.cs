@@ -2460,6 +2460,29 @@ namespace Hermes.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hermes.Infrastructure.UserCardBackground", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<byte[]>("Bytes")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("user_card_backgrounds", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_user_card_background_bytes", "octet_length(\"Bytes\") BETWEEN 1 AND 5242880");
+                        });
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -3113,6 +3136,15 @@ namespace Hermes.Infrastructure.Migrations
                     b.HasOne("Hermes.Infrastructure.ApplicationUser", null)
                         .WithOne()
                         .HasForeignKey("Hermes.Infrastructure.UserAvatar", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hermes.Infrastructure.UserCardBackground", b =>
+                {
+                    b.HasOne("Hermes.Infrastructure.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("Hermes.Infrastructure.UserCardBackground", "UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

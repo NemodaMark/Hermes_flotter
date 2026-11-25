@@ -2,7 +2,7 @@ import { Button } from './ui/Button'
 import { lazy, Suspense, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ArrowUpRight, Building2, CarFront, Camera, Gauge, Pencil, ShieldCheck, Trash2, UserRound } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Building2, CarFront, Camera, Gauge, ImagePlus, Pencil, ShieldCheck, Trash2, UserRound } from 'lucide-react'
 import type { Session, Tenant } from './api'
 import { peopleApi } from './peopleApi'
 import { ProtectedImage } from './ProtectedImage'
@@ -15,6 +15,7 @@ import { TabButton } from './ui/TabButton'
 import { EntraConnection } from './EntraConnection'
 import { mileageApi } from './mileageApi'
 import { ProfileMileageSummary } from './ProfileMileageSummary'
+import { PersonCardCover } from './PersonCardCover'
 import './profiles.css'
 
 const ProfileMileageLedger = lazy(() => import('./MileagePanel').then(module => ({ default: module.MileageLedgerPanel })))
@@ -35,6 +36,8 @@ export function UserProfilePage({ id, actor, tenant, onBack, onVehicle }: {
     ])
   }
   const avatar = useMutation({ mutationFn: (file: File | null) => file ? peopleApi.avatar(id, file, profile.data!.version) : peopleApi.deleteAvatar(id, profile.data!.version), onSuccess: refresh })
+  const background = useMutation({ mutationFn: (file: File | null) => file ? peopleApi.saveCardBackground(file, profile.data!.version) : peopleApi.deleteCardBackground(profile.data!.version), onSuccess: refresh })
+  const photoPending = avatar.isPending || background.isPending
   const editSelf = useMutation({ mutationFn: (body: { displayName: string; phoneNumber: string | null }) => peopleApi.editSelf({ ...body, version: profile.data!.version }), onSuccess: refresh })
   const person = profile.isError ? undefined : profile.data?.person
   const systemManager = actor.systemPermissions?.includes('system.manage') ?? false
@@ -68,28 +71,47 @@ export function UserProfilePage({ id, actor, tenant, onBack, onVehicle }: {
         <div className="profile-sidebar">
           <section className="profile-card" aria-label="Kapcsolattartási adatok">
             <div className="profile-card-heading"><h3>Kapcsolattartási adatok</h3>
-              {canEdit && <Button type="button" variant="secondary" aria-expanded={editing} disabled={editSelf.isPending || avatar.isPending}
+              {canEdit && <Button type="button" variant="secondary" aria-expanded={editing} disabled={editSelf.isPending || photoPending}
                 onClick={() => { editSelf.reset(); setEditing(value => !value) }}><Pencil size={15} aria-hidden="true" />{editing ? 'Bezárás' : 'Szerkesztés'}</Button>}
             </div>
             {editing && canEdit ? <>
               <div className="profile-photo-actions">
-                <label className="secondary-button photo-file-button"><Camera size={16} aria-hidden="true" />Profilkép feltöltése<input aria-label="Profilkép feltöltése" type="file" accept="image/jpeg,image/png" disabled={avatar.isPending} onChange={e => { const file = e.target.files?.[0]; if (file) avatar.mutate(file); e.target.value = '' }} /></label>
-                {person.avatarRevision && <Button type="button" variant="ghost" className="danger-text" disabled={avatar.isPending} onClick={() => avatar.mutate(null)}><Trash2 size={15} aria-hidden="true" />Kép eltávolítása</Button>}
+                <label className="secondary-button photo-file-button"><Camera size={16} aria-hidden="true" />Profilkép feltöltése<input aria-label="Profilkép feltöltése" type="file" accept="image/jpeg,image/png" disabled={photoPending || editSelf.isPending} onChange={e => { const file = e.target.files?.[0]; if (file) avatar.mutate(file); e.target.value = '' }} /></label>
+                {person.avatarRevision && <Button type="button" variant="ghost" className="danger-text" disabled={photoPending || editSelf.isPending} onClick={() => avatar.mutate(null)}><Trash2 size={15} aria-hidden="true" />Kép eltávolítása</Button>}
                 <span className="field-hint">JPG vagy PNG · legfeljebb 5 MB</span>
                 {avatar.isPending && <span role="status">Kép mentése…</span>}
                 {avatar.error && <p className="form-error" role="alert">{avatar.error.message}</p>}
               </div>
+              {ownProfile && <section className="profile-card-background" aria-label="Portrékártya háttere">
+                <h4>Portrékártya háttere</h4>
+                <PersonCardCover id={id} name={person.displayName} tenantId={tenant?.id}
+                  avatar={person.avatarRevision} background={person.cardBackgroundRevision} />
+                <div className="profile-photo-actions">
+                  <label className="secondary-button photo-file-button"><ImagePlus size={16} aria-hidden="true" />{person.cardBackgroundRevision ? 'Háttér cseréje' : 'Háttér feltöltése'}
+                    <input aria-label="Kártyaháttér feltöltése" type="file" accept="image/jpeg,image/png" disabled={photoPending || editSelf.isPending} onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) background.mutate(file)
+                      e.target.value = ''
+                    }} />
+                  </label>
+                  {person.cardBackgroundRevision && <Button type="button" variant="ghost" disabled={photoPending || editSelf.isPending}
+                    onClick={() => background.mutate(null)}><Trash2 size={15} aria-hidden="true" />Háttér eltávolítása</Button>}
+                  <span className="field-hint">JPG vagy PNG · legfeljebb 5 MB</span>
+                  {background.isPending && <span role="status">Háttér mentése…</span>}
+                  {background.error && <p className="form-error" role="alert">{background.error.message}</p>}
+                </div>
+              </section>}
               {canManageAccount ? <UserProfileEditor id={id} actor={actor} section="profile" /> :
                 <form className="account-form" key={JSON.stringify([person.displayName, person.phoneNumber])} onSubmit={e => {
                   e.preventDefault()
                   const data = new FormData(e.currentTarget)
                   editSelf.mutate({ displayName: String(data.get('name')), phoneNumber: String(data.get('phone')) || null })
                 }}>
-                  <label>Teljes név<input name="name" defaultValue={person.displayName} required maxLength={120} disabled={editSelf.isPending} /></label>
-                  <label>Telefonszám<input name="phone" type="tel" defaultValue={person.phoneNumber ?? ''} maxLength={40} disabled={editSelf.isPending} /></label>
+                  <label>Teljes név<input name="name" defaultValue={person.displayName} required maxLength={120} disabled={editSelf.isPending || photoPending} /></label>
+                  <label>Telefonszám<input name="phone" type="tel" defaultValue={person.phoneNumber ?? ''} maxLength={40} disabled={editSelf.isPending || photoPending} /></label>
                   {editSelf.error && <p className="form-error" role="alert">{editSelf.error.message}</p>}
                   {editSelf.isSuccess && <p role="status">A profiladatok elmentve.</p>}
-                  <div className="dialog-actions"><Button className="primary-button" loading={editSelf.isPending}>Profil mentése</Button></div>
+                  <div className="dialog-actions"><Button className="primary-button" disabled={photoPending} loading={editSelf.isPending}>Profil mentése</Button></div>
                 </form>}
             </> : <dl className="profile-contact">
               <div><dt>E-mail-cím</dt><dd><a href={`mailto:${person.email}`}>{person.email}</a></dd></div>

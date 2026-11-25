@@ -1,6 +1,6 @@
 import { request } from './api'
 import type { Page } from './api'
-export type Person = { id: string; displayName: string; email: string; phoneNumber: string | null; avatarRevision: string | null }
+export type Person = { id: string; displayName: string; email: string; phoneNumber: string | null; avatarRevision: string | null; cardBackgroundRevision?: string | null }
 export type PersonVehicle = { id: string; registration: string; make: string; model: string; siteName: string | null }
 export type PersonProfile = { person: Person; version: number; canEdit: boolean; canManageAccount: boolean; vehicles: PersonVehicle[] }
 export type Photo = { id: string; slot: number; sha256: string; uploadedAt: string }
@@ -14,6 +14,9 @@ export const peopleApi = {
   avatarPath: (id: string) => `${personPath(id)}/avatar`,
   avatar: (id: string, file: File, version: number) => request<Person>(`${personPath(id)}/avatar`, { body: imageForm(file, version) }),
   deleteAvatar: (id: string, version: number) => request<Person>(`${personPath(id)}/avatar?version=${version}`, { method: 'DELETE' }),
+  cardBackgroundPath: (id: string) => `${personPath(id)}/card-background`,
+  saveCardBackground: (file: File, version: number) => request<Person>('/api/v1/people/me/card-background', { body: imageForm(file, version) }),
+  deleteCardBackground: (version: number) => request<Person>(`/api/v1/people/me/card-background?version=${version}`, { method: 'DELETE' }),
 }
 export function imageForm(file: File, version: number) { const form = new FormData(); form.set('file', file); form.set('version', String(version)); return form }
 const carPath = (id: string) => `/api/v1/vehicles/${id}`

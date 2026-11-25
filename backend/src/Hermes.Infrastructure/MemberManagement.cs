@@ -93,13 +93,18 @@ public sealed class MemberManagement(HermesDbContext db, TenantContext context, 
         var members = await query.WithAccess().OrderBy(item => item.UserSubject).Skip(offset).Take(pageSize).ToListAsync(ct);
         var userIds = members.Select(member => member.UserSubject).ToArray();
         var users = await db.Users.AsNoTracking().Where(user => userIds.Contains(user.Id))
-            .Select(user => new { user.Id, user.DisplayName, user.Email }).ToDictionaryAsync(user => user.Id, ct);
-        var avatars = await db.UserAvatars.Where(x => userIds.Contains(x.UserId)).Select(x => new { x.UserId, x.Sha256 }).ToDictionaryAsync(x => x.UserId, x => x.Sha256, ct);
+            .Select(user => new
+            {
+                user.Id, user.DisplayName, user.Email,
+                Avatar = db.UserAvatars.Where(x => x.UserId == user.Id).Select(x => x.Sha256).FirstOrDefault(),
+                CardBackground = db.UserCardBackgrounds.Where(x => x.UserId == user.Id).Select(x => x.Sha256).FirstOrDefault()
+            }).ToDictionaryAsync(user => user.Id, ct);
         var result = members.Select(member =>
         {
             users.TryGetValue(member.UserSubject, out var user);
             return new MemberSummary(member.UserSubject, user?.DisplayName, user?.Email, member.IsActive,
-                member.Version, Codes(member), member.JoinedAt, member.DisabledAt) { DirectPermissions = Direct(member), Groups = AccessRules.Groups(member), AvatarRevision = avatars.GetValueOrDefault(member.UserSubject) };
+                member.Version, Codes(member), member.JoinedAt, member.DisabledAt)
+            { DirectPermissions = Direct(member), Groups = AccessRules.Groups(member), AvatarRevision = user?.Avatar, CardBackgroundRevision = user?.CardBackground };
         }).ToArray();
         return new(result, total, page, pageSize);
     }, ct);

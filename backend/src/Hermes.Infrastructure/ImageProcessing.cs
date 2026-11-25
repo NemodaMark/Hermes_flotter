@@ -7,7 +7,10 @@ namespace Hermes.Infrastructure;
 public static class ImageProcessing
 {
     public const int MaxBytes = 5 * 1024 * 1024;
-    public static byte[] Normalize(ImageUpload upload, bool avatar)
+    public static byte[] Normalize(ImageUpload upload, bool avatar) => Normalize(upload, avatar ? 512 : 2048);
+    internal static byte[] NormalizeCardBackground(ImageUpload upload) => Normalize(upload, 900);
+
+    private static byte[] Normalize(ImageUpload upload, int max)
     {
         var bytes = upload.Bytes;
         if (bytes.Length is < 1 or > MaxBytes) throw UserAccounts.Error(413, "image_size", "Legfeljebb 5 MB-os képet válassz.");
@@ -23,7 +26,6 @@ public static class ImageProcessing
                 throw UserAccounts.Error(400, "image_dimensions", "Legfeljebb 16 megapixeles, oldalanként legfeljebb 8192 képpontos képet válassz.");
             // Decode and rewrite pixels: uploaded metadata and trailing payload never reach browsers.
             var image = ImageResult.FromMemory(bytes, StbImageSharp.ColorComponents.RedGreenBlueAlpha);
-            var max = avatar ? 512 : 2048;
             var scale = Math.Min(1d, (double)max / Math.Max(image.Width, image.Height));
             var width = Math.Max(1, (int)Math.Round(image.Width * scale));
             var height = Math.Max(1, (int)Math.Round(image.Height * scale));

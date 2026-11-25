@@ -1,6 +1,9 @@
 namespace Hermes.Application;
 
-public sealed record PersonSummary(string Id, string DisplayName, string Email, string? PhoneNumber, string? AvatarRevision);
+public sealed record PersonSummary(string Id, string DisplayName, string Email, string? PhoneNumber, string? AvatarRevision)
+{
+    public string? CardBackgroundRevision { get; init; }
+}
 public sealed record PersonProfile(PersonSummary Person, long Version, bool CanEdit, bool CanManageAccount, PersonVehicle[] Vehicles);
 public sealed record PersonVehicle(Guid Id, string Registration, string Make, string Model, string? SiteName);
 public sealed record EditOwnProfile(string DisplayName, string? PhoneNumber, long Version);

@@ -1,12 +1,13 @@
 import { chooseOption } from './selectTestUtils'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { api } from './api'
 import { mediaApi, peopleApi } from './peopleApi'
 import { VehicleCreatePage } from './VehicleCreatePage'
 import { PeopleList } from './PeopleList'
+import { UserProfilePage } from './UserProfilePage'
 
 const user = { id: 'anna', displayName: 'Anna', email: 'anna@example.test', systemPermissions: [] }
 const tenant = { id: 'company', name: 'Flotta', permissions: ['vehicles.create'] }
@@ -74,4 +75,34 @@ it('shows the colleague directory without management rights or a global-user tog
   expect(colleagues).toHaveBeenCalledWith(tenant.id, 1, '', expect.any(AbortSignal))
   expect(screen.queryByRole('switch')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Jogosultságok:/ })).not.toBeInTheDocument()
+})
+
+it('uploads and removes a personal card background and shows it behind the portrait in the directory', async () => {
+  let person = { ...user, phoneNumber: null, avatarRevision: null, cardBackgroundRevision: null as string | null }
+  let version = 5
+  vi.spyOn(peopleApi, 'profile').mockImplementation(async () => ({ person, version, canEdit: true, canManageAccount: false, vehicles: [] }))
+  vi.spyOn(peopleApi, 'colleagues').mockImplementation(async () => ({ items: [person], total: 1, page: 1, pageSize: 25 }))
+  const save = vi.spyOn(peopleApi, 'saveCardBackground').mockImplementation(async () => {
+    person = { ...person, cardBackgroundRevision: 'cover-v1' }; version++
+    return person
+  })
+  const remove = vi.spyOn(peopleApi, 'deleteCardBackground').mockImplementation(async () => {
+    person = { ...person, cardBackgroundRevision: null }; version++
+    return person
+  })
+  mount(<><UserProfilePage id={user.id} actor={user} tenant={tenant} onBack={vi.fn()} />
+    <PeopleList user={user} tenant={tenant} onProfile={vi.fn()} /></>)
+  await userEvent.click(await screen.findByRole('button', { name: 'Szerkesztés' }))
+  const editor = screen.getByRole('region', { name: 'Portrékártya háttere' })
+  const image = new File(['pixels'], 'hatter.png', { type: 'image/png' })
+  await userEvent.upload(within(editor).getByLabelText('Kártyaháttér feltöltése'), image)
+  expect(await within(editor).findByRole('button', { name: 'Háttér eltávolítása' })).toBeVisible()
+  expect(save).toHaveBeenCalledWith(image, 5)
+  await userEvent.click(screen.getByRole('button', { name: 'Portrék' }))
+  const card = await screen.findByRole('button', { name: 'Profil megnyitása: anna@example.test' })
+  await waitFor(() => expect(card.querySelector('img.showcase-background')).toHaveAttribute('src', 'blob:preview'))
+  expect(within(card).getByRole('img', { name: 'Anna profilképe' })).toBeInTheDocument()
+  await userEvent.click(within(editor).getByRole('button', { name: 'Háttér eltávolítása' }))
+  expect(remove).toHaveBeenCalledWith(6)
+  await waitFor(() => expect(card.querySelector('img.showcase-background')).toBeNull())
 })

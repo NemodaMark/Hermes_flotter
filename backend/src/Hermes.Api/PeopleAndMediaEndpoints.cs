@@ -28,6 +28,12 @@ public static class PeopleAndMediaEndpoints
             => Results.Ok(await service.UploadAvatar(Actor(h), id, () => ReadImage(h, ct), ct))).RequireRateLimiting("accounts");
         people.MapDelete("/{id}/avatar", async (string id, long version, HttpContext h, PeopleManagement service, CancellationToken ct)
             => Results.Ok(await service.DeleteAvatar(Actor(h), id, version, ct)));
+        people.MapGet("/{id}/card-background", async (string id, HttpContext h, PeopleManagement service, CancellationToken ct)
+            => Image(h, await service.CardBackground(Actor(h), id, Company(h), ct)));
+        people.MapPost("/me/card-background", async (HttpContext h, PeopleManagement service, CancellationToken ct)
+            => Results.Ok(await service.UploadCardBackground(Actor(h), () => ReadImage(h, ct), ct))).RequireRateLimiting("accounts");
+        people.MapDelete("/me/card-background", async (long version, HttpContext h, PeopleManagement service, CancellationToken ct)
+            => Results.Ok(await service.DeleteCardBackground(Actor(h), version, ct)));
 
         var cars = app.MapGroup("/api/v1/vehicles").RequireAuthorization().WithMetadata(new TenantRequired());
         cars.MapGet("/catalog", async (FleetManagement service, CancellationToken ct) => Results.Ok(await service.Catalog(ct)));

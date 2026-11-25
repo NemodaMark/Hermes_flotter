@@ -44,6 +44,9 @@ public sealed class SystemUserDirectory(HermesDbContext db, UserAccounts account
         if (access == "none") query = query.Where(x => !accessible.Contains(x.Id));
         var total = await query.CountAsync(ct);
         var users = await query.OrderBy(x => x.Id).Skip((page - 1) * 25).Take(25).ToArrayAsync(ct);
+        var userIds = users.Select(user => user.Id).ToArray();
+        var backgrounds = await db.UserCardBackgrounds.Where(x => userIds.Contains(x.UserId))
+            .Select(x => new { x.UserId, x.Sha256 }).ToDictionaryAsync(x => x.UserId, x => x.Sha256, ct);
         var result = new List<UserProfile>();
         foreach (var user in users)
         {
@@ -55,7 +58,8 @@ public sealed class SystemUserDirectory(HermesDbContext db, UserAccounts account
                 return new UserCompanyAccess(company.Id, company.Name, global || member?.HasCompanyAccess == true,
                     global || (member?.HasCompanyAccess == true && member.HasAdminAuthority), member?.IsActive == false);
             }).Where(x => x.HasAccess || x.IsSuspended).ToArray();
-            result.Add((await accounts.Profile(user, ct)) with { IsAdministrator = admins.Contains(user.Id), CompanyAccess = rights });
+            result.Add((await accounts.Profile(user, ct)) with
+            { IsAdministrator = admins.Contains(user.Id), CompanyAccess = rights, CardBackgroundRevision = backgrounds.GetValueOrDefault(user.Id) });
         }
         await tx.CommitAsync(ct);
         return new(result.ToArray(), total, page, 25);

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { request } from './api'
 
 export function ProtectedImage({ path, tenantId, revision, alt, className = '', fallback = '?' }: {
-  path: string; tenantId?: string; revision?: string | null; alt: string; className?: string; fallback?: string
+  path: string; tenantId?: string; revision?: string | null; alt: string; className?: string; fallback?: string | null
 }) {
   const key = `${tenantId ?? ''}:${path}:${revision ?? ''}`
   const [image, setImage] = useState<{ key: string; url: string } | null>(null)
@@ -17,5 +17,6 @@ export function ProtectedImage({ path, tenantId, revision, alt, className = '', 
     }).catch(() => { /* The initials remain visible when a photo is absent or access has changed. */ })
     return () => { controller.abort(); if (url) URL.revokeObjectURL(url) }
   }, [key, path, tenantId, revision])
-  return image?.key === key ? <img src={image.url} className={className} alt={alt} /> : <span className={`${className} image-fallback`} role="img" aria-label={alt}>{fallback}</span>
+  if (image?.key === key) return <img src={image.url} className={className} alt={alt} />
+  return fallback === null ? null : <span className={`${className} image-fallback`} role="img" aria-label={alt}>{fallback}</span>
 }
