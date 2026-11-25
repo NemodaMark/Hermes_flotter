@@ -1,5 +1,7 @@
 # HERMES vehicle studio assets
 
+[OpenX Assets vehicle models and credits](../openx/LICENSE.md).
+
 Added to HERMES on **2026-11-13** and expanded on **2026-11-18**.
 
 The road vehicles below are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). HERMES uses GLBs from the carros distribution pinned to commit `2d18dfd9db96bbf0d9cffa949deaf7f571388cbf`, which preserves the Sketchfab credits in each asset. HERMES reorients and scales each vehicle, recolors the exterior paint and adjusts the materials for common studio lighting.

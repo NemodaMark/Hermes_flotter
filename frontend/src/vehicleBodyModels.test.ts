@@ -11,20 +11,22 @@ import { bodyNames } from './vehicleAppearance'
 import { batchVehicleMeshes, disposeVehicleModel, prepareVehicleModel } from './vehicleSceneModel'
 import { vehicleHotspots } from './vehicleHotspots'
 import { vehicleModelControls } from './vehicleModelControls'
-import { Raycaster, Vector3 } from 'three'
+import { Vector3 } from 'three'
 
 const bodies = Object.keys(bodyNames).filter(body => !['Unknown', 'Other'].includes(body))
 const prepared = ['vehicle-bodies/prepared.json', 'studio/sources.json'].flatMap(path =>
   JSON.parse(readFileSync(resolve('public/models', path), 'utf8')) as { key: string; sha256: string }[])
 const matchedModels = [
-  { body: 'Suv', make: 'Dacia', model: 'Duster', key: 'renault-duster' },
+  { body: 'Suv', make: 'Dacia', model: 'Duster', key: 'dacia-duster-2010' },
   { body: 'Unknown', make: 'BMW', model: 'a', key: 'bmw-7-series-f01' },
   { body: 'Van', make: 'Mercedes-Benz', model: 'Sprinter 316 CDI', key: 'mercedes-benz-sprinter' },
+  { body: 'Coupe', make: 'Ford', model: 'Mustang', key: 'ford-mustang' },
 ]
 it('selects a different asset for every known body and prefers verified models for matching records', () => {
   const selected = bodies.map(body => vehicleModel(body))
   expect(new Set(selected.map(model => model.url)).size).toBe(12)
-  expect(vehicleModel('Unknown').key).toBe('renault-megane')
+  expect(vehicleModel('Unknown').key).toBe('toyota-corolla-2014')
+  expect(vehicleModel('Suv', { make: 'Suzuki', model: 'SX4' }).key).toBe('hyundai-tucson-2015')
   expect(vehicleModel('Unknown', { make: 'Fiat', model: 'Ducato' }).key).toBe('fiat-ducato')
   for (const { body, make, model, key } of matchedModels) {
     expect(vehicleModel(body, { make, model }).key).toBe(key)
@@ -37,7 +39,7 @@ const versions = examples.flatMap(example => {
   return existsSync(resolve(`src/assets/vehicles/compact/${example.key}.glb`)) ? [full, { ...example, quality: 'compact' }] : [full]
 })
 it('opens the Mustang’s separate panels after batching and toggles the original headlights', async () => {
-  const appearance = vehicleModel('Coupe')
+  const appearance = vehicleModel('Coupe', { make: 'Ford', model: 'Mustang' })
   const bytes = readFileSync(resolve('src/assets/vehicles', `${appearance.key}.glb`))
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
     .register(() => ({ name: 'skip_test_image_decode', loadTexture: async () => new Texture() }))
@@ -104,19 +106,6 @@ it.each(versions)('loads and paints $key ($quality) with valid ground-level prop
     }
   })
   expect(painted).toBeGreaterThan(0); expect(glass).toBeGreaterThan(0)
-  if (appearance.key === 'volkswagen-passat') {
-    const surfaces: Mesh[] = []; model.traverseVisible(object => { if (object instanceof Mesh) surfaces.push(object) })
-    const ray = new Raycaster()
-    for (const x of [-1.28, 1.55]) {
-      ray.set(new Vector3(x, .35, 4), new Vector3(0, 0, -1))
-      const right = ray.intersectObjects(surfaces, false)[0]
-      ray.set(new Vector3(x, .35, -4), new Vector3(0, 0, 1))
-      const left = ray.intersectObjects(surfaces, false)[0]
-      expect(right).toBeDefined(); expect(left).toBeDefined()
-      expect(left.point.z).toBeLessThan(-.75)
-      expect(left.distance).toBeCloseTo(right.distance, 2)
-    }
-  }
   const hotspots = vehicleHotspots(model, shape.length)
   const door = hotspots.anchor(new Vector3(-shape.length * .08, shape.roof * .5, shape.width * .44), new Vector3(0, 0, 1))
   batchVehicleMeshes(model)
@@ -139,3 +128,39 @@ it.each(versions)('loads and paints $key ($quality) with valid ground-level prop
   }
   disposeVehicleModel(model)
 })
+
+it.each(examples.filter(({ body, make, model }) => vehicleModel(body, { make, model }).license === 'models/openx/LICENSE.md'))(
+  'opens the OpenX panels and isolates the low beams on $key', async ({ body, make, model: name, key }) => {
+    const appearance = vehicleModel(body, { make, model: name })
+    const bytes = readFileSync(resolve('src/assets/vehicles', `${key}.glb`))
+    const loader = new GLTFLoader().register(() => ({ name: 'skip_test_image_decode', loadTexture: async () => new Texture() }))
+    const { scene } = await loader.parseAsync(Uint8Array.from(bytes).buffer, '')
+    const { model } = prepareVehicleModel(scene, '#214d81', appearance)
+    try {
+      const parts = vehicleModelControls(model, key)
+      const hinged = parts.filter(part => part.id !== 'headlamps')
+      expect(hinged.map(part => part.id)).toEqual(expect.arrayContaining(['door-L', 'door-R', 'trunk']))
+      expect(hinged.some(part => part.id === 'hood')).toBe(body !== 'Minivan')
+      model.updateMatrixWorld(true)
+      batchVehicleMeshes(model)
+      for (const part of hinged) {
+        const closed = part.point(new Vector3())
+        part.apply(1)
+        const travel = part.point(new Vector3()).sub(closed)
+        expect(travel.length()).toBeGreaterThan(.1)
+        if (part.id.startsWith('door-')) expect(Math.sign(travel.z)).toBe(part.id.startsWith('door-L') ? -1 : 1)
+        else if (part.id === 'hood' || body !== 'Pickup') expect(travel.y).toBeGreaterThan(.1)
+        part.apply(0)
+        expect(part.point(new Vector3()).distanceTo(closed)).toBeLessThan(.0001)
+      }
+      const lowBeam = (model.getObjectByName('Light_Low_Beam_Left_0') as Mesh).material as MeshStandardMaterial
+      const highBeam = (model.getObjectByName('Light_High_Beam_Left_0') as Mesh).material as MeshStandardMaterial
+      const light = parts.find(part => part.id === 'headlamps')!
+      light.apply(1)
+      expect(lowBeam.emissiveIntensity).toBeGreaterThan(0)
+      expect(highBeam.emissiveIntensity).toBe(0)
+      light.apply(0)
+      expect(lowBeam.emissiveIntensity).toBe(0)
+    } finally { disposeVehicleModel(model) }
+  }, 15000,
+)

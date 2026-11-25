@@ -110,5 +110,77 @@
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
     "download": "https://cdn.jsdelivr.net/gh/pedrosoandre/carros@2d18dfd9db96bbf0d9cffa949deaf7f571388cbf/assets/toyota-hilux.glb",
     "sourceSha256": "231a8262217c1a16483d1558a79f2811ecec35d4cd0dc7ace959e4710db81c92"
+  },
+  {
+    "key": "toyota-corolla-2014",
+    "sha256": "0ed1a4aa573470938abe8d774ff3101c1c50c058a4cf75e0344b9d20dc51ecb9",
+    "title": "Toyota Corolla",
+    "author": "Armored Wave",
+    "source": "https://github.com/vevalabs/openx-assets/releases/tag/20261015",
+    "sourceFile": "vehicles/toyota_corolla_2014/toyota_corolla_2014.glb",
+    "license": "MPL-2.0 AND CC-BY-4.0"
+  },
+  {
+    "key": "volvo-v60-polestar-2013",
+    "sha256": "e61d16c47de8ea4372cede466702dbb4b02e8a94f7edc11c5b4baec335d9172f",
+    "title": "Volvo V60 Polestar",
+    "author": "myedsu",
+    "source": "https://github.com/vevalabs/openx-assets/releases/tag/20261015",
+    "sourceFile": "vehicles/volvo_v60_polestar_2013/volvo_v60_polestar_2013.glb",
+    "license": "MPL-2.0 AND CC-BY-4.0"
+  },
+  {
+    "key": "hyundai-tucson-2015",
+    "sha256": "c9d32c76d030ce2e03951ce951929c94dc68289c9b9b7a92553fdc46b0e82b5f",
+    "title": "Hyundai Tucson",
+    "author": "razor24",
+    "source": "https://github.com/vevalabs/openx-assets/releases/tag/20261015",
+    "sourceFile": "vehicles/hyundai_tucson_2015/hyundai_tucson_2015.glb",
+    "license": "MPL-2.0 AND CC-BY-4.0"
+  },
+  {
+    "key": "dacia-duster-2010",
+    "sha256": "20cb3429fa7e27b88d2b4c9aadedc368254796db825315e91560be7305bae95c",
+    "title": "Dacia Duster",
+    "author": "razor24",
+    "source": "https://github.com/vevalabs/openx-assets/releases/tag/20261015",
+    "sourceFile": "vehicles/dacia_duster_2010/dacia_duster_2010.glb",
+    "license": "MPL-2.0 AND CC-BY-4.0"
+  },
+  {
+    "key": "nissan-350z-2003",
+    "sha256": "ad0acb7f6fda4369e11aa94b20fa1a5c86198c1e575c52a242804a9213f741b9",
+    "title": "Nissan 350Z",
+    "author": "Blue3D",
+    "source": "https://github.com/vevalabs/openx-assets/releases/tag/20261015",
+    "sourceFile": "vehicles/nissan_350z_2003/nissan_350z_2003.glb",
+    "license": "MPL-2.0 AND CC-BY-4.0"
+  },
+  {
+    "key": "audi-tt-2014-roadster",
+    "sha256": "e2812287777b7e0aeda4aed869235bbcb6430c86465b78762d09ce0bd9281604",
+    "title": "Audi TT Roadster",
+    "author": "razor24",
+    "source": "https://github.com/vevalabs/openx-assets/releases/tag/20261015",
+    "sourceFile": "vehicles/audi_tt_2014_roadster/audi_tt_2014_roadster.glb",
+    "license": "MPL-2.0 AND CC-BY-4.0"
+  },
+  {
+    "key": "mitsubishi-delica-1986",
+    "sha256": "b6289c80686a68fb893066348378fa2e48ddb0a65d8eaf884d0fda6dcac639ec",
+    "title": "Mitsubishi Delica",
+    "author": "kekomag",
+    "source": "https://github.com/vevalabs/openx-assets/releases/tag/20261015",
+    "sourceFile": "vehicles/mitsubishi_delica_1986/mitsubishi_delica_1986.glb",
+    "license": "MPL-2.0 AND CC-BY-4.0"
+  },
+  {
+    "key": "gmc-hummer-2021",
+    "sha256": "95b2f4ac1151e3c40a47126f25330de9b8757e0b9b4910b4bd19e376e63c8c3c",
+    "title": "GMC Hummer EV",
+    "author": "Ajay Gawde",
+    "source": "https://github.com/vevalabs/openx-assets/releases/tag/20261015",
+    "sourceFile": "vehicles/gmc_hummer_2021/gmc_hummer_2021.glb",
+    "license": "MPL-2.0 AND CC-BY-4.0"
   }
 ]

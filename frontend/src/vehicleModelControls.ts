@@ -9,23 +9,29 @@ export type ModelControl = {
 }
 
 const frontLightMaterials: Record<string, string> = {
-  'ford-mustang': 'light', 'renault-megane': 'farcam', 'volkswagen-passat': 'vehiclelights128__spec',
-  'bmw-7-series-f01': 'Headlights_1', 'kia-carnival': 'Headlight.003', 'mercedes-benz-sprinter': 'Headlamp reflector',
-  'audi-tt': 'front_lamps', 'fiat-ducato': 'front_lamps', 'renault-duster': 'front_lamps',
+  'ford-mustang': 'light', 'bmw-7-series-f01': 'Headlights_1',
+  'mercedes-benz-sprinter': 'Headlamp reflector', 'fiat-ducato': 'front_lamps',
 }
 
-function headlamps(model: Group, materialName: string | undefined): ModelControl | undefined {
+function headlamps(model: Group, materialName: string | undefined, lowBeamsOnly = false): ModelControl | undefined {
   if (!materialName) return
   const bulbs = new Map<MeshStandardMaterial, MeshStandardMaterial['emissive']>()
+  const isolated = new Map<MeshStandardMaterial, MeshStandardMaterial>()
   const bounds = new Box3()
   model.traverse(object => {
     if (!(object instanceof Mesh)) return
+    if (lowBeamsOnly && !/^Light_Low_Beam_(Left|Right)_\d+$/.test(object.name)) return
     const materials = Array.isArray(object.material) ? object.material : [object.material]
-    for (const material of materials) {
-      if (!(material instanceof MeshStandardMaterial) || material.name !== materialName) continue
+    const updated = materials.map(original => {
+      if (!(original instanceof MeshStandardMaterial) || original.name !== materialName) return original
+      // OpenX reuses Lamp_White for other lights, including reverse lights.
+      const material = lowBeamsOnly ? isolated.get(original) ?? original.clone() : original
+      if (lowBeamsOnly) isolated.set(original, material)
       if (!bulbs.has(material)) bulbs.set(material, material.emissive.clone())
       bounds.expandByObject(object, true)
-    }
+      return material
+    })
+    if (lowBeamsOnly) object.material = Array.isArray(object.material) ? updated : updated[0]
   })
   if (bounds.isEmpty()) return
   const center = bounds.getCenter(new Vector3()), half = (bounds.max.z - bounds.min.z) / 2
@@ -71,7 +77,33 @@ function hinge(model: Group, id: string, label: string, parts: Object3D[], bound
   }
 }
 
+function openXControls(model: Group, root: Object3D, pickup: boolean): ModelControl[] {
+  const specs = [
+    ['Front_0', 'hood', 'Motorháztető', 0, Math.PI / 3.2],
+    ['Left_0', 'door-L', 'Bal ajtó', -Math.PI / 3.5, 0],
+    ['Right_0', 'door-R', 'Jobb ajtó', Math.PI / 3.5, 0],
+    ['Left_1', 'door-L-rear', 'Bal hátsó ajtó', -Math.PI / 3.5, 0],
+    ['Right_1', 'door-R-rear', 'Jobb hátsó ajtó', Math.PI / 3.5, 0],
+    ['Rear_0', 'trunk', pickup ? 'Platóajtó' : 'Csomagtartó', 0, pickup ? Math.PI / 2 : -Math.PI / 3.2],
+  ] as const
+  const controls: ModelControl[] = []
+  for (const [name, id, label, yaw, pitch] of specs) {
+    const part = root.getObjectByName(`Grp_Door_${name}`)
+    if (!part) continue
+    const bounds = new Box3().setFromObject(part, true)
+    if (bounds.isEmpty()) continue
+    const origin = part.getWorldPosition(new Vector3())
+    const axis = yaw === 0 ? new Vector3(0, 0, 1) : new Vector3(0, 1, 0)
+    controls.push(hinge(model, id, label, [part], bounds, origin, axis, yaw || pitch))
+  }
+  const lights = headlamps(model, 'Lamp_White', true)
+  if (lights) controls.push(lights)
+  return controls
+}
+
 export function vehicleModelControls(model: Group, key: string) {
+  const root = model.getObjectByName('Grp_Root')
+  if (root) return openXControls(model, root, key === 'gmc-hummer-2021')
   const controls: ModelControl[] = []
   if (key === 'ford-mustang') {
     const find = (name: string) => model.getObjectByName(`GT500${name}`)

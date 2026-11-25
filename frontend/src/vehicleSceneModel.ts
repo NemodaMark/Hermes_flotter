@@ -1,6 +1,5 @@
 import * as T from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { restorePassatWheels } from './vehicleModelRepairs'
 
 export type VehicleShape = { length: number; width: number; roof: number; frontAxle: number; rearAxle: number }
 
@@ -87,7 +86,7 @@ function applyGarageMaterials(source: T.Group, paintMaterials: readonly string[]
   })
 }
 
-export function prepareVehicleModel(source: T.Group, color: string, appearance: { key?: string; rotation: number; length: number; paintMaterials?: readonly string[] } = { rotation: Math.PI / 2, length: 4.8 }): { model: T.Group; shape: VehicleShape } {
+export function prepareVehicleModel(source: T.Group, color: string, appearance: { rotation: number; length: number; paintMaterials?: readonly string[] } = { rotation: Math.PI / 2, length: 4.8 }): { model: T.Group; shape: VehicleShape } {
   const model = new T.Group()
   model.name = 'HermesVehicle'
   // Assets have different forward axes; the studio always uses +X.
@@ -101,7 +100,6 @@ export function prepareVehicleModel(source: T.Group, color: string, appearance: 
   applyGarageMaterials(source, appearance.paintMaterials ?? ['Paint 1', 'Paint 2'])
   setVehiclePaint(model, color, appearance.paintMaterials)
   model.updateMatrixWorld(true)
-  if (appearance.key === 'volkswagen-passat') restorePassatWheels(model)
   return { model, shape: { length: appearance.length, width: size.z * scale, roof: size.y * scale + .025, frontAxle: appearance.length * .29, rearAxle: -appearance.length * .3 } }
 }
 
