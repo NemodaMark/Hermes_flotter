@@ -10,6 +10,8 @@ Az autós kezdőlapon a **Tankolás** és a **Km rögzítése** közvetlen műve
 
 A **Km rögzítése → Havi elszámolás** nézetben, illetve a kezdőlap **Továbbiak → Havi km-elszámolás** menüjében lehet személyes riportot vezetni. Az elszámolás autótól függetlenül, **cégenként és személyenként** összesít. Így több autó használata ugyanabba a keretbe tartozik.
 
+A felhasználói adatlapon az aktuális havi km-állás a kiválasztott céghez tartozik. A `mileage.record` joggal a saját, a `mileage.manage` joggal az adott cég másik felhasználójának elszámolása is megnyitható.
+
 A felhasználó választhat:
 
 - **Tételes rögzítés:** tankoláskor a szerver kiszámítja az elszámolható távolságot, a felhasználó csak a magánkilométert adja meg. Kilométeróra-állás rögzítésekor mindkét távolság megadható. A havi nézet utólagos tételeket is fogad, és automatikusan összesíti őket.
@@ -65,6 +67,7 @@ A meglévő végpontok bővítése:
 - `POST /api/v1/vehicles/{id}/fuel` — `fueledOn`, `kilometers`, `liters`, opcionális `isFullTank`, `automaticMileage: { totalKm, privateKm }`. Mentéskor a szerver újraszámolja a távolságot. A JSON és a multipart `data` + `file` formátum, valamint a korábbi `usage` és pénzügyi mezők továbbra is használhatók.
 - `PUT /api/v1/vehicles/{id}/fuel/{entry}` — `{ data, version, reason }`. A személyes km-tételt a havi elszámolásban lehet javítani.
 - `GET /api/v1/mileage/accounts`, `PUT /api/v1/mileage/accounts/{userId}`: kezelői név/keret/verzió lista, illetve keretbeállítás.
+- `GET /api/v1/mileage/months/current?userId=...` a cég időzónája szerinti aktuális hónap riportját adja a havi riport jogosultságaival.
 - `GET/PUT /api/v1/mileage/months/{yyyy-MM-01}?userId=...`: saját vagy jogosultan kiválasztott havi riport, mentés/zárás.
 - `PUT .../mode`: `{ mode: "Entries" | "Monthly", version }`.
 - `POST .../entries`, `PUT .../entries/{id}`, `POST .../entries/{id}/void`: tétel felvitele, javítása és érvénytelenítése; `monthVersion` és javításkor tétel-`version` + `reason` kötelező.

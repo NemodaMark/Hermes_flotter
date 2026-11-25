@@ -7,6 +7,8 @@ export type MileageReport = { userId: string; month: string; mode: MileageMode; 
 export type MileageUser = { userId: string; name: string; monthlyLimitKm: number | null; version: number }
 const monthUrl = (month: string, userId: string, suffix = '') => `/api/v1/mileage/months/${month}${suffix}?userId=${encodeURIComponent(userId)}`
 export const mileageApi = {
+  current: (tenantId: string, userId: string, signal?: AbortSignal) =>
+    request<MileageReport>(monthUrl('current', userId), { tenantId, signal }),
   read: (tenantId: string, userId: string, month: string, signal?: AbortSignal) => request<MileageReport>(monthUrl(month, userId), { tenantId, signal }),
   fuelPreview: (tenantId: string, vehicleId: string, date: string, kilometers: string, signal?: AbortSignal) => request<{ totalKm: number | null }>(
     `/api/v1/vehicles/${vehicleId}/fuel/mileage-preview?${new URLSearchParams({ date, kilometers })}`, { tenantId, signal }),

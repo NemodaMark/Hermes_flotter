@@ -114,7 +114,7 @@ public sealed partial class FleetManagement
     {
         if (!await db.Memberships.AnyAsync(x => x.TenantId == TenantId && x.UserSubject == user, ct)) throw Error(404, "mileage_user", "A céges felhasználó nem található.");
     }
-    private async Task<MileageReport> MileageReport(string user, DateOnly month, CancellationToken ct)
+    private async Task<MileageReport> MileageReport(string user, DateOnly month, CancellationToken ct, DateOnly? today = null)
     {
         var account = await db.MileageAccounts.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user, ct);
         var report = await db.MileageMonths.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user && x.Month == month, ct);
@@ -124,16 +124,18 @@ public sealed partial class FleetManagement
                 x.RecordedBy, x.RecordedAt, x.UpdatedBy, x.UpdatedAt)).ToArrayAsync(ct);
         return new(user, month, report?.Mode ?? account?.Mode ?? "Entries", report?.TotalKm ?? 0, report?.PrivateKm ?? 0,
             report?.LimitCaptured == true ? report.LimitKm : account?.MonthlyLimitKm, report?.Version ?? 0,
-            report?.SubmittedAt, report?.UpdatedBy, report?.UpdatedAt, await MileageLedger.Due(db, user, await CompanyToday(ct), ct), entries);
+            report?.SubmittedAt, report?.UpdatedBy, report?.UpdatedAt, await MileageLedger.Due(db, user, today ?? await CompanyToday(ct), ct), entries);
     }
-    public Task<MileageReport> ReadMileage(string? userId, DateOnly month, CancellationToken ct)
+    public Task<MileageReport> ReadMileage(string? userId, DateOnly? month, CancellationToken ct)
     {
         var user = userId ?? Actor;
         return Scoped(MileagePermission(user), async _ =>
         {
             await CheckMileageUser(user, ct);
-            MileageLedger.ValidateMonth(month, await CompanyToday(ct));
-            return await MileageReport(user, month, ct);
+            var today = await CompanyToday(ct);
+            var requested = month ?? MileageLedger.MonthOf(today);
+            MileageLedger.ValidateMonth(requested, today);
+            return await MileageReport(user, requested, ct, today);
         }, ct);
     }
     public Task<MileageUser[]> MileageUsers(CancellationToken ct) => Scoped(Permissions.MileageManage, async _ =>

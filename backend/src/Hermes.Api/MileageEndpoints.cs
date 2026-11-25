@@ -13,6 +13,8 @@ public static class MileageEndpoints
             .RequireAuthorization(Permissions.MileageManage);
         api.MapPut("/accounts/{userId}", async (string userId, MileageAccountInput body, FleetManagement fleet, CancellationToken ct)
             => Results.Ok(await fleet.SetMileageLimit(userId, body, ct))).RequireAuthorization(Permissions.MileageManage);
+        api.MapGet("/months/current", async (string? userId, FleetManagement fleet, CancellationToken ct)
+            => Results.Ok(await fleet.ReadMileage(userId, null, ct)));
         api.MapGet("/months/{month}", async (DateOnly month, string? userId, FleetManagement fleet, CancellationToken ct)
             => Results.Ok(await fleet.ReadMileage(userId, month, ct)));
         api.MapPut("/months/{month}/mode", async (DateOnly month, string? userId, MileageModeInput body, FleetManagement fleet, CancellationToken ct)

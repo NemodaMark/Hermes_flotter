@@ -37,11 +37,12 @@ function mount({
   forceOnVehicle = false,
   hash = '',
   noCompanies = false,
+  own = false,
   companyPermissions = Object.keys(permissionNames),
 } = {}) {
   if (hash) window.history.replaceState(null, '', hash)
   const session: Session = {
-    id: 'anna',
+    id: own ? initial.id : 'anna',
     displayName: 'Kovács Anna',
     email: 'anna@example.test',
     passwordChangeRequired: forced,
@@ -123,7 +124,12 @@ function mount({
           pageSize: 25,
         })
       if (url.pathname === `/api/v1/people/${initial.id}`)
-        return json({ person: state.profile, version: state.profile.version, canEdit: admin, canManageAccount: admin, vehicles: [] })
+        return json({ person: state.profile, version: state.profile.version, canEdit: admin || own, canManageAccount: admin, vehicles: [] })
+      if (url.pathname.startsWith('/api/v1/mileage/months/'))
+        return json({ userId: url.searchParams.get('userId'), month: '2026-10-01', mode: 'Entries', totalKm: 460, privateKm: 60,
+          monthlyLimitKm: 900, version: 2, submittedAt: null, updatedBy: null, updatedAt: null, dueMonth: null, entries: [] })
+      if (url.pathname === '/api/v1/mileage/accounts')
+        return json([{ userId: initial.id, name: initial.displayName, monthlyLimitKm: 900, version: 1 }])
       if (url.pathname === `/api/v1/members/${initial.id}`)
         return json({ userId: initial.id, displayName: initial.displayName, email: initial.email, isActive: true, version: 1, permissions: [], joinedAt: null, disabledAt: null })
       if (url.pathname === '/api/v1/system/users')
@@ -200,9 +206,11 @@ async function openProfile() {
       name: `Profil megnyitása: ${initial.email}`,
     }),
   )
-  await screen.findByDisplayValue(initial.displayName)
+  const profile = await screen.findByRole('region', { name: 'Felhasználói profil' })
+  await userEvent.click(await within(profile).findByRole('button', { name: 'Szerkesztés' }))
+  await within(profile).findByDisplayValue(initial.displayName)
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  return screen.getByRole('region', { name: 'Felhasználói profil' })
+  return profile
 }
 
 it('requires the password change before the workspace or an invitation can be used', async () => {
@@ -295,16 +303,16 @@ it('requires a deliberate confirmation before forcing a password change or grant
   })
 })
 
-it('separates the three profile panels, supports keyboard navigation and retains drafts across security changes', async () => {
-  const { calls } = mount()
+it('separates the profile panels, supports keyboard navigation and retains drafts across security changes', async () => {
+  const { calls } = mount({ companyPermissions: [...Object.keys(permissionNames), 'mileage.manage'] })
   const page = await openProfile()
-  expect(within(page).getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Profiladatok', 'Céges hozzáférések', 'Fiókbiztonság'])
+  expect(within(page).getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Profiladatok', 'Havi km-elszámolás', 'Céges hozzáférések', 'Fiókbiztonság'])
   expect(within(page).getByRole('tabpanel', { name: 'Profiladatok' })).toBeVisible()
   expect(within(page).queryByRole('button', { name: 'Kötelező jelszócsere elrendelése' })).not.toBeInTheDocument()
   await userEvent.clear(within(page).getByLabelText('Teljes név'))
   await userEvent.type(within(page).getByLabelText('Teljes név'), 'Megkezdett szerkesztés')
   within(page).getByRole('tab', { name: 'Profiladatok' }).focus()
-  await userEvent.keyboard('{ArrowRight}')
+  await userEvent.keyboard('{ArrowRight}{ArrowRight}')
   expect(within(page).getByRole('tab', { name: 'Céges hozzáférések' })).toHaveFocus()
   expect(within(page).getByRole('tabpanel', { name: 'Céges hozzáférések' })).toBeVisible()
   expect(within(page).queryByRole('button', { name: 'Profil mentése' })).not.toBeInTheDocument()
@@ -333,13 +341,41 @@ it('cancels an unconfirmed security operation when leaving its tab', async () =>
 })
 
 it('does not expose account or company management tabs or fetch private account data for a colleague viewer', async () => {
-  const { calls } = mount({ admin: false, companyPermissions: [], hash: `#/profile/${initial.id}` })
+  const { calls } = mount({ admin: false, companyPermissions: ['mileage.record'], hash: `#/profile/${initial.id}` })
   const tabs = await screen.findByRole('tablist', { name: 'Felhasználói adatlap részei' })
   expect(within(tabs).getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Profiladatok'])
   expect(screen.queryByRole('tab', { name: 'Céges hozzáférések' })).not.toBeInTheDocument()
   expect(screen.queryByRole('tab', { name: 'Fiókbiztonság' })).not.toBeInTheDocument()
   expect(calls.some(call => call.path.startsWith('/api/v1/system/'))).toBe(false)
   expect(calls.some(call => call.path.startsWith('/api/v1/members/'))).toBe(false)
+  expect(calls.some(call => call.path.startsWith('/api/v1/mileage/'))).toBe(false)
+})
+
+it('shows the current company mileage and opens the report for the signed-in person', async () => {
+  const { calls } = mount({ own: true, admin: false, companyPermissions: ['mileage.record'], hash: `#/profile/${initial.id}` })
+  const summary = await screen.findByRole('region', { name: 'Aktuális havi km-állás' })
+  await within(summary).findByText('440 km')
+  expect(within(summary).getByText('400 km')).toBeVisible()
+  expect(within(summary).getByText('60 km')).toBeVisible()
+  expect(within(summary).getByRole('progressbar')).toHaveAttribute('value', '460')
+  expect(screen.queryByLabelText('Teljes név')).not.toBeInTheDocument()
+  await userEvent.click(within(summary).getByRole('button', { name: 'Elszámolás megnyitása' }))
+  expect(await screen.findByRole('button', { name: 'Km-tétel hozzáadása' })).toBeVisible()
+  expect(screen.getByLabelText('Elszámolási hónap')).toHaveValue('2026-10')
+  expect(calls.filter(call => call.path.startsWith('/api/v1/mileage/')).map(call => call.path)).toEqual([
+    '/api/v1/mileage/months/current?userId=kiss.eszter',
+    '/api/v1/mileage/months/2026-10-01?userId=kiss.eszter',
+  ])
+})
+
+it('opens the selected colleague’s mileage for a company mileage manager', async () => {
+  const { calls } = mount({ admin: false, companyPermissions: ['mileage.manage'], hash: `#/profile/${initial.id}` })
+  await userEvent.click(await screen.findByRole('tab', { name: 'Havi km-elszámolás' }))
+  expect(await screen.findByText('Személyes havi km-keret beállítása')).toBeInTheDocument()
+  expect(screen.queryByRole('combobox', { name: 'Felhasználó' })).not.toBeInTheDocument()
+  const reports = calls.filter(call => call.path.startsWith('/api/v1/mileage/months/'))
+  expect(reports).toHaveLength(2)
+  expect(reports.every(call => new URL(call.path, 'https://hermes.test').searchParams.get('userId') === initial.id)).toBe(true)
 })
 
 it('keeps stale profile edits unsaved and explicitly reloads the fresh revision', async () => {

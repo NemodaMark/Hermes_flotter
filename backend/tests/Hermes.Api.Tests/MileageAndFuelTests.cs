@@ -72,6 +72,32 @@ public sealed partial class PermissionManagementTests
     }
 
     [Fact]
+    public async Task Current_mileage_report_keeps_self_manager_and_company_boundaries()
+    {
+        using var owner = await Register(); using var driver = await Register(); using var colleague = await Register(); using var outsider = await Register();
+        var company = await Company(owner); var other = await Company(outsider);
+        await Join(owner, driver, company.Id, Permissions.MileageRecord);
+        await Join(owner, colleague, company.Id, Permissions.VehiclesRead);
+        const string url = "/api/v1/mileage/months/current";
+        var own = await ScopeOk<MileageReport>(await driver.Client.GetAsync(url));
+        Assert.Equal(driver.User.Id, own.UserId);
+        Assert.Equal(1, own.Month.Day);
+        var entry = new MileageEntryInput(own.Month, 145, 30, MonthVersion: own.Version);
+        await ScopeOk<MileageReport>(await driver.Client.PostAsJsonAsync(MileageUrl(own.Month) + "/entries", entry));
+
+        var driverReport = url + "?userId=" + driver.User.Id;
+        var managed = await ScopeOk<MileageReport>(await owner.Client.GetAsync(driverReport));
+        Assert.Equal(own.Month, managed.Month);
+        Assert.Equal(145, managed.TotalKm);
+        Assert.Equal(30, managed.PrivateKm);
+        Assert.Equal(HttpStatusCode.Forbidden, (await colleague.Client.GetAsync(driverReport)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await colleague.Client.GetAsync(url)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.Client.GetAsync(url + "?userId=" + outsider.User.Id)).StatusCode);
+        Select(driver, other.Id);
+        Assert.Equal(HttpStatusCode.Forbidden, (await driver.Client.GetAsync(url)).StatusCode);
+    }
+
+    [Fact]
     public async Task Dashboard_mileage_chart_separates_selected_people_and_enforces_mileage_and_company_access()
     {
         using var owner = await Register(); using var first = await Register(); using var second = await Register();

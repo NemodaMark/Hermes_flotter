@@ -26,10 +26,13 @@ export function MileagePanel(props: { tenant: Tenant; user: Session; initialMont
     {tab === 'km' && ledger ? <MileageLedgerPanel {...props} /> : settlement ? <Suspense fallback={<p role="status">Elszámolás betöltése…</p>}><FuelSettlementPanel {...props} /></Suspense> : <p>Nincs elszámolási jogosultságod.</p>}
   </>
 }
-function MileageLedgerPanel({ tenant, user, initialMonth }: { tenant: Tenant; user: Session; initialMonth?: string }) {
+export function MileageLedgerPanel({ tenant, user, initialMonth, latestMonth, subjectId }: {
+  tenant: Tenant; user: Session; initialMonth?: string; latestMonth?: string; subjectId?: string
+}) {
   const client = useQueryClient()
   const [month, setMonth] = useState(initialMonth ?? mileageMonth(localMileageDate()))
-  const [userId, setUserId] = useState(user.id)
+  const [selectedUserId, setSelectedUserId] = useState(user.id)
+  const userId = subjectId ?? selectedUserId
   const manage = tenant.permissions.includes('mileage.manage')
   const accounts = useQuery({ queryKey: ['mileage', tenant.id, 'accounts'], queryFn: ({ signal }) => mileageApi.users(tenant.id, signal), enabled: manage, retry: false })
   const report = useQuery({ queryKey: ['mileage', tenant.id, userId, month], queryFn: ({ signal }) => mileageApi.read(tenant.id, userId, month, signal), retry: false })
@@ -39,15 +42,15 @@ function MileageLedgerPanel({ tenant, user, initialMonth }: { tenant: Tenant; us
   }
   return <section className="mileage-panel" aria-label="Havi km-elszámolás">
     <div className="mileage-toolbar">
-      <label className="org-field"><span>Elszámolási hónap</span><input type="month" value={month.slice(0, 7)} max={localMileageDate().slice(0, 7)} min="1900-01" onChange={e => { if (e.target.value) { setMonth(e.target.value + '-01'); setMessage('') } }} /></label>
-      {manage && accounts.data && <label className="org-field"><span>Felhasználó</span><Select value={userId} onChange={e => { setUserId(e.target.value); setMessage('') }}>
+      <label className="org-field"><span>Elszámolási hónap</span><input type="month" value={month.slice(0, 7)} max={(latestMonth ?? localMileageDate()).slice(0, 7)} min="1900-01" onChange={e => { if (e.target.value) { setMonth(e.target.value + '-01'); setMessage('') } }} /></label>
+      {manage && !subjectId && accounts.data && <label className="org-field"><span>Felhasználó</span><Select value={userId} onChange={e => { setSelectedUserId(e.target.value); setMessage('') }}>
         {accounts.data.map(person => <option key={person.userId} value={person.userId}>{person.name}</option>)}
       </Select></label>}
     </div>
     <QueryMessage pending={report.isPending} error={report.error} retry={() => void report.refetch()} />
     {accounts.error && <p className="form-error" role="alert">{accounts.error.message}</p>}
     {message && <p className="notice" role="status">{message}</p>}
-    {report.data && <MileageMonthEditor key={`${userId}:${month}:${report.data.version}`} tenant={tenant} report={report.data}
+    {report.data && !report.isError && <MileageMonthEditor key={`${userId}:${month}:${report.data.version}`} tenant={tenant} report={report.data}
       account={manage ? accounts.data?.find(person => person.userId === userId) : undefined} onChanged={changed} onMessage={setMessage} onDue={setMonth} />}
   </section>
 }
